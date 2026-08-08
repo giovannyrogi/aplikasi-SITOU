@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+# hris_perumda_postgresql.sql
+/uploads/*
 
 # debug
 npm-debug.log*
