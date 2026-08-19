@@ -1,361 +1,389 @@
-# Master Plan Sistem dan Database HRIS Perumda Pasar Manado
+# AGENTS.md - SITOU
 
-> Dokumen ini menjadi sumber aturan proyek untuk developer dan AI/Codex. Jika implementasi berbeda dari dokumen ini, perubahan harus disetujui dan dicatat melalui migration serta pembaruan dokumen.
+Dokumen ini adalah aturan kerja utama untuk developer dan Codex pada proyek **SITOU - Sistem Informasi Tenaga Operasional Unit**. Berlaku untuk seluruh folder proyek, kecuali ada `AGENTS.md` yang lebih spesifik di subfolder. Jika implementasi berbeda dari dokumen ini, perubahan harus dicatat melalui migration, test, dan pembaruan dokumentasi.
 
-## 1. Hasil utama
+## 1. Tujuan produk saat ini
 
-Skema dirancang sebagai aplikasi HRIS **multi-perusahaan (multi-tenant)** untuk PostgreSQL 18. Superadmin mengelola perusahaan, paket langganan, dan masa aktif setiap lokasi; admin HRD hanya mengelola tenant yang ditugaskan; Direksi memperoleh akses baca sesuai izin; karyawan mengelola profil dan pengajuan miliknya sendiri.
+Bangun dashboard HRIS multi-perusahaan yang stabil untuk:
 
-Desain memisahkan data yang bersifat **master**, **transaksi**, dan **histori**. Jabatan, lokasi, kontrak, penempatan, surat peringatan, serta absensi tidak ditimpa ketika berubah. Pendekatan ini penting agar Direksi dapat melihat kondisi saat ini sekaligus riwayat lengkap pegawai.
+- Superadmin membuat perusahaan, lokasi awal, akun HRD, dan cakupan akses.
+- HRD mengelola seluruh profil, kontrak, penempatan, rolling, izin, absensi, dokumen, dan tindakan disiplin.
+- Pimpinan memantau data dan histori pegawai tanpa mengubah administrasi HRD.
+- Karyawan disiapkan sebagai role self-service untuk aplikasi web/mobile lanjutan.
+- Absensi tahap awal masuk melalui import Excel/CSV dan koreksi HRD; mobile attendance dikembangkan setelah dashboard stabil.
 
-File implementasi: `hris_perumda_postgresql.sql`.
+Jangan membangun payroll, pengenalan wajah, atau keputusan sanksi otomatis kecuali ada permintaan dan aturan baru yang disetujui.
 
-## 2. Prinsip rancangan
+## 2. Stack dan struktur yang diharapkan
 
-1. Semua data bisnis terkait tenant mempunyai `organization_id` secara langsung atau melalui pegawai.
-2. Primary key seluruh tabel memakai BIGINT GENERATED ALWAYS AS IDENTITY agar menghasilkan ID numerik berurutan. Identitas event eksternal mobile memakai token teks terpisah untuk idempotensi.
-3. NIK, NIP, nomor telepon, BPJS, dan nomor dokumen memakai teks, bukan angka.
-4. Umur dan masa kerja tidak disimpan karena berubah terhadap waktu; keduanya dihitung dari `birth_date`, `joined_date`, atau histori kontrak.
-5. Riwayat penempatan/jabatan memakai periode `start_date`–`end_date`.
-6. Absensi menyimpan event mentah dan ringkasan harian secara terpisah sehingga aturan perhitungan dapat diubah tanpa kehilangan bukti asli.
-7. `client_event_id` membuat sinkronisasi mobile idempotent: pengiriman ulang tidak menghasilkan absensi ganda.
-8. Pada versi awal, dokumen disimpan di folder privat `uploads/`; database hanya menyimpan path relatif `file_key` dan metadata, bukan byte file. Kontrak API harus memungkinkan pemindahan ke object storage kelak tanpa mengubah tabel bisnis.
-9. Data sensitif dilindungi dengan izin granular dan semua perubahan penting dicatat di `audit_logs`.
-10. Kolom `jsonb` hanya untuk metadata/integrasi tambahan, bukan sebagai pengganti struktur relasional inti.
+- Web/API: Next.js versi stabil dengan App Router dan TypeScript strict.
+- Database: PostgreSQL 18.
+- Validasi: schema bersama untuk request API, form, import, dan environment.
+- File: penyimpanan privat melalui service abstraction; database hanya menyimpan metadata `stored_files`.
+- Background job: antrean untuk import, rekap, indikator, export, notifikasi, dan outbox.
+- Mobile: memakai API versi yang sama; tidak mengakses PostgreSQL secara langsung.
 
-## 3. Kelompok tabel dan fungsinya
+Pisahkan lapisan berikut:
 
-| Kelompok | Tabel | Fungsi |
-|---|---|---|
-| Tenant | `organizations` | Perusahaan/organisasi, masa aktif, status, zona waktu, konfigurasi. |
-| Komersial | `subscription_plans`, `organization_subscriptions`, `location_licenses` | Paket aplikasi, masa langganan tenant, batas fitur, dan aktivasi setiap lokasi. |
-| Organisasi | `locations`, `org_units`, `positions` | Cabang/unit pasar/lokasi; struktur divisi bertingkat; master jabatan. |
-| Akses | `users`, `roles`, `permissions`, `role_permissions`, `user_organization_roles` | Login dan RBAC per perusahaan. Role Direksi ditambahkan karena kebutuhannya berbeda dari admin HRD dan staff. |
-| Pegawai | `employees`, `employee_contacts` | Profil inti dan kontak/alamat pegawai. |
-| Keluarga | `employee_dependents`, `employee_emergency_contacts` | Pasangan, anak, tanggungan, dan kontak darurat. |
-| Kompetensi | `education_levels`, `employee_educations` | Pendidikan terakhir dan histori pendidikan. |
-| Identitas | `employee_identifiers`, `employee_social_accounts`, `employee_documents` | BPJS/NPWP, media sosial, serta dokumen pegawai. |
-| Hubungan kerja | `employment_types`, `employment_contracts` | Jenis pegawai dan seluruh periode kontrak PKWT/PHL/THL/dll. |
-| Histori organisasi | `employee_assignments` | Riwayat jabatan, divisi, lokasi, mutasi, pelaksana tugas, dan atasan. |
-| Disiplin | `disciplinary_action_types`, `disciplinary_actions` | SP1/SP2/SP3, masa berlaku, dokumen, pencabutan, dan status. |
-| Absensi | `work_shifts`, `employee_shift_schedules`, `attendance_devices`, `attendance_events`, `attendance_daily_summaries` | Shift, jadwal, sumber absensi, event mobile/device, dan rekap dashboard. |
-| Cuti/izin | `leave_types`, `leave_balances`, `leave_requests`, `leave_request_attachments`, `leave_approvals` | Jenis izin, saldo, permohonan, surat dokter, dan alur persetujuan. |
-| Tata kelola | `audit_logs`, `integration_outbox` | Jejak perubahan dan integrasi asinkron dengan mobile/sistem lain. |
+1. `domain`: aturan bisnis murni dan tipe.
+2. `application`: use case/transaksi.
+3. `infrastructure`: database, storage, queue, email, dan integrasi.
+4. `interfaces`: route handler, server action, worker, dan UI.
 
-## 4. Pemetaan seluruh kolom Excel
+Route handler tidak boleh berisi query dan aturan bisnis panjang. Gunakan service/use case.
 
-| Kolom/sumber Excel | Tujuan database | Catatan |
-|---|---|---|
-| Unit pasar pada Sheet1 | `locations.name` | Angka responden/belum merespon adalah laporan sementara, bukan data induk pegawai. |
-| JABATAN | `positions.name` + `employee_assignments.position_id` | Jabatan aktif dan histori dipisahkan. |
-| JUMLAH PERSONIL | Query `COUNT(*)` | Tidak disimpan untuk menghindari ketidaksesuaian data. |
-| NAMA PERSONIL | `employees.full_name` | Nama utama pegawai. |
-| NIP | `employees.employee_no` | Bertipe teks. |
-| BPJS Kesehatan | `employee_identifiers` tipe `bpjs_health` | Mendukung lebih dari satu jenis identitas. |
-| BPJS TK / BPJS TK BSU | `employee_identifiers` tipe `bpjs_employment` | Label BSU tetap bisa dicatat di metadata/catatan migrasi. |
-| T.M.T | `employees.joined_date`, `employment_contracts.start_date`, atau `employee_assignments.start_date` | Makna harus dipilih saat migrasi sesuai konteks sheet. |
-| AWAL PKWT / AKHIR PKWT | `employment_contracts.start_date/end_date` | Riwayat perpanjangan menjadi baris baru. |
-| MASA KERJA | Dihitung dengan `age(current_date, joined_date)` | Tidak disimpan. |
-| T.T.L | `employees.birth_place` + `employees.birth_date` | Data sumber perlu dipecah dan dinormalisasi karena formatnya beragam. |
-| UMUR | Dihitung dari `birth_date` | Tidak disimpan. |
-| GENDER | `employees.gender` | Nilai PRIA/WANITA dipetakan ke `male/female`. |
-| NO HP/WA | `employee_contacts.phone/whatsapp` | Bertipe teks. |
-| NIK | `employees.national_id` | Unique dalam satu perusahaan; bertipe teks. |
-| ALAMAT | `employee_contacts.address` dan komponen wilayah opsional | Data lama dapat tetap masuk ke alamat lengkap terlebih dahulu. |
-| PENDIDIKAN TERAKHIR | `employee_educations` + `education_levels` | Bisa menyimpan institusi dan jurusan pada tahap berikutnya. |
-| AGAMA | `employees.religion` | Teks fleksibel agar tidak mengunci daftar terlalu dini. |
-| STATUS | `employees.marital_status` | Normalisasi KAWIN/MENIKAH dan BELUM KAWIN/BELUM MENIKAH saat impor. |
-| JUMLAH SUAMI/ISTRI | Hasil `COUNT(employee_dependents)` relasi `spouse` | Idealnya data pasangan per individu, bukan hanya jumlah. |
-| JUMLAH ANAK | Hasil `COUNT(employee_dependents)` relasi `child` | Tetap bisa diimpor sebagai catatan sementara jika nama belum tersedia. |
-| AKUN MEDIA SOSIAL | `employee_social_accounts` | Satu pegawai dapat memiliki beberapa akun/platform. |
-| JABATAN SEBELUMNYA | Baris historis di `employee_assignments` | Jangan disimpan sebagai satu kolom teks permanen. |
-| TANGGAL PINDA TUGAS | Batas `end_date/start_date` antar-penugasan | Menjadi tanggal efektif mutasi. |
-| KET. PHL/DRIVER | `employment_types` dan/atau `positions` | PHL adalah jenis hubungan kerja; DRIVER adalah jabatan. |
+## 3. Sumber kebenaran data
 
-Sheet yang diperiksa: `Sheet1`, `STRUKTUR`, `PHL`, `PKWT`, `TENAGA TEKNIS`, dan `STAF KHUSUS`.
+- Skema referensi: `sitou_schema_v3.sql`.
+- Perubahan database hanya melalui migration baru; jangan mengedit database produksi manual.
+- Event absensi mentah bersifat append-only.
+- `attendance_daily_summaries` adalah hasil olahan dan boleh dihitung ulang.
+- Lokasi/divisi/jabatan aktif berasal dari `employee_assignments`, bukan kolom duplikat pada `employees`.
+- Riwayat kontrak dan penempatan tidak boleh ditimpa.
+- File bersifat privat; `object_key` tidak pernah dikirim mentah ke browser.
 
-## 5. Penjelasan kolom standar
+## 4. Aturan multi-tenant wajib
 
-Kolom berikut berulang pada banyak tabel:
+1. Setiap tabel bisnis tenant memiliki `organization_id` langsung.
+2. Setiap query bisnis wajib memfilter `organization_id` dari session server, bukan dari body yang dipercaya begitu saja.
+3. Foreign key lintas tabel tenant memakai pasangan `(organization_id, id)` bila tersedia.
+4. Jangan menerima `organization_id` klien tanpa mencocokkannya dengan membership aktif.
+5. Superadmin platform boleh lintas tenant hanya pada use case yang eksplisit dan diaudit.
+6. Job, export, import, cache key, nama objek file, dan log juga harus membawa tenant.
+7. Test wajib membuktikan user tenant A tidak dapat membaca atau mengubah tenant B.
 
-| Kolom | Fungsi |
-|---|---|
-| `id` | Identitas numerik berurutan dari PostgreSQL IDENTITY. |
-| `organization_id` | Pembatas tenant/perusahaan. Wajib menjadi filter setiap query bisnis. |
-| `code` | Kode singkat yang stabil untuk integrasi dan URL internal. |
-| `is_active` | Menonaktifkan master tanpa menghapus histori. |
-| `active_from`, `active_until` | Masa berlaku perusahaan/lokasi/unit. |
-| `created_at`, `updated_at` | Waktu pembuatan dan perubahan data. |
-| `created_by`, `uploaded_by`, `verified_by` | Akun pelaku tindakan. |
-| `start_date`, `end_date` | Periode berlakunya kontrak/penempatan. `end_date NULL` berarti masih aktif. |
-| `status` | Tahap proses atau keadaan record. |
-| `document_id` | Referensi ke dokumen pendukung. |
-| `metadata`/`settings` | Atribut tambahan untuk integrasi/konfigurasi yang belum layak menjadi kolom inti. |
+Contoh pola service:
 
-Komentar teknis juga sudah dimasukkan langsung ke SQL untuk tabel/kolom yang membutuhkan penegasan.
-
-## 6. Koreksi terhadap rancangan role awal
-
-Tiga role `superadmin`, `admin`, dan `staff` belum cukup untuk kebutuhan yang dijelaskan. Direksi sebaiknya menjadi role tersendiri (`director`) dengan izin baca data pegawai, laporan absensi, histori jabatan/penempatan, dan status tindakan disiplin, tanpa otomatis memperoleh hak mengubah data HRD.
-
-Jangan menuliskan logika hanya berdasarkan nama role di kode Next.js. Gunakan permission seperti `employee.read`, `employee.update`, `attendance.read`, `discipline.read`, dan `leave.approve`, lalu hubungkan permission ke role. Dengan demikian hak Direksi atau HRD dapat disesuaikan tanpa migrasi database.
-
-## 7. Catatan keamanan dan implementasi Next.js
-
-- Semua query tenant harus menyertakan `organization_id`; pertimbangkan PostgreSQL Row-Level Security pada fase produksi setelah pola koneksi aplikasi ditetapkan.
-- NIK, BPJS, alamat, surat dokter, dan dokumen disiplin merupakan data sensitif. Batasi respons API berdasarkan field, bukan hanya halaman UI.
-- Simpan password memakai Argon2id/bcrypt di aplikasi atau gunakan penyedia autentikasi; jangan pernah menyimpan password biasa.
-- Gunakan folder `uploads/` yang privat melalui API terotorisasi pada tahap awal; pertahankan storage abstraction agar dapat dipindahkan ke object storage privat kemudian.
-- Validasi MIME type, ukuran, dan malware pada upload.
-- Audit perubahan data pegawai, role, penempatan, SP, koreksi absensi, dan keputusan cuti.
-- Gunakan transaksi database saat mengganti penempatan: tutup penempatan lama dan buat penempatan baru dalam satu transaksi.
-- API web dan mobile sebaiknya memakai service layer yang sama. Next.js tidak boleh menganggap event absensi selalu datang berurutan atau hanya sekali.
-- Tanggal/waktu absensi memakai `timestamptz`; tanggal lahir dan tanggal kontrak memakai `date`.
-
-## 8. Urutan implementasi yang disarankan
-
-1. Tenant, struktur organisasi, user, dan RBAC.
-2. Profil pegawai, kontak, identitas, pendidikan, keluarga, dan dokumen.
-3. Kontrak, jabatan, penempatan, dan histori mutasi.
-4. SP/tindakan disiplin serta dashboard Direksi.
-5. Cuti dan izin beserta upload dan approval.
-6. Shift, jadwal, absensi web/import, lalu event mobile.
-7. Audit, notifikasi, integrasi, dan penguatan Row-Level Security.
-
-## 9. Hal yang perlu diputuskan sebelum migrasi data
-
-- Definisi pasti T.M.T pada setiap sheet: tanggal masuk perusahaan, tanggal mulai kontrak, atau tanggal mulai jabatan.
-- Apakah unit pasar diperlakukan sebagai `location`, `org_unit`, atau keduanya. Saran: pasar sebagai lokasi, sedangkan organisasi pengelolanya sebagai unit.
-- Aturan masa berlaku SP1/SP2/SP3 dan alur banding/pencabutan.
-- Jenis cuti/izin, kuota tahunan, urutan approver, serta kapan surat dokter wajib.
-- Apakah seorang pegawai dapat memiliki lebih dari satu penempatan aktif (misalnya pelaksana tugas tambahan).
-- Kebijakan akses Direksi terhadap NIK, alamat, BPJS, dan dokumen medis; data yang tidak dibutuhkan sebaiknya dimasking.
-
-## 10. Arsitektur aplikasi
-
-### 10.1 Teknologi
-
-- Next.js full-stack dengan TypeScript strict untuk frontend, route handler/server action, dan service layer.
-- PostgreSQL 18 sebagai satu-satunya sumber kebenaran data bisnis.
-- ORM boleh Prisma atau Drizzle, tetapi SQL pada file pendamping adalah kontrak domain. Setiap perubahan wajib dibuat sebagai migration yang dapat direview.
-- Aplikasi web responsive adalah tahap pertama. API dan service layer tidak boleh bergantung pada tampilan web agar kelak dapat dipakai aplikasi mobile.
-- Gunakan satu zona waktu tenant pada `organizations.timezone`; simpan timestamp sebagai `timestamptz` dan tampilkan sesuai tenant.
-
-### 10.2 Lapisan wajib
-
-1. **UI/component layer**: hanya presentasi, state tampilan, dan validasi kenyamanan pengguna.
-2. **Route/API layer**: autentikasi, parsing input, rate limit, dan serialisasi respons.
-3. **Service/domain layer**: aturan HRIS, otorisasi, transaksi, dan audit.
-4. **Repository/data layer**: query terparameterisasi dan selalu tenant-scoped.
-5. **Storage layer**: validasi dan akses file melalui API, tidak pernah melalui static public directory.
-
-Komponen UI dilarang mengakses database secara langsung. Route handler juga tidak boleh menaruh aturan bisnis kompleks; panggil service yang dapat diuji.
-
-## 11. Role dan izin
-
-| Role awal | Batas akses |
-|---|---|
-| `superadmin` | Mengelola tenant, admin tenant, paket, langganan, aktivasi lokasi, serta konfigurasi platform. Tidak otomatis membaca dokumen medis kecuali ada izin eksplisit. |
-| `admin` | HRD tenant: data pegawai, struktur, kontrak, penempatan, SP, jadwal, absensi, cuti, dan laporan pada tenant sendiri. |
-| `director` | Membaca dashboard dan profil yang diizinkan, absensi, jabatan, histori penempatan, dan status SP. Tidak boleh mengubah data HRD secara default. |
-| `staff` | Melihat data sendiri, mengusulkan perubahan profil, mengajukan cuti/izin, mengunggah lampiran, serta melihat histori sendiri. |
-
-AI wajib menggunakan permission granular, bukan pemeriksaan nama role yang tersebar. Contoh permission: `employee.read`, `employee.write`, `employee.sensitive.read`, `attendance.read`, `attendance.correct`, `assignment.write`, `discipline.read`, `discipline.write`, `leave.request`, `leave.approve`, `subscription.manage`.
-
-## 12. Aturan tenant, langganan, dan masa aktif
-
-- Setiap permintaan setelah login harus mempunyai konteks tenant yang tervalidasi dari keanggotaan server-side; jangan percaya `organization_id` dari browser.
-- Semua query data tenant wajib difilter tenant. ID numerik yang valid tetap tidak boleh diakses bila berasal dari tenant lain.
-- Tenant dapat digunakan hanya bila organisasi aktif dan langganan berada pada status `trial`, `active`, atau `grace` serta belum melewati batas waktunya.
-- Fitur berbasis lokasi juga memerlukan `location_licenses` aktif. Menonaktifkan lokasi tidak menghapus pegawai atau histori.
-- Masa aktif baru dicatat sebagai baris langganan/lisensi baru. Jangan menimpa histori pembayaran atau aktivasi lama.
-- Batas `max_locations` dan `max_employees` diperiksa di backend dalam transaksi sebelum insert.
-- Ketika langganan berakhir, default-nya akses menjadi read-only untuk admin tenant selama grace period; kebijakan final harus dapat dikonfigurasi.
-
-## 13. Aturan upload dan API file
-
-Struktur yang disarankan:
-
-```text
-uploads/
-  organizations/{organizationId}/
-    employees/{employeeId}/photos/
-    employees/{employeeId}/documents/
-    leave-requests/{leaveRequestId}/
-    disciplinary-actions/{disciplinaryActionId}/
+```ts
+await db.transaction(async (tx) => {
+  const actor = await requireTenantPermission(tx, session, organizationId, "employees.update");
+  await employeeRepository.update(tx, { organizationId, employeeId, input, actorId: actor.userId });
+});
 ```
+
+## 5. Role dan permission
+
+### Superadmin
+
+- Mengelola tenant, lokasi awal, akun admin/HRD, masa aktif, dan konfigurasi platform.
+- Tidak otomatis menjadi HRD tenant; gunakan aksi lintas tenant yang eksplisit.
+
+### HRD
+
+- CRUD data pegawai dan master tenant.
+- Mengelola kontrak, penempatan, shift, absensi, izin, dokumen, kasus, dan sanksi.
+- Menjadi satu-satunya approver cuti/izin.
+- Mengunggah dokumen sanksi dan mengubah status tindakan.
+
+### Pimpinan
+
+- Read-only untuk dashboard, profil, penempatan, absensi, kontrak, indikator, dan histori sanksi sesuai permission/cakupan lokasi.
+- Tidak dapat mengubah profil HRD, memutus izin, atau menerbitkan sanksi melalui sistem.
+- Dokumen dan data sangat sensitif memerlukan permission khusus.
+
+### Karyawan
+
+- Tahap sekarang dapat dibuat tanpa akun aktif.
+- Tahap mobile/web lanjutan: melihat data sendiri, absensi, mengajukan izin/cuti, dan mengunggah lampiran.
+- Tidak pernah boleh memilih `employee_id` milik orang lain.
+
+Semua aksi diperiksa di backend. Menyembunyikan tombol di frontend bukan kontrol keamanan.
+
+## 6. Struktur perusahaan, cabang, dan divisi
+
+- `organizations`: perusahaan/tenant.
+- `locations`: kantor pusat, cabang, unit pasar, site, gudang.
+- `organization_units`: direktorat, divisi, departemen, unit, tim.
+- `organization_unit_locations`: menghubungkan banyak divisi ke satu cabang dan satu divisi ke beberapa lokasi.
+- `employee_assignments`: lokasi + unit + jabatan + atasan pada suatu periode.
+
+Rolling/mutasi harus dilakukan dalam satu transaksi:
+
+1. Lock penempatan utama aktif pegawai.
+2. Tutup `effective_until` lama satu hari sebelum tanggal efektif baru.
+3. Insert baris penempatan baru.
+4. Validasi unit memang tersedia pada lokasi atau minta override berizin.
+5. Tulis audit log dan outbox.
+
+Dilarang mengubah lokasi/divisi pada baris lama untuk merepresentasikan mutasi.
+
+## 7. Shift dan jadwal
+
+Gunakan empat jenis shift:
+
+- `fixed`: jam masuk/pulang pasti, misalnya 09.00-17.00.
+- `flexible`: jendela masuk dan durasi kerja minimum; keterlambatan hanya dinilai bila kebijakan mendefinisikannya.
+- `field`: tenaga lapangan; utamakan durasi/kehadiran dan lokasi yang diizinkan.
+- `off`: libur.
+
+Aturan pola dapat ditempel pada pegawai, divisi, atau lokasi. Prioritas resolusi:
+
+1. Target pegawai.
+2. Target divisi/unit aktif.
+3. Target lokasi aktif.
+4. Jika tidak ada aturan, jadwal berstatus perlu ditinjau; jangan menebak shift.
+
+Generator membuat `employee_daily_schedules` sebagai snapshot. Perubahan master shift tidak boleh mengubah rekap historis. Override jadwal harus menyimpan alasan dan audit.
+
+Untuk shift fixed:
+
+- Terlambat = clock-in pertama setelah `scheduled_start_at + late_tolerance_minutes`.
+- Pulang awal = clock-out terakhir sebelum `scheduled_end_at - early_leave_tolerance_minutes`.
+- Pulang melewati jadwal hanya menghasilkan `overtime_candidate_minutes`.
+- `approved_overtime_minutes` hanya terisi jika kebijakan otomatis mengizinkan atau HRD menyetujui. Pulang telat tidak selalu berarti lembur.
+
+Untuk shift lintas tengah malam, kaitkan event ke `work_date` jadwal, bukan sekadar tanggal kalender event.
+
+## 8. Absensi tahap dashboard
+
+Jangan memaksa HRD memasukkan ratusan pegawai satu per satu. Implementasikan urutan berikut:
+
+1. Download template Excel/CSV dengan NIP, tanggal, jam masuk, jam pulang, status, dan catatan.
+2. Upload ke file privat dan buat `attendance_import_batches`.
+3. Parse ke `attendance_import_rows` tanpa langsung menulis event final.
+4. Tampilkan preview dan error per baris: NIP tidak ada, duplikat, tanggal invalid, di luar tenant, atau urutan jam salah.
+5. Commit seluruh baris valid dalam transaksi/batch yang idempotent.
+6. Buat event `source='import'`, hitung ulang rekap terkait, dan tulis audit.
+
+Sediakan input manual hanya untuk koreksi kasus kecil. Setiap koreksi menyimpan alasan, actor, dan audit.
+
+Web kiosk/PWA capture boleh ditambahkan sebagai jembatan, tetapi harus memanggil endpoint attendance yang sama dengan mobile masa depan. Jangan membuat database kedua.
+
+## 9. Kontrak mobile attendance
+
+Mobile mengirim UUID `client_event_id` yang tetap sama saat retry. Server:
+
+1. Autentikasi user dan petakan ke pegawai.
+2. Buat/ambil `attendance_event_receipts` berdasarkan `(organization_id, client_event_id)`.
+3. Jika receipt sudah `stored`, kembalikan hasil lama tanpa insert baru.
+4. Ambil jadwal dan titik yang berlaku pada waktu kejadian.
+5. Validasi waktu, koordinat, akurasi, radius, foto, perangkat, dan batas replay.
+6. Simpan foto privat lebih dahulu secara aman, lalu event dan status receipt dalam transaksi terkoordinasi.
+7. Jalankan rekap dan indikator secara asinkron/idempotent.
+
+Event offline diperbolehkan sesuai kebijakan tenant. Simpan `occurred_at`, `received_at`, timezone, serta flag offline. Jangan memakai jam perangkat tanpa pemeriksaan deviasi.
+
+## 10. Geofence, foto, dan validasi background
+
+- `attendance_points` menyimpan koordinat, radius, batas akurasi, dan kebutuhan foto.
+- `attendance_point_assignments` dapat menarget pegawai, divisi, atau lokasi dengan periode berlaku.
+- Event menyimpan snapshot `distance_from_point_m` dan `allowed_radius_m`; perubahan radius tidak mengubah histori.
+- Backend menghitung jarak dan tidak mempercayai boolean `inside_geofence` dari klien.
+- Koordinat dan foto dianggap data sensitif dengan retention yang jelas.
+- Foto wajib memiliki pemeriksaan MIME nyata, ukuran, dimensi, hash, dan malware scan bila tersedia.
+- Validasi background/liveness adalah hasil verifikasi, bukan bukti absolut. Status meragukan masuk `needs_review`.
+- Jangan menyimpan biometric embedding mentah tanpa keputusan hukum, keamanan, dan retention terpisah.
+
+## 11. Rekap absensi
+
+`attendance_events` adalah bukti mentah. `attendance_daily_summaries` menyimpan:
+
+- hadir, terlambat, tidak hadir, cuti, izin, sakit, dinas, libur, tidak lengkap, perlu tinjau;
+- jam masuk pertama dan pulang terakhir;
+- menit kerja, terlambat, pulang awal, kandidat lembur, dan lembur disetujui;
+- versi kalkulasi dan waktu hitung.
+
+Rekap harus mempertimbangkan jadwal, event valid, izin disetujui, hari libur, dan koreksi HRD. Perubahan aturan memicu recalculation terkontrol, bukan update event mentah.
+
+Dashboard dan laporan rutin membaca rekap, bukan menghitung jutaan event setiap request.
+
+## 12. Cuti dan izin
+
+- Approval final hanya oleh role HRD aktif.
+- Tahap sekarang HRD dapat mencatat izin langsung dengan `submission_source='hrd_entry'`.
+- Tahap mobile karyawan dapat submit; keputusan tetap HRD.
+- Pimpinan hanya melihat sesuai permission.
+- Jenis sakit dapat mewajibkan `required_attachment_category='medical_letter'`.
+- Request tidak boleh menjadi approved jika lampiran wajib belum ada dan valid.
+- Overlap izin, saldo, tanggal kontrak, hari libur, dan status pegawai harus divalidasi server.
+- Keputusan, pembatalan, dan perubahan lampiran diaudit.
+
+## 13. Disiplin berdasarkan Peraturan Perusahaan
+
+Rujukan yang sudah diverifikasi: Pasal 52-58 pada dokumen Kode Etik, Tata Tertib, Jenis Pelanggaran dan Sanksi.
+
+Aturan utama:
+
+- Pelanggaran ringan mencakup mangkir 1 hari, terlambat/pulang awal tanpa izin, dan tidak melakukan absensi.
+- Ringan: teguran lisan; SP1 bila tidak membaik; SP2 bila mengulang setelah SP1; SP3 bila mengulang setelah SP2.
+- Sedang mencakup mangkir 3 hari kerja berturut-turut dan pengulangan pelanggaran ringan dalam masa SP.
+- Sedang: SP1, lalu SP2, lalu SP3; perusahaan dapat langsung memberi SP2/SP3 dengan pertimbangan kesalahan dan dampak.
+- Berat mencakup mangkir 5 hari kerja berturut-turut atau lebih, atau 9 hari kerja dalam 1 bulan, serta daftar pelanggaran berat lain dalam Pasal 58.
+- Berat dapat berujung SP3, skorsing, penurunan jabatan, dan/atau PHK sesuai proses resmi.
+- SP1, SP2, dan SP3 masing-masing berlaku 3 bulan sejak diterbitkan dan gugur bila tidak ada pelanggaran dalam masa berlaku.
+- Pegawai dapat diberi kesempatan menjelaskan/membela diri sebelum sanksi berat, kecuali tertangkap tangan.
+
+Sistem hanya membentuk `discipline_indicators`. HRD harus:
+
+1. Meninjau bukti.
+2. Membuka `discipline_cases` bila layak.
+3. Mencatat klasifikasi dan penjelasan pegawai.
+4. Mengunggah surat untuk tindakan tertulis.
+5. Menerbitkan `disciplinary_actions`.
+
+Dilarang membuat job yang otomatis mengubah indikator menjadi SP/PHK. Direct SP2/SP3 wajib menyimpan `direct_escalation=true` dan alasan. Dokumen dan uraian kasus hanya boleh terlihat oleh role berwenang.
+
+## 14. File privat
+
+- Development boleh memakai direktori privat di luar public web root.
+- Produksi direkomendasikan object storage privat.
+- Database menyimpan `object_key`, nama asli, MIME, ukuran, hash, kategori, dan pemilik tenant.
+- API file melakukan authorization setiap preview/download dan mengaudit dokumen sensitif.
+- Jangan membangun URL `/uploads/...` yang bisa ditebak.
+- Nama objek gunakan UUID; jangan gunakan nama asli atau NIK.
+- Upload logo juga masuk `stored_files`, lalu direferensikan oleh `organization_branding` atau lokasi.
+- Delete normal adalah soft delete + retention job; jangan hapus bukti aktif secara langsung.
+
+## 15. Query dan indexing
 
 Aturan wajib:
 
-- Folder `uploads/` tidak boleh berada di `public/` dan tidak boleh dilayani langsung oleh web server.
-- Database menyimpan path relatif seperti `organizations/1/employees/20/documents/abc.pdf`, bukan `C:\...`, `/home/...`, atau URL penuh.
-- Upload hanya melalui endpoint terautentikasi, misalnya `POST /api/uploads`; view/download melalui `GET /api/uploads/{documentId}`.
-- API view harus memeriksa tenant, kepemilikan, permission, status record, dan klasifikasi rahasia sebelum mengirim file.
-- Nama file fisik dibuat acak; `original_name` hanya metadata download. Jangan memakai nama asli sebagai path.
-- Tolak path traversal (`..`), null byte, double extension berbahaya, dan symlink escape.
-- Validasi ukuran, ekstensi, MIME hasil deteksi isi file, dan signature/magic bytes. Jangan percaya header browser.
-- Allowlist awal: foto `jpg/jpeg/png/webp`; dokumen `pdf`; format lain harus disetujui. Blokir HTML, SVG aktif, executable, script, dan arsip secara default.
-- Terapkan batas ukuran terkonfigurasi, scanning malware, checksum SHA-256, dan audit upload/download sensitif.
-- Endpoint gambar mengirim `Content-Type` benar, `X-Content-Type-Options: nosniff`, kebijakan cache privat, dan `Content-Disposition` aman.
-- Penghapusan record memakai soft delete/retention. File fisik dibersihkan oleh job setelah masa retensi, bukan langsung saat transaksi utama.
-- Jangan menerima path file dari client. Client hanya mengirim file dan ID konteks; server menentukan destination.
+- Hindari `SELECT *` pada API.
+- Semua list memakai keyset pagination bila data besar; offset hanya untuk master kecil.
+- Filter tenant dan rentang tanggal harus berada di query SQL.
+- Hindari N+1; gunakan join/batch query.
+- Dashboard membaca view/rekap dan cache singkat bila tidak harus real-time.
+- Export besar dijalankan background job dan menghasilkan file privat.
+- Jangan menambah index untuk setiap kolom. Tambah index berdasarkan query nyata.
+- Sebelum merge query penting, uji `EXPLAIN (ANALYZE, BUFFERS)` dengan data representatif.
+- Pantau `pg_stat_statements`, koneksi, lock, autovacuum, dead tuples, cache hit, dan pertumbuhan index.
 
-## 14. Validasi frontend dan backend
+Index utama sudah disiapkan untuk:
 
-- Frontend wajib memberi feedback cepat, tetapi seluruh aturan wajib diulang di backend. Validasi frontend bukan kontrol keamanan.
-- Gunakan schema bersama (misalnya Zod) bila sesuai, namun backend tetap menjadi otoritas final.
-- Normalisasi string dengan trim; kosong menjadi `NULL` jika semantik memang tidak ada.
-- NIK harus berupa teks 16 digit bila kebijakan final mewajibkan; NIP, telepon, BPJS, dan kode lain tetap teks.
-- Validasi tanggal lahir tidak di masa depan; akhir kontrak tidak mendahului awal; akhir penempatan tidak mendahului awal; rentang izin valid.
-- Umur dan masa kerja dihitung, tidak diterima sebagai field yang dapat disunting.
-- Untuk sakit, backend memeriksa `leave_types.requires_attachment`; request tidak boleh disubmit tanpa surat dokter yang valid.
-- Pergantian penempatan utama wajib transaksi: kunci record terkait, tutup penempatan lama, buat yang baru, lalu audit.
-- Cegah dua penempatan utama aktif melalui index database dan penanganan konflik aplikasi.
-- Tampilkan error field-level yang aman; jangan kirim stack trace, SQL, path server, atau detail internal.
+- pencarian nama pegawai dengan trigram;
+- daftar pegawai aktif per tenant;
+- penempatan aktif dan histori;
+- kontrak akan berakhir;
+- event per pegawai/waktu dan event perlu tinjau;
+- rekap per tanggal/status, ranking terlambat, dan histori pegawai;
+- izin menunggu dan histori izin;
+- indikator/kasus/tindakan disiplin;
+- audit dan outbox.
 
-## 15. Keamanan autentikasi dan backend
+Gunakan connection pool. Banyak instance/serverless memerlukan pool eksternal seperti PgBouncer. Transaksi harus singkat; jangan melakukan upload atau network call di dalam transaksi database.
 
-- Password di-hash Argon2id (atau bcrypt dengan parameter kuat bila Argon2id tidak tersedia); jangan pernah log password/token.
-- Cookie sesi wajib `HttpOnly`, `Secure` di produksi, dan `SameSite=Lax/Strict` sesuai alur. Rotasi sesi setelah login/perubahan privilege.
-- Proteksi CSRF untuk mutation berbasis cookie, CORS allowlist, rate limiting login/upload/API sensitif, dan lockout bertahap.
-- Otorisasi dilakukan pada setiap service operation dan setiap file download. Menyembunyikan tombol bukan otorisasi.
-- Gunakan query parameterized/ORM; dilarang menyusun SQL dari input dengan concatenation.
-- Terapkan least privilege pada akun database dan pisahkan credential development, staging, production.
-- Rahasia hanya dari environment/secret manager; `.env` tidak dikomit. Validasi environment saat startup.
-- Masking NIK/BPJS/telepon pada list dan log. Data lengkap hanya untuk permission sensitif.
-- Audit login, perubahan role, perubahan pegawai, mutasi, SP, koreksi absensi, approval, upload/download sensitif, dan perubahan lisensi.
-- Jangan memasukkan data pribadi ke analytics, error tracker, fixture, screenshot, atau seed publik.
-- Backup terenkripsi dan uji restore secara berkala. Tetapkan retention serta prosedur akses dan penghapusan data.
+## 16. Partitioning dan retention
 
-## 16. Keamanan frontend
+- `attendance_events` dipartisi bulanan berdasarkan `event_date`.
+- Scheduler membuat partisi bulan berjalan dan minimal dua bulan ke depan memakai `ensure_attendance_month_partition()`.
+- Default partition hanya pengaman; monitor dan pindahkan isinya ke partisi yang benar.
+- Jangan membuat satu partisi per tenant atau per hari.
+- Rekap harian tidak perlu dipartisi sebelum volume dan query plan membuktikan kebutuhan.
+- Kebijakan retention foto absensi dapat lebih pendek daripada rekap, tetapi harus disetujui organisasi.
 
-- React melakukan escaping secara default; dilarang memakai `dangerouslySetInnerHTML` untuk data pengguna tanpa sanitizer yang disetujui.
-- Jangan menyimpan access token atau data sensitif permanen di `localStorage`.
-- Jangan mengandalkan ID dari URL tanpa pemeriksaan backend.
-- Terapkan Content Security Policy, frame-ancestors, Referrer-Policy, dan Permissions-Policy yang sesuai.
-- Semua mutation mempunyai loading, success, failure, dan pencegahan double-submit.
-- Data sensitif tidak boleh berada di source HTML/React payload jika user tidak berhak, walaupun disembunyikan dengan CSS.
+## 17. API
 
-## 17. Desain UI/UX responsive dan aksesibilitas
+- Gunakan path versi, misalnya `/api/v1/...`.
+- Respons error publik memakai kode stabil dan Bahasa Indonesia; jangan bocorkan SQL/stack trace.
+- Mutation mendukung request ID dan idempotency pada operasi yang mungkin retry.
+- Gunakan optimistic concurrency atau version check pada form edit penting.
+- Tanggal tanpa waktu memakai ISO `YYYY-MM-DD`; waktu absolut memakai ISO 8601 UTC.
+- Cursor pagination harus opaque.
+- Semua endpoint mempunyai authorization test, validation test, dan tenant isolation test.
 
-- Mobile-first pada lebar 320 px ke atas; breakpoint harus konsisten dan diuji pada ponsel, tablet, laptop, serta desktop.
-- Tidak boleh ada horizontal overflow halaman. Tabel besar memakai responsive table, column priority, scroll container, atau card view.
-- Sidebar berubah menjadi drawer pada layar kecil; aksi utama tetap mudah dijangkau.
-- Form panjang dibagi per bagian/tab/step, tetapi status validasi dan data draft tidak hilang saat berpindah.
-- Target sentuh minimum sekitar 44×44 px, focus state terlihat, urutan keyboard logis, dan modal dapat ditutup dengan keyboard.
-- Semua input memiliki label, helper/error yang terhubung secara aksesibel, kontras memadai, serta tidak hanya mengandalkan warna.
-- Gunakan skeleton seperlunya, empty state informatif, konfirmasi untuk tindakan berdampak, dan toast tidak menjadi satu-satunya tempat error penting.
-- Dashboard Direksi fokus pada pencarian pegawai, ringkasan absensi, posisi saat ini, histori penempatan, kontrak, dan status SP aktif/riwayat.
-- Desain harus konsisten melalui design tokens untuk warna, spacing, radius, typography, z-index, dan state komponen. Hindari nilai acak per halaman.
+Endpoint awal yang disarankan:
 
-## 18. Aturan data dan transaksi HRIS
+- `GET/POST /api/v1/employees`
+- `GET/PATCH /api/v1/employees/:id`
+- `POST /api/v1/employees/:id/assignments`
+- `GET /api/v1/employees/:id/history`
+- `POST /api/v1/attendance/imports`
+- `POST /api/v1/attendance/imports/:id/validate`
+- `POST /api/v1/attendance/imports/:id/commit`
+- `GET /api/v1/attendance/daily`
+- `POST /api/v1/attendance/events` untuk web/mobile kelak
+- `POST /api/v1/leave-requests`
+- `POST /api/v1/leave-requests/:id/decision`
+- `GET /api/v1/discipline/indicators`
+- `POST /api/v1/discipline/cases`
+- `POST /api/v1/discipline/cases/:id/actions`
+- `GET /api/v1/dashboard/leader`
 
-- Record histori (kontrak, penempatan, SP, approval, langganan) tidak di-update menjadi histori baru; buat record periode baru dan pertahankan yang lama.
-- Soft delete dipakai untuk pegawai/dokumen yang perlu retensi. Master yang sudah direferensikan dinonaktifkan, bukan dihapus.
-- PHL/THL/PKWT adalah jenis hubungan kerja; Driver/Kepala Unit/Staf adalah jabatan; Pasar Bersehati adalah lokasi. Jangan mencampur ketiganya.
-- Perubahan data oleh karyawan yang sensitif (NIK, tanggal lahir, rekening, status keluarga) sebaiknya masuk workflow usulan dan persetujuan HRD, bukan langsung mengganti data resmi.
-- Koreksi absensi tidak mengubah event mentah; simpan koreksi dan audit, lalu hitung ulang summary.
-- Event mobile harus idempotent melalui `client_event_id`; server mencatat waktu kejadian dan waktu diterima.
-- Semua operasi multi-record wajib transaksi dan rollback utuh jika satu langkah gagal.
+## 18. Keamanan dan privasi
 
-## 19. Kontrak API
+- Password memakai Argon2id atau provider autentikasi tepercaya.
+- Session server-side memakai cookie HttpOnly, Secure, SameSite yang tepat.
+- Rate limit login, reset password, upload, export, dan attendance endpoint.
+- NIK, BPJS, rekening, koordinat, dokumen, dan kasus disiplin dimasking di list/log.
+- Jangan masukkan rahasia atau data pribadi ke analytics, fixture publik, screenshot, seed, atau error tracker.
+- Audit login, perubahan role, pegawai, rolling, koreksi absensi, izin, dokumen sensitif, dan sanksi.
+- Validasi MIME dari byte; jangan percaya ekstensi.
+- Gunakan antivirus/malware scan bila tersedia.
+- Backup terenkripsi dan uji restore berkala.
+- Terapkan retention dan prosedur penghapusan yang disetujui.
+- Frontend tidak boleh menerima data sensitif yang tidak berhak hanya untuk disembunyikan dengan CSS.
 
-- Prefix versi, misalnya `/api/v1`, agar mobile lama tetap dapat bekerja ketika API berkembang.
-- Gunakan bentuk respons konsisten: data, metadata pagination, dan error code stabil.
-- Pagination wajib untuk daftar pegawai, absensi, audit, dokumen, dan histori besar; jangan mengirim semua baris.
-- Filter/sort hanya dari allowlist. Search memakai index yang sesuai dan dibatasi panjangnya.
-- Mutation menerima idempotency key untuk operasi yang rawan retry.
-- Jangan mengirim model database mentah. Gunakan DTO agar field sensitif dan perubahan schema tidak bocor ke client.
-- Endpoint health tidak boleh membuka versi dependency, secret, atau detail database.
+## 19. Migration dan transaksi
 
-## 20. Aturan database PostgreSQL 18
+- Satu migration untuk satu perubahan logis.
+- Migration harus dapat dijalankan pada database kosong dan database berisi data.
+- Perubahan destruktif memakai pola expand-migrate-contract.
+- Backfill besar berjalan batch dan dapat dilanjutkan.
+- Pembuatan index besar di produksi pertimbangkan `CREATE INDEX CONCURRENTLY` pada migration nontransactional.
+- Jangan mengganti migration yang sudah dirilis; buat migration koreksi.
+- Setiap use case multi-tabel memakai transaksi.
+- Lock record aktif saat rolling, approval, commit import, dan penerbitan tindakan untuk mencegah race condition.
 
-- Semua primary key tabel menggunakan `bigint GENERATED ALWAYS AS IDENTITY`; jangan memakai `serial`, `bigserial`, atau UUID sebagai primary key.
-- Semua foreign key harus sama-sama `bigint` dan mempunyai index bila dipakai untuk join/filter berfrekuensi tinggi.
-- Gunakan `date` untuk tanggal tanpa waktu, `timestamptz` untuk kejadian, `numeric` untuk jumlah presisi, dan teks untuk identifier.
-- Constraint database adalah lapisan terakhir: `NOT NULL`, `CHECK`, `UNIQUE`, foreign key, dan partial unique index tetap wajib meski aplikasi sudah memvalidasi.
-- Nama tabel/kolom snake_case; nama constraint/index eksplisit untuk aturan bisnis penting.
-- Migration harus forward-only, kecil, dapat direview, dan memiliki rencana backfill. Jangan mengedit migration yang sudah dijalankan di lingkungan bersama.
-- Perubahan destruktif memakai pola expand–migrate–contract dan backup terverifikasi.
-- Query tenant besar harus mempunyai index gabungan yang dimulai dari `organization_id` bila pola akses memerlukannya.
-- Gunakan transaksi dengan isolation/locking yang sesuai untuk kuota langganan, assignment aktif, saldo cuti, dan approval.
+## 20. Testing wajib
 
-## 21. Testing dan quality gate wajib
+Minimal sebelum pekerjaan dianggap selesai:
 
-- Unit test untuk service domain, kalkulasi absensi, validasi kontrak, saldo cuti, masa aktif, dan permission.
-- Integration test dengan PostgreSQL nyata untuk constraint, transaction rollback, dan query tenant.
-- Test isolasi tenant: user tenant A tidak dapat membaca/mengubah ID milik tenant B pada setiap endpoint kritis.
-- Test upload: ukuran berlebih, MIME palsu, path traversal, file berbahaya, akses tenant lain, dan download tanpa izin.
-- Test role matrix untuk superadmin, admin, director, dan staff.
-- E2E untuk login, pembuatan pegawai, mutasi, SP, cuti sakit dengan surat dokter, approval, dan dashboard Direksi.
-- Responsive visual test pada ukuran mobile/tablet/desktop dan pemeriksaan keyboard/accessibility.
-- Sebelum merge: lint, typecheck, unit test, integration test, migration check, dan build produksi harus lulus.
-- Bug fix wajib disertai regression test bila masuk akal.
+- Unit test aturan shift fixed, flexible, field, lintas tengah malam, toleransi, pulang awal, dan kandidat lembur.
+- Unit test mangkir 1, 3 berturut-turut, 5 berturut-turut, dan 9 dalam sebulan menghasilkan indikator yang tepat tetapi tidak membuat sanksi.
+- Integration test rolling menutup penempatan lama dan menyimpan histori.
+- Integration test tidak ada dua penempatan utama aktif.
+- Integration test import: preview, error per baris, duplicate retry, dan commit idempotent.
+- Integration test mobile event retry tidak menggandakan event.
+- Integration test HRD-only decision; pimpinan dan karyawan ditolak.
+- Test izin sakit tidak dapat approved tanpa surat dokter ketika diwajibkan.
+- Test lintas tenant untuk setiap repository/use case utama.
+- Test file privat tidak bisa diakses dengan object key langsung.
+- Test query plan untuk dashboard pada dataset representatif.
 
-## 22. Definition of Done untuk AI/Codex
+Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau development bersama.
 
-AI hanya boleh menyatakan tugas selesai bila:
+## 21. UI/UX
 
-1. Kebutuhan dan tenant scope sudah dipahami; asumsi penting dicatat.
-2. Implementasi mengikuti lapisan arsitektur dan permission server-side.
-3. Validasi ada di frontend untuk UX dan backend untuk keamanan.
-4. Mutation penting memakai transaksi dan menghasilkan audit.
-5. Upload tidak mengekspos folder `uploads/` secara publik.
-6. UI responsive, accessible, dan mempunyai loading/error/empty state.
-7. Migration dan index relevan tersedia tanpa merusak histori.
-8. Test relevan ditambah dan seluruh quality gate lulus.
-9. Tidak ada secret, PII nyata, debug log, SQL mentah, atau path server yang bocor.
-10. Dokumentasi API/schema diperbarui jika kontrak berubah.
+- Seluruh antarmuka Bahasa Indonesia dan dapat dipahami pengguna nonteknis.
+- Desktop: sidebar; mobile: drawer/bottom navigation dan tabel kompleks menjadi card list.
+- Status tidak hanya disampaikan dengan warna; tambahkan label/ikon.
+- List umum memasking data sensitif.
+- Pimpinan melihat ringkasan dan histori, bukan tombol edit.
+- Form panjang memakai stepper, autosave draft yang aman, dan peringatan perubahan belum disimpan.
+- Sediakan loading, skeleton, empty, no-result, validation error, server error, permission denied, session expired, dan confirmation dialog.
+- Tindakan disiplin ditampilkan profesional tanpa mempermalukan pegawai.
 
-AI dilarang melakukan perubahan luas di luar permintaan, menghapus histori, menonaktifkan validasi demi membuat test lulus, atau mengubah aturan keamanan tanpa persetujuan eksplisit.
+## 22. Observability dan operasional
 
-## 23. Catatan deployment penyimpanan lokal
+- Gunakan structured logging dengan `request_id`, `organization_id`, `actor_user_id`, dan nama use case; jangan log payload sensitif.
+- Ukur latency API p50/p95/p99, error rate, queue lag, koneksi DB, slow query, import duration, dan recalculation duration.
+- Alert untuk partisi bulan depan belum ada, default partition bertambah, outbox macet, storage gagal, atau backup gagal.
+- Health check tidak menjalankan query berat.
 
-Folder `uploads/` cocok untuk tahap awal hanya bila server mempunyai disk persisten dan backup. Deployment serverless/container stateless dapat kehilangan file ketika instance diganti. Karena sistem akan dikomersialkan, storage interface harus diabstraksikan sejak awal (`LocalStorageProvider`), sehingga nanti dapat diganti dengan S3-compatible storage tanpa mengubah service HRIS atau database.
+## 23. Definition of Done
 
-## 24. Kamus kolom per tabel
+Pekerjaan selesai hanya jika:
 
-Semua tabel mempunyai `id` sebagai primary key numerik identity. Nilainya tampak seperti 1, 2, 3, dan seterusnya, tetapi PostgreSQL tidak menjamin tanpa celah setelah rollback/delete; ID tidak boleh diurutkan ulang atau dipakai sebagai nomor dokumen bisnis.
+1. Kebutuhan dan permission jelas.
+2. Migration/schema, code, dan dokumentasi konsisten.
+3. Tenant isolation diterapkan.
+4. Validasi frontend dan backend tersedia.
+5. Audit dan error handling sesuai risiko.
+6. Test relevan lulus.
+7. Query baru memiliki index/query plan yang masuk akal.
+8. Tidak ada rahasia atau data pribadi dalam repo/log.
+9. UI responsive dan state penting diuji.
+10. Perubahan tidak merusak kontrak mobile/API tanpa versioning.
 
-| Tabel | Arti kolom khusus |
-|---|---|
-| `organizations` | `parent_id` hierarki perusahaan; `code/name/legal_name` identitas; `organization_type` jenis tenant; `timezone/locale` format; `active_from/active_until/is_active` operasional; `settings` konfigurasi tambahan. |
-| `subscription_plans` | `billing_period/price` periode dan harga; `max_locations/max_employees` kuota; `features` fitur paket. |
-| `organization_subscriptions` | `organization_id/subscription_plan_id` tenant dan paket; `starts_at/ends_at/grace_ends_at` periode; `status` keadaan langganan; `external_reference` referensi invoice/payment. |
-| `locations` | `organization_id/parent_id` tenant dan hierarki; `location_type` kantor/pasar/cabang; koordinat dan `attendance_radius_m` geofence; kolom aktif menentukan operasional. |
-| `location_licenses` | Menghubungkan lokasi dengan langganan; periode dan `status` menentukan apakah lokasi boleh memakai aplikasi. |
-| `org_units` | Struktur organisasi bertingkat melalui `parent_id`; `unit_type` membedakan direktorat/divisi/subdivisi/unit/tim. |
-| `positions` | Jabatan pada unit; `grade/level_no` level; `is_managerial` penanda pimpinan; `reports_to_position_id` jalur pelaporan. |
-| `users` | Akun login global; `password_hash` hash kredensial; verifikasi, login terakhir, dan status akun. |
-| `roles` | Nama role dan `scope` platform/tenant/diri sendiri. |
-| `permissions` | Kode aksi granular yang boleh dilakukan. |
-| `role_permissions` | Pasangan role–permission yang unik. |
-| `user_organization_roles` | Role akun pada tenant tertentu dan periode berlakunya; tenant kosong hanya untuk superadmin platform. |
-| `employees` | `employee_no` NIP; `national_id` NIK; identitas lahir/gender/agama/perkawinan; status hubungan aktif; tanggal masuk/keluar; `photo_path` path relatif foto; `deleted_at` soft delete. |
-| `employee_contacts` | Email kerja/pribadi, telepon, WhatsApp, alamat dan wilayah. |
-| `employee_social_accounts` | Platform dan handle/URL media sosial; dapat lebih dari satu. |
-| `employee_dependents` | Hubungan pasangan/anak/orang tua, identitas, tanggal lahir, status tanggungan, dan BPJS. |
-| `education_levels` | Kode/nama jenjang dan `rank_no` untuk pengurutan. |
-| `employee_educations` | Institusi, jurusan, tahun mulai/lulus, sertifikat, serta penanda pendidikan tertinggi. |
-| `employee_emergency_contacts` | Nama, hubungan, nomor, alamat, dan kontak darurat utama. |
-| `employee_identifiers` | Jenis/nomor BPJS, NPWP, paspor, tanggal terbit dan kedaluwarsa. |
-| `employee_documents` | Jenis dokumen, `file_key` relatif `uploads/`, nama asli, MIME, ukuran, masa berlaku, verifikasi, uploader, dan kerahasiaan. |
-| `employment_types` | PKWTT/PKWT/PHL/THL/dll serta kewajiban tanggal akhir. |
-| `employment_contracts` | Pegawai, jenis hubungan kerja, nomor kontrak, periode, status, dokumen, dan catatan. |
-| `employee_assignments` | Pegawai, jabatan, unit, lokasi, jenis assignment, periode, alasan mutasi, nomor SK, atasan, dan dokumen. |
-| `disciplinary_action_types` | Kode SP/teguran, tingkat keparahan, dan masa berlaku default. |
-| `disciplinary_actions` | Pegawai, jenis tindakan, nomor kasus, tanggal terbit/efektif, alasan, status, dokumen, penerbit, dan pencabutan. |
-| `work_shifts` | Jam mulai/akhir, istirahat, lintas tengah malam, toleransi terlambat/pulang awal. |
-| `employee_shift_schedules` | Shift pegawai pada tanggal/lokasi dan status jadwal. |
-| `attendance_devices` | Kode/nama/jenis sumber absensi, lokasi, hash API key, status, dan waktu terlihat terakhir. |
-| `attendance_events` | Event masuk/keluar/istirahat, waktu kejadian, sumber, koordinat, akurasi, foto, token idempotensi, waktu diterima, dan metadata. |
-| `attendance_daily_summaries` | Rekap tanggal kerja, check-in/out pertama/terakhir, menit kerja, terlambat, pulang awal, lembur, dan status. |
-| `leave_types` | Kategori cuti/izin/sakit, satuan hari/jam, kewajiban lampiran, aturan lampiran, kebutuhan saldo, dan kuota default. |
-| `leave_balances` | Saldo awal, perolehan, pemakaian, penyesuaian per pegawai/jenis/tahun. Saldo tersedia = awal + perolehan + penyesuaian − pemakaian. |
-| `leave_requests` | Nomor permohonan, pegawai, jenis, rentang, jumlah unit, alasan, status, waktu submit/keputusan. |
-| `leave_request_attachments` | Hubungan permohonan dengan dokumen seperti surat dokter. |
-| `leave_approvals` | Urutan approver, keputusan, waktu keputusan, dan catatan. |
-| `audit_logs` | Pelaku, tenant, aksi, jenis/ID entitas, data sebelum/sesudah, IP, user-agent, dan waktu. |
-| `integration_outbox` | Jenis event, aggregate, payload, waktu publish, jumlah percobaan, dan error untuk integrasi andal. |
+## 24. Larangan untuk Codex/developer
 
-Kolom `created_at`, `updated_at`, `created_by`, `status`, `start/end`, dan foreign key mengikuti arti standar pada Bagian 5. Constraint lengkap, tipe data, nilai yang diizinkan, index, view, dan seed awal terdapat di file SQL pendamping.
+- Jangan menghapus histori pegawai untuk “merapikan” data.
+- Jangan menambahkan kolom `current_division`/`current_location` sebagai sumber kebenaran kedua.
+- Jangan menghubungkan tabel lintas tenant hanya dengan ID tanpa memeriksa organisasi.
+- Jangan menjadikan setiap checkout lewat jam sebagai lembur otomatis.
+- Jangan membuat sanksi otomatis dari indikator.
+- Jangan mengizinkan pimpinan menyetujui izin bila aturan produk masih HRD-only.
+- Jangan menyimpan foto/dokumen sebagai URL publik atau base64 di tabel transaksi.
+- Jangan memanggil database langsung dari mobile.
+- Jangan menjalankan export besar pada request web sinkron.
+- Jangan menonaktifkan constraint/index demi melewati bug tanpa analisis dan migration resmi.
