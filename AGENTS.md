@@ -35,6 +35,7 @@ Route handler tidak boleh berisi query dan aturan bisnis panjang. Gunakan servic
 ## 3. Sumber kebenaran data
 
 - Skema referensi: `sitou_schema_v3.sql`.
+- Panduan baca cepat database: `docs/database-schema.md`. Buka dokumen ini lebih dulu untuk memahami tabel, kolom penting, relasi, dan aturan data; buka `sitou_schema_v3.sql` hanya ketika perlu detail constraint, index, view SQL, atau membuat migration.
 - Perubahan database hanya melalui migration baru; jangan mengedit database produksi manual.
 - Event absensi mentah bersifat append-only.
 - `attendance_daily_summaries` adalah hasil olahan dan boleh dihitung ulang.
@@ -273,7 +274,7 @@ Gunakan connection pool. Banyak instance/serverless memerlukan pool eksternal se
 
 ## 17. API
 
-- Gunakan path versi, misalnya `/api/v1/...`.
+- Gunakan path langsung `/api/...` tanpa prefix versi. Endpoint autentikasi berada di `/api/auth/...`; endpoint modul berada langsung pada kelompoknya seperti `/api/employees` atau `/api/attendance/...`.
 - Respons error publik memakai kode stabil dan Bahasa Indonesia; jangan bocorkan SQL/stack trace.
 - Mutation mendukung request ID dan idempotency pada operasi yang mungkin retry.
 - Gunakan optimistic concurrency atau version check pada form edit penting.
@@ -283,25 +284,25 @@ Gunakan connection pool. Banyak instance/serverless memerlukan pool eksternal se
 
 Endpoint awal yang disarankan:
 
-- `GET/POST /api/v1/employees`
-- `GET/PATCH /api/v1/employees/:id`
-- `POST /api/v1/employees/:id/assignments`
-- `GET /api/v1/employees/:id/history`
-- `POST /api/v1/attendance/imports`
-- `POST /api/v1/attendance/imports/:id/validate`
-- `POST /api/v1/attendance/imports/:id/commit`
-- `GET /api/v1/attendance/daily`
-- `POST /api/v1/attendance/events` untuk web/mobile kelak
-- `POST /api/v1/leave-requests`
-- `POST /api/v1/leave-requests/:id/decision`
-- `GET /api/v1/discipline/indicators`
-- `POST /api/v1/discipline/cases`
-- `POST /api/v1/discipline/cases/:id/actions`
-- `GET /api/v1/dashboard/leader`
+- `GET/POST /api/employees`
+- `GET/PATCH /api/employees/:id`
+- `POST /api/employees/:id/assignments`
+- `GET /api/employees/:id/history`
+- `POST /api/attendance/imports`
+- `POST /api/attendance/imports/:id/validate`
+- `POST /api/attendance/imports/:id/commit`
+- `GET /api/attendance/daily`
+- `POST /api/attendance/events` untuk web/mobile kelak
+- `POST /api/leave-requests`
+- `POST /api/leave-requests/:id/decision`
+- `GET /api/discipline/indicators`
+- `POST /api/discipline/cases`
+- `POST /api/discipline/cases/:id/actions`
+- `GET /api/dashboard/leader`
 
 ## 18. Keamanan dan privasi
 
-- Password memakai Argon2id atau provider autentikasi tepercaya.
+- Password memakai `bcryptjs` dengan cost factor minimal 12. Password baru minimal 6 karakter, maksimal 72 byte sesuai batas bcrypt, serta wajib memiliki huruf besar, huruf kecil, angka, dan simbol. Password polos tidak boleh ditulis ke repository atau log.
 - Session server-side memakai cookie HttpOnly, Secure, SameSite yang tepat.
 - Rate limit login, reset password, upload, export, dan attendance endpoint.
 - NIK, BPJS, rekening, koordinat, dokumen, dan kasus disiplin dimasking di list/log.
@@ -345,7 +346,20 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 ## 21. UI/UX
 
 - Seluruh antarmuka Bahasa Indonesia dan dapat dipahami pengguna nonteknis.
+- Sebelum membuat komponen UI baru, periksa `app/components` dan gunakan komponen reusable yang sudah ada untuk fungsi/kebutuhan yang sama. Perluas API komponen yang ada bila masih dalam tanggung jawab yang sama; jangan membuat duplikat hanya karena dipakai pada halaman berbeda.
+- Seluruh typography MUI wajib menggunakan reusable component `app/components/font-style/FontStyle.jsx`, bukan mengimpor `Typography` langsung pada halaman atau komponen fitur. Gunakan font weight normal `500`, medium `600`, dan bold maksimal `700`; dilarang memakai bobot di atas `700`.
+- Implementasi UI/UX wajib mengikuti best practice React/Next.js: komponen terfokus, state minimal, aksesibilitas dasar, semantic HTML, serta styling responsif yang tidak mengandalkan ukuran layar tunggal.
+- SITOU menggunakan satu tema light yang konsisten. Jangan menambahkan dark mode, theme switcher, atau penyimpanan preferensi tema kecuali ada keputusan produk baru.
 - Desktop: sidebar; mobile: drawer/bottom navigation dan tabel kompleks menjadi card list.
+- Shell halaman terproteksi wajib memakai `app/components/navbar/LeftNavBar.jsx` sebagai sidebar permanen pada desktop (`lg` ke atas), `app/components/navbar/MobileLeftNavBar.jsx` sebagai drawer pada tablet/mobile (`lg` ke bawah), dan `app/components/navbar/TopMenu.jsx` sebagai topbar bersama. Keduanya wajib memakai sumber menu dan renderer sidebar yang sama agar hak akses, status aktif, dan tampilan tidak berbeda antar-device.
+- Tombol notifikasi di `TopMenu` tetap ditampilkan sebagai placeholder sampai modul notifikasi SITOU dikembangkan, tetapi dilarang menambahkan polling, request API, badge jumlah, popover data, atau event notifikasi lama. SITOU tidak memakai tombol pengganti tema light/dark.
+- Responsive wajib diuji untuk desktop lebar, laptop, tablet, mobile besar, dan mobile kecil. Gunakan breakpoint yang stabil, hindari ukuran tetap yang membuat form/tabel terpotong, dan pastikan setiap halaman nyaman pada lebar 320px sampai desktop wide.
+- Untuk setiap UI baru atau perubahan layout, verifikasi minimal pada viewport mobile 320/375px, tablet 768px, laptop 1024/1366px, dan desktop lebar. Pastikan tidak ada overflow horizontal, overlap, teks terpotong, atau tindakan utama yang sulit dijangkau.
+- Asset logo resmi berada di `public/`: `logo-sitou-v2.png` untuk logo ikon/huruf, `logo-sitou-v1.png` untuk logo lengkap dengan tagline sesuai aset yang disediakan, dan `logo-sitou-v3.png` sebagai varian lengkap bertuliskan Sistem Informasi Tenaga Operasional Unit bila diperlukan untuk konteks produk.
+- Halaman login adalah entry awal aplikasi. Jangan menampilkan pilihan demo role; setelah login, server/client mengarahkan user berdasarkan role aktif.
+- Form login SITOU hanya meminta username dan password. Email tetap menjadi atribut akun sesuai schema, tetapi tidak digunakan sebagai credential login. Tautan lupa password tetap dipertahankan sampai fiturnya dikembangkan.
+- Login, perpindahan menu/halaman, dan seluruh proses CRUD wajib memakai reusable `app/components/loading/Backdrop.jsx` melalui provider/helper loading aplikasi. Proses backend dimulai segera dan backdrop tampil minimal 2 detik; delay hanya mengatur durasi visual, bukan menunda request.
+- Status berhasil atau gagal pada login, navigasi yang memerlukan feedback, dan CRUD wajib memakai reusable `app/components/Notifications/Notification.jsx`. Periksa komponen loading dan notifikasi yang ada sebelum membuat komponen baru.
 - Status tidak hanya disampaikan dengan warna; tambahkan label/ikon.
 - List umum memasking data sensitif.
 - Pimpinan melihat ringkasan dan histori, bukan tombol edit.
@@ -387,3 +401,26 @@ Pekerjaan selesai hanya jika:
 - Jangan memanggil database langsung dari mobile.
 - Jangan menjalankan export besar pada request web sinkron.
 - Jangan menonaktifkan constraint/index demi melewati bug tanpa analisis dan migration resmi.
+
+## 25. Fondasi reusable dan standar visual SITOU
+
+- Katalog komponen berada di `app/components/README.md` dan wajib diperbarui setiap reusable component dibuat, dipindah, atau diubah kontraknya.
+- Seluruh logo SITOU wajib memakai `app/components/branding/AppLogo.jsx`. Path aset hanya diubah melalui `APP_LOGO_ASSETS`; dilarang menulis path file logo langsung pada halaman atau komponen lain.
+- Sebelum membuat komponen baru, cari fungsi yang sama di `app/components`. Jika sudah ada, perluas komponen tersebut dalam tanggung jawab yang sama; dilarang membuat duplikat.
+- Reusable component diberi nama berdasarkan fungsi umum dan disimpan berdasarkan tanggung jawab, bukan berdasarkan nama menu pertama yang menggunakannya.
+- Hanya ada satu modal shell umum, yaitu `app/components/modals/AppModal.jsx`. Modal khusus, preview, dan confirmation wajib menyusun `AppModal`.
+- Komponen hanya boleh dihapus setelah seluruh import, pemanggilan dinamis, route, dan dokumentasi diperiksa.
+- Form CRUD memakai dirty-state warning, validasi dekat field, mencegah submit ganda, dan menjelaskan dampak aksi berisiko.
+- Gunakan `PageHeader`, `DataToolbar`, `ResponsiveDataView`, `StatusBadge`, `RowActionMenu`, `ConfirmDialog`, select reusable, `Notification`, dan `LoadingBackdrop` sebelum membuat implementasi fitur sendiri.
+- AntD Table digunakan pada tablet/desktop. Mobile memakai card list dari data yang sama beserta loading, empty/error, dan pagination yang dapat dijangkau.
+- `AppModal` harus mendukung ukuran `sm`, `md`, `lg`, `xl` atau custom width, header/footer tetap, konten scrollable, focus management, Escape/backdrop policy, form submit, dan hampir full-screen pada mobile.
+- `ImagePreviewModal` hanya menerima URL endpoint privat, blob, atau file lokal; jangan pernah mengirim `object_key` ke browser.
+- Masa akses organisasi memakai `active_from` dan `active_until` wajib. Session tenant harus divalidasi ulang terhadap organisasi, role, dan lokasi aktif. Peringatan maksimal 30 hari tampil di shell dengan tombol `Perpanjang`.
+- UI harus modern, sederhana, elegan, profesional, user friendly, dan mudah dipahami pengguna nonteknis. Kreativitas diterapkan melalui hierarchy, komposisi, iconography, spacing, microinteraction, dan state, bukan dekorasi berlebihan.
+- Merah SITOU hanya menjadi aksen, primary action, active state, dan status penting. Permukaan utama memakai putih/abu netral dan teks gelap dari theme/token.
+- Kontras teks normal minimal 4.5:1; teks besar, ikon penting, border interaktif, dan focus indicator minimal 3:1. Status selalu memakai label/ikon selain warna.
+- Gunakan spacing scale `4, 8, 12, 16, 24, 32px`: ikon-teks 8-12px, antar-control 8-12px, antar-field 16-20px, panel/modal 16px mobile dan 20-24px desktop, halaman 16/24/32px, serta antar-section 24-32px.
+- Target sentuh minimal 44x44px. Radius maksimal 8px kecuali avatar, status pill, dan elemen lingkaran. Shadow harus lembut dan tidak mendominasi.
+- Teks harus terbaca, tidak bertumpuk dengan background/ikon, dan memakai wrap, ellipsis, atau tooltip sesuai konteks. Komponen tidak boleh berdempetan, overlap, keluar container, atau membuat horizontal page overflow.
+- UI wajib diuji pada viewport 320, 375, 768, 1024, 1366, dan 1920px, browser zoom, keyboard navigation, focus order, overflow, overlap, kontras, serta safe area/keyboard mobile.
+- Dilarang memakai orb, bokeh, gradient dekoratif, nested card, shadow tebal, radius berlebihan, palette satu nada, padding ekstrem, atau dekorasi yang mengurangi keterbacaan.

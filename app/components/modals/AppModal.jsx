@@ -1,162 +1,160 @@
 "use client";
 
-import React from "react";
-import {
-  Box,
-  Divider,
-  IconButton,
-  Modal,
-  Stack,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
+import { useId } from "react";
+import { Box, Divider, IconButton, Modal, Tooltip, useTheme } from "@mui/material";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Icon } from "@iconify/react";
+import FontStyle from "../font-style/FontStyle";
 
-/**
- * AppModal adalah shell modal umum untuk seluruh aplikasi.
- * Komponen ini hanya mengatur frame, header, backdrop, responsivitas,
- * dan area konten agar modal detail, form, maupun konfirmasi punya fondasi UI
- * yang konsisten tanpa menggandakan styling di banyak file.
- */
+const SIZE_WIDTH = { sm: 480, md: 720, lg: 960, xl: 1200 };
+
 export default function AppModal({
   open,
   title,
+  description,
   titleDescription,
   icon = "solar:document-text-bold-duotone",
-  width = 720,
-  maxHeight = "92vh",
-  contentSx,
+  size = "md",
+  width,
+  maxHeight = "calc(100dvh - 32px)",
+  contentSx = {},
+  paperSx = {},
+  footer,
   showCloseButton = true,
+  disableClose = false,
+  closeOnBackdrop = true,
+  closeOnEscape = true,
+  component = "section",
+  onSubmit,
   onClose,
   children,
 }) {
   const theme = useTheme();
-  const isMobile = useMediaQuery("(max-width:700px)");
+  const titleId = useId();
+  const descriptionId = useId();
+  const resolvedDescription = description || titleDescription;
+
+  const requestClose = (event, reason) => {
+    if (disableClose) return;
+    if (reason === "backdropClick" && !closeOnBackdrop) return;
+    if (reason === "escapeKeyDown" && !closeOnEscape) return;
+    onClose?.(event, reason);
+  };
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        p: { xs: 1.25, sm: 2 },
-        minHeight: "100dvh",
-      }}
+      onClose={requestClose}
+      disableEscapeKeyDown={disableClose || !closeOnEscape}
+      aria-labelledby={titleId}
+      aria-describedby={resolvedDescription ? descriptionId : undefined}
+      sx={{ display: "grid", placeItems: "center", p: { xs: 1, sm: 2 } }}
       slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor:
-              theme.palette.mode === "dark"
-                ? "rgba(0,0,0,0.56)"
-                : "rgba(15,23,42,0.18)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-          },
-        },
+        backdrop: { sx: { bgcolor: "rgba(17, 24, 39, 0.38)", backdropFilter: "blur(4px)" } },
       }}
     >
       <Box
+        component={component}
+        onSubmit={onSubmit}
         sx={{
-          width: isMobile ? "100%" : width,
+          width: { xs: "100%", sm: Math.min(width || SIZE_WIDTH[size] || SIZE_WIDTH.md, 1200) },
           maxWidth: "100%",
           maxHeight,
-          overflowY: "auto",
-          bgcolor: theme.ui?.menuPaperBg || theme.palette.background.paper,
-          color: "text.primary",
-          border: `1px solid ${theme.ui?.dashboardCardBorder || theme.palette.divider}`,
-          borderRadius: { xs: 2.25, sm: 3 },
-          boxShadow: theme.ui?.shellShadow || 24,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          bgcolor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
+          border: `1px solid ${theme.ui.border}`,
+          borderRadius: 2,
+          boxShadow: "0 24px 64px rgba(17, 24, 39, 0.22)",
           outline: "none",
-          scrollbarColor:
-            theme.palette.mode === "dark"
-              ? "#ff9800 rgba(255, 152, 0, 0.14)"
-              : "#d1d5db rgba(17, 24, 39, 0.07)",
-          scrollbarWidth: "thin",
-          "&::-webkit-scrollbar": {
-            width: 9,
-            height: 9,
-          },
-          "&::-webkit-scrollbar-track": {
-            bgcolor:
-              theme.palette.mode === "dark"
-                ? "rgba(255,152,0,0.08)"
-                : "rgba(17,24,39,0.06)",
-            borderRadius: 999,
-          },
-          "&::-webkit-scrollbar-thumb": {
-            borderRadius: 999,
-            border:
-              theme.palette.mode === "dark"
-                ? "2px solid rgba(20,20,20,0.85)"
-                : "2px solid rgba(255,255,255,0.96)",
-            background:
-              theme.palette.mode === "dark"
-                ? "linear-gradient(180deg, #ffb74d, #ff9800)"
-                : "linear-gradient(180deg, #d1d5db, #9ca3af)",
-          },
+          ...paperSx,
         }}
       >
-        <Box sx={{ p: { xs: 2, sm: 2.5 }, pb: 1.5 }}>
-          <Stack direction="row" alignItems="flex-start" spacing={1.5}>
+        <Box
+          sx={{
+            flexShrink: 0,
+            p: { xs: 2, sm: 2.5 },
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1.5,
+          }}
+        >
+          {icon ? (
             <Box
               sx={{
-                width: 42,
-                height: 42,
-                flex: "0 0 auto",
-                borderRadius: 2,
+                width: 40,
+                height: 40,
+                flexShrink: 0,
                 display: "grid",
                 placeItems: "center",
+                borderRadius: 2,
                 color: theme.palette.primary.main,
-                bgcolor:
-                  theme.palette.mode === "dark"
-                    ? "rgba(255,152,0,0.14)"
-                    : "rgba(230,9,9,0.10)",
+                bgcolor: theme.ui.iconButtonBg,
               }}
             >
-              <Icon icon={icon} fontSize={23} />
+              <Icon icon={icon} fontSize={22} />
             </Box>
-
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography
-                sx={{
-                  fontFamily: "Poppins",
-                  fontWeight: 700,
-                  fontSize: { xs: 18, sm: 21 },
-                  lineHeight: 1.25,
-                }}
+          ) : null}
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <FontStyle
+              id={titleId}
+              component="h2"
+              fontSize={{ xs: 17, sm: 19 }}
+              fontWeight={700}
+              sx={{ lineHeight: 1.35 }}
+            >
+              {title}
+            </FontStyle>
+            {resolvedDescription ? (
+              <FontStyle
+                id={descriptionId}
+                fontSize={12.5}
+                sx={{ mt: 0.5, color: theme.ui.mutedText, lineHeight: 1.6 }}
               >
-                {title}
-              </Typography>
-              {titleDescription && (
-                <Typography
-                  sx={{
-                    color: theme.ui?.mutedText || "text.secondary",
-                    fontFamily: "Poppins",
-                    fontWeight: 600,
-                    fontSize: 12,
-                    lineHeight: 1.6,
-                    mt: 0.35,
-                  }}
+                {resolvedDescription}
+              </FontStyle>
+            ) : null}
+          </Box>
+          {showCloseButton ? (
+            <Tooltip title="Tutup">
+              <span>
+                <IconButton
+                  disabled={disableClose}
+                  onClick={(event) => requestClose(event, "closeButton")}
+                  aria-label="Tutup modal"
+                  sx={{ width: 44, height: 44 }}
                 >
-                  {titleDescription}
-                </Typography>
-              )}
-            </Box>
-
-            {showCloseButton && (
-              <IconButton onClick={onClose} sx={{ color: theme.ui?.mutedText }}>
-                <Icon icon="line-md:close" fontSize={22} />
-              </IconButton>
-            )}
-          </Stack>
+                  <CloseRoundedIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          ) : null}
         </Box>
-
-        <Divider sx={{ borderColor: theme.ui?.dashboardCardBorder }} />
-
-        <Box sx={{ p: { xs: 2, sm: 2.5 }, ...contentSx }}>{children}</Box>
+        <Divider />
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: { xs: 2, sm: 2.5 }, ...contentSx }}>
+          {children}
+        </Box>
+        {footer ? (
+          <>
+            <Divider />
+            <Box
+              sx={{
+                flexShrink: 0,
+                p: { xs: 2, sm: 2.5 },
+                pt: { xs: 1.5, sm: 2 },
+                display: "flex",
+                justifyContent: "flex-end",
+                flexWrap: "wrap",
+                gap: 1,
+              }}
+            >
+              {footer}
+            </Box>
+          </>
+        ) : null}
       </Box>
     </Modal>
   );

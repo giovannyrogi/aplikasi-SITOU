@@ -1,12 +1,15 @@
 {
-  "name": "app-absensi-pm",
+  "name": "sitou",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "seed:superadmin": "node scripts/seed-superadmin.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
@@ -19,6 +22,7 @@
     "@mui/x-date-pickers": "^9.11.0",
     "antd": "^6.5.4",
     "axios": "^1.19.0",
+    "bcryptjs": "^3.0.3",
     "daftar-wilayah-indonesia": "^4.0.3",
     "dayjs": "^1.11.21",
     "dotenv": "^17.4.2",
@@ -36,11 +40,11 @@
     "react-medium-image-zoom": "^5.4.8",
     "react-to-print": "^3.3.0",
     "react-toastify": "^11.1.0",
-    "xlsx": "^0.18.5",
-    "xlsx-js-style": "^1.2.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "eslint": "^9",
-    "eslint-config-next": "16.3.0"
+    "eslint-config-next": "16.3.0",
+    "prettier": "^3.9.6"
   }
 }

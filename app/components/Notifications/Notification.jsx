@@ -1,9 +1,11 @@
+"use client";
+
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Snackbar from "@mui/material/Snackbar";
-import Typography from "@mui/material/Typography";
 import { alpha, useTheme } from "@mui/material/styles";
 import { Icon } from "@iconify/react";
+import FontStyle from "../font-style/FontStyle";
 
 const DEFAULT_AUTO_HIDE_DURATION = 4000;
 
@@ -28,7 +30,7 @@ const severityConfig = {
 
 /**
  * Picks the visual treatment for each snackbar severity.
- * Palette colors stay sourced from MUI theme so light and dark mode keep the
+ * Palette colors stay sourced from the app theme so every severity keeps the
  * same semantic meaning without hardcoded one-off component colors.
  */
 const getSeverityStyle = (theme, severity) => {
@@ -36,16 +38,16 @@ const getSeverityStyle = (theme, severity) => {
 
   return {
     main: paletteColor,
-    softBg: alpha(paletteColor, theme.palette.mode === "dark" ? 0.16 : 0.1),
-    iconBg: alpha(paletteColor, theme.palette.mode === "dark" ? 0.22 : 0.14),
-    border: alpha(paletteColor, theme.palette.mode === "dark" ? 0.34 : 0.24),
+    softBg: alpha(paletteColor, 0.1),
+    iconBg: alpha(paletteColor, 0.14),
+    border: alpha(paletteColor, 0.24),
   };
 };
 
 /**
  * Reusable app snackbar.
  * It keeps the existing API used across pages, while providing a modern custom
- * surface that is responsive, theme-aware, and readable for longer messages.
+ * surface that is responsive and readable for longer messages.
  */
 export default function Notification({
   open,
@@ -151,21 +153,22 @@ export default function Notification({
               flexShrink: 0,
             }}
           >
-              <Icon icon={config.icon} fontSize={22} />
+            <Icon icon={config.icon} fontSize={22} />
           </Box>
 
           <Box sx={{ minWidth: 0 }}>
-            <Typography
+            <FontStyle
+              fontSize={13}
+              fontWeight={700}
               sx={{
-                fontSize: 13,
-                fontWeight: 800,
                 lineHeight: 1.25,
                 color: severityStyle.main,
               }}
             >
               {resolvedTitle}
-            </Typography>
-            <Typography
+            </FontStyle>
+            <FontStyle
+              fontWeight={500}
               sx={{
                 mt: 0.35,
                 fontSize: { xs: 12.5, sm: 13 },
@@ -175,7 +178,7 @@ export default function Notification({
               }}
             >
               {message}
-            </Typography>
+            </FontStyle>
           </Box>
         </Box>
       </Alert>

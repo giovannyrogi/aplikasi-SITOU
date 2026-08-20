@@ -1,13 +1,13 @@
 module.exports = {
   apps: [
     {
-      name: "app-absensi-pm",
+      name: "sitou",
       script: "npm",
       args: "start",
       env: {
         HOST: "127.0.0.1",
-        PORT: 3000
-      }
-    }
-  ]
-}
+        PORT: 3000,
+      },
+    },
+  ],
+};

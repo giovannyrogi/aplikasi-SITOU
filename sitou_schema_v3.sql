@@ -38,7 +38,7 @@ CREATE TABLE organizations (
   timezone varchar(50) NOT NULL DEFAULT 'Asia/Makassar', -- Zona waktu untuk tanggal kerja dan rekap.
   locale varchar(10) NOT NULL DEFAULT 'id-ID', -- Lokal antarmuka dan format data.
   active_from date NOT NULL DEFAULT current_date, -- Awal tenant boleh digunakan.
-  active_until date, -- Akhir masa aktif; NULL berarti belum ditentukan.
+  active_until date NOT NULL, -- Hari terakhir tenant boleh memakai SITOU, inklusif sesuai timezone tenant.
   is_active boolean NOT NULL DEFAULT true, -- Status operasional tenant tanpa menghapus data.
   settings jsonb NOT NULL DEFAULT '{}'::jsonb, -- Konfigurasi tambahan noninti yang tervalidasi aplikasi.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu pembuatan record.

@@ -1,131 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import moment from "moment";
 import "moment/locale/id";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
-import { ThemeModeProvider } from "../themeprovider/ThemeContext";
-import ExpiredSessionModal from "../modals/ExpiredSessionModal";
+import { AntdRegistry } from "@ant-design/nextjs-registry";
+import { ConfigProvider } from "antd";
+import { LoadingBackdropProvider } from "../loading/LoadingBackdropProvider";
+import AppThemeProvider from "../themeprovider/ThemeProvider";
 
 moment.locale("id");
 
-const SESSION_CHECK_INTERVAL = 1000;
-const SESSION_MODAL_COUNTDOWN = 10;
-const SESSION_EXPIRY_STORAGE_KEY = "sewain:session-expires-at";
-
-const getCookie = (name) => {
-  if (typeof document === "undefined") return null;
-
-  const match = document.cookie.match(
-    new RegExp(`(^| )${name}=([^;]+)`),
-  );
-  return match ? decodeURIComponent(match[2]) : null;
-};
-
-const clearClientSession = () => {
-  document.cookie =
-    "loggedInUser=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
-  sessionStorage.removeItem(SESSION_EXPIRY_STORAGE_KEY);
-};
-
 export default function AppProviders({ children }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [showModal, setShowModal] = useState(false);
-  const [counter, setCounter] = useState(SESSION_MODAL_COUNTDOWN);
-
-  const isLoginPage = pathname === "/login";
-  const isPublicPage =
-    isLoginPage ||
-    pathname === "/verify/izin-lahan" ||
-    pathname?.startsWith("/verify/izin-lahan/");
-
-  const openExpiredSessionModal = () => {
-    setShowModal((alreadyOpen) => {
-      if (!alreadyOpen) {
-        setCounter(SESSION_MODAL_COUNTDOWN);
-      }
-      return true;
-    });
-  };
-
-  /**
-   * Pemeriksaan ini berjalan di client agar user yang membiarkan halaman terbuka
-   * tetap mendapat modal expired session. Backend tetap menjadi sumber keamanan:
-   * API menolak request setelah `expiresAt`, sedangkan client hanya mengatur UX.
-   */
-  useEffect(() => {
-    if (isPublicPage) {
-      sessionStorage.removeItem(SESSION_EXPIRY_STORAGE_KEY);
-      setShowModal(false);
-      return undefined;
-    }
-
-    const checkSession = () => {
-      const cookie = getCookie("loggedInUser");
-      const storedExpiresAt = Number(
-        sessionStorage.getItem(SESSION_EXPIRY_STORAGE_KEY),
-      );
-      const now = Date.now();
-
-      if (!cookie) {
-        if (storedExpiresAt && storedExpiresAt <= now) {
-          openExpiredSessionModal();
-        }
-        return;
-      }
-
-      try {
-        const user = JSON.parse(cookie);
-        const expiresAt = Number(user?.expiresAt);
-
-        if (!expiresAt) return;
-
-        sessionStorage.setItem(
-          SESSION_EXPIRY_STORAGE_KEY,
-          String(expiresAt),
-        );
-
-        if (expiresAt <= now) {
-          openExpiredSessionModal();
-        }
-      } catch (error) {
-        console.error("Gagal membaca cookie session:", error);
-        openExpiredSessionModal();
-      }
-    };
-
-    checkSession();
-    const interval = setInterval(checkSession, SESSION_CHECK_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [isPublicPage]);
-
-  useEffect(() => {
-    if (!showModal) return undefined;
-
-    if (counter <= 0) {
-      clearClientSession();
-      setShowModal(false);
-      router.replace("/login");
-      return undefined;
-    }
-
-    const timer = setTimeout(() => {
-      setCounter((prev) => prev - 1);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [showModal, counter, router]);
-
   return (
-    <ThemeModeProvider>
-      <LocalizationProvider dateAdapter={AdapterMoment} adapterLocale="id">
-        {children}
-        <ExpiredSessionModal open={showModal} counter={counter} />
-      </LocalizationProvider>
-    </ThemeModeProvider>
+    <AntdRegistry>
+      <ConfigProvider
+        theme={{
+          token: {
+            colorPrimary: "#E60909",
+            colorInfo: "#2563EB",
+            colorSuccess: "#16803C",
+            colorWarning: "#B45309",
+            colorError: "#C62828",
+            colorText: "#1F2937",
+            colorTextSecondary: "#5F6B7A",
+            colorBorder: "#D8DEE8",
+            colorBgLayout: "#F6F7F9",
+            borderRadius: 8,
+            fontFamily: "Poppins, sans-serif",
+            controlHeight: 44,
+            // Popup AntD dirender ke body; layer ini harus berada di atas AppModal MUI (1300).
+            zIndexPopupBase: 1500,
+          },
+          components: {
+            Table: { headerBg: "#F8F9FB", headerColor: "#374151", rowHoverBg: "#FFF5F5" },
+            Button: { primaryShadow: "0 6px 16px rgba(230, 9, 9, 0.18)" },
+          },
+        }}
+      >
+        <AppThemeProvider>
+          <LocalizationProvider dateAdapter={AdapterMoment} adapterLocale="id">
+            <LoadingBackdropProvider>{children}</LoadingBackdropProvider>
+          </LocalizationProvider>
+        </AppThemeProvider>
+      </ConfigProvider>
+    </AntdRegistry>
   );
 }

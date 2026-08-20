@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import { Backdrop, Box, Typography, useTheme } from "@mui/material";
+import { Backdrop, Box, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
-import { useThemeMode } from "../themeprovider/ThemeContext";
+import FontStyle from "../font-style/FontStyle";
+import AppLogo from "../branding/AppLogo";
 
 const DEFAULT_Z_INDEX_OFFSET = 999999;
 
@@ -35,10 +35,7 @@ const LoadingBackdrop = ({
   ...props
 }) => {
   const theme = useTheme();
-  const { themeMode } = useThemeMode();
-  const isDark = themeMode === "dark";
   const resolvedZIndex = resolveZIndex(theme, zIndex);
-  const logoSrc = "/sewain-s-icon-red.png";
   const accentColor = theme.palette.primary.main;
   const messageColor = color || accentColor;
 
@@ -64,9 +61,7 @@ const LoadingBackdrop = ({
             sx={{
               zIndex: resolvedZIndex,
               px: { xs: 2, sm: 3 },
-              bgcolor: isDark
-                ? "rgba(0, 0, 0, 0.58)"
-                : "rgba(255, 255, 255, 0.58)",
+              bgcolor: "rgba(255, 255, 255, 0.58)",
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
             }}
@@ -119,12 +114,12 @@ const LoadingBackdrop = ({
                     position: "absolute",
                     inset: 0,
                     borderRadius: "50%",
-                    border: `3px solid ${alpha(accentColor, isDark ? 0.16 : 0.14)}`,
+                    border: `3px solid ${alpha(accentColor, 0.14)}`,
                     borderTopColor: accentColor,
-                    borderRightColor: alpha(accentColor, isDark ? 0.52 : 0.42),
+                    borderRightColor: alpha(accentColor, 0.42),
                     boxShadow: `0 0 0 1px ${alpha(accentColor, 0.08)}, 0 18px 48px ${alpha(
                       accentColor,
-                      isDark ? 0.18 : 0.12,
+                      0.12,
                     )}`,
                   }}
                 />
@@ -138,40 +133,19 @@ const LoadingBackdrop = ({
                     justifyContent: "center",
                   }}
                 >
-                  {isDark ? (
-                    <Box
-                      role="img"
-                      aria-label="SewaIN loading"
-                      sx={{
-                        width: "82%",
-                        height: "82%",
-                        bgcolor: accentColor,
-                        filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.34))",
-                        maskImage: "url('/sewain-s-icon-white.png')",
-                        maskRepeat: "no-repeat",
-                        maskPosition: "center",
-                        maskSize: "contain",
-                        WebkitMaskImage: "url('/sewain-s-icon-white.png')",
-                        WebkitMaskRepeat: "no-repeat",
-                        WebkitMaskPosition: "center",
-                        WebkitMaskSize: "contain",
-                      }}
-                    />
-                  ) : (
-                    <Image
-                      src={logoSrc}
-                      alt="SewaIN loading"
-                      width={62}
-                      height={62}
-                      priority
-                      style={{
-                        width: "82%",
-                        height: "82%",
-                        objectFit: "contain",
-                        filter: "drop-shadow(0 4px 10px rgba(230,9,9,0.16))",
-                      }}
-                    />
-                  )}
+                  <AppLogo
+                    variant="mark"
+                    alt="SITOU loading"
+                    width={62}
+                    height={62}
+                    priority
+                    style={{
+                      width: "82%",
+                      height: "82%",
+                      objectFit: "contain",
+                      filter: "drop-shadow(0 4px 10px rgba(230,9,9,0.16))",
+                    }}
+                  />
                 </Box>
               </Box>
 
@@ -187,21 +161,18 @@ const LoadingBackdrop = ({
                     px: { xs: 1.5, sm: 2 },
                   }}
                 >
-                  <Typography
+                  <FontStyle
+                    fontWeight={700}
                     sx={{
                       fontSize: { xs: 13, sm: 14 },
-                      fontWeight: 800,
                       color: messageColor,
                       textAlign: "center",
                       lineHeight: 1.45,
                       overflowWrap: "anywhere",
-                      textShadow: isDark
-                        ? "0 2px 12px rgba(0, 0, 0, 0.45)"
-                        : "none",
                     }}
                   >
                     {message}
-                  </Typography>
+                  </FontStyle>
                 </Box>
               ) : null}
             </Box>
