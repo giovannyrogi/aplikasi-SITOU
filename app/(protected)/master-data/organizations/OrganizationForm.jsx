@@ -10,7 +10,7 @@ import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
 
 const TYPES = [
-  { value: "company", label: "Perusahaan" },
+  { value: "company", label: "Organisasi" },
   { value: "holding", label: "Holding" },
   { value: "agency", label: "Agency" },
 ];

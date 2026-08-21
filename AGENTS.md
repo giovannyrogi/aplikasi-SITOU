@@ -4,9 +4,9 @@ Dokumen ini adalah aturan kerja utama untuk developer dan Codex pada proyek **SI
 
 ## 1. Tujuan produk saat ini
 
-Bangun dashboard HRIS multi-perusahaan yang stabil untuk:
+Bangun dashboard HRIS multi-organisasi yang stabil untuk:
 
-- Superadmin membuat perusahaan, lokasi awal, akun HRD, dan cakupan akses.
+- Superadmin membuat organisasi, lokasi awal, akun HRD, dan cakupan akses.
 - HRD mengelola seluruh profil, kontrak, penempatan, rolling, izin, absensi, dokumen, dan tindakan disiplin.
 - Pimpinan memantau data dan histori pegawai tanpa mengubah administrasi HRD.
 - Karyawan disiapkan sebagai role self-service untuk aplikasi web/mobile lanjutan.
@@ -37,27 +37,33 @@ Route handler tidak boleh berisi query dan aturan bisnis panjang. Gunakan servic
 - Skema referensi: `sitou_schema_v3.sql`.
 - Panduan baca cepat database: `docs/database-schema.md`. Buka dokumen ini lebih dulu untuk memahami tabel, kolom penting, relasi, dan aturan data; buka `sitou_schema_v3.sql` hanya ketika perlu detail constraint, index, view SQL, atau membuat migration.
 - Perubahan database hanya melalui migration baru; jangan mengedit database produksi manual.
+- Istilah domain resmi adalah **organisasi**. UI, pesan API, dokumentasi, komentar, test, dan penamaan abstraksi domain dilarang menyebut organisasi sebagai "tenant" atau "perusahaan". Nilai teknis schema yang sudah menjadi kontrak, seperti `organization_id` dan enum `company`, tetap dipertahankan, tetapi label yang dibaca pengguna wajib memakai "organisasi".
 - Event absensi mentah bersifat append-only.
 - `attendance_daily_summaries` adalah hasil olahan dan boleh dihitung ulang.
 - Lokasi/divisi/jabatan aktif berasal dari `employee_assignments`, bukan kolom duplikat pada `employees`.
 - Riwayat kontrak dan penempatan tidak boleh ditimpa.
 - File bersifat privat; `object_key` tidak pernah dikirim mentah ke browser.
 
-## 4. Aturan multi-tenant wajib
+## 4. Aturan multi-organisasi wajib
 
-1. Setiap tabel bisnis tenant memiliki `organization_id` langsung.
+1. Setiap tabel bisnis organisasi memiliki `organization_id` langsung.
 2. Setiap query bisnis wajib memfilter `organization_id` dari session server, bukan dari body yang dipercaya begitu saja.
-3. Foreign key lintas tabel tenant memakai pasangan `(organization_id, id)` bila tersedia.
+3. Foreign key lintas tabel organisasi memakai pasangan `(organization_id, id)` bila tersedia.
 4. Jangan menerima `organization_id` klien tanpa mencocokkannya dengan membership aktif.
-5. Superadmin platform boleh lintas tenant hanya pada use case yang eksplisit dan diaudit.
-6. Job, export, import, cache key, nama objek file, dan log juga harus membawa tenant.
-7. Test wajib membuktikan user tenant A tidak dapat membaca atau mengubah tenant B.
+5. Superadmin platform boleh lintas organisasi hanya pada use case yang eksplisit dan diaudit.
+6. Job, export, import, cache key, nama objek file, dan log juga harus membawa identitas organisasi.
+7. Test wajib membuktikan user organisasi A tidak dapat membaca atau mengubah organisasi B.
 
 Contoh pola service:
 
 ```ts
 await db.transaction(async (tx) => {
-  const actor = await requireTenantPermission(tx, session, organizationId, "employees.update");
+  const actor = await requireOrganizationPermission(
+    tx,
+    session,
+    organizationId,
+    "employees.update",
+  );
   await employeeRepository.update(tx, { organizationId, employeeId, input, actorId: actor.userId });
 });
 ```
@@ -66,12 +72,12 @@ await db.transaction(async (tx) => {
 
 ### Superadmin
 
-- Mengelola tenant, lokasi awal, akun admin/HRD, masa aktif, dan konfigurasi platform.
-- Tidak otomatis menjadi HRD tenant; gunakan aksi lintas tenant yang eksplisit.
+- Mengelola organisasi, lokasi awal, akun admin/HRD, masa aktif, dan konfigurasi platform.
+- Tidak otomatis menjadi HRD organisasi; gunakan aksi lintas organisasi yang eksplisit.
 
 ### HRD
 
-- CRUD data pegawai dan master tenant.
+- CRUD data pegawai dan master organisasi.
 - Mengelola kontrak, penempatan, shift, absensi, izin, dokumen, kasus, dan sanksi.
 - Menjadi satu-satunya approver cuti/izin.
 - Mengunggah dokumen sanksi dan mengubah status tindakan.
@@ -90,9 +96,9 @@ await db.transaction(async (tx) => {
 
 Semua aksi diperiksa di backend. Menyembunyikan tombol di frontend bukan kontrol keamanan.
 
-## 6. Struktur perusahaan, cabang, dan divisi
+## 6. Struktur organisasi, cabang, dan divisi
 
-- `organizations`: perusahaan/tenant.
+- `organizations`: identitas organisasi.
 - `locations`: kantor pusat, cabang, unit pasar, site, gudang.
 - `organization_units`: direktorat, divisi, departemen, unit, tim.
 - `organization_unit_locations`: menghubungkan banyak divisi ke satu cabang dan satu divisi ke beberapa lokasi.
@@ -142,7 +148,7 @@ Jangan memaksa HRD memasukkan ratusan pegawai satu per satu. Implementasikan uru
 1. Download template Excel/CSV dengan NIP, tanggal, jam masuk, jam pulang, status, dan catatan.
 2. Upload ke file privat dan buat `attendance_import_batches`.
 3. Parse ke `attendance_import_rows` tanpa langsung menulis event final.
-4. Tampilkan preview dan error per baris: NIP tidak ada, duplikat, tanggal invalid, di luar tenant, atau urutan jam salah.
+4. Tampilkan preview dan error per baris: NIP tidak ada, duplikat, tanggal invalid, di luar organisasi, atau urutan jam salah.
 5. Commit seluruh baris valid dalam transaksi/batch yang idempotent.
 6. Buat event `source='import'`, hitung ulang rekap terkait, dan tulis audit.
 
@@ -162,7 +168,7 @@ Mobile mengirim UUID `client_event_id` yang tetap sama saat retry. Server:
 6. Simpan foto privat lebih dahulu secara aman, lalu event dan status receipt dalam transaksi terkoordinasi.
 7. Jalankan rekap dan indikator secara asinkron/idempotent.
 
-Event offline diperbolehkan sesuai kebijakan tenant. Simpan `occurred_at`, `received_at`, timezone, serta flag offline. Jangan memakai jam perangkat tanpa pemeriksaan deviasi.
+Event offline diperbolehkan sesuai kebijakan organisasi. Simpan `occurred_at`, `received_at`, timezone, serta flag offline. Jangan memakai jam perangkat tanpa pemeriksaan deviasi.
 
 ## 10. Geofence, foto, dan validasi background
 
@@ -208,7 +214,7 @@ Aturan utama:
 - Pelanggaran ringan mencakup mangkir 1 hari, terlambat/pulang awal tanpa izin, dan tidak melakukan absensi.
 - Ringan: teguran lisan; SP1 bila tidak membaik; SP2 bila mengulang setelah SP1; SP3 bila mengulang setelah SP2.
 - Sedang mencakup mangkir 3 hari kerja berturut-turut dan pengulangan pelanggaran ringan dalam masa SP.
-- Sedang: SP1, lalu SP2, lalu SP3; perusahaan dapat langsung memberi SP2/SP3 dengan pertimbangan kesalahan dan dampak.
+- Sedang: SP1, lalu SP2, lalu SP3; organisasi dapat langsung memberi SP2/SP3 dengan pertimbangan kesalahan dan dampak.
 - Berat mencakup mangkir 5 hari kerja berturut-turut atau lebih, atau 9 hari kerja dalam 1 bulan, serta daftar pelanggaran berat lain dalam Pasal 58.
 - Berat dapat berujung SP3, skorsing, penurunan jabatan, dan/atau PHK sesuai proses resmi.
 - SP1, SP2, dan SP3 masing-masing berlaku 3 bulan sejak diterbitkan dan gugur bila tidak ada pelanggaran dalam masa berlaku.
@@ -228,7 +234,7 @@ Dilarang membuat job yang otomatis mengubah indikator menjadi SP/PHK. Direct SP2
 
 - Development boleh memakai direktori privat di luar public web root.
 - Produksi direkomendasikan object storage privat.
-- Database menyimpan `object_key`, nama asli, MIME, ukuran, hash, kategori, dan pemilik tenant.
+- Database menyimpan `object_key`, nama asli, MIME, ukuran, hash, kategori, dan pemilik organisasi.
 - API file melakukan authorization setiap preview/download dan mengaudit dokumen sensitif.
 - Jangan membangun URL `/uploads/...` yang bisa ditebak.
 - Nama objek gunakan UUID; jangan gunakan nama asli atau NIK.
@@ -241,7 +247,7 @@ Aturan wajib:
 
 - Hindari `SELECT *` pada API.
 - Semua list memakai keyset pagination bila data besar; offset hanya untuk master kecil.
-- Filter tenant dan rentang tanggal harus berada di query SQL.
+- Filter organisasi dan rentang tanggal harus berada di query SQL.
 - Hindari N+1; gunakan join/batch query.
 - Dashboard membaca view/rekap dan cache singkat bila tidak harus real-time.
 - Export besar dijalankan background job dan menghasilkan file privat.
@@ -252,7 +258,7 @@ Aturan wajib:
 Index utama sudah disiapkan untuk:
 
 - pencarian nama pegawai dengan trigram;
-- daftar pegawai aktif per tenant;
+- daftar pegawai aktif per organisasi;
 - penempatan aktif dan histori;
 - kontrak akan berakhir;
 - event per pegawai/waktu dan event perlu tinjau;
@@ -268,7 +274,7 @@ Gunakan connection pool. Banyak instance/serverless memerlukan pool eksternal se
 - `attendance_events` dipartisi bulanan berdasarkan `event_date`.
 - Scheduler membuat partisi bulan berjalan dan minimal dua bulan ke depan memakai `ensure_attendance_month_partition()`.
 - Default partition hanya pengaman; monitor dan pindahkan isinya ke partisi yang benar.
-- Jangan membuat satu partisi per tenant atau per hari.
+- Jangan membuat satu partisi per organisasi atau per hari.
 - Rekap harian tidak perlu dipartisi sebelum volume dan query plan membuktikan kebutuhan.
 - Kebijakan retention foto absensi dapat lebih pendek daripada rekap, tetapi harus disetujui organisasi.
 
@@ -280,7 +286,7 @@ Gunakan connection pool. Banyak instance/serverless memerlukan pool eksternal se
 - Gunakan optimistic concurrency atau version check pada form edit penting.
 - Tanggal tanpa waktu memakai ISO `YYYY-MM-DD`; waktu absolut memakai ISO 8601 UTC.
 - Cursor pagination harus opaque.
-- Semua endpoint mempunyai authorization test, validation test, dan tenant isolation test.
+- Semua endpoint mempunyai authorization test, validation test, dan uji isolasi organisasi.
 
 Endpoint awal yang disarankan:
 
@@ -338,7 +344,7 @@ Minimal sebelum pekerjaan dianggap selesai:
 - Integration test mobile event retry tidak menggandakan event.
 - Integration test HRD-only decision; pimpinan dan karyawan ditolak.
 - Test izin sakit tidak dapat approved tanpa surat dokter ketika diwajibkan.
-- Test lintas tenant untuk setiap repository/use case utama.
+- Test lintas organisasi untuk setiap repository/use case utama.
 - Test file privat tidak bisa diakses dengan object key langsung.
 - Test query plan untuk dashboard pada dataset representatif.
 
@@ -385,7 +391,7 @@ Pekerjaan selesai hanya jika:
 
 1. Kebutuhan dan permission jelas.
 2. Migration/schema, code, dan dokumentasi konsisten.
-3. Tenant isolation diterapkan.
+3. Isolasi organisasi diterapkan.
 4. Validasi frontend dan backend tersedia.
 5. Audit dan error handling sesuai risiko.
 6. Test relevan lulus.
@@ -398,7 +404,7 @@ Pekerjaan selesai hanya jika:
 
 - Jangan menghapus histori pegawai untuk “merapikan” data.
 - Jangan menambahkan kolom `current_division`/`current_location` sebagai sumber kebenaran kedua.
-- Jangan menghubungkan tabel lintas tenant hanya dengan ID tanpa memeriksa organisasi.
+- Jangan menghubungkan tabel lintas organisasi hanya dengan ID tanpa memeriksa organisasi.
 - Jangan menjadikan setiap checkout lewat jam sebagai lembur otomatis.
 - Jangan membuat sanksi otomatis dari indikator.
 - Jangan mengizinkan pimpinan menyetujui izin bila aturan produk masih HRD-only.
@@ -416,13 +422,18 @@ Pekerjaan selesai hanya jika:
 - Hanya ada satu modal shell umum, yaitu `app/components/modals/AppModal.jsx`. Modal khusus, preview, dan confirmation wajib menyusun `AppModal`.
 - Komponen hanya boleh dihapus setelah seluruh import, pemanggilan dinamis, route, dan dokumentasi diperiksa.
 - Form CRUD memakai dirty-state warning, validasi dekat field, mencegah submit ganda, dan menjelaskan dampak aksi berisiko.
-- Gunakan `PageHeader`, `DataToolbar`, `ResponsiveDataView`, `StatusBadge`, `RowActionMenu`, `ConfirmDialog`, select reusable, `Notification`, dan `LoadingBackdrop` sebelum membuat implementasi fitur sendiri.
+- Gunakan `PageHeader`, `DataToolbar`, `ResponsiveDataView`, `CompactInfoChip`, `RowActionMenu`, `ConfirmDialog`, select reusable, `Notification`, dan `LoadingBackdrop` sebelum membuat implementasi fitur sendiri. `CompactInfoChip` adalah satu-satunya chip untuk metadata dan status; dilarang membuat badge/chip reusable kedua dengan fungsi yang sama.
+- Breadcrumb halaman wajib bersumber dari konfigurasi menu melalui `AppBreadcrumbs`. Parent tanpa path tampil sebagai konteks nonklik, sedangkan route turunan mengikuti menu terdekat yang paling spesifik.
+- Area daftar operasional wajib memeriksa dan memakai reusable `DataPanel` sebelum membuat wrapper baru. Toolbar embedded, tabel/card list, dan pagination berada dalam satu paper tanpa nested panel.
+- Setiap pembuatan atau perubahan UI/UX wajib diperiksa kerapian alignment, baseline, hierarchy, lebar control, spacing, dan konsistensi antarhalaman yang memakai alur serta komponen sama. Breadcrumb, judul, deskripsi, toolbar, tabel, dan aksi tidak boleh tampak bergeser, berdempetan, terlalu melebar, atau berbeda struktur tanpa alasan produk yang jelas.
+- Setiap fungsi exported, resolver, transformasi data, lifecycle async, serta baris penting atau non-obvious wajib memiliki komentar singkat tentang tujuan atau alasan implementasinya. Komentar dilarang sekadar mengulang sintaks yang sudah jelas.
 - AntD Table digunakan pada tablet/desktop. Mobile memakai card list dari data yang sama beserta loading, empty/error, dan pagination yang dapat dijangkau.
 - `AppModal` harus mendukung ukuran `sm`, `md`, `lg`, `xl` atau custom width, header/footer tetap, konten scrollable, focus management, Escape/backdrop policy, form submit, dan hampir full-screen pada mobile.
 - `ImagePreviewModal` hanya menerima URL endpoint privat, blob, atau file lokal; jangan pernah mengirim `object_key` ke browser.
 - Identitas dan status administratif organisasi disimpan pada `organizations`; masa akses tidak boleh disimpan kembali sebagai kolom tanggal pada tabel tersebut.
 - Histori masa akses organisasi bersumber dari `organization_subscriptions` dengan `starts_on`, `ends_on`, `grace_ends_on`, dan status lifecycle. Perpanjangan selalu membuat record baru, tidak boleh menimpa histori, dan periode efektif tidak boleh overlap.
-- Session tenant harus divalidasi ulang terhadap `organizations.is_active`, role aktif, lokasi yang masih dalam periode operasional, serta status langganan efektif `active` atau `grace`. Status efektif tetap dihitung dari tanggal dan timezone organisasi walaupun job rekonsiliasi terlambat.
+- Session organisasi selalu divalidasi ulang terhadap `users.is_active`, role aktif, `organizations.is_active`, dan status langganan efektif `active` atau `grace`. Login Admin/HRD tidak diblokir oleh lokasi scope selama organisasi dan langganan aktif; scope hanya membatasi data yang dapat dikelola. Pimpinan yang memiliki `user_location_scopes` wajib masih mempunyai lokasi efektif. Karyawan wajib memiliki profil `employees` aktif, penempatan utama efektif, lokasi administratif/operasional aktif, dan `organization_units` aktif. Status langganan tetap dihitung dari tanggal dan timezone organisasi walaupun job rekonsiliasi terlambat.
+- Penolakan login wajib memakai kode stabil dan pesan spesifik: masalah akun/profil/penempatan/lokasi/divisi mengarahkan pengguna ke Admin organisasi, sedangkan organisasi nonaktif atau masa berlaku tidak efektif mengarahkan pengguna ke Admin SITOU.
 - Umur operasional lokasi memakai `operational_from` dan `operational_until`; nama `active_from`/`active_until` tidak digunakan pada `locations`.
 - Peringatan maksimal 30 hari dan masa tenggang tampil di shell dengan tombol `Perpanjang`.
 - UI harus modern, sederhana, elegan, profesional, user friendly, dan mudah dipahami pengguna nonteknis. Kreativitas diterapkan melalui hierarchy, komposisi, iconography, spacing, microinteraction, dan state, bukan dekorasi berlebihan.
@@ -433,3 +444,13 @@ Pekerjaan selesai hanya jika:
 - Teks harus terbaca, tidak bertumpuk dengan background/ikon, dan memakai wrap, ellipsis, atau tooltip sesuai konteks. Komponen tidak boleh berdempetan, overlap, keluar container, atau membuat horizontal page overflow.
 - UI wajib diuji pada viewport 320, 375, 768, 1024, 1366, dan 1920px, browser zoom, keyboard navigation, focus order, overflow, overlap, kontras, serta safe area/keyboard mobile.
 - Dilarang memakai orb, bokeh, gradient dekoratif, nested card, shadow tebal, radius berlebihan, palette satu nada, padding ekstrem, atau dekorasi yang mengurangi keterbacaan.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

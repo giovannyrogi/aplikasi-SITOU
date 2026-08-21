@@ -126,7 +126,7 @@ export default function AdminUserForm({
                   { type: "email", message: "Format email tidak valid." },
                 ]}
               >
-                <Input autoComplete="email" placeholder="nama@perusahaan.co.id" />
+                <Input autoComplete="email" placeholder="nama@organisasi.co.id" />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>

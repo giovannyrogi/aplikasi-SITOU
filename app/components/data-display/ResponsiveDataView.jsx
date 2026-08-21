@@ -5,6 +5,7 @@ import { Pagination, Skeleton, Table } from "antd";
 import EmptyState from "./EmptyState";
 import ErrorState from "./ErrorState";
 
+/** Menampilkan dataset yang sama sebagai tabel pada layar besar dan kartu pada mobile. */
 export default function ResponsiveDataView({
   data,
   columns,
@@ -18,7 +19,15 @@ export default function ResponsiveDataView({
 }) {
   const theme = useTheme();
   const mobile = useMediaQuery("(max-width:767px)");
-  if (error) return <ErrorState message={error} onRetry={onRetry} />;
+
+  if (error) {
+    return (
+      <Box sx={{ py: 2 }}>
+        <ErrorState message={error} onRetry={onRetry} />
+      </Box>
+    );
+  }
+
   if (mobile) {
     if (loading) {
       return (
@@ -27,7 +36,7 @@ export default function ResponsiveDataView({
             <Box
               key={item}
               sx={{
-                bgcolor: theme.palette.background.paper,
+                bgcolor: theme.ui.panelSubtleBg,
                 border: `1px solid ${theme.ui.border}`,
                 borderRadius: 2,
                 p: 2,
@@ -44,9 +53,8 @@ export default function ResponsiveDataView({
         <Box
           sx={{
             p: 3,
-            bgcolor: theme.palette.background.paper,
-            border: `1px solid ${theme.ui.border}`,
-            borderRadius: 2,
+            bgcolor: theme.ui.panelSubtleBg,
+            borderRadius: 1.5,
           }}
         >
           <EmptyState />
@@ -59,10 +67,11 @@ export default function ResponsiveDataView({
             <Box
               key={item[rowKey]}
               sx={{
-                bgcolor: theme.palette.background.paper,
-                border: `1px solid ${theme.ui.border}`,
+                bgcolor: theme.ui.panelBg,
+                border: `1px solid ${theme.ui.panelBorderSubtle}`,
                 borderRadius: 2,
                 p: 2,
+                boxShadow: "none",
               }}
             >
               {renderCard(item)}
@@ -82,22 +91,65 @@ export default function ResponsiveDataView({
     );
   }
   return (
-    <Table
-      rowKey={rowKey}
-      dataSource={data}
-      columns={columns}
-      loading={loading}
-      scroll={{ x: 900 }}
-      locale={{ emptyText: <EmptyState /> }}
-      pagination={{
-        current: pagination.page,
-        pageSize: pagination.pageSize,
-        total: pagination.total,
-        showSizeChanger: true,
-        pageSizeOptions: [10, 20, 50],
-        showTotal: (total) => `${total} data`,
-        onChange: onPageChange,
+    <Box
+      sx={{
+        minWidth: 0,
+        "& .ant-table-wrapper .ant-table": {
+          overflow: "hidden",
+          border: `1px solid ${theme.ui.panelBorder}`,
+          borderRadius: 2,
+        },
+        "& .ant-table-wrapper .ant-table-container": { borderRadius: 2 },
+        "& .ant-table-wrapper .ant-table-thead > tr > th": {
+          bgcolor: theme.ui.tableHeaderBg,
+          color: theme.ui.tableHeaderText,
+          fontWeight: 700,
+          fontSize: 12,
+          borderBottom: `1px solid ${theme.ui.panelBorder}`,
+          py: 2,
+        },
+        "& .ant-table-wrapper .ant-table-tbody > tr > td": {
+          borderColor: theme.ui.panelBorderSubtle,
+          verticalAlign: "middle",
+          py: 2,
+          transition: "background-color 160ms ease, box-shadow 160ms ease",
+        },
+        "& .ant-table-wrapper .ant-table-tbody > tr:nth-of-type(even) > td": {
+          bgcolor: theme.ui.panelSubtleBg,
+        },
+        "& .ant-table-wrapper .ant-table-tbody > tr:hover > td": {
+          bgcolor: `${theme.ui.tableRowHover} !important`,
+        },
+        "& .ant-table-wrapper .ant-table-tbody > tr:hover > td:first-of-type": {
+          boxShadow: `inset 3px 0 ${theme.palette.primary.main}`,
+        },
+        "& .ant-table-wrapper .ant-pagination": {
+          mt: 2,
+          mb: 0,
+          pt: 2,
+          borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
+          alignItems: "center",
+        },
       }}
-    />
+    >
+      <Table
+        rowKey={rowKey}
+        dataSource={data}
+        columns={columns}
+        loading={loading}
+        size="middle"
+        scroll={{ x: 900 }}
+        locale={{ emptyText: <EmptyState /> }}
+        pagination={{
+          current: pagination.page,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          pageSizeOptions: [10, 20, 50],
+          showTotal: (total) => `${total} data`,
+          onChange: onPageChange,
+        }}
+      />
+    </Box>
   );
 }

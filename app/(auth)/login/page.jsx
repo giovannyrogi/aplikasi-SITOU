@@ -21,7 +21,7 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import AppLogo from "@/app/components/branding/AppLogo";
 
 const APP_VERSION = "v0.1.0";
-const statisticBadges = ["Multi Perusahaan", "Manajemen SDM", "Realtime"];
+const statisticBadges = ["Multi Organisasi", "Manajemen SDM", "Realtime"];
 
 function BuildingIllustration() {
   const theme = useTheme();
@@ -290,7 +290,7 @@ export default function LoginPage() {
               lineHeight: 1.65,
             }}
           >
-            Platform terpadu pengelolaan SDM multi-perusahaan milik Perumda Pasar Manado - cepat,
+            Platform terpadu pengelolaan SDM multi-organisasi milik Perumda Pasar Manado - cepat,
             aman, dan efisien.
           </FontStyle>
           <Box

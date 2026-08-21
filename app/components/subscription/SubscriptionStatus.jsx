@@ -1,6 +1,6 @@
 "use client";
 import { Tooltip } from "antd";
-import StatusBadge from "../data-display/StatusBadge";
+import CompactInfoChip from "../chips/CompactInfoChip";
 export default function SubscriptionStatus({ status, endsOn, graceEndsOn, daysRemaining }) {
   if (!status) return null;
   const finalDate = graceEndsOn || endsOn;
@@ -13,7 +13,7 @@ export default function SubscriptionStatus({ status, endsOn, graceEndsOn, daysRe
       }
     >
       <span>
-        <StatusBadge
+        <CompactInfoChip
           status={status}
           label={
             status === "grace"

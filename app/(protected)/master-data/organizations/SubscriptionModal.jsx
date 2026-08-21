@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, DatePicker, Form, Input, Space, Table } from "antd";
 import dayjs from "dayjs";
-import { Box, useMediaQuery } from "@mui/material";
+import { Box, useMediaQuery, useTheme } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
-import StatusBadge from "@/app/components/data-display/StatusBadge";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 
+/** Memformat batas periode langganan untuk tampilan histori. */
 const fmt = (value) =>
   value
     ? new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" }).format(
@@ -16,6 +17,7 @@ const fmt = (value) =>
       )
     : "—";
 export default function SubscriptionModal({ open, organization, onClose, onChanged, onError }) {
+  const theme = useTheme();
   const [form] = Form.useForm();
   const [actionForm] = Form.useForm();
   const [items, setItems] = useState([]);
@@ -139,7 +141,11 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
   const columns = [
     { title: "Periode", render: (_, item) => `${fmt(item.starts_on)} – ${fmt(item.ends_on)}` },
     { title: "Tenggang", dataIndex: "grace_ends_on", render: fmt },
-    { title: "Status", dataIndex: "status", render: (status) => <StatusBadge status={status} /> },
+    {
+      title: "Status",
+      dataIndex: "status",
+      render: (status) => <CompactInfoChip status={status} />,
+    },
     { title: "Dibuat oleh", dataIndex: "created_by_name", render: (v) => v || "Migration" },
     { title: "Aksi", render: (_, item) => actions(item) },
   ];
@@ -189,15 +195,15 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
                 <Box
                   component="section"
                   key={item.id}
-                  sx={{ border: "1px solid #E5E7EB", borderRadius: "8px", p: 2 }}
+                  sx={{ border: `1px solid ${theme.ui.panelBorderSubtle}`, borderRadius: 2, p: 2 }}
                 >
                   <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mb: 1 }}>
                     <FontStyle fontWeight={600}>
                       {fmt(item.starts_on)} – {fmt(item.ends_on)}
                     </FontStyle>
-                    <StatusBadge status={item.status} />
+                    <CompactInfoChip status={item.status} />
                   </Box>
-                  <FontStyle fontSize={12} sx={{ color: "#5F6B7A", mb: 1.5 }}>
+                  <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText, mb: 1.5 }}>
                     Tenggang: {fmt(item.grace_ends_on)} · {item.created_by_name || "Migration"}
                   </FontStyle>
                   {actions(item)}

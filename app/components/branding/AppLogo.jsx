@@ -5,7 +5,7 @@ import Image from "next/image";
  * seluruh UI dan metadata aplikasi akan mengikuti konfigurasi yang sama.
  */
 export const APP_LOGO_ASSETS = Object.freeze({
-  full: "/logo-sitou-v1-transparent.png",
+  full: "/logo-sitou-v3-transparent.png",
   mark: "/logo-sitou-v2-transparent.png",
 });
 

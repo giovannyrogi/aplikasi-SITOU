@@ -45,6 +45,19 @@ export const STATUS_TONES = Object.freeze({
   },
 });
 
+export const UI_TOKENS = Object.freeze({
+  pageBg: "#F7F7F8",
+  surface: "#FFFFFF",
+  surfaceSubtle: "#F8F9FB",
+  surfaceAccent: "#FFF7F7",
+  text: "#232323",
+  textMuted: "#5F6B7A",
+  border: "#D8DEE8",
+  borderSubtle: "#E8EBF0",
+  rowHover: "#FFF7F7",
+  panelShadow: "0 8px 24px rgba(17, 24, 39, 0.06)",
+});
+
 export const appTheme = createTheme({
   typography: {
     fontFamily: '"Poppins", sans-serif',
@@ -63,8 +76,8 @@ export const appTheme = createTheme({
     primary: { main: BRAND_COLORS.primary, dark: BRAND_COLORS.primaryDark },
     secondary: { main: "#CB3CFF" },
     inactiveColor: { main: STATUS_TONES.danger.main },
-    background: { default: "#FFFFFF", paper: "#FFFFFF" },
-    text: { primary: "#232323", secondary: STATUS_TONES.neutral.main },
+    background: { default: UI_TOKENS.surface, paper: UI_TOKENS.surface },
+    text: { primary: UI_TOKENS.text, secondary: UI_TOKENS.textMuted },
     error: { main: STATUS_TONES.danger.main },
     success: { main: STATUS_TONES.success.main },
     info: { main: STATUS_TONES.info.main },
@@ -73,7 +86,16 @@ export const appTheme = createTheme({
   brand: BRAND_COLORS,
   status: STATUS_TONES,
   ui: {
-    pageBg: "#F7F7F8",
+    pageBg: UI_TOKENS.pageBg,
+    panelBg: UI_TOKENS.surface,
+    panelSubtleBg: UI_TOKENS.surfaceSubtle,
+    panelAccentBg: UI_TOKENS.surfaceAccent,
+    panelBorder: UI_TOKENS.border,
+    panelBorderSubtle: UI_TOKENS.borderSubtle,
+    panelShadow: UI_TOKENS.panelShadow,
+    tableHeaderBg: UI_TOKENS.surfaceSubtle,
+    tableHeaderText: "#374151",
+    tableRowHover: UI_TOKENS.rowHover,
     pageGradient:
       "linear-gradient(135deg, rgba(230, 9, 9, 0.10) 0%, transparent 34%), linear-gradient(315deg, rgba(255, 152, 0, 0.12) 0%, transparent 34%)",
     gridColor: "rgba(17, 24, 39, 0.10)",

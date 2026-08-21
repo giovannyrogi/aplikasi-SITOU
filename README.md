@@ -1,6 +1,6 @@
 # SITOU
 
-SITOU (Sistem Informasi Tenaga Operasional Unit) adalah dashboard HRIS multi-perusahaan untuk mengelola organisasi, lokasi, akun Admin/HRD, pegawai, penempatan, kontrak, absensi, izin, dokumen, dan disiplin secara terisolasi per tenant.
+SITOU (Sistem Informasi Tenaga Operasional Unit) adalah dashboard HRIS multi-organisasi untuk mengelola organisasi, lokasi, akun Admin/HRD, pegawai, penempatan, kontrak, absensi, izin, dokumen, dan disiplin secara terisolasi per organisasi.
 
 ## Teknologi
 
@@ -27,7 +27,7 @@ npm run subscriptions:reconcile
 
 ## Masa akses organisasi
 
-Identitas tenant disimpan pada `organizations`. Semua histori masa akses berada pada `organization_subscriptions`; onboarding membuat periode pertama dan perpanjangan selalu menambah periode baru. Lokasi memakai `operational_from` dan `operational_until` untuk umur operasional, bukan untuk masa berlangganan SITOU.
+Identitas organisasi disimpan pada `organizations`. Semua histori masa akses berada pada `organization_subscriptions`; onboarding membuat periode pertama dan perpanjangan selalu menambah periode baru. Lokasi memakai `operational_from` dan `operational_until` untuk umur operasional, bukan untuk masa berlangganan SITOU.
 
 Urutan upgrade database lama:
 

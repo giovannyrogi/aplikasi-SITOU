@@ -4,21 +4,24 @@ Periksa katalog dan folder `app/components` sebelum membuat komponen baru. Nama 
 
 ## Layout dan Filter
 
-| Komponen                | Tujuan                                                                                                                 | Props penting                                                                  |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `layout/PageHeader`     | Header halaman operasional dengan judul, deskripsi, jumlah data, dan aksi utama.                                       | `title`, `description`, `count`, `action`                                      |
-| `filters/DataToolbar`   | Pencarian debounce, filter status, filter tambahan, reset, dan refresh.                                                | `search`, `onSearchChange`, `status`, `onStatusChange`, `filters`, `onRefresh` |
-| `navbar/ProtectedShell` | Shell terproteksi yang menyatukan topbar, sidebar desktop, drawer mobile, subscription, sesi, loading, dan notifikasi. | `user`, `children`                                                             |
+| Komponen                    | Tujuan                                                                                                                 | Props penting                                                                              |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `layout/PageHeader`         | Paper header operasional dengan breadcrumb dinamis, judul, deskripsi, dan aksi utama.                                  | `title`, `description`, `action`, `breadcrumbs`, `menuList`                                |
+| `navigation/AppBreadcrumbs` | Breadcrumb rekursif yang mengikuti route paling spesifik dari `MenuConfig` dan lifecycle loading navigasi.             | `items`, `menuList`, `fallbackLabel`                                                       |
+| `filters/DataToolbar`       | Pencarian, filter status, filter tambahan, dan refresh; mode embedded dipakai di dalam `DataPanel`.                    | `search`, `onSearchChange`, `status`, `onStatusChange`, `filters`, `onRefresh`, `embedded` |
+| `navbar/ProtectedShell`     | Shell terproteksi yang menyatukan topbar, sidebar desktop, drawer mobile, subscription, sesi, loading, dan notifikasi. | `user`, `children`                                                                         |
 
 ## Data Display
 
 | Komponen                          | Tujuan                                                                                    | Props penting                                                                     |
 | --------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `data-display/DataPanel`          | Satu paper untuk judul daftar, ringkasan, toolbar embedded, data view, dan pagination.    | `title`, `description`, `toolbar`, `children`                                     |
 | `data-display/ResponsiveDataView` | AntD Table pada tablet/desktop dan card list dengan loading serta pagination pada mobile. | `data`, `columns`, `renderCard`, `pagination`, `onPageChange`, `loading`, `error` |
-| `data-display/StatusBadge`        | Status dengan warna, ikon, dan label agar makna tidak bergantung pada warna.              | `status`, `label`                                                                 |
 | `data-display/EmptyState`         | Empty/no-result state umum.                                                               | `title`, `description`                                                            |
 | `data-display/ErrorState`         | Error state dengan aksi retry.                                                            | `message`, `onRetry`                                                              |
-| `chips/CompactInfoChip`           | Informasi ringkas noninteraktif.                                                          | `label`, `icon`                                                                   |
+| `chips/CompactInfoChip`           | Satu-satunya chip untuk metadata dan status, dengan tone semantik, ikon, dan label.       | `label`, `status`, `tone`, `icon`, `color`, `sx`                                  |
+
+Area daftar operasional wajib memeriksa `DataPanel` sebelum membuat wrapper baru. Hindari paper tambahan untuk toolbar atau tabel di dalam panel; card hanya dipakai sebagai item berulang pada mobile. `CompactInfoChip` menangani metadata sekaligus status agar tidak ada reusable badge kedua dengan fungsi sama. Chip dipakai untuk data yang perlu ditonjolkan, bukan seluruh teks tabel.
 
 ## Actions dan Modal
 

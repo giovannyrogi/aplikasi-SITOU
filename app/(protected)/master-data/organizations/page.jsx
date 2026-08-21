@@ -3,11 +3,12 @@
 import { useCallback, useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, PlusOutlined, StopOutlined, SyncOutlined } from "@ant-design/icons";
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
+import DataPanel from "@/app/components/data-display/DataPanel";
 import DataToolbar from "@/app/components/filters/DataToolbar";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
-import StatusBadge from "@/app/components/data-display/StatusBadge";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import Notification from "@/app/components/Notifications/Notification";
@@ -18,13 +19,24 @@ import useAppNotification from "@/app/hooks/useAppNotification";
 import OrganizationForm from "./OrganizationForm";
 import SubscriptionModal from "./SubscriptionModal";
 
+/** Memformat tanggal database menjadi tanggal pendek yang mudah dipindai pengguna. */
 const fmt = (value) =>
   value
     ? new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" }).format(
         new Date(`${value}T00:00:00`),
       )
     : "—";
+
+/** Memilih tone sisa masa berlaku berdasarkan tingkat urgensinya. */
+const getRemainingTone = (daysRemaining) => {
+  if (!Number.isFinite(daysRemaining) || daysRemaining < 0) return "danger";
+  if (daysRemaining <= 7) return "danger";
+  if (daysRemaining <= 30) return "warning";
+  return "success";
+};
+
 export default function OrganizationsPage() {
+  const theme = useTheme();
   const list = useDataList("/api/organizations");
   const refreshOrganizations = list.refresh;
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
@@ -98,25 +110,37 @@ export default function OrganizationsPage() {
           <FontStyle fontSize={12.5} fontWeight={600}>
             {item.name}
           </FontStyle>
-          <FontStyle fontSize={11} sx={{ color: "#5F6B7A" }}>
-            {item.code}
-            {item.legal_name ? ` · ${item.legal_name}` : ""}
-          </FontStyle>
+          <Box
+            sx={{ mt: 0.75, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75 }}
+          >
+            <CompactInfoChip label={item.code} />
+            {item.legal_name ? (
+              <FontStyle fontSize={10.5} sx={{ color: theme.ui.mutedText }}>
+                {item.legal_name}
+              </FontStyle>
+            ) : null}
+          </Box>
         </Box>
       ),
     },
     {
       title: "Jenis",
       dataIndex: "organization_type",
-      render: (v) => ({ company: "Perusahaan", holding: "Holding", agency: "Agency" })[v],
+      render: (v) => (
+        <CompactInfoChip
+          label={{ company: "Organisasi", holding: "Holding", agency: "Agency" }[v] || v}
+          tone="info"
+        />
+      ),
     },
     {
       title: "Onboarding",
       key: "counts",
       render: (_, item) => (
-        <FontStyle fontSize={11.5}>
-          {item.location_count} lokasi · {item.admin_count} admin
-        </FontStyle>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+          <CompactInfoChip label={`${item.location_count} lokasi`} tone="info" />
+          <CompactInfoChip label={`${item.admin_count} admin`} tone="warning" />
+        </Box>
       ),
     },
     {
@@ -127,11 +151,16 @@ export default function OrganizationsPage() {
           <FontStyle fontSize={11.5}>
             {fmt(item.subscription_starts_on)} - {fmt(item.subscription_ends_on)}
           </FontStyle>
-          <FontStyle fontSize={10.5} sx={{ color: "#5F6B7A" }}>
-            {Number.isFinite(item.days_remaining) && item.days_remaining >= 0
-              ? `${item.days_remaining} hari tersisa`
-              : "Masa akses berakhir"}
-          </FontStyle>
+          <Box sx={{ mt: 0.75 }}>
+            <CompactInfoChip
+              label={
+                Number.isFinite(item.days_remaining) && item.days_remaining >= 0
+                  ? `${item.days_remaining} hari tersisa`
+                  : "Masa akses berakhir"
+              }
+              tone={getRemainingTone(item.days_remaining)}
+            />
+          </Box>
         </Box>
       ),
     },
@@ -139,7 +168,7 @@ export default function OrganizationsPage() {
       title: "Status",
       key: "effective_status",
       render: (_, item) => (
-        <StatusBadge status={item.is_active ? item.subscription_status : "inactive"} />
+        <CompactInfoChip status={item.is_active ? item.subscription_status : "inactive"} />
       ),
     },
     {
@@ -157,31 +186,47 @@ export default function OrganizationsPage() {
           <FontStyle fontSize={14} fontWeight={600}>
             {item.name}
           </FontStyle>
-          <FontStyle fontSize={11} sx={{ color: "#5F6B7A" }}>
-            {item.code}
-          </FontStyle>
+          <Box sx={{ mt: 0.75 }}>
+            <CompactInfoChip label={item.code} />
+          </Box>
         </Box>
         <RowActionMenu items={actions(item)} />
       </Box>
       <Box sx={{ mt: 1.5, display: "flex", flexWrap: "wrap", gap: 1 }}>
-        <StatusBadge status={item.is_active ? item.subscription_status : "inactive"} />
-        <StatusBadge
-          status={item.location_count > 0 && item.admin_count > 0 ? "ready" : "not_started"}
-          label={item.location_count > 0 && item.admin_count > 0 ? "Siap digunakan" : "Onboarding"}
+        <CompactInfoChip status={item.is_active ? item.subscription_status : "inactive"} />
+        <CompactInfoChip
+          label={
+            { company: "Organisasi", holding: "Holding", agency: "Agency" }[
+              item.organization_type
+            ] || item.organization_type
+          }
+          tone="info"
+        />
+        <CompactInfoChip
+          label={`${item.location_count} lokasi · ${item.admin_count} admin`}
+          tone="warning"
         />
       </Box>
-      <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: "#5F6B7A" }}>
-        Berlaku sampai {fmt(item.subscription_ends_on)} · {item.location_count} lokasi ·{" "}
-        {item.admin_count} admin
-      </FontStyle>
+      <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+        <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
+          Berlaku sampai {fmt(item.subscription_ends_on)}
+        </FontStyle>
+        <CompactInfoChip
+          label={
+            Number.isFinite(item.days_remaining) && item.days_remaining >= 0
+              ? `${item.days_remaining} hari tersisa`
+              : "Masa akses berakhir"
+          }
+          tone={getRemainingTone(item.days_remaining)}
+        />
+      </Box>
     </Box>
   );
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
         title="Organisasi"
-        description="Kelola tenant, kesiapan onboarding, dan masa akses SITOU."
-        count={list.pagination.total}
+        description="Kelola organisasi, kesiapan onboarding, dan masa akses SITOU."
         action={
           <Button
             type="primary"
@@ -192,23 +237,31 @@ export default function OrganizationsPage() {
           </Button>
         }
       />
-      <DataToolbar
-        search={list.search}
-        onSearchChange={list.setSearch}
-        status={list.status}
-        onStatusChange={list.setStatus}
-        onRefresh={list.refresh}
-      />
-      <ResponsiveDataView
-        data={list.data}
-        columns={columns}
-        loading={list.loading}
-        error={list.error}
-        onRetry={list.refresh}
-        pagination={list.pagination}
-        onPageChange={list.setPage}
-        renderCard={card}
-      />
+      <DataPanel
+        title="Daftar organisasi"
+        description="Cari, pantau onboarding, dan kelola masa akses organisasi dari satu tempat."
+        toolbar={
+          <DataToolbar
+            embedded
+            search={list.search}
+            onSearchChange={list.setSearch}
+            status={list.status}
+            onStatusChange={list.setStatus}
+            onRefresh={list.refresh}
+          />
+        }
+      >
+        <ResponsiveDataView
+          data={list.data}
+          columns={columns}
+          loading={list.loading}
+          error={list.error}
+          onRetry={list.refresh}
+          pagination={list.pagination}
+          onPageChange={list.setPage}
+          renderCard={card}
+        />
+      </DataPanel>
       <OrganizationForm
         open={form.open}
         item={form.item}
@@ -226,7 +279,7 @@ export default function OrganizationsPage() {
       <ConfirmDialog
         open={Boolean(confirm)}
         title="Nonaktifkan organisasi?"
-        message={`Akun tenant ${confirm?.name || ""} tidak dapat memakai SITOU setelah dinonaktifkan.`}
+        message={`Akun organisasi ${confirm?.name || ""} tidak dapat memakai SITOU setelah dinonaktifkan.`}
         confirmText="Nonaktifkan"
         danger
         onClose={() => setConfirm(null)}

@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, KeyOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
+import DataPanel from "@/app/components/data-display/DataPanel";
 import DataToolbar from "@/app/components/filters/DataToolbar";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
-import StatusBadge from "@/app/components/data-display/StatusBadge";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import Notification from "@/app/components/Notifications/Notification";
@@ -20,6 +21,7 @@ import AdminUserForm from "./AdminUserForm";
 import ResetPasswordForm from "./ResetPasswordForm";
 
 export default function AdminUsersPage() {
+  const theme = useTheme();
   const list = useDataList("/api/admin-users");
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
@@ -87,22 +89,41 @@ export default function AdminUsersPage() {
           <FontStyle fontSize={12.5} fontWeight={600}>
             {item.full_name}
           </FontStyle>
-          <FontStyle fontSize={11} sx={{ color: "#5F6B7A" }}>
-            @{item.username} · {item.email}
-          </FontStyle>
+          <Box
+            sx={{ mt: 0.75, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75 }}
+          >
+            <CompactInfoChip label={`@${item.username}`} />
+            <FontStyle fontSize={10.5} sx={{ color: theme.ui.mutedText }}>
+              {item.email}
+            </FontStyle>
+          </Box>
         </Box>
       ),
     },
-    { title: "Organisasi", dataIndex: "organization_name" },
+    {
+      title: "Organisasi",
+      dataIndex: "organization_name",
+      render: (value) => <CompactInfoChip label={value} tone="info" />,
+    },
     {
       title: "Cakupan lokasi",
       dataIndex: "location_names",
-      render: (value) => value?.join(", ") || "Belum ditetapkan",
+      render: (value) => (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+          {(value || []).slice(0, 2).map((location) => (
+            <CompactInfoChip key={location} label={location} tone="success" />
+          ))}
+          {(value || []).length > 2 ? (
+            <CompactInfoChip label={`+${value.length - 2} lokasi`} tone="success" />
+          ) : null}
+          {!value?.length ? <FontStyle fontSize={11.5}>Belum ditetapkan</FontStyle> : null}
+        </Box>
+      ),
     },
     {
       title: "Status",
       dataIndex: "is_active",
-      render: (value) => <StatusBadge status={value ? "active" : "inactive"} />,
+      render: (value) => <CompactInfoChip status={value ? "active" : "inactive"} />,
     },
     {
       title: "Aksi",
@@ -119,18 +140,30 @@ export default function AdminUsersPage() {
           <FontStyle fontSize={14} fontWeight={600} noWrap>
             {item.full_name}
           </FontStyle>
-          <FontStyle fontSize={11} sx={{ color: "#5F6B7A" }} noWrap>
-            @{item.username} · {item.organization_name}
-          </FontStyle>
+          <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+            <CompactInfoChip label={`@${item.username}`} />
+            <CompactInfoChip label={item.organization_name} tone="info" />
+          </Box>
         </Box>
         <RowActionMenu items={actions(item)} />
       </Box>
       <Box sx={{ mt: 1.5 }}>
-        <StatusBadge status={item.is_active ? "active" : "inactive"} />
+        <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
       </Box>
-      <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: "#5F6B7A" }}>
-        Cakupan: {item.location_names?.join(", ") || "belum ditetapkan"}
-      </FontStyle>
+      <Box sx={{ mt: 1.5 }}>
+        <FontStyle fontSize={11} sx={{ mb: 0.75, color: theme.ui.mutedText }}>
+          Cakupan lokasi
+        </FontStyle>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+          {item.location_names?.length ? (
+            item.location_names.map((location) => (
+              <CompactInfoChip key={location} label={location} tone="success" />
+            ))
+          ) : (
+            <CompactInfoChip label="Belum ditetapkan" tone="warning" />
+          )}
+        </Box>
+      </Box>
     </Box>
   );
 
@@ -139,7 +172,6 @@ export default function AdminUsersPage() {
       <PageHeader
         title="Admin Organisasi"
         description="Kelola akun Admin/HRD dan cakupan lokasi yang dapat diakses."
-        count={list.pagination.total}
         action={
           <Button
             type="primary"
@@ -150,31 +182,39 @@ export default function AdminUsersPage() {
           </Button>
         }
       />
-      <DataToolbar
-        search={list.search}
-        onSearchChange={list.setSearch}
-        status={list.status}
-        onStatusChange={list.setStatus}
-        onRefresh={list.refresh}
-        filters={
-          <OrganizationSelect
-            allowClear
-            value={organizationId}
-            onChange={(value) => list.updateFilters({ organizationId: value })}
-            style={{ minWidth: 220 }}
+      <DataPanel
+        title="Daftar Admin/HRD"
+        description="Kelola identitas akun, organisasi, serta cakupan lokasi yang dapat diakses."
+        toolbar={
+          <DataToolbar
+            embedded
+            search={list.search}
+            onSearchChange={list.setSearch}
+            status={list.status}
+            onStatusChange={list.setStatus}
+            onRefresh={list.refresh}
+            filters={
+              <OrganizationSelect
+                allowClear
+                value={organizationId}
+                onChange={(value) => list.updateFilters({ organizationId: value })}
+                style={{ minWidth: 220 }}
+              />
+            }
           />
         }
-      />
-      <ResponsiveDataView
-        data={list.data}
-        columns={columns}
-        loading={list.loading}
-        error={list.error}
-        onRetry={list.refresh}
-        pagination={list.pagination}
-        onPageChange={list.setPage}
-        renderCard={card}
-      />
+      >
+        <ResponsiveDataView
+          data={list.data}
+          columns={columns}
+          loading={list.loading}
+          error={list.error}
+          onRetry={list.refresh}
+          pagination={list.pagination}
+          onPageChange={list.setPage}
+          renderCard={card}
+        />
+      </DataPanel>
       <AdminUserForm
         open={form.open}
         item={form.item}

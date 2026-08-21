@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Select } from "antd";
+import { Button } from "antd";
 import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
+import DataPanel from "@/app/components/data-display/DataPanel";
 import DataToolbar from "@/app/components/filters/DataToolbar";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
-import StatusBadge from "@/app/components/data-display/StatusBadge";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import Notification from "@/app/components/Notifications/Notification";
@@ -26,6 +27,7 @@ const LABEL = {
   other: "Lainnya",
 };
 export default function LocationsPage() {
+  const theme = useTheme();
   const list = useDataList("/api/locations");
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
@@ -80,19 +82,24 @@ export default function LocationsPage() {
           <FontStyle fontSize={12.5} fontWeight={600}>
             {i.name}
           </FontStyle>
-          <FontStyle fontSize={11} sx={{ color: "#5F6B7A" }}>
-            {i.code} · {LABEL[i.location_type]}
-          </FontStyle>
+          <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+            <CompactInfoChip label={i.code} />
+            <CompactInfoChip label={LABEL[i.location_type]} tone="info" />
+          </Box>
         </Box>
       ),
     },
     { title: "Organisasi", dataIndex: "organization_name" },
     { title: "Induk", dataIndex: "parent_location_name", render: (v) => v || "-" },
-    { title: "Admin", dataIndex: "admin_count", render: (v) => `${v} akun` },
+    {
+      title: "Admin",
+      dataIndex: "admin_count",
+      render: (v) => <CompactInfoChip label={`${v} akun`} tone="warning" />,
+    },
     {
       title: "Status",
       dataIndex: "is_active",
-      render: (v) => <StatusBadge status={v ? "active" : "inactive"} />,
+      render: (v) => <CompactInfoChip status={v ? "active" : "inactive"} />,
     },
     {
       title: "Aksi",
@@ -108,17 +115,19 @@ export default function LocationsPage() {
           <FontStyle fontSize={14} fontWeight={600}>
             {i.name}
           </FontStyle>
-          <FontStyle fontSize={11} sx={{ color: "#5F6B7A" }}>
-            {i.code} · {LABEL[i.location_type]}
-          </FontStyle>
+          <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+            <CompactInfoChip label={i.code} />
+            <CompactInfoChip label={LABEL[i.location_type]} tone="info" />
+          </Box>
         </Box>
         <RowActionMenu items={actions(i)} />
       </Box>
-      <Box sx={{ mt: 1.5 }}>
-        <StatusBadge status={i.is_active ? "active" : "inactive"} />
+      <Box sx={{ mt: 1.5, display: "flex", flexWrap: "wrap", gap: 1 }}>
+        <CompactInfoChip status={i.is_active ? "active" : "inactive"} />
+        <CompactInfoChip label={`${i.admin_count} admin`} tone="warning" />
       </Box>
-      <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: "#5F6B7A" }}>
-        {i.organization_name} · {i.admin_count} admin
+      <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: theme.ui.mutedText }}>
+        {i.organization_name}
       </FontStyle>
     </Box>
   );
@@ -127,7 +136,6 @@ export default function LocationsPage() {
       <PageHeader
         title="Lokasi"
         description="Kelola kantor pusat, cabang, pasar, site, dan lokasi kerja setiap organisasi."
-        count={list.pagination.total}
         action={
           <Button
             type="primary"
@@ -138,31 +146,39 @@ export default function LocationsPage() {
           </Button>
         }
       />
-      <DataToolbar
-        search={list.search}
-        onSearchChange={list.setSearch}
-        status={list.status}
-        onStatusChange={list.setStatus}
-        onRefresh={list.refresh}
-        filters={
-          <OrganizationSelect
-            allowClear
-            value={organizationId}
-            onChange={(value) => list.updateFilters({ organizationId: value })}
-            style={{ minWidth: 220 }}
+      <DataPanel
+        title="Daftar lokasi"
+        description="Tinjau lokasi operasional dan cakupan Admin/HRD pada setiap organisasi."
+        toolbar={
+          <DataToolbar
+            embedded
+            search={list.search}
+            onSearchChange={list.setSearch}
+            status={list.status}
+            onStatusChange={list.setStatus}
+            onRefresh={list.refresh}
+            filters={
+              <OrganizationSelect
+                allowClear
+                value={organizationId}
+                onChange={(value) => list.updateFilters({ organizationId: value })}
+                style={{ minWidth: 220 }}
+              />
+            }
           />
         }
-      />
-      <ResponsiveDataView
-        data={list.data}
-        columns={columns}
-        loading={list.loading}
-        error={list.error}
-        onRetry={list.refresh}
-        pagination={list.pagination}
-        onPageChange={list.setPage}
-        renderCard={card}
-      />
+      >
+        <ResponsiveDataView
+          data={list.data}
+          columns={columns}
+          loading={list.loading}
+          error={list.error}
+          onRetry={list.refresh}
+          pagination={list.pagination}
+          onPageChange={list.setPage}
+          renderCard={card}
+        />
+      </DataPanel>
       <LocationForm
         open={form.open}
         item={form.item}

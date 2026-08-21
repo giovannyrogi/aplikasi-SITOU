@@ -1,7 +1,7 @@
 -- ============================================================================
 -- SITOU - PostgreSQL 18 schema v3
 -- Sistem Informasi Tenaga Operasional Unit - by Perumda Pasar Manado
--- Tujuan: HRIS multi-perusahaan, siap dashboard saat ini dan mobile attendance.
+-- Tujuan: HRIS multi-organisasi, siap dashboard saat ini dan mobile attendance.
 -- Konvensi: seluruh waktu absolut memakai timestamptz; tanggal bisnis mengikuti
 -- timezone organisasi. File privat disimpan di storage, database menyimpan metadata.
 -- ============================================================================
@@ -26,31 +26,31 @@ END;
 $$;
 
 -- ============================================================================
--- 1. TENANT, FILE PRIVAT, BRANDING, DAN STRUKTUR ORGANISASI
+-- 1. ORGANISASI, FILE PRIVAT, BRANDING, DAN STRUKTUR ORGANISASI
 -- ============================================================================
 
 CREATE TABLE organizations (
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID internal tenant/perusahaan.
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID internal organisasi.
   parent_id bigint REFERENCES organizations(id), -- Induk organisasi bila berbentuk grup/holding.
-  code varchar(30) NOT NULL UNIQUE, -- Kode tenant stabil untuk integrasi dan URL internal.
-  name varchar(200) NOT NULL, -- Nama tampilan perusahaan.
+  code varchar(30) NOT NULL UNIQUE, -- Kode organisasi stabil untuk integrasi dan URL internal.
+  name varchar(200) NOT NULL, -- Nama tampilan organisasi.
   legal_name varchar(250), -- Nama badan hukum lengkap.
   organization_type varchar(30) NOT NULL DEFAULT 'company' CHECK (organization_type IN ('holding','company','agency')), -- Jenis organisasi.
   timezone varchar(50) NOT NULL DEFAULT 'Asia/Makassar', -- Zona waktu untuk tanggal kerja dan rekap.
   locale varchar(10) NOT NULL DEFAULT 'id-ID', -- Lokal antarmuka dan format data.
-  is_active boolean NOT NULL DEFAULT true, -- Status administratif perusahaan; masa akses SITOU diperiksa dari organization_subscriptions.
+  is_active boolean NOT NULL DEFAULT true, -- Status administratif organisasi; masa akses SITOU diperiksa dari organization_subscriptions.
   settings jsonb NOT NULL DEFAULT '{}'::jsonb, -- Konfigurasi tambahan noninti yang tervalidasi aplikasi.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu pembuatan record.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu perubahan terakhir.
   CONSTRAINT uq_organizations_tenant_id UNIQUE (id)
 );
-COMMENT ON TABLE organizations IS 'Identitas tenant/perusahaan. Histori masa penggunaan SITOU disimpan pada organization_subscriptions.';
+COMMENT ON TABLE organizations IS 'Identitas organisasi. Histori masa penggunaan SITOU disimpan pada organization_subscriptions.';
 
 CREATE TABLE organization_subscriptions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID unik setiap periode langganan atau masa penggunaan SITOU.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Perusahaan pemilik periode langganan.
-  starts_on date NOT NULL, -- Tanggal pertama perusahaan boleh menggunakan SITOU pada periode ini.
-  ends_on date NOT NULL, -- Tanggal terakhir perusahaan boleh menggunakan SITOU pada periode ini dan bersifat inklusif.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik periode langganan.
+  starts_on date NOT NULL, -- Tanggal pertama organisasi boleh menggunakan SITOU pada periode ini.
+  ends_on date NOT NULL, -- Tanggal terakhir organisasi boleh menggunakan SITOU pada periode ini dan bersifat inklusif.
   grace_ends_on date, -- Akhir masa tenggang setelah ends_on; NULL berarti tidak ada masa tenggang.
   status varchar(20) NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled','active','grace','expired','suspended','cancelled')), -- Status periode langganan.
   notes text, -- Catatan perpanjangan, penghentian, atau informasi administratif lainnya.
@@ -67,20 +67,20 @@ CREATE TABLE organization_subscriptions (
     daterange(starts_on,COALESCE(grace_ends_on,ends_on),'[]') WITH &&
   ) WHERE (status NOT IN ('suspended','cancelled'))
 );
-COMMENT ON TABLE organization_subscriptions IS 'Histori masa penggunaan SITOU per perusahaan; perpanjangan membuat record baru dan tidak menimpa periode lama.';
+COMMENT ON TABLE organization_subscriptions IS 'Histori masa penggunaan SITOU per organisasi; perpanjangan membuat record baru dan tidak menimpa periode lama.';
 
--- Mempercepat pemeriksaan akses tenant dan pembacaan histori langganan.
+-- Mempercepat pemeriksaan akses organisasi dan pembacaan histori langganan.
 CREATE INDEX ix_organization_subscriptions_access
 ON organization_subscriptions(organization_id,status,starts_on,ends_on,grace_ends_on);
 
--- Mempercepat dashboard daftar perusahaan aktif yang segera berakhir.
+-- Mempercepat dashboard daftar organisasi aktif yang segera berakhir.
 CREATE INDEX ix_organization_subscriptions_expiring
 ON organization_subscriptions(ends_on,organization_id)
 WHERE status = 'active';
 
 CREATE TABLE stored_files (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID metadata file privat.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Pemilik file dan batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Pemilik file dan batas organisasi.
   storage_provider varchar(30) NOT NULL DEFAULT 'local_private' CHECK (storage_provider IN ('local_private','s3','r2','azure_blob','other')), -- Backend penyimpanan.
   object_key text NOT NULL, -- Kunci relatif privat; bukan URL publik atau path absolut.
   original_name text NOT NULL, -- Nama file saat diunggah pengguna.
@@ -99,27 +99,27 @@ CREATE TABLE stored_files (
 COMMENT ON TABLE stored_files IS 'Metadata file privat. Byte file tidak disimpan di tabel dan hanya diakses melalui API berizin.';
 
 CREATE TABLE organization_branding (
-  organization_id bigint PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE, -- Tenant pemilik branding.
-  logo_file_id bigint NOT NULL, -- Logo perusahaan pada stored_files.
+  organization_id bigint PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE, -- Organisasi pemilik branding.
+  logo_file_id bigint NOT NULL, -- Logo organisasi pada stored_files.
   primary_color varchar(7) DEFAULT '#E30613' CHECK (primary_color ~ '^#[0-9A-Fa-f]{6}$'), -- Warna utama heksadesimal.
   secondary_color varchar(7) DEFAULT '#FFFFFF' CHECK (secondary_color ~ '^#[0-9A-Fa-f]{6}$'), -- Warna sekunder heksadesimal.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu branding terakhir diubah.
   CONSTRAINT fk_branding_logo FOREIGN KEY (organization_id,logo_file_id) REFERENCES stored_files(organization_id,id)
 );
-COMMENT ON TABLE organization_branding IS 'Logo dan warna berbeda untuk setiap perusahaan.';
+COMMENT ON TABLE organization_branding IS 'Logo dan warna berbeda untuk setiap organisasi.';
 
 CREATE TABLE locations (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID kantor/cabang/unit pasar/lokasi kerja.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pemilik lokasi.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik lokasi.
   parent_location_id bigint, -- Lokasi induk untuk hierarki area.
-  code varchar(30) NOT NULL, -- Kode lokasi unik dalam tenant.
+  code varchar(30) NOT NULL, -- Kode lokasi unik dalam organisasi.
   name varchar(200) NOT NULL, -- Nama lokasi.
   location_type varchar(30) NOT NULL DEFAULT 'branch' CHECK (location_type IN ('head_office','branch','market','site','warehouse','other')), -- Jenis lokasi.
   address text, -- Alamat lengkap lokasi.
   latitude numeric(10,7) CHECK (latitude BETWEEN -90 AND 90), -- Koordinat pusat informatif.
   longitude numeric(10,7) CHECK (longitude BETWEEN -180 AND 180), -- Koordinat pusat informatif.
-  logo_file_id bigint, -- Logo khusus lokasi bila berbeda; NULL memakai logo perusahaan.
-  operational_from date NOT NULL DEFAULT current_date, -- Tanggal lokasi mulai beroperasi atau mulai digunakan dalam struktur perusahaan.
+  logo_file_id bigint, -- Logo khusus lokasi bila berbeda; NULL memakai logo organisasi.
+  operational_from date NOT NULL DEFAULT current_date, -- Tanggal lokasi mulai beroperasi atau mulai digunakan dalam struktur organisasi.
   operational_until date, -- Tanggal terakhir lokasi beroperasi; NULL berarti masih beroperasi.
   is_active boolean NOT NULL DEFAULT true, -- Menentukan apakah lokasi boleh dipilih pada transaksi dan penempatan baru.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu record dibuat.
@@ -134,9 +134,9 @@ COMMENT ON TABLE locations IS 'Kantor pusat, cabang, pasar, site, dan lokasi ker
 
 CREATE TABLE organization_units (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID unit organisasi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pemilik unit.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik unit.
   parent_unit_id bigint, -- Unit induk untuk struktur bertingkat.
-  code varchar(30) NOT NULL, -- Kode unik unit dalam tenant.
+  code varchar(30) NOT NULL, -- Kode unik unit dalam organisasi.
   name varchar(200) NOT NULL, -- Nama unit/divisi/departemen.
   unit_type varchar(30) NOT NULL DEFAULT 'division' CHECK (unit_type IN ('directorate','division','department','subdivision','unit','team','board','other')), -- Tingkat unit.
   is_active boolean NOT NULL DEFAULT true, -- Status master unit.
@@ -149,7 +149,7 @@ CREATE TABLE organization_units (
 COMMENT ON TABLE organization_units IS 'Struktur direktorat/divisi/departemen bertingkat dan dapat ditempatkan di banyak cabang.';
 
 CREATE TABLE organization_unit_locations (
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant relasi.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi pada relasi.
   organization_unit_id bigint NOT NULL, -- Divisi/unit yang beroperasi di lokasi.
   location_id bigint NOT NULL, -- Cabang/lokasi tempat unit beroperasi.
   is_primary boolean NOT NULL DEFAULT false, -- Menandai lokasi utama unit.
@@ -164,8 +164,8 @@ COMMENT ON TABLE organization_unit_locations IS 'Relasi many-to-many agar satu c
 
 CREATE TABLE positions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID master jabatan.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pemilik jabatan.
-  code varchar(30) NOT NULL, -- Kode jabatan unik per tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik jabatan.
+  code varchar(30) NOT NULL, -- Kode jabatan unik per organisasi.
   name varchar(200) NOT NULL, -- Nama jabatan.
   grade varchar(50), -- Golongan/grade opsional.
   level_no smallint, -- Urutan level untuk laporan struktur.
@@ -196,7 +196,7 @@ CREATE TABLE users (
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu akun dibuat.
   updated_at timestamptz NOT NULL DEFAULT now() -- Waktu akun diubah.
 );
-COMMENT ON TABLE users IS 'Akun global. Hak akses tenant disimpan terpisah pada user_organization_roles.';
+COMMENT ON TABLE users IS 'Akun global. Hak akses organisasi disimpan terpisah pada user_organization_roles.';
 
 ALTER TABLE organization_subscriptions
   ADD CONSTRAINT fk_organization_subscriptions_creator
@@ -232,7 +232,7 @@ COMMENT ON TABLE role_permissions IS 'Relasi role dan permission.';
 CREATE TABLE user_organization_roles (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID penugasan role.
   user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Akun yang menerima role.
-  organization_id bigint REFERENCES organizations(id) ON DELETE CASCADE, -- Tenant; NULL hanya untuk superadmin platform.
+  organization_id bigint REFERENCES organizations(id) ON DELETE CASCADE, -- Organisasi; NULL hanya untuk superadmin platform.
   role_id bigint NOT NULL REFERENCES roles(id), -- Role yang diberikan.
   active_from timestamptz NOT NULL DEFAULT now(), -- Awal role berlaku.
   active_until timestamptz, -- Akhir role berlaku.
@@ -240,20 +240,20 @@ CREATE TABLE user_organization_roles (
   CONSTRAINT uq_user_org_roles_org_id UNIQUE (organization_id,id),
   CONSTRAINT ck_user_roles_dates CHECK (active_until IS NULL OR active_until > active_from)
 );
-COMMENT ON TABLE user_organization_roles IS 'Role akun per tenant; organisasi NULL hanya untuk role platform.';
+COMMENT ON TABLE user_organization_roles IS 'Role akun per organisasi; organization_id NULL hanya untuk role platform.';
 CREATE UNIQUE INDEX uq_user_org_role ON user_organization_roles(user_id,organization_id,role_id) WHERE organization_id IS NOT NULL;
 CREATE UNIQUE INDEX uq_user_platform_role ON user_organization_roles(user_id,role_id) WHERE organization_id IS NULL;
 CREATE INDEX ix_user_roles_active ON user_organization_roles(organization_id,user_id,active_until);
 
 CREATE TABLE user_location_scopes (
-  user_organization_role_id bigint NOT NULL REFERENCES user_organization_roles(id) ON DELETE CASCADE, -- Role tenant yang dibatasi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant eksplisit.
+  user_organization_role_id bigint NOT NULL REFERENCES user_organization_roles(id) ON DELETE CASCADE, -- Role organisasi yang dibatasi.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi eksplisit.
   location_id bigint NOT NULL, -- Lokasi yang boleh diakses akun.
   PRIMARY KEY (user_organization_role_id,location_id),
   CONSTRAINT fk_user_location_role FOREIGN KEY (organization_id,user_organization_role_id) REFERENCES user_organization_roles(organization_id,id),
   CONSTRAINT fk_user_location_scope FOREIGN KEY (organization_id,location_id) REFERENCES locations(organization_id,id)
 );
-COMMENT ON TABLE user_location_scopes IS 'Pembatas akses lokasi bagi admin/pimpinan bila tidak berhak melihat seluruh tenant.';
+COMMENT ON TABLE user_location_scopes IS 'Pembatas akses lokasi bagi admin/pimpinan bila tidak berhak melihat seluruh organisasi.';
 
 -- ============================================================================
 -- 3. DATA PEGAWAI DAN HISTORI KEPEGAWAIAN
@@ -261,7 +261,7 @@ COMMENT ON TABLE user_location_scopes IS 'Pembatas akses lokasi bagi admin/pimpi
 
 CREATE TABLE employees (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID pegawai internal.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pemilik pegawai.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik pegawai.
   employee_no varchar(60) NOT NULL, -- NIP/nomor pegawai; teks agar nol awal tidak hilang.
   user_id bigint UNIQUE REFERENCES users(id), -- Akun self-service pegawai bila sudah dibuat.
   full_name varchar(200) NOT NULL, -- Nama lengkap.
@@ -294,10 +294,10 @@ CREATE INDEX ix_employees_name_trgm ON employees USING gin(full_name gin_trgm_op
 CREATE INDEX ix_employees_org_joined ON employees(organization_id,joined_date DESC) WHERE deleted_at IS NULL;
 
 CREATE TABLE employee_contacts (
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint PRIMARY KEY, -- Pegawai pemilik kontak.
   personal_email citext, -- Email pribadi.
-  work_email citext, -- Email perusahaan.
+  work_email citext, -- Email organisasi.
   phone varchar(30), -- Nomor telepon.
   whatsapp varchar(30), -- Nomor WhatsApp.
   ktp_address text, -- Alamat sesuai KTP.
@@ -314,7 +314,7 @@ COMMENT ON TABLE employee_contacts IS 'Kontak dan alamat pegawai; dipisahkan aga
 
 CREATE TABLE employee_identifiers (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID identitas administrasi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pemilik identitas.
   identifier_type varchar(40) NOT NULL CHECK (identifier_type IN ('bpjs_health','bpjs_employment','tax_npwp','passport','other')), -- Jenis nomor identitas.
   identifier_value varchar(100) NOT NULL, -- Nilai nomor; wajib dimasking pada list umum.
@@ -329,7 +329,7 @@ CREATE INDEX ix_identifiers_employee_type ON employee_identifiers(organization_i
 
 CREATE TABLE employee_bank_accounts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID rekening.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai pemilik rekening.
   bank_name varchar(100) NOT NULL, -- Nama bank.
   account_number varchar(100) NOT NULL, -- Nomor rekening; wajib dimasking.
@@ -343,7 +343,7 @@ CREATE UNIQUE INDEX uq_employee_primary_bank ON employee_bank_accounts(employee_
 
 CREATE TABLE employee_dependents (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID anggota keluarga/tanggungan.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai terkait.
   relationship varchar(30) NOT NULL CHECK (relationship IN ('spouse','child','parent','sibling','other')), -- Hubungan keluarga.
   full_name varchar(200) NOT NULL, -- Nama anggota keluarga.
@@ -360,7 +360,7 @@ CREATE INDEX ix_dependents_employee ON employee_dependents(organization_id,emplo
 
 CREATE TABLE employee_emergency_contacts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID kontak darurat.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai pemilik kontak.
   full_name varchar(200) NOT NULL, -- Nama kontak darurat.
   relationship varchar(50), -- Hubungan dengan pegawai.
@@ -375,18 +375,18 @@ CREATE UNIQUE INDEX uq_employee_primary_emergency_contact ON employee_emergency_
 
 CREATE TABLE employee_social_accounts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID akun media sosial.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai pemilik akun.
   platform varchar(50) NOT NULL, -- Nama platform.
   handle_or_url text NOT NULL, -- Username atau URL akun.
   CONSTRAINT fk_social_account_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE,
   CONSTRAINT uq_employee_social_account UNIQUE (employee_id,platform,handle_or_url)
 );
-COMMENT ON TABLE employee_social_accounts IS 'Akun media sosial pegawai bila memang diperlukan administrasi perusahaan.';
+COMMENT ON TABLE employee_social_accounts IS 'Akun media sosial pegawai bila memang diperlukan administrasi organisasi.';
 
 CREATE TABLE employee_educations (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID riwayat pendidikan.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai pemilik riwayat.
   education_level varchar(30) NOT NULL, -- Jenjang pendidikan.
   institution varchar(200), -- Nama institusi.
@@ -403,10 +403,10 @@ CREATE UNIQUE INDEX uq_employee_highest_education ON employee_educations(employe
 
 CREATE TABLE employee_skills (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID keahlian pegawai.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai pemilik keahlian.
   skill_name varchar(150) NOT NULL, -- Nama keahlian.
-  proficiency_level varchar(30), -- Tingkat kemampuan sesuai kamus perusahaan.
+  proficiency_level varchar(30), -- Tingkat kemampuan sesuai kamus organisasi.
   notes text, -- Catatan pengalaman atau verifikasi.
   CONSTRAINT fk_employee_skill_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE,
   CONSTRAINT uq_employee_skill UNIQUE (employee_id,skill_name)
@@ -415,7 +415,7 @@ COMMENT ON TABLE employee_skills IS 'Daftar keahlian pegawai untuk penempatan da
 
 CREATE TABLE employee_certifications (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID sertifikasi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai pemilik sertifikasi.
   certification_name varchar(200) NOT NULL, -- Nama sertifikasi.
   issuer varchar(200), -- Lembaga penerbit.
@@ -432,7 +432,7 @@ CREATE INDEX ix_certifications_expiring ON employee_certifications(organization_
 
 CREATE TABLE employee_documents (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID dokumen pegawai.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai pemilik dokumen.
   document_type varchar(50) NOT NULL, -- Jenis KTP, KK, kontrak, sertifikat, dan lain-lain.
   file_id bigint NOT NULL, -- Metadata file privat.
@@ -450,7 +450,7 @@ CREATE INDEX ix_documents_employee_type ON employee_documents(organization_id,em
 
 CREATE TABLE employment_types (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID jenis hubungan kerja.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant; memungkinkan istilah berbeda per perusahaan.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi; memungkinkan istilah berbeda per organisasi.
   code varchar(30) NOT NULL, -- Kode PKWTT/PKWT/PHL/THL/dll.
   name varchar(100) NOT NULL, -- Nama tampilan.
   requires_end_date boolean NOT NULL DEFAULT false, -- Kontrak wajib punya akhir atau tidak.
@@ -458,11 +458,11 @@ CREATE TABLE employment_types (
   CONSTRAINT uq_employment_types_code UNIQUE (organization_id,code),
   CONSTRAINT uq_employment_types_org_id UNIQUE (organization_id,id)
 );
-COMMENT ON TABLE employment_types IS 'Jenis hubungan kerja dibuat per tenant agar fleksibel.';
+COMMENT ON TABLE employment_types IS 'Jenis hubungan kerja dibuat per organisasi agar fleksibel.';
 
 CREATE TABLE employment_contracts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID periode kontrak.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai terkait.
   employment_type_id bigint NOT NULL, -- Jenis hubungan kerja.
   contract_no varchar(100), -- Nomor kontrak.
@@ -484,7 +484,7 @@ CREATE INDEX ix_contracts_employee ON employment_contracts(organization_id,emplo
 
 CREATE TABLE employee_assignments (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID periode penempatan/rolling.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai yang ditempatkan.
   location_id bigint NOT NULL, -- Cabang/lokasi pada periode ini.
   organization_unit_id bigint NOT NULL, -- Divisi/unit pada periode ini.
@@ -522,7 +522,7 @@ CREATE INDEX ix_assignments_current_unit ON employee_assignments(organization_id
 
 CREATE TABLE work_shifts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID master shift.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pemilik shift.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik shift.
   code varchar(30) NOT NULL, -- Kode shift unik.
   name varchar(100) NOT NULL, -- Nama shift.
   shift_type varchar(20) NOT NULL CHECK (shift_type IN ('fixed','flexible','field','off')), -- Fixed punya jam pasti; flexible/field dinilai berdasar durasi/kebijakan.
@@ -548,7 +548,7 @@ COMMENT ON TABLE work_shifts IS 'Master shift tetap, fleksibel, lapangan, dan ha
 
 CREATE TABLE shift_patterns (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID pola mingguan/rotasi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pemilik pola.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik pola.
   code varchar(30) NOT NULL, -- Kode pola.
   name varchar(100) NOT NULL, -- Nama pola.
   cycle_days smallint NOT NULL DEFAULT 7 CHECK (cycle_days BETWEEN 1 AND 366), -- Panjang siklus pola.
@@ -559,7 +559,7 @@ CREATE TABLE shift_patterns (
 COMMENT ON TABLE shift_patterns IS 'Pola jadwal; mendukung Senin-Jumat maupun roster bergilir.';
 
 CREATE TABLE shift_pattern_days (
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   shift_pattern_id bigint NOT NULL, -- Pola induk.
   day_no smallint NOT NULL CHECK (day_no BETWEEN 1 AND 366), -- Urutan hari dalam siklus.
   shift_id bigint NOT NULL, -- Shift pada hari tersebut, termasuk shift off.
@@ -571,7 +571,7 @@ COMMENT ON TABLE shift_pattern_days IS 'Isi setiap hari pada pola shift.';
 
 CREATE TABLE shift_assignments (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID aturan penetapan pola.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint, -- Target pegawai; prioritas tertinggi.
   organization_unit_id bigint, -- Target divisi/unit; prioritas kedua.
   location_id bigint, -- Target cabang/lokasi; prioritas ketiga.
@@ -596,7 +596,7 @@ CREATE INDEX ix_shift_assign_location ON shift_assignments(organization_id,locat
 
 CREATE TABLE employee_daily_schedules (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID jadwal harian hasil resolusi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai terjadwal.
   work_date date NOT NULL, -- Tanggal kerja lokal.
   shift_id bigint NOT NULL, -- Shift yang berlaku.
@@ -626,7 +626,7 @@ CREATE INDEX ix_daily_schedule_employee ON employee_daily_schedules(organization
 
 CREATE TABLE attendance_points (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID titik/geofence absensi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pemilik titik.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik titik.
   location_id bigint, -- Lokasi administratif terkait.
   code varchar(40) NOT NULL, -- Kode titik unik.
   name varchar(150) NOT NULL, -- Nama titik absensi.
@@ -653,7 +653,7 @@ COMMENT ON TABLE attendance_points IS 'Titik geofence yang dapat dipindah/diubah
 
 CREATE TABLE attendance_point_assignments (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID aturan akses titik.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   attendance_point_id bigint NOT NULL, -- Titik yang boleh digunakan.
   employee_id bigint, -- Target pegawai; prioritas tertinggi.
   organization_unit_id bigint, -- Target divisi/unit.
@@ -676,7 +676,7 @@ CREATE INDEX ix_point_assign_location ON attendance_point_assignments(organizati
 
 CREATE TABLE attendance_devices (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID sumber/perangkat absensi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant perangkat.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik perangkat.
   device_code varchar(80) NOT NULL, -- Kode unik perangkat/instalasi.
   name varchar(150), -- Nama ramah perangkat.
   device_type varchar(30) NOT NULL CHECK (device_type IN ('mobile','web_kiosk','fingerprint','face_terminal','import','api')), -- Jenis sumber.
@@ -692,7 +692,7 @@ COMMENT ON TABLE attendance_devices IS 'Registry sumber absensi web, mobile, mes
 
 CREATE TABLE attendance_import_batches (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID proses import massal.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant tujuan import.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi tujuan import.
   source_file_id bigint NOT NULL, -- File Excel/CSV privat.
   status varchar(20) NOT NULL DEFAULT 'uploaded' CHECK (status IN ('uploaded','validating','invalid','ready','committed','failed')), -- Tahap import.
   total_rows integer NOT NULL DEFAULT 0 CHECK (total_rows >= 0), -- Jumlah baris sumber.
@@ -710,7 +710,7 @@ CREATE INDEX ix_import_batches_status ON attendance_import_batches(organization_
 
 CREATE TABLE attendance_import_rows (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID baris staging.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   batch_id bigint NOT NULL, -- Batch sumber.
   row_no integer NOT NULL CHECK (row_no > 0), -- Nomor baris Excel/CSV.
   employee_no varchar(60), -- NIP dari file sebelum resolusi.
@@ -729,7 +729,7 @@ CREATE INDEX ix_import_rows_validation ON attendance_import_rows(batch_id,valida
 
 CREATE TABLE attendance_event_receipts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID penerimaan idempotensi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pengirim.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pengirim.
   client_event_id uuid NOT NULL, -- UUID dari aplikasi mobile/web, tetap sama saat retry.
   employee_id bigint NOT NULL, -- Pegawai pengirim.
   event_date date NOT NULL, -- Tanggal partisi event berdasarkan occurred_at.
@@ -746,7 +746,7 @@ CREATE INDEX ix_event_receipts_employee ON attendance_event_receipts(organizatio
 CREATE TABLE attendance_events (
   id bigint GENERATED ALWAYS AS IDENTITY, -- ID event dalam partisi.
   event_date date NOT NULL, -- Kunci partisi; harus sama dengan tanggal lokal occurred_at.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai pemilik event.
   receipt_id bigint, -- Receipt idempotensi untuk mobile/web; NULL untuk import lama.
   daily_schedule_id bigint, -- Jadwal snapshot yang dibandingkan.
@@ -808,7 +808,7 @@ $$;
 
 CREATE TABLE attendance_daily_summaries (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID rekap harian.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai yang direkap.
   work_date date NOT NULL, -- Tanggal kerja lokal.
   daily_schedule_id bigint, -- Jadwal yang menjadi dasar penilaian.
@@ -841,7 +841,7 @@ CREATE INDEX ix_summary_absence ON attendance_daily_summaries(organization_id,em
 
 CREATE TABLE leave_types (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID jenis cuti/izin.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pemilik aturan.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik aturan.
   code varchar(30) NOT NULL, -- Kode unik jenis.
   name varchar(100) NOT NULL, -- Nama jenis.
   category varchar(20) NOT NULL CHECK (category IN ('leave','permission','sick','official_duty','other')), -- Kelompok rekap.
@@ -858,7 +858,7 @@ COMMENT ON TABLE leave_types IS 'Master cuti/izin. Izin sakit dapat mewajibkan s
 
 CREATE TABLE leave_requests (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID pengajuan/catatan izin.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   request_no varchar(60) NOT NULL, -- Nomor pengajuan unik.
   employee_id bigint NOT NULL, -- Pegawai pemohon.
   leave_type_id bigint NOT NULL, -- Jenis cuti/izin.
@@ -883,7 +883,7 @@ CREATE INDEX ix_leave_pending ON leave_requests(organization_id,status,submitted
 CREATE INDEX ix_leave_employee_history ON leave_requests(organization_id,employee_id,start_at DESC);
 
 CREATE TABLE leave_request_attachments (
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   leave_request_id bigint NOT NULL, -- Pengajuan terkait.
   file_id bigint NOT NULL, -- Surat dokter/foto/dokumen privat.
   attachment_category varchar(40) NOT NULL, -- Jenis lampiran.
@@ -896,7 +896,7 @@ COMMENT ON TABLE leave_request_attachments IS 'Lampiran izin, termasuk surat dok
 
 CREATE TABLE leave_decisions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID keputusan.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   leave_request_id bigint NOT NULL UNIQUE, -- Pengajuan yang diputus.
   decision varchar(20) NOT NULL CHECK (decision IN ('approved','rejected')), -- Hasil keputusan HRD.
   decided_by_user_id bigint NOT NULL REFERENCES users(id), -- User HRD pengambil keputusan.
@@ -913,7 +913,7 @@ COMMENT ON TABLE leave_decisions IS 'Satu keputusan final oleh HRD; permission b
 
 CREATE TABLE discipline_rules (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID aturan indikator.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Tenant pemilik aturan.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik aturan.
   code varchar(50) NOT NULL, -- Kode aturan stabil.
   name varchar(200) NOT NULL, -- Nama indikator/pelanggaran.
   severity varchar(15) NOT NULL CHECK (severity IN ('light','moderate','severe')), -- Ringan/sedang/berat sesuai peraturan.
@@ -930,7 +930,7 @@ COMMENT ON TABLE discipline_rules IS 'Aturan pembentuk indikator. Sistem tidak o
 
 CREATE TABLE discipline_indicators (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID sinyal dashboard.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai yang terindikasi.
   rule_id bigint NOT NULL, -- Aturan pemicu.
   period_start date NOT NULL, -- Awal periode perhitungan.
@@ -951,7 +951,7 @@ CREATE INDEX ix_indicators_dashboard ON discipline_indicators(organization_id,st
 
 CREATE TABLE discipline_cases (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID pemeriksaan kasus.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   case_no varchar(60) NOT NULL, -- Nomor kasus unik.
   employee_id bigint NOT NULL, -- Pegawai terperiksa.
   indicator_id bigint, -- Indikator asal bila ada.
@@ -974,7 +974,7 @@ CREATE INDEX ix_cases_open ON discipline_cases(organization_id,status,opened_at 
 
 CREATE TABLE disciplinary_actions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID tindakan/sanksi resmi.
-  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas tenant.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   discipline_case_id bigint NOT NULL, -- Kasus yang mendasari tindakan.
   employee_id bigint NOT NULL, -- Pegawai penerima tindakan untuk query histori cepat.
   action_type varchar(30) NOT NULL CHECK (action_type IN ('oral_warning','sp1','sp2','sp3','suspension','salary_delay','promotion_delay','demotion','fine','termination','other')), -- Jenis tindakan sesuai Pasal 55-58.
@@ -1017,7 +1017,7 @@ SELECT id,'ABSENT_9_MONTHLY','Mangkir 9 hari kerja dalam 1 bulan','severe','abse
 
 CREATE TABLE audit_logs (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID audit immutable.
-  organization_id bigint REFERENCES organizations(id), -- Tenant; NULL untuk aksi platform.
+  organization_id bigint REFERENCES organizations(id), -- Organisasi; NULL untuk aksi platform.
   actor_user_id bigint REFERENCES users(id), -- Pelaku tindakan.
   action varchar(60) NOT NULL, -- Kode aksi create/update/approve/export/login/dll.
   entity_type varchar(80) NOT NULL, -- Nama entitas.
@@ -1036,7 +1036,7 @@ CREATE INDEX ix_audit_actor ON audit_logs(actor_user_id,occurred_at DESC);
 
 CREATE TABLE integration_outbox (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID event integrasi.
-  organization_id bigint REFERENCES organizations(id), -- Tenant pemilik event.
+  organization_id bigint REFERENCES organizations(id), -- Organisasi pemilik event.
   event_type varchar(100) NOT NULL, -- Nama event versi API.
   aggregate_type varchar(80) NOT NULL, -- Jenis entitas sumber.
   aggregate_id text NOT NULL, -- ID entitas sumber.
@@ -1118,7 +1118,7 @@ $$;
 
 -- Role sistem. Permission detail sebaiknya di-seed melalui migration aplikasi.
 INSERT INTO roles(code,name,scope,description,is_system) VALUES
-  ('superadmin','Super Administrator','platform','Membuat tenant, lokasi awal, dan akun admin.',true),
+  ('superadmin','Super Administrator','platform','Membuat organisasi, lokasi awal, dan akun admin.',true),
   ('leader','Pimpinan','organization','Memantau dashboard dan histori sesuai cakupan tanpa mengubah data HRD.',true),
   ('hrd','HRD','organization','Mengelola pegawai, absensi, izin, rolling, kontrak, dan tindakan disiplin.',true),
   ('employee','Karyawan','self','Mengakses data sendiri dan kanal self-service masa depan.',true)
@@ -1127,16 +1127,16 @@ ON CONFLICT (code) DO NOTHING;
 COMMIT;
 
 -- CATATAN DEPLOYMENT:
--- 1. Onboarding tenant dilakukan dalam satu transaksi: buat organizations, branding,
---    periode pertama organization_subscriptions, role HRD, serta master awal perusahaan.
+-- 1. Onboarding organisasi dilakukan dalam satu transaksi: buat organizations, branding,
+--    periode pertama organization_subscriptions, role HRD, serta master awal organisasi.
 -- 2. Seed discipline_rules di atas hanya berlaku untuk organisasi yang sudah ada
---    saat migration dijalankan; onboarding tenant baru wajib membuat seed yang sama.
+--    saat migration dijalankan; onboarding organisasi baru wajib membuat seed yang sama.
 -- 3. Jalankan ensure_attendance_month_partition() untuk bulan berjalan dan 2 bulan
 --    ke depan melalui migration/scheduler.
--- 4. Seluruh query tenant wajib memuat organization_id walaupun sudah memakai FK.
+-- 4. Seluruh query organisasi wajib memuat organization_id walaupun sudah memakai FK.
 -- 5. Query file tidak pernah mengembalikan object_key langsung ke klien; API membuat
 --    respons stream atau URL singkat setelah pemeriksaan permission.
--- 6. Tenant hanya boleh masuk jika organizations.is_active=true dan memiliki periode
+-- 6. Organisasi hanya boleh masuk jika organizations.is_active=true dan memiliki periode
 --    organization_subscriptions berstatus active/grace pada tanggal berjalan.
 -- 7. Perpanjangan langganan selalu INSERT record baru. Jangan mengubah ends_on periode
 --    lama karena histori penggunaan dan perpanjangan harus tetap dapat diaudit.
