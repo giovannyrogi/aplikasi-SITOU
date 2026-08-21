@@ -39,20 +39,20 @@ Popup AntD seperti Select, DatePicker, Dropdown, Tooltip, dan Popover memakai `z
 | Komponen                     | Tujuan                                            | Props penting                             |
 | ---------------------------- | ------------------------------------------------- | ----------------------------------------- |
 | `forms/AsyncSelect`          | Select async umum dengan loading dan empty state. | Props AntD `Select`, `loading`, `options` |
-| `selects/OrganizationSelect` | Pilihan organisasi dari endpoint options.         | Props `AsyncSelect`                       |
+| `selects/OrganizationSelect` | Pilihan organisasi dari endpoint options.         | `excludeIds`, props `AsyncSelect`         |
 | `selects/LocationSelect`     | Pilihan lokasi aktif berdasarkan organisasi.      | `organizationId`, props `AsyncSelect`     |
 
 Form domain tetap berada di modul fitur dan dirender sebagai children `AppModal`. Gunakan `hooks/useFormModalClose` bersama `ConfirmDialog` untuk dirty-state warning.
 
 ## Subscription dan Feedback
 
-| Komponen                          | Tujuan                                                       | Props penting                                       |
-| --------------------------------- | ------------------------------------------------------------ | --------------------------------------------------- |
-| `subscription/SubscriptionStatus` | Status ringkas masa akses organisasi pada topbar.            | `status`, `activeUntil`, `daysRemaining`            |
-| `subscription/SubscriptionBanner` | Peringatan 30 hari terakhir dan tombol perpanjang.           | `activeUntil`, `daysRemaining`, `onRenew`           |
-| `loading/LoadingBackdropProvider` | Menjalankan proses segera dengan backdrop minimal dua detik. | `runWithLoadingBackdrop`                            |
-| `Notifications/Notification`      | Feedback berhasil, gagal, peringatan, atau informasi.        | `open`, `message`, `severity`, `onClose`            |
-| `font-style/FontStyle`            | Satu-satunya typography MUI SITOU.                           | Props typography; bobot 500, 600, atau maksimal 700 |
+| Komponen                          | Tujuan                                                                                         | Props penting                                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `subscription/SubscriptionStatus` | Status ringkas masa akses organisasi pada topbar.                                              | `status`, `endsOn`, `graceEndsOn`, `daysRemaining`                                    |
+| `subscription/SubscriptionBanner` | Peringatan 30 hari terakhir dan tombol perpanjang.                                             | `status`, `endsOn`, `graceEndsOn`, `daysRemaining`, `onRenew`                         |
+| loading/LoadingBackdropProvider   | Mengelola token proses dan navigasi tanpa delay; backdrop aktif sampai seluruh proses selesai. | startLoading, runWithLoadingBackdrop, startNavigationLoading, finishNavigationLoading |
+| `Notifications/Notification`      | Feedback berhasil, gagal, peringatan, atau informasi.                                          | `open`, `message`, `severity`, `onClose`                                              |
+| `font-style/FontStyle`            | Satu-satunya typography MUI SITOU.                                                             | Props typography; bobot 500, 600, atau maksimal 700                                   |
 
 ## Branding
 
@@ -61,3 +61,4 @@ Form domain tetap berada di modul fitur dan dirender sebagai children `AppModal`
 - `/public/logo-sitou-v2.png`: logo huruf/simbol ringkas.
 - `/public/logo-sitou-v1.png`: logo SITOU beserta tagline.
 - SITOU hanya memakai theme light. Merah adalah aksen, bukan warna seluruh permukaan.
+- Token BRAND_COLORS dan STATUS_TONES berada di themeprovider/ThemeProvider.jsx serta tersedia melalui theme.brand dan theme.status. Komponen MUI, AntD, badge, dan halaman fitur harus memakai sumber warna semantik yang sama.

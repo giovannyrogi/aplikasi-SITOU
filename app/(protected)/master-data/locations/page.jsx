@@ -32,10 +32,10 @@ export default function LocationsPage() {
   const [form, setForm] = useState({ open: false, item: null });
   const [confirm, setConfirm] = useState(null);
   const organizationId = list.filters.organizationId;
-  const saved = (m) => {
+  const saved = async (m) => {
     setForm({ open: false, item: null });
     showNotification(m);
-    list.refresh();
+    await list.refresh();
   };
   const deactivate = async () => {
     try {
@@ -45,7 +45,7 @@ export default function LocationsPage() {
           const b = await r.json();
           if (!r.ok) throw new Error(b.message);
           showNotification(b.message);
-          list.refresh();
+          await list.refresh();
         },
         { message: "Menonaktifkan lokasi..." },
       );
@@ -174,7 +174,7 @@ export default function LocationsPage() {
       <ConfirmDialog
         open={Boolean(confirm)}
         title="Nonaktifkan lokasi?"
-        message={`Lokasi ${confirm?.name || ""} tidak dapat digunakan untuk cakupan akses baru.`}
+        message={`Lokasi ${confirm?.name || ""} akan dinonaktifkan. Akun yang tidak memiliki lokasi operasional aktif lain tidak dapat masuk ke SITOU hingga cakupannya diperbarui atau lokasi ini diaktifkan kembali.`}
         confirmText="Nonaktifkan"
         danger
         onClose={() => setConfirm(null)}

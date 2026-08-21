@@ -7,7 +7,7 @@ import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
 import { LoadingBackdropProvider } from "../loading/LoadingBackdropProvider";
-import AppThemeProvider from "../themeprovider/ThemeProvider";
+import AppThemeProvider, { BRAND_COLORS, STATUS_TONES } from "../themeprovider/ThemeProvider";
 
 moment.locale("id");
 
@@ -17,11 +17,11 @@ export default function AppProviders({ children }) {
       <ConfigProvider
         theme={{
           token: {
-            colorPrimary: "#E60909",
-            colorInfo: "#2563EB",
-            colorSuccess: "#16803C",
-            colorWarning: "#B45309",
-            colorError: "#C62828",
+            colorPrimary: BRAND_COLORS.primary,
+            colorInfo: STATUS_TONES.info.main,
+            colorSuccess: STATUS_TONES.success.main,
+            colorWarning: STATUS_TONES.warning.main,
+            colorError: STATUS_TONES.danger.main,
             colorText: "#1F2937",
             colorTextSecondary: "#5F6B7A",
             colorBorder: "#D8DEE8",

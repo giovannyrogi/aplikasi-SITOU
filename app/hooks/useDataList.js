@@ -1,20 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 
 export default function useDataList(endpoint) {
+  const { runWithLoadingBackdrop } = useLoadingBackdrop();
+  const activeController = useRef(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [filters, setFilters] = useState({});
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
   const [state, setState] = useState({ data: [], loading: true, error: "" });
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 350);
     return () => clearTimeout(timer);
   }, [search]);
+
   const query = useMemo(() => {
     const params = new URLSearchParams({
       search: debouncedSearch,
@@ -28,37 +31,61 @@ export default function useDataList(endpoint) {
     return params.toString();
   }, [debouncedSearch, filters, pagination.page, pagination.pageSize, status]);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
+    activeController.current?.abort();
+
     const controller = new AbortController();
-    Promise.resolve()
-      .then(() => setState((current) => ({ ...current, loading: true, error: "" })))
-      .then(() => fetch(`${endpoint}?${query}`, { signal: controller.signal }))
-      .then(async (response) => {
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.message || "Data tidak dapat dimuat.");
-        return body;
-      })
-      .then((body) => {
-        setState({ data: body.data || [], loading: false, error: "" });
-        setPagination((current) => ({ ...current, total: body.pagination?.total || 0 }));
-      })
-      .catch((error) => {
-        if (error.name !== "AbortError")
-          setState((current) => ({ ...current, loading: false, error: error.message }));
-      });
-    return () => controller.abort();
-  }, [endpoint, query, refreshKey]);
+    activeController.current = controller;
+
+    Promise.resolve().then(() => {
+      if (!controller.signal.aborted) {
+        setState((current) => ({ ...current, loading: true, error: "" }));
+      }
+    });
+
+    try {
+      await runWithLoadingBackdrop(
+        async () => {
+          const response = await fetch(endpoint + "?" + query, { signal: controller.signal });
+          const body = await response.json();
+          if (!response.ok) throw new Error(body.message || "Data tidak dapat dimuat.");
+          if (controller.signal.aborted || activeController.current !== controller) return;
+
+          setState({ data: body.data || [], loading: false, error: "" });
+          setPagination((current) => ({ ...current, total: body.pagination?.total || 0 }));
+        },
+        { message: "Memuat data..." },
+      );
+    } catch (error) {
+      if (
+        error.name !== "AbortError" &&
+        !controller.signal.aborted &&
+        activeController.current === controller
+      ) {
+        setState((current) => ({ ...current, loading: false, error: error.message }));
+      }
+    }
+  }, [endpoint, query, runWithLoadingBackdrop]);
+
+  useEffect(() => {
+    const request = load();
+    return () => {
+      activeController.current?.abort();
+      void request;
+    };
+  }, [load]);
 
   const setPage = useCallback(
     (page, pageSize) =>
       setPagination((current) => ({ ...current, page, pageSize, total: current.total })),
     [],
   );
-  const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
+  const refresh = useCallback(() => load(), [load]);
   const updateFilters = useCallback((values) => {
     setFilters(values);
     setPagination((current) => ({ ...current, page: 1 }));
   }, []);
+
   return {
     ...state,
     search,

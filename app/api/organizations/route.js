@@ -1,6 +1,6 @@
 import { ROLES } from "@/app/constants/roles";
 import { requireRole } from "@/app/utils/auth";
-import { organizationSchema } from "@/lib/master-data/schemas";
+import { organizationCreateSchema } from "@/lib/master-data/schemas";
 import { createOrganization, listOrganizations } from "@/lib/master-data/service";
 import {
   getRequestId,
@@ -32,7 +32,7 @@ export async function POST(request) {
   if (response) return response;
   const rejected = validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
-  const parsed = await readJson(request, organizationSchema, requestId);
+  const parsed = await readJson(request, organizationCreateSchema, requestId);
   if (parsed.response) return parsed.response;
   try {
     const data = await createOrganization(parsed.data, user, requestId);

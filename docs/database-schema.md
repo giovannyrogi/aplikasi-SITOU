@@ -14,22 +14,24 @@ Dokumen ini adalah peta cepat database SITOU. Gunakan dokumen ini sebelum membuk
 
 ### Alur onboarding dan masa akses
 
-1. Superadmin membuat `organizations` dengan `active_from` dan `active_until` wajib.
-2. Superadmin membuat minimal satu `locations` yang aktif dalam organisasi tersebut.
-3. Superadmin membuat akun `users`, memasang role `hrd` pada `user_organization_roles`, lalu menetapkan satu atau beberapa `user_location_scopes`.
-4. Organisasi siap digunakan ketika memiliki lokasi aktif dan Admin/HRD aktif dengan cakupan lokasi.
+1. Superadmin membuat identitas `organizations` dan periode pertama `organization_subscriptions` dalam satu transaksi.
+2. Superadmin membuat minimal satu `locations` yang aktif dan berada dalam umur operasional.
+3. Superadmin membuat akun `users`, memasang role `hrd`, lalu menetapkan cakupan lokasi.
+4. Organisasi siap digunakan ketika status administratif aktif, memiliki langganan efektif `active`/`grace`, lokasi operasional, dan Admin/HRD aktif.
 
-`organizations.is_active=false` adalah penghentian manual. Akses tenant juga ditolak sebelum `active_from` atau setelah `active_until`, walaupun session cookie lama masih ada. Status UI dihitung dari timezone organisasi: belum mulai, aktif, segera berakhir (8-30 hari), kritis (0-7 hari), kedaluwarsa, atau dinonaktifkan. `locations` adalah cabang/area operasional di bawah tenant; divisi tetap berada di `organization_units` dan dapat dihubungkan ke lokasi melalui `organization_unit_locations`.
+`organizations.is_active=false` adalah penghentian administratif manual. Status langganan efektif dihitung dengan timezone organisasi: `scheduled`, `active`, `grace`, atau `expired`; status manual `suspended` dan `cancelled` selalu mengalahkan tanggal. Job menyelaraskan status tersimpan, tetapi login dan validasi session tetap memeriksa tanggal. Perpanjangan selalu menambah baris baru dan periode non-suspended/non-cancelled tidak boleh tumpang tindih.
+Superadmin dapat menonaktifkan lokasi meskipun lokasi tersebut merupakan cakupan terakhir akun aktif. Relasi user_location_scopes tetap dipertahankan dan tidak dihapus. Login dan validasi ulang session hanya menerima akun bercakupan lokasi jika masih memiliki sedikitnya satu lokasi yang aktif secara administratif dan berada dalam umur operational_from/operational_until. Pada akun multi-lokasi, lokasi nonaktif dikeluarkan dari cakupan efektif tanpa memutus akses ke lokasi operasional lain.
 
-| Tabel                         | Fungsi                                      | Kolom Kunci                                                                                                                                                                    |
-| ----------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `organizations`               | Tenant/perusahaan, termasuk holding/agency. | `id`, `parent_id`, `code`, `name`, `legal_name`, `organization_type`, `timezone`, `locale`, `active_from`, `active_until`, `is_active`, `settings`, audit waktu.               |
-| `stored_files`                | Metadata file privat.                       | `organization_id`, `storage_provider`, `object_key`, `original_name`, `mime_type`, `size_bytes`, `sha256`, `category`, `is_confidential`, `uploaded_by_user_id`, `deleted_at`. |
-| `organization_branding`       | Logo dan warna tenant.                      | `organization_id`, `logo_file_id`, `primary_color`, `secondary_color`, `updated_at`.                                                                                           |
-| `locations`                   | Kantor pusat, cabang, pasar, site, gudang.  | `organization_id`, `parent_location_id`, `code`, `name`, `location_type`, `address`, `latitude`, `longitude`, `logo_file_id`, masa aktif.                                      |
-| `organization_units`          | Direktorat/divisi/departemen/unit/tim.      | `organization_id`, `parent_unit_id`, `code`, `name`, `unit_type`, `is_active`.                                                                                                 |
-| `organization_unit_locations` | Relasi many-to-many unit dan lokasi.        | `organization_id`, `organization_unit_id`, `location_id`, `is_primary`, `active_from`, `active_until`.                                                                         |
-| `positions`                   | Master jabatan.                             | `organization_id`, `code`, `name`, `grade`, `level_no`, `is_managerial`, `is_active`.                                                                                          |
+| Tabel                         | Fungsi                                     | Kolom Kunci                                                                                                                                                                    |
+| ----------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `organizations`               | Identitas tenant/perusahaan.               | `id`, `parent_id`, `code`, `name`, `legal_name`, `organization_type`, `timezone`, `locale`, `is_active`, `settings`, audit waktu.                                              |
+| `organization_subscriptions`  | Histori periode akses dan masa tenggang.   | `organization_id`, `starts_on`, `ends_on`, `grace_ends_on`, `status`, `notes`, `created_by_user_id`, `request_id`.                                                             |
+| `stored_files`                | Metadata file privat.                      | `organization_id`, `storage_provider`, `object_key`, `original_name`, `mime_type`, `size_bytes`, `sha256`, `category`, `is_confidential`, `uploaded_by_user_id`, `deleted_at`. |
+| `organization_branding`       | Logo dan warna tenant.                     | `organization_id`, `logo_file_id`, `primary_color`, `secondary_color`, `updated_at`.                                                                                           |
+| `locations`                   | Kantor pusat, cabang, pasar, site, gudang. | `organization_id`, `parent_location_id`, `code`, `name`, `location_type`, koordinat, `operational_from`, `operational_until`, `is_active`.                                     |
+| `organization_units`          | Direktorat/divisi/departemen/unit/tim.     | `organization_id`, `parent_unit_id`, `code`, `name`, `unit_type`, `is_active`.                                                                                                 |
+| `organization_unit_locations` | Relasi many-to-many unit dan lokasi.       | `organization_id`, `organization_unit_id`, `location_id`, `is_primary`, `active_from`, `active_until`.                                                                         |
+| `positions`                   | Master jabatan.                            | `organization_id`, `code`, `name`, `grade`, `level_no`, `is_managerial`, `is_active`.                                                                                          |
 
 ## User, Role, Permission
 

@@ -4,6 +4,12 @@ export const PASSWORD_HELP_TEXT =
 export const PASSWORD_FORM_RULES = [
   { required: true, message: "Password wajib diisi." },
   { min: 6, message: "Password minimal 6 karakter." },
+  {
+    validator: (_, value) =>
+      !value || new TextEncoder().encode(value).length <= 72
+        ? Promise.resolve()
+        : Promise.reject(new Error("Password maksimal 72 byte.")),
+  },
   { pattern: /[a-z]/, message: "Password wajib memiliki huruf kecil." },
   { pattern: /[A-Z]/, message: "Password wajib memiliki huruf besar." },
   { pattern: /\d/, message: "Password wajib memiliki angka." },

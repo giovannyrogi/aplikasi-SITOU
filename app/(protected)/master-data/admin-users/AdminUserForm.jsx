@@ -78,7 +78,7 @@ export default function AdminUserForm({
             throw new Error(body.message);
           }
 
-          onSaved(body.message);
+          await onSaved(body.message);
         },
         { message: editing ? "Menyimpan Admin/HRD..." : "Membuat Admin/HRD..." },
       );

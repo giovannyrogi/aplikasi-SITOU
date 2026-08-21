@@ -17,12 +17,16 @@ export default function ProtectedShell({ user, children }) {
   const theme = useTheme();
   const router = useRouter();
   const pathname = usePathname();
-  const { runWithLoadingBackdrop } = useLoadingBackdrop();
+  const { startNavigationLoading, finishNavigationLoading } = useLoadingBackdrop();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: "", severity: "error" });
   const [sessionExpired, setSessionExpired] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(5);
   const menus = useMemo(() => getMenusByRole(MENU_CONFIG, user.role_code), [user.role_code]);
+
+  useEffect(() => {
+    finishNavigationLoading();
+  }, [finishNavigationLoading, pathname]);
 
   useEffect(() => {
     const delay = Math.max(0, Number(user.session_expires_at) - Date.now());
@@ -37,40 +41,36 @@ export default function ProtectedShell({ user, children }) {
       setRedirectCountdown((current) => Math.max(0, current - 1));
     }, 1000);
     const redirect = window.setTimeout(async () => {
+      startNavigationLoading({ message: "Membuka halaman login..." });
       await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
       router.replace("/login");
-      router.refresh();
     }, 5000);
 
     return () => {
       window.clearInterval(interval);
       window.clearTimeout(redirect);
     };
-  }, [router, sessionExpired]);
+  }, [router, sessionExpired, startNavigationLoading]);
 
-  const navigate = async (path) => {
+  const navigate = (path) => {
     if (!path || path === pathname) return;
 
-    await runWithLoadingBackdrop(
-      async () => {
-        router.push(path);
-      },
-      { message: "Membuka halaman..." },
-    );
+    setDrawerOpen(false);
+    startNavigationLoading({ message: "Membuka halaman..." });
+    router.push(path);
   };
 
   const logout = async () => {
+    startNavigationLoading({ message: "Keluar dari SITOU..." });
+
     try {
-      await runWithLoadingBackdrop(
-        async () => {
-          const response = await fetch("/api/auth/logout", { method: "POST" });
-          if (!response.ok) throw new Error("Logout gagal");
-          router.replace("/login");
-          router.refresh();
-        },
-        { message: "Keluar dari SITOU..." },
-      );
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Logout gagal");
+
+      startNavigationLoading({ message: "Membuka halaman login..." });
+      router.replace("/login");
     } catch {
+      finishNavigationLoading();
       setNotification({
         open: true,
         message: "Gagal keluar dari sistem. Silakan coba kembali.",
@@ -80,9 +80,9 @@ export default function ProtectedShell({ user, children }) {
   };
 
   const redirectToLogin = async () => {
+    startNavigationLoading({ message: "Membuka halaman login..." });
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
     router.replace("/login");
-    router.refresh();
   };
 
   return (
@@ -104,9 +104,11 @@ export default function ProtectedShell({ user, children }) {
       >
         <TopMenu user={user} onBurgerClick={() => setDrawerOpen(true)} onLogout={logout} />
         <Box component="main" sx={{ minWidth: 0, flex: 1, p: { xs: 2, sm: 3, lg: 4 } }}>
-          <Box sx={{ mb: user.organization_active_until ? 3 : 0 }}>
+          <Box sx={{ mb: user.organization_subscription_ends_on ? 3 : 0 }}>
             <SubscriptionBanner
-              activeUntil={user.organization_active_until}
+              status={user.organization_subscription_status}
+              endsOn={user.organization_subscription_ends_on}
+              graceEndsOn={user.organization_subscription_grace_ends_on}
               daysRemaining={user.organization_days_remaining}
               onRenew={() =>
                 setNotification({

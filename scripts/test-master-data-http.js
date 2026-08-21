@@ -21,13 +21,14 @@ const pool = new Pool({
 
 const created = { organizationId: null, locationId: null, userId: null };
 
-async function request(path, { method = "GET", cookie, body } = {}) {
+async function request(path, { method = "GET", cookie, body, requestId } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
       Origin: baseUrl,
       ...(cookie ? { Cookie: cookie } : {}),
       ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(requestId ? { "X-Request-ID": requestId } : {}),
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
@@ -71,6 +72,9 @@ async function cleanup() {
       await client.query("DELETE FROM users WHERE id=$1", [created.userId]);
     }
     await client.query("DELETE FROM locations WHERE organization_id=$1", [created.organizationId]);
+    await client.query("DELETE FROM organization_subscriptions WHERE organization_id=$1", [
+      created.organizationId,
+    ]);
     await client.query("DELETE FROM organizations WHERE id=$1", [created.organizationId]);
     await client.query("COMMIT");
   } catch (error) {
@@ -104,8 +108,12 @@ async function run() {
       organizationType: "company",
       parentId: null,
       timezone: "Asia/Makassar",
-      activeFrom: new Date().toISOString().slice(0, 10),
-      activeUntil: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
+      initialSubscription: {
+        startsOn: new Date().toISOString().slice(0, 10),
+        endsOn: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
+        graceEndsOn: null,
+        notes: "Periode QA",
+      },
       isActive: true,
     },
   });
@@ -122,13 +130,71 @@ async function run() {
       organizationType: "company",
       parentId: null,
       timezone: "Asia/Makassar",
-      activeFrom: organization.payload.data.active_from,
-      activeUntil: organization.payload.data.active_until,
       isActive: true,
       version: new Date(organization.payload.data.updated_at).toISOString(),
     },
   });
   expectStatus(organizationUpdate, 200, "Update organisasi");
+
+  const subscriptions = await request(
+    `/api/organizations/${created.organizationId}/subscriptions`,
+    { cookie: superadminCookie },
+  );
+  expectStatus(subscriptions, 200, "Histori langganan");
+  if (subscriptions.payload.data.length !== 1) throw new Error("Langganan awal tidak terbentuk.");
+
+  const renewalRequestId = crypto.randomUUID();
+  const renewalBody = {
+    startsOn: new Date(Date.now() + 366 * 86400000).toISOString().slice(0, 10),
+    endsOn: new Date(Date.now() + 730 * 86400000).toISOString().slice(0, 10),
+    graceEndsOn: null,
+    notes: "Perpanjangan QA",
+  };
+  const renewal = await request(`/api/organizations/${created.organizationId}/subscriptions`, {
+    method: "POST",
+    cookie: superadminCookie,
+    requestId: renewalRequestId,
+    body: renewalBody,
+  });
+  expectStatus(renewal, 201, "Perpanjangan langganan");
+  const duplicateRenewal = await request(
+    `/api/organizations/${created.organizationId}/subscriptions`,
+    { method: "POST", cookie: superadminCookie, requestId: renewalRequestId, body: renewalBody },
+  );
+  expectStatus(duplicateRenewal, 201, "Retry perpanjangan idempotent");
+  const overlap = await request(`/api/organizations/${created.organizationId}/subscriptions`, {
+    method: "POST",
+    cookie: superadminCookie,
+    body: renewalBody,
+  });
+  expectStatus(overlap, 409, "Periode langganan overlap");
+
+  const suspend = await request(
+    `/api/organizations/${created.organizationId}/subscriptions/${renewal.payload.data.id}`,
+    {
+      method: "PATCH",
+      cookie: superadminCookie,
+      body: {
+        action: "suspend",
+        reason: "Pengujian suspend periode",
+        version: new Date(renewal.payload.data.updated_at).toISOString(),
+      },
+    },
+  );
+  expectStatus(suspend, 200, "Suspend langganan");
+  const restore = await request(
+    `/api/organizations/${created.organizationId}/subscriptions/${renewal.payload.data.id}`,
+    {
+      method: "PATCH",
+      cookie: superadminCookie,
+      body: {
+        action: "restore",
+        reason: "Pengujian restore periode",
+        version: new Date(suspend.payload.data.updated_at).toISOString(),
+      },
+    },
+  );
+  expectStatus(restore, 200, "Restore langganan");
 
   const location = await request("/api/locations", {
     method: "POST",
@@ -142,8 +208,8 @@ async function run() {
       address: null,
       latitude: null,
       longitude: null,
-      activeFrom: new Date().toISOString().slice(0, 10),
-      activeUntil: null,
+      operationalFrom: new Date().toISOString().slice(0, 10),
+      operationalUntil: null,
       isActive: true,
     },
   });
@@ -162,8 +228,8 @@ async function run() {
       address: null,
       latitude: null,
       longitude: null,
-      activeFrom: location.payload.data.active_from,
-      activeUntil: null,
+      operationalFrom: location.payload.data.operational_from,
+      operationalUntil: null,
       isActive: true,
       version: new Date(location.payload.data.updated_at).toISOString(),
     },
@@ -206,12 +272,6 @@ async function run() {
   const forbidden = await request("/api/organizations", { cookie: adminCookie });
   expectStatus(forbidden, 403, "Pembatasan API Superadmin");
 
-  const protectedLocation = await request(`/api/locations/${created.locationId}`, {
-    method: "DELETE",
-    cookie: superadminCookie,
-  });
-  expectStatus(protectedLocation, 409, "Guard lokasi akses terakhir");
-
   const adminList = await request(
     `/api/admin-users?organizationId=${created.organizationId}&page=1&pageSize=10`,
     { cookie: superadminCookie },
@@ -221,15 +281,40 @@ async function run() {
     throw new Error("Admin/HRD hasil create tidak ditemukan pada list.");
   }
 
-  const resetPassword = `${adminPassword}X!`;
-  const passwordUpdate = await request(`/api/admin-users/${created.userId}/password`, {
+  const resetPassword = adminPassword + "X!";
+  const passwordMismatch = await request("/api/admin-users/" + created.userId + "/password", {
     method: "PATCH",
     cookie: superadminCookie,
-    body: { password: resetPassword },
+    body: { password: resetPassword, confirmPassword: resetPassword + "beda" },
+  });
+  expectStatus(passwordMismatch, 400, "Tolak konfirmasi password berbeda");
+  if (!passwordMismatch.payload.fieldErrors?.confirmPassword) {
+    throw new Error("Error konfirmasi password tidak dikembalikan.");
+  }
+
+  const passwordUpdate = await request("/api/admin-users/" + created.userId + "/password", {
+    method: "PATCH",
+    cookie: superadminCookie,
+    body: { password: resetPassword, confirmPassword: resetPassword },
   });
   expectStatus(passwordUpdate, 200, "Reset password Admin/HRD");
   await login(adminUsername, resetPassword);
 
+  const deactivatedLocation = await request("/api/locations/" + created.locationId, {
+    method: "DELETE",
+    cookie: superadminCookie,
+  });
+  expectStatus(deactivatedLocation, 200, "Nonaktifkan lokasi akses terakhir");
+  const inactiveLocationLogin = await request("/api/auth/login", {
+    method: "POST",
+    body: { username: adminUsername, password: resetPassword },
+  });
+  expectStatus(inactiveLocationLogin, 403, "Tolak login tanpa lokasi operasional aktif");
+  if (inactiveLocationLogin.payload.code !== "LOCATION_SCOPE_INACTIVE") {
+    throw new Error(
+      "Kode login lokasi nonaktif tidak sesuai: " + inactiveLocationLogin.payload.code,
+    );
+  }
   const adminDeactivate = await request(`/api/admin-users/${created.userId}`, {
     method: "DELETE",
     cookie: superadminCookie,
@@ -254,7 +339,7 @@ async function run() {
   expectStatus(organizationDeactivate, 200, "Deactivate organisasi");
 
   console.log(
-    "HTTP master-data test lulus: CRUD lengkap, login HRD, authorization, password, dan guard lokasi.",
+    "HTTP master-data test lulus: CRUD lengkap, login HRD, authorization, konfirmasi password, dan kontrol lokasi nonaktif.",
   );
 }
 

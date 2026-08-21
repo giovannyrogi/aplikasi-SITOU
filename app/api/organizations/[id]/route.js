@@ -1,7 +1,7 @@
 import { ROLES } from "@/app/constants/roles";
 import { requireRole } from "@/app/utils/auth";
 import { parsePositiveInteger } from "@/app/utils/apiValidation";
-import { organizationSchema } from "@/lib/master-data/schemas";
+import { organizationUpdateSchema } from "@/lib/master-data/schemas";
 import {
   deactivateOrganization,
   getOrganization,
@@ -44,7 +44,7 @@ export async function PATCH(request, { params }) {
   if (target.response) return target.response;
   const rejected = validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
-  const parsed = await readJson(request, organizationSchema, requestId);
+  const parsed = await readJson(request, organizationUpdateSchema, requestId);
   if (parsed.response) return parsed.response;
   try {
     return successResponse(await updateOrganization(target.id, parsed.data, user, requestId), {

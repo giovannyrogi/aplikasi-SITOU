@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SITOU
 
-## Getting Started
+SITOU (Sistem Informasi Tenaga Operasional Unit) adalah dashboard HRIS multi-perusahaan untuk mengelola organisasi, lokasi, akun Admin/HRD, pegawai, penempatan, kontrak, absensi, izin, dokumen, dan disiplin secara terisolasi per tenant.
 
-First, run the development server:
+## Teknologi
+
+- Next.js App Router dan React
+- PostgreSQL 18
+- MUI dan Ant Design
+- Zod untuk validasi
+- bcryptjs untuk password
+
+## Menjalankan development
+
+1. Salin konfigurasi database dan session ke `.env.development`.
+2. Jalankan schema atau migration yang belum diterapkan.
+3. Seed akun Superadmin dengan `npm run seed:superadmin`.
+4. Jalankan aplikasi dengan `npm run dev`.
+
+Perintah pemeriksaan utama:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm run build
+npm run subscriptions:reconcile
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Masa akses organisasi
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+Identitas tenant disimpan pada `organizations`. Semua histori masa akses berada pada `organization_subscriptions`; onboarding membuat periode pertama dan perpanjangan selalu menambah periode baru. Lokasi memakai `operational_from` dan `operational_until` untuk umur operasional, bukan untuk masa berlangganan SITOU.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Urutan upgrade database lama:
 
-## Learn More
+1. Terapkan `20260821_002_expand_organization_subscriptions.sql`.
+2. Deploy aplikasi yang sudah membaca schema baru dan verifikasi backfill.
+3. Terapkan `20260821_003_contract_subscription_columns.sql` untuk menghapus kolom legacy.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Baca `AGENTS.md` untuk aturan pengembangan dan `docs/database-schema.md` untuk peta database.

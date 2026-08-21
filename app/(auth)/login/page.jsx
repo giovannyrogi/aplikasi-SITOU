@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -21,12 +21,11 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import AppLogo from "@/app/components/branding/AppLogo";
 
 const APP_VERSION = "v0.1.0";
-const SUCCESS_NOTIFICATION_DURATION_MS = 800;
 const statisticBadges = ["Multi Perusahaan", "Manajemen SDM", "Realtime"];
 
-const wait = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
-
 function BuildingIllustration() {
+  const theme = useTheme();
+
   return (
     <Box
       aria-hidden="true"
@@ -45,7 +44,7 @@ function BuildingIllustration() {
           width: "43%",
           height: "58%",
           borderRadius: "7px",
-          bgcolor: "rgba(255,255,255,0.18)",
+          bgcolor: theme.ui.login.illustrationLayer,
         }}
       />
       <Box
@@ -56,7 +55,7 @@ function BuildingIllustration() {
           width: "33%",
           height: "70%",
           borderRadius: "7px",
-          bgcolor: "rgba(255,255,255,0.20)",
+          bgcolor: theme.ui.login.illustrationLayerStrong,
         }}
       />
       <Box
@@ -67,7 +66,7 @@ function BuildingIllustration() {
           width: "42%",
           height: "64%",
           borderRadius: "7px",
-          bgcolor: "rgba(255,255,255,0.18)",
+          bgcolor: theme.ui.login.illustrationLayer,
         }}
       />
 
@@ -81,7 +80,7 @@ function BuildingIllustration() {
             width: { xs: 18, sm: 25, lg: 30 },
             height: { xs: 25, sm: 35, lg: 40 },
             borderRadius: "4px",
-            bgcolor: "rgba(255,255,255,0.36)",
+            bgcolor: theme.ui.login.illustrationWindow,
           }}
         />
       ))}
@@ -94,7 +93,7 @@ function BuildingIllustration() {
           bottom: "20%",
           height: 9,
           borderRadius: 999,
-          bgcolor: "rgba(255,255,255,0.60)",
+          bgcolor: theme.ui.login.illustrationBase,
         }}
       />
 
@@ -116,7 +115,7 @@ function BuildingIllustration() {
               width: { xs: index === 1 ? 44 : 34, sm: index === 1 ? 54 : 43 },
               height: { xs: height, sm: height + 14 },
               borderRadius: "16px 16px 8px 8px",
-              bgcolor: "#fff",
+              bgcolor: theme.brand.onPrimary,
               position: "relative",
               "&::before": {
                 content: '""',
@@ -126,7 +125,7 @@ function BuildingIllustration() {
                 width: { xs: index === 1 ? 47 : 42, sm: index === 1 ? 54 : 48 },
                 height: { xs: index === 1 ? 47 : 42, sm: index === 1 ? 54 : 48 },
                 borderRadius: "50%",
-                bgcolor: "#fff",
+                bgcolor: theme.brand.onPrimary,
                 transform: "translateX(-50%)",
               },
             }}
@@ -140,7 +139,7 @@ function BuildingIllustration() {
 export default function LoginPage() {
   const router = useRouter();
   const theme = useTheme();
-  const { isLoading, runWithLoadingBackdrop } = useLoadingBackdrop();
+  const { isLoading, startNavigationLoading, finishNavigationLoading } = useLoadingBackdrop();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -149,6 +148,10 @@ export default function LoginPage() {
     message: "",
     severity: "success",
   });
+
+  useEffect(() => {
+    finishNavigationLoading();
+  }, [finishNavigationLoading]);
 
   const handleLogin = async () => {
     if (!username.trim() || !password) {
@@ -160,15 +163,13 @@ export default function LoginPage() {
       return;
     }
 
+    startNavigationLoading({ message: "Memproses login..." });
+
     try {
-      const response = await runWithLoadingBackdrop(
-        () =>
-          axios.post("/api/auth/login", {
-            username: username.trim(),
-            password,
-          }),
-        { message: "Memproses login..." },
-      );
+      const response = await axios.post("/api/auth/login", {
+        username: username.trim(),
+        password,
+      });
 
       setNotification({
         open: true,
@@ -176,9 +177,10 @@ export default function LoginPage() {
         severity: "success",
       });
 
-      await wait(SUCCESS_NOTIFICATION_DURATION_MS);
+      startNavigationLoading({ message: "Membuka halaman tujuan..." });
       router.push(response.data?.redirectTo || "/dashboard");
     } catch (error) {
+      finishNavigationLoading();
       setNotification({
         open: true,
         message:
@@ -208,18 +210,17 @@ export default function LoginPage() {
           flexDirection: "column",
           justifyContent: "space-between",
           gap: { xs: 4, md: 5 },
-          color: "#fff",
+          color: theme.brand.onPrimary,
           position: "relative",
           overflow: "hidden",
-          background: "linear-gradient(145deg, #d90010 0%, #ed0717 44%, #ff2c2f 100%)",
+          background: theme.ui.login.panelBackground,
         }}
       >
         <Box
           sx={{
             position: "absolute",
             inset: "-18% -8% -20% -18%",
-            background:
-              "repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.10) 0 1px, transparent 1px 80px)",
+            background: theme.ui.login.patternBackground,
             opacity: 0.55,
           }}
         />
@@ -238,7 +239,7 @@ export default function LoginPage() {
               width: { xs: 42, md: 46 },
               height: { xs: 42, md: 46 },
               borderRadius: "12px",
-              bgcolor: "#fff",
+              bgcolor: theme.brand.onPrimary,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -307,7 +308,7 @@ export default function LoginPage() {
                   px: 1.45,
                   py: 0.85,
                   borderRadius: "10px",
-                  bgcolor: "rgba(255,255,255,0.14)",
+                  bgcolor: theme.ui.login.statisticBadgeBg,
                   fontSize: 12,
                   lineHeight: 1,
                   fontWeight: 700,
@@ -381,7 +382,7 @@ export default function LoginPage() {
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Icon icon="solar:user-linear" fontSize={20} color="#64748b" />
+                    <Icon icon="solar:user-linear" fontSize={20} color={theme.brand.iconMuted} />
                   </InputAdornment>
                 ),
               },
@@ -395,8 +396,8 @@ export default function LoginPage() {
                 color: theme.palette.text.primary,
                 fontSize: 14,
                 "& fieldset": { borderColor: theme.ui.border },
-                "&:hover fieldset": { borderColor: "#f04853" },
-                "&.Mui-focused fieldset": { borderColor: "#ee0014", borderWidth: 1.5 },
+                "&:hover fieldset": { borderColor: theme.brand.primaryHover },
+                "&.Mui-focused fieldset": { borderColor: theme.brand.primary, borderWidth: 1.5 },
               },
             }}
           />
@@ -425,7 +426,11 @@ export default function LoginPage() {
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Icon icon="solar:lock-keyhole-linear" fontSize={20} color="#64748b" />
+                    <Icon
+                      icon="solar:lock-keyhole-linear"
+                      fontSize={20}
+                      color={theme.brand.iconMuted}
+                    />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -435,7 +440,7 @@ export default function LoginPage() {
                       onClick={() => setShowPassword((value) => !value)}
                       disabled={isLoading}
                       edge="end"
-                      sx={{ color: "#64748b" }}
+                      sx={{ color: theme.brand.iconMuted }}
                     >
                       <Icon
                         icon={showPassword ? "solar:eye-linear" : "solar:eye-closed-linear"}
@@ -454,8 +459,8 @@ export default function LoginPage() {
                 color: theme.palette.text.primary,
                 fontSize: 14,
                 "& fieldset": { borderColor: theme.ui.border },
-                "&:hover fieldset": { borderColor: "#f04853" },
-                "&.Mui-focused fieldset": { borderColor: "#ee0014", borderWidth: 1.5 },
+                "&:hover fieldset": { borderColor: theme.brand.primaryHover },
+                "&.Mui-focused fieldset": { borderColor: theme.brand.primary, borderWidth: 1.5 },
               },
             }}
           />
@@ -473,7 +478,7 @@ export default function LoginPage() {
             <Link
               href="/forgot-password"
               underline="none"
-              sx={{ color: "#ee0014", fontSize: 13, fontWeight: 700 }}
+              sx={{ color: theme.brand.primary, fontSize: 13, fontWeight: 700 }}
             >
               Lupa password?
             </Link>
@@ -488,13 +493,16 @@ export default function LoginPage() {
             sx={{
               height: 38,
               borderRadius: "18px",
-              bgcolor: "#ee0014",
+              bgcolor: theme.brand.primary,
               boxShadow: "none",
               fontSize: 14,
               fontWeight: 600,
               textTransform: "none",
-              color: "#fff",
-              "&:hover": { bgcolor: "#d90010", boxShadow: "0 10px 26px rgba(238,0,20,0.24)" },
+              color: theme.brand.onPrimary,
+              "&:hover": {
+                bgcolor: theme.brand.primaryDark,
+                boxShadow: theme.ui.login.buttonShadow,
+              },
             }}
           >
             {isLoading ? "Memproses..." : "Masuk ke SITOU"}

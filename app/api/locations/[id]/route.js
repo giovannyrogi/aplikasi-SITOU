@@ -60,7 +60,7 @@ export async function DELETE(request, { params }) {
   try {
     return successResponse(await deactivateLocation(target.id, user, requestId), {
       code: "LOCATION_DEACTIVATED",
-      message: "Lokasi berhasil dinonaktifkan.",
+      message: "Lokasi berhasil dinonaktifkan. Cakupan akses akun terkait telah disesuaikan.",
     });
   } catch (error) {
     return handleRouteError("locations.deactivate", error, requestId);

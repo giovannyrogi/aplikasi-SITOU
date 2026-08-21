@@ -28,11 +28,11 @@ export default function AdminUsersPage() {
   const [confirm, setConfirm] = useState(null);
   const organizationId = list.filters.organizationId;
 
-  const saved = (message) => {
+  const saved = async (message) => {
     setForm({ open: false, item: null });
     setPasswordForm(null);
     showNotification(message);
-    list.refresh();
+    await list.refresh();
   };
 
   const deactivate = async () => {
@@ -43,7 +43,7 @@ export default function AdminUsersPage() {
           const body = await response.json();
           if (!response.ok) throw new Error(body.message);
           showNotification(body.message);
-          list.refresh();
+          await list.refresh();
         },
         { message: "Menonaktifkan Admin/HRD..." },
       );

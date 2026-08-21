@@ -303,6 +303,7 @@ Endpoint awal yang disarankan:
 ## 18. Keamanan dan privasi
 
 - Password memakai `bcryptjs` dengan cost factor minimal 12. Password baru minimal 6 karakter, maksimal 72 byte sesuai batas bcrypt, serta wajib memiliki huruf besar, huruf kecil, angka, dan simbol. Password polos tidak boleh ditulis ke repository atau log.
+- Form reset password wajib memiliki field konfirmasi password. Frontend dan schema backend harus memvalidasi kesamaan password sebelum hashing; confirmPassword hanya data validasi request dan tidak pernah disimpan atau ditulis ke log.
 - Session server-side memakai cookie HttpOnly, Secure, SameSite yang tepat.
 - Rate limit login, reset password, upload, export, dan attendance endpoint.
 - NIK, BPJS, rekening, koordinat, dokumen, dan kasus disiplin dimasking di list/log.
@@ -350,6 +351,8 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 - Seluruh typography MUI wajib menggunakan reusable component `app/components/font-style/FontStyle.jsx`, bukan mengimpor `Typography` langsung pada halaman atau komponen fitur. Gunakan font weight normal `500`, medium `600`, dan bold maksimal `700`; dilarang memakai bobot di atas `700`.
 - Implementasi UI/UX wajib mengikuti best practice React/Next.js: komponen terfokus, state minimal, aksesibilitas dasar, semantic HTML, serta styling responsif yang tidak mengandalkan ukuran layar tunggal.
 - SITOU menggunakan satu tema light yang konsisten. Jangan menambahkan dark mode, theme switcher, atau penyimpanan preferensi tema kecuali ada keputusan produk baru.
+- Warna brand, status, feedback, state interaktif, dan permukaan UI wajib bersumber dari token terpusat di app/components/themeprovider/ThemeProvider.jsx. Dilarang menulis nilai hex, rgb/rgba, gradient, atau shadow berwarna langsung di halaman/komponen fitur bila token semantik yang sesuai dapat disediakan atau sudah tersedia.
+- Gunakan theme.brand untuk identitas SITOU, theme.status untuk success/warning/info/danger/neutral, palette MUI untuk state komponen, dan theme.ui untuk kebutuhan visual reusable atau halaman khusus. Token AntD harus mengambil sumber warna yang sama agar MUI dan AntD konsisten.
 - Desktop: sidebar; mobile: drawer/bottom navigation dan tabel kompleks menjadi card list.
 - Shell halaman terproteksi wajib memakai `app/components/navbar/LeftNavBar.jsx` sebagai sidebar permanen pada desktop (`lg` ke atas), `app/components/navbar/MobileLeftNavBar.jsx` sebagai drawer pada tablet/mobile (`lg` ke bawah), dan `app/components/navbar/TopMenu.jsx` sebagai topbar bersama. Keduanya wajib memakai sumber menu dan renderer sidebar yang sama agar hak akses, status aktif, dan tampilan tidak berbeda antar-device.
 - Tombol notifikasi di `TopMenu` tetap ditampilkan sebagai placeholder sampai modul notifikasi SITOU dikembangkan, tetapi dilarang menambahkan polling, request API, badge jumlah, popover data, atau event notifikasi lama. SITOU tidak memakai tombol pengganti tema light/dark.
@@ -358,7 +361,9 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 - Asset logo resmi berada di `public/`: `logo-sitou-v2.png` untuk logo ikon/huruf, `logo-sitou-v1.png` untuk logo lengkap dengan tagline sesuai aset yang disediakan, dan `logo-sitou-v3.png` sebagai varian lengkap bertuliskan Sistem Informasi Tenaga Operasional Unit bila diperlukan untuk konteks produk.
 - Halaman login adalah entry awal aplikasi. Jangan menampilkan pilihan demo role; setelah login, server/client mengarahkan user berdasarkan role aktif.
 - Form login SITOU hanya meminta username dan password. Email tetap menjadi atribut akun sesuai schema, tetapi tidak digunakan sebagai credential login. Tautan lupa password tetap dipertahankan sampai fiturnya dikembangkan.
-- Login, perpindahan menu/halaman, dan seluruh proses CRUD wajib memakai reusable `app/components/loading/Backdrop.jsx` melalui provider/helper loading aplikasi. Proses backend dimulai segera dan backdrop tampil minimal 2 detik; delay hanya mengatur durasi visual, bukan menunda request.
+- Login, perpindahan menu/halaman, pengambilan data halaman, dan seluruh proses CRUD wajib memakai reusable Backdrop.jsx melalui LoadingBackdropProvider. Backdrop dibuka tepat sebelum proses dimulai dan ditutup hanya setelah promise proses selesai; dilarang menambahkan delay atau durasi minimum buatan.
+- Navigasi wajib memakai lifecycle navigasi provider: loading dimulai sebelum router push/replace dan baru dilepas setelah route tujuan terpasang. Bila halaman tujuan mengambil data, proses pengambilan data memiliki token loading sendiri sehingga backdrop tetap tampil sampai data selesai dimuat.
+- Proses paralel wajib memakai token/counter provider agar satu proses yang selesai tidak menutup backdrop milik proses lain. Gunakan loading lokal seperti skeleton, spinner tombol, atau loading select hanya untuk proses nonblocking yang terbatas pada komponen tersebut.
 - Status berhasil atau gagal pada login, navigasi yang memerlukan feedback, dan CRUD wajib memakai reusable `app/components/Notifications/Notification.jsx`. Periksa komponen loading dan notifikasi yang ada sebelum membuat komponen baru.
 - Status tidak hanya disampaikan dengan warna; tambahkan label/ikon.
 - List umum memasking data sensitif.
@@ -415,7 +420,11 @@ Pekerjaan selesai hanya jika:
 - AntD Table digunakan pada tablet/desktop. Mobile memakai card list dari data yang sama beserta loading, empty/error, dan pagination yang dapat dijangkau.
 - `AppModal` harus mendukung ukuran `sm`, `md`, `lg`, `xl` atau custom width, header/footer tetap, konten scrollable, focus management, Escape/backdrop policy, form submit, dan hampir full-screen pada mobile.
 - `ImagePreviewModal` hanya menerima URL endpoint privat, blob, atau file lokal; jangan pernah mengirim `object_key` ke browser.
-- Masa akses organisasi memakai `active_from` dan `active_until` wajib. Session tenant harus divalidasi ulang terhadap organisasi, role, dan lokasi aktif. Peringatan maksimal 30 hari tampil di shell dengan tombol `Perpanjang`.
+- Identitas dan status administratif organisasi disimpan pada `organizations`; masa akses tidak boleh disimpan kembali sebagai kolom tanggal pada tabel tersebut.
+- Histori masa akses organisasi bersumber dari `organization_subscriptions` dengan `starts_on`, `ends_on`, `grace_ends_on`, dan status lifecycle. Perpanjangan selalu membuat record baru, tidak boleh menimpa histori, dan periode efektif tidak boleh overlap.
+- Session tenant harus divalidasi ulang terhadap `organizations.is_active`, role aktif, lokasi yang masih dalam periode operasional, serta status langganan efektif `active` atau `grace`. Status efektif tetap dihitung dari tanggal dan timezone organisasi walaupun job rekonsiliasi terlambat.
+- Umur operasional lokasi memakai `operational_from` dan `operational_until`; nama `active_from`/`active_until` tidak digunakan pada `locations`.
+- Peringatan maksimal 30 hari dan masa tenggang tampil di shell dengan tombol `Perpanjang`.
 - UI harus modern, sederhana, elegan, profesional, user friendly, dan mudah dipahami pengguna nonteknis. Kreativitas diterapkan melalui hierarchy, komposisi, iconography, spacing, microinteraction, dan state, bukan dekorasi berlebihan.
 - Merah SITOU hanya menjadi aksen, primary action, active state, dan status penting. Permukaan utama memakai putih/abu netral dan teks gelap dari theme/token.
 - Kontras teks normal minimal 4.5:1; teks besar, ikon penting, border interaktif, dan focus indicator minimal 3:1. Status selalu memakai label/ikon selain warna.

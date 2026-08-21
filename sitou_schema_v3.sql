@@ -12,6 +12,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS citext;
 -- pg_trgm mempercepat pencarian nama/kode memakai ILIKE.
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 -- Fungsi umum untuk mengisi updated_at tanpa mengulang logika di aplikasi.
 CREATE OR REPLACE FUNCTION set_updated_at()
@@ -37,16 +38,45 @@ CREATE TABLE organizations (
   organization_type varchar(30) NOT NULL DEFAULT 'company' CHECK (organization_type IN ('holding','company','agency')), -- Jenis organisasi.
   timezone varchar(50) NOT NULL DEFAULT 'Asia/Makassar', -- Zona waktu untuk tanggal kerja dan rekap.
   locale varchar(10) NOT NULL DEFAULT 'id-ID', -- Lokal antarmuka dan format data.
-  active_from date NOT NULL DEFAULT current_date, -- Awal tenant boleh digunakan.
-  active_until date NOT NULL, -- Hari terakhir tenant boleh memakai SITOU, inklusif sesuai timezone tenant.
-  is_active boolean NOT NULL DEFAULT true, -- Status operasional tenant tanpa menghapus data.
+  is_active boolean NOT NULL DEFAULT true, -- Status administratif perusahaan; masa akses SITOU diperiksa dari organization_subscriptions.
   settings jsonb NOT NULL DEFAULT '{}'::jsonb, -- Konfigurasi tambahan noninti yang tervalidasi aplikasi.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu pembuatan record.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu perubahan terakhir.
-  CONSTRAINT uq_organizations_tenant_id UNIQUE (id),
-  CONSTRAINT ck_organizations_dates CHECK (active_until IS NULL OR active_until >= active_from)
+  CONSTRAINT uq_organizations_tenant_id UNIQUE (id)
 );
-COMMENT ON TABLE organizations IS 'Tenant/perusahaan terisolasi. Superadmin platform membuat dan mengaktifkannya.';
+COMMENT ON TABLE organizations IS 'Identitas tenant/perusahaan. Histori masa penggunaan SITOU disimpan pada organization_subscriptions.';
+
+CREATE TABLE organization_subscriptions (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID unik setiap periode langganan atau masa penggunaan SITOU.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Perusahaan pemilik periode langganan.
+  starts_on date NOT NULL, -- Tanggal pertama perusahaan boleh menggunakan SITOU pada periode ini.
+  ends_on date NOT NULL, -- Tanggal terakhir perusahaan boleh menggunakan SITOU pada periode ini dan bersifat inklusif.
+  grace_ends_on date, -- Akhir masa tenggang setelah ends_on; NULL berarti tidak ada masa tenggang.
+  status varchar(20) NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled','active','grace','expired','suspended','cancelled')), -- Status periode langganan.
+  notes text, -- Catatan perpanjangan, penghentian, atau informasi administratif lainnya.
+  created_by_user_id bigint, -- User superadmin pembuat periode; foreign key ditambahkan setelah tabel users dibuat.
+  request_id uuid, -- Kunci idempotensi mutation pembentukan periode; NULL hanya untuk backfill/migration.
+  created_at timestamptz NOT NULL DEFAULT now(), -- Waktu record periode langganan dibuat.
+  updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu record periode langganan terakhir diubah.
+  CONSTRAINT uq_organization_subscriptions_org_id UNIQUE (organization_id,id),
+  CONSTRAINT uq_organization_subscriptions_request UNIQUE (organization_id,request_id),
+  CONSTRAINT ck_organization_subscription_dates CHECK (ends_on >= starts_on),
+  CONSTRAINT ck_organization_subscription_grace CHECK (grace_ends_on IS NULL OR grace_ends_on >= ends_on),
+  CONSTRAINT ex_organization_subscriptions_period EXCLUDE USING gist (
+    organization_id WITH =,
+    daterange(starts_on,COALESCE(grace_ends_on,ends_on),'[]') WITH &&
+  ) WHERE (status NOT IN ('suspended','cancelled'))
+);
+COMMENT ON TABLE organization_subscriptions IS 'Histori masa penggunaan SITOU per perusahaan; perpanjangan membuat record baru dan tidak menimpa periode lama.';
+
+-- Mempercepat pemeriksaan akses tenant dan pembacaan histori langganan.
+CREATE INDEX ix_organization_subscriptions_access
+ON organization_subscriptions(organization_id,status,starts_on,ends_on,grace_ends_on);
+
+-- Mempercepat dashboard daftar perusahaan aktif yang segera berakhir.
+CREATE INDEX ix_organization_subscriptions_expiring
+ON organization_subscriptions(ends_on,organization_id)
+WHERE status = 'active';
 
 CREATE TABLE stored_files (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID metadata file privat.
@@ -89,18 +119,18 @@ CREATE TABLE locations (
   latitude numeric(10,7) CHECK (latitude BETWEEN -90 AND 90), -- Koordinat pusat informatif.
   longitude numeric(10,7) CHECK (longitude BETWEEN -180 AND 180), -- Koordinat pusat informatif.
   logo_file_id bigint, -- Logo khusus lokasi bila berbeda; NULL memakai logo perusahaan.
-  active_from date NOT NULL DEFAULT current_date, -- Awal lokasi berlaku.
-  active_until date, -- Akhir lokasi berlaku.
-  is_active boolean NOT NULL DEFAULT true, -- Status lokasi tanpa menghapus histori.
+  operational_from date NOT NULL DEFAULT current_date, -- Tanggal lokasi mulai beroperasi atau mulai digunakan dalam struktur perusahaan.
+  operational_until date, -- Tanggal terakhir lokasi beroperasi; NULL berarti masih beroperasi.
+  is_active boolean NOT NULL DEFAULT true, -- Menentukan apakah lokasi boleh dipilih pada transaksi dan penempatan baru.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu record dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu record terakhir diubah.
   CONSTRAINT uq_locations_org_code UNIQUE (organization_id,code),
   CONSTRAINT uq_locations_org_id UNIQUE (organization_id,id),
   CONSTRAINT fk_locations_parent FOREIGN KEY (organization_id,parent_location_id) REFERENCES locations(organization_id,id),
   CONSTRAINT fk_locations_logo FOREIGN KEY (organization_id,logo_file_id) REFERENCES stored_files(organization_id,id),
-  CONSTRAINT ck_locations_dates CHECK (active_until IS NULL OR active_until >= active_from)
+  CONSTRAINT ck_locations_operational_dates CHECK (operational_until IS NULL OR operational_until >= operational_from)
 );
-COMMENT ON TABLE locations IS 'Kantor pusat, cabang, pasar, site, dan lokasi kerja dalam satu tenant.';
+COMMENT ON TABLE locations IS 'Kantor pusat, cabang, pasar, site, dan lokasi kerja; periode tanggal menunjukkan umur operasional, bukan masa langganan SITOU.';
 
 CREATE TABLE organization_units (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID unit organisasi.
@@ -167,6 +197,10 @@ CREATE TABLE users (
   updated_at timestamptz NOT NULL DEFAULT now() -- Waktu akun diubah.
 );
 COMMENT ON TABLE users IS 'Akun global. Hak akses tenant disimpan terpisah pada user_organization_roles.';
+
+ALTER TABLE organization_subscriptions
+  ADD CONSTRAINT fk_organization_subscriptions_creator
+  FOREIGN KEY (created_by_user_id) REFERENCES users(id);
 
 ALTER TABLE stored_files
   ADD CONSTRAINT fk_stored_files_uploader FOREIGN KEY (uploaded_by_user_id) REFERENCES users(id);
@@ -1070,7 +1104,7 @@ DO $$
 DECLARE table_name text;
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
-    'organizations','organization_branding','locations','organization_units','positions',
+    'organizations','organization_subscriptions','organization_branding','locations','organization_units','positions',
     'users','employees','employee_contacts','work_shifts','attendance_points','leave_requests'
   ]
   LOOP
@@ -1093,8 +1127,8 @@ ON CONFLICT (code) DO NOTHING;
 COMMIT;
 
 -- CATATAN DEPLOYMENT:
--- 1. Buat organisasi lebih dahulu, lalu seed employment_types, leave_types, shift,
---    dan discipline_rules per organisasi dalam service onboarding.
+-- 1. Onboarding tenant dilakukan dalam satu transaksi: buat organizations, branding,
+--    periode pertama organization_subscriptions, role HRD, serta master awal perusahaan.
 -- 2. Seed discipline_rules di atas hanya berlaku untuk organisasi yang sudah ada
 --    saat migration dijalankan; onboarding tenant baru wajib membuat seed yang sama.
 -- 3. Jalankan ensure_attendance_month_partition() untuk bulan berjalan dan 2 bulan
@@ -1102,3 +1136,9 @@ COMMIT;
 -- 4. Seluruh query tenant wajib memuat organization_id walaupun sudah memakai FK.
 -- 5. Query file tidak pernah mengembalikan object_key langsung ke klien; API membuat
 --    respons stream atau URL singkat setelah pemeriksaan permission.
+-- 6. Tenant hanya boleh masuk jika organizations.is_active=true dan memiliki periode
+--    organization_subscriptions berstatus active/grace pada tanggal berjalan.
+-- 7. Perpanjangan langganan selalu INSERT record baru. Jangan mengubah ends_on periode
+--    lama karena histori penggunaan dan perpanjangan harus tetap dapat diaudit.
+-- 8. Service wajib mencegah dua periode active/grace untuk organisasi yang sama saling
+--    bertumpang tindih dan memperbarui status berdasarkan tanggal melalui scheduled job.

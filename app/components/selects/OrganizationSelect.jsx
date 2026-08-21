@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import AsyncSelect from "../forms/AsyncSelect";
 
-export default function OrganizationSelect(props) {
+export default function OrganizationSelect({ excludeIds = [], ...props }) {
   const [state, setState] = useState({ loading: true, options: [] });
+  const excludedIds = new Set(excludeIds.map(String));
   useEffect(() => {
     let active = true;
     fetch("/api/organizations/options")
@@ -28,7 +29,7 @@ export default function OrganizationSelect(props) {
     <AsyncSelect
       placeholder="Pilih organisasi"
       loading={state.loading}
-      options={state.options}
+      options={state.options.filter((option) => !excludedIds.has(String(option.value)))}
       {...props}
     />
   );

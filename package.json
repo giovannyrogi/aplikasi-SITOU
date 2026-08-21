@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --test tests/*.test.mjs",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "seed:superadmin": "node scripts/seed-superadmin.mjs"
+    "seed:superadmin": "node scripts/seed-superadmin.mjs",
+    "subscriptions:reconcile": "node scripts/reconcile-subscriptions.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",

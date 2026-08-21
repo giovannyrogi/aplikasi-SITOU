@@ -65,7 +65,8 @@ export default function TopMenu({ user, onBurgerClick, onLogout }) {
       <Box sx={{ display: { xs: "none", md: "block" } }}>
         <SubscriptionStatus
           status={user?.organization_subscription_status}
-          activeUntil={user?.organization_active_until}
+          endsOn={user?.organization_subscription_ends_on}
+          graceEndsOn={user?.organization_subscription_grace_ends_on}
           daysRemaining={user?.organization_days_remaining}
         />
       </Box>

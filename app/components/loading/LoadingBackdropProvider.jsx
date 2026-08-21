@@ -3,48 +3,108 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import LoadingBackdrop from "./Backdrop";
 
-export const MINIMUM_LOADING_DURATION_MS = 2000;
-
 const LoadingBackdropContext = createContext(null);
-
-const wait = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
+const DEFAULT_MESSAGE = "Memproses...";
 
 export function LoadingBackdropProvider({ children }) {
-  const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("Memproses...");
-  const activeProcesses = useRef(0);
+  const [state, setState] = useState({ open: false, message: DEFAULT_MESSAGE });
+  const activeProcesses = useRef(new Map());
+  const navigationToken = useRef(null);
 
-  const runWithLoadingBackdrop = useCallback(async (process, options = {}) => {
-    const startedAt = Date.now();
-    const minimumDuration = Math.max(
-      MINIMUM_LOADING_DURATION_MS,
-      Number(options.minimumDuration) || 0,
+  const synchronizeBackdrop = useCallback(() => {
+    const processes = Array.from(activeProcesses.current.values());
+    const latestProcess = processes.at(-1);
+
+    const nextState = {
+      open: processes.length > 0,
+      message: latestProcess?.message || DEFAULT_MESSAGE,
+    };
+    setState((current) =>
+      current.open === nextState.open && current.message === nextState.message
+        ? current
+        : nextState,
     );
-
-    activeProcesses.current += 1;
-    setMessage(options.message || "Memproses...");
-    setOpen(true);
-
-    try {
-      return await process();
-    } finally {
-      const remainingDuration = minimumDuration - (Date.now() - startedAt);
-      if (remainingDuration > 0) await wait(remainingDuration);
-
-      activeProcesses.current = Math.max(0, activeProcesses.current - 1);
-      if (activeProcesses.current === 0) setOpen(false);
-    }
   }, []);
 
+  const startLoading = useCallback(
+    (options = {}) => {
+      const token = Symbol("loading-process");
+      activeProcesses.current.set(token, {
+        message: options.message || DEFAULT_MESSAGE,
+      });
+      synchronizeBackdrop();
+
+      let finished = false;
+      return () => {
+        if (finished) return;
+        finished = true;
+        activeProcesses.current.delete(token);
+        synchronizeBackdrop();
+      };
+    },
+    [synchronizeBackdrop],
+  );
+
+  const runWithLoadingBackdrop = useCallback(
+    async (process, options = {}) => {
+      const finishLoading = startLoading(options);
+      try {
+        return await process();
+      } finally {
+        finishLoading();
+      }
+    },
+    [startLoading],
+  );
+
+  const startNavigationLoading = useCallback(
+    (options = {}) => {
+      const message = options.message || "Membuka halaman...";
+      const currentToken = navigationToken.current;
+
+      if (currentToken && activeProcesses.current.has(currentToken)) {
+        activeProcesses.current.set(currentToken, { message });
+      } else {
+        const token = Symbol("navigation-loading");
+        navigationToken.current = token;
+        activeProcesses.current.set(token, { message });
+      }
+
+      synchronizeBackdrop();
+    },
+    [synchronizeBackdrop],
+  );
+
+  const finishNavigationLoading = useCallback(() => {
+    const token = navigationToken.current;
+    if (!token) return;
+
+    activeProcesses.current.delete(token);
+    navigationToken.current = null;
+    synchronizeBackdrop();
+  }, [synchronizeBackdrop]);
+
   const value = useMemo(
-    () => ({ isLoading: open, runWithLoadingBackdrop }),
-    [open, runWithLoadingBackdrop],
+    () => ({
+      isLoading: state.open,
+      startLoading,
+      runWithLoadingBackdrop,
+      startNavigationLoading,
+      finishNavigationLoading,
+    }),
+    [
+      finishNavigationLoading,
+      runWithLoadingBackdrop,
+      startLoading,
+      startNavigationLoading,
+      state.open,
+    ],
   );
 
   return (
     <LoadingBackdropContext.Provider value={value}>
       {children}
-      <LoadingBackdrop open={open} message={message} />
+      <LoadingBackdrop open={state.open} message={state.message} />
     </LoadingBackdropContext.Provider>
   );
 }

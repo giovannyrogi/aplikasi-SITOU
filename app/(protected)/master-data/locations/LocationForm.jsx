@@ -47,15 +47,15 @@ export default function LocationForm({
               address: item.address,
               latitude: item.latitude ? Number(item.latitude) : null,
               longitude: item.longitude ? Number(item.longitude) : null,
-              activeFrom: dayjs(item.active_from),
-              activeUntil: item.active_until ? dayjs(item.active_until) : null,
+              operationalFrom: dayjs(item.operational_from),
+              operationalUntil: item.operational_until ? dayjs(item.operational_until) : null,
               isActive: item.is_active,
             }
           : {
               organizationId: presetOrganizationId,
               locationType: "branch",
-              activeFrom: dayjs(),
-              activeUntil: null,
+              operationalFrom: dayjs(),
+              operationalUntil: null,
               isActive: true,
             },
       );
@@ -91,8 +91,10 @@ export default function LocationForm({
             address: values.address || null,
             latitude: values.latitude ?? null,
             longitude: values.longitude ?? null,
-            activeFrom: values.activeFrom.format("YYYY-MM-DD"),
-            activeUntil: values.activeUntil ? values.activeUntil.format("YYYY-MM-DD") : null,
+            operationalFrom: values.operationalFrom.format("YYYY-MM-DD"),
+            operationalUntil: values.operationalUntil
+              ? values.operationalUntil.format("YYYY-MM-DD")
+              : null,
             ...(editing ? { version: new Date(item.updated_at).toISOString() } : {}),
           };
           const r = await fetch(editing ? `/api/locations/${item.id}` : "/api/locations", {
@@ -108,7 +110,7 @@ export default function LocationForm({
               );
             throw new Error(b.message);
           }
-          onSaved(b.message);
+          await onSaved(b.message);
         },
         { message: editing ? "Menyimpan lokasi..." : "Membuat lokasi..." },
       );
@@ -182,12 +184,16 @@ export default function LocationForm({
               </Form.Item>
             </Col>
             <Col xs={24} sm={10}>
-              <Form.Item name="activeFrom" label="Mulai aktif" rules={[{ required: true }]}>
+              <Form.Item
+                name="operationalFrom"
+                label="Mulai beroperasi"
+                rules={[{ required: true }]}
+              >
                 <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>
             <Col xs={24} sm={10}>
-              <Form.Item name="activeUntil" label="Berakhir (opsional)">
+              <Form.Item name="operationalUntil" label="Akhir operasional (opsional)">
                 <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>

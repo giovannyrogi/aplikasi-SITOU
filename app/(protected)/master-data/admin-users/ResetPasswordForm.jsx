@@ -17,23 +17,28 @@ export default function ResetPasswordForm({ open, item, onClose, onSaved, onErro
     if (open) form.resetFields();
   }, [form, open]);
 
-  const submit = async ({ password }) => {
+  const submit = async ({ password, confirmPassword }) => {
     try {
       await runWithLoadingBackdrop(
         async () => {
           const response = await fetch(`/api/admin-users/${item.id}/password`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ password }),
+            body: JSON.stringify({ password, confirmPassword }),
           });
           const body = await response.json();
           if (!response.ok) {
-            if (body.fieldErrors?.password) {
-              form.setFields([{ name: "password", errors: body.fieldErrors.password }]);
+            if (body.fieldErrors) {
+              form.setFields(
+                Object.entries(body.fieldErrors).map(([name, message]) => ({
+                  name,
+                  errors: [message],
+                })),
+              );
             }
             throw new Error(body.message);
           }
-          onSaved(body.message);
+          await onSaved(body.message);
         },
         { message: "Memperbarui password..." },
       );
@@ -67,7 +72,23 @@ export default function ResetPasswordForm({ open, item, onClose, onSaved, onErro
             extra={PASSWORD_HELP_TEXT}
             rules={PASSWORD_FORM_RULES}
           >
-            <Input.Password autoComplete="new-password" />
+            <Input.Password autoComplete="new-password" maxLength={72} />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label="Konfirmasi password baru"
+            dependencies={["password"]}
+            rules={[
+              { required: true, message: "Konfirmasi password wajib diisi." },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue("password") === value) return Promise.resolve();
+                  return Promise.reject(new Error("Konfirmasi password tidak sama."));
+                },
+              }),
+            ]}
+          >
+            <Input.Password autoComplete="new-password" maxLength={72} />
           </Form.Item>
         </Form>
       </AppModal>

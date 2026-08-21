@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button, Col, DatePicker, Form, Input, Row, Select, Switch } from "antd";
+import { Button, Col, DatePicker, Divider, Form, Input, Row, Select, Switch } from "antd";
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
@@ -20,30 +20,31 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
   const editing = Boolean(item);
   const closeGuard = useFormModalClose(form, onClose);
   useEffect(() => {
-    if (open) {
-      form.resetFields();
-      form.setFieldsValue(
-        item
-          ? {
-              code: item.code,
-              name: item.name,
-              legalName: item.legal_name,
-              organizationType: item.organization_type,
-              parentId: item.parent_id || undefined,
-              timezone: item.timezone,
-              activeFrom: dayjs(item.active_from),
-              activeUntil: dayjs(item.active_until),
-              isActive: item.is_active,
-            }
-          : {
-              organizationType: "company",
-              timezone: "Asia/Makassar",
-              activeFrom: dayjs(),
-              activeUntil: dayjs().add(1, "year"),
-              isActive: true,
+    if (!open) return;
+    form.resetFields();
+    form.setFieldsValue(
+      item
+        ? {
+            code: item.code,
+            name: item.name,
+            legalName: item.legal_name,
+            organizationType: item.organization_type,
+            parentId: item.parent_id || undefined,
+            timezone: item.timezone,
+            isActive: item.is_active,
+          }
+        : {
+            organizationType: "company",
+            timezone: "Asia/Makassar",
+            isActive: true,
+            initialSubscription: {
+              startsOn: dayjs(),
+              endsOn: dayjs().add(1, "year"),
+              graceEndsOn: null,
+              notes: null,
             },
-      );
-    }
+          },
+    );
   }, [form, item, open]);
   const submit = async (values) => {
     try {
@@ -53,15 +54,25 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
             ...values,
             parentId: values.parentId || null,
             legalName: values.legalName || null,
-            activeFrom: values.activeFrom.format("YYYY-MM-DD"),
-            activeUntil: values.activeUntil.format("YYYY-MM-DD"),
-            ...(editing ? { version: new Date(item.updated_at).toISOString() } : {}),
+            ...(editing
+              ? { version: new Date(item.updated_at).toISOString() }
+              : {
+                  initialSubscription: {
+                    ...values.initialSubscription,
+                    startsOn: values.initialSubscription.startsOn.format("YYYY-MM-DD"),
+                    endsOn: values.initialSubscription.endsOn.format("YYYY-MM-DD"),
+                    graceEndsOn:
+                      values.initialSubscription.graceEndsOn?.format("YYYY-MM-DD") || null,
+                    notes: values.initialSubscription.notes || null,
+                  },
+                }),
           };
+          const requestId = crypto.randomUUID();
           const response = await fetch(
             editing ? `/api/organizations/${item.id}` : "/api/organizations",
             {
               method: editing ? "PATCH" : "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", "X-Request-ID": requestId },
               body: JSON.stringify(payload),
             },
           );
@@ -70,13 +81,13 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
             if (body.fieldErrors)
               form.setFields(
                 Object.entries(body.fieldErrors).map(([name, errors]) => ({
-                  name,
+                  name: name.split("."),
                   errors: [errors],
                 })),
               );
             throw new Error(body.message);
           }
-          onSaved(body.message);
+          await onSaved(body.message);
         },
         { message: editing ? "Menyimpan organisasi..." : "Membuat organisasi..." },
       );
@@ -90,7 +101,11 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
         open={open}
         onClose={closeGuard.requestClose}
         title={editing ? "Edit organisasi" : "Tambah organisasi"}
-        description="Tentukan identitas dan masa akses organisasi pada SITOU."
+        description={
+          editing
+            ? "Ubah identitas organisasi tanpa menimpa histori langganan."
+            : "Buat identitas organisasi dan periode langganan pertamanya."
+        }
         icon="solar:buildings-3-bold-duotone"
         size="lg"
         footer={
@@ -111,7 +126,7 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
             </Col>
             <Col xs={24} sm={16}>
               <Form.Item name="name" label="Nama organisasi" rules={[{ required: true }]}>
-                <Input placeholder="Nama perusahaan atau organisasi" />
+                <Input />
               </Form.Item>
             </Col>
             <Col xs={24}>
@@ -130,17 +145,7 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item name="parentId" label="Organisasi induk">
-                <OrganizationSelect allowClear />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item name="activeFrom" label="Mulai berlaku" rules={[{ required: true }]}>
-                <DatePicker format="DD MMM YYYY" style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item name="activeUntil" label="Berakhir pada" rules={[{ required: true }]}>
-                <DatePicker format="DD MMM YYYY" style={{ width: "100%" }} />
+                <OrganizationSelect allowClear excludeIds={item ? [item.id] : []} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={16}>
@@ -155,10 +160,54 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
               </Form.Item>
             </Col>
             <Col xs={24} sm={8}>
-              <Form.Item name="isActive" label="Status" valuePropName="checked">
+              <Form.Item
+                name="isActive"
+                label="Akses administratif"
+                valuePropName="checked"
+                extra={
+                  editing
+                    ? "Nonaktif memblokir seluruh akun organisasi meskipun langganan masih berlaku. Gunakan switch ini untuk mengaktifkan kembali organisasi."
+                    : "Organisasi nonaktif belum dapat digunakan setelah dibuat."
+                }
+              >
                 <Switch checkedChildren="Aktif" unCheckedChildren="Nonaktif" />
               </Form.Item>
             </Col>
+            {!editing && (
+              <>
+                <Col xs={24}>
+                  <Divider titlePlacement="start">Langganan awal</Divider>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Form.Item
+                    name={["initialSubscription", "startsOn"]}
+                    label="Mulai akses"
+                    rules={[{ required: true }]}
+                  >
+                    <DatePicker format="DD MMM YYYY" style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Form.Item
+                    name={["initialSubscription", "endsOn"]}
+                    label="Akhir akses"
+                    rules={[{ required: true }]}
+                  >
+                    <DatePicker format="DD MMM YYYY" style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Form.Item name={["initialSubscription", "graceEndsOn"]} label="Akhir tenggang">
+                    <DatePicker format="DD MMM YYYY" style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+                <Col xs={24}>
+                  <Form.Item name={["initialSubscription", "notes"]} label="Catatan">
+                    <Input.TextArea rows={2} maxLength={2000} />
+                  </Form.Item>
+                </Col>
+              </>
+            )}
           </Row>
         </Form>
       </AppModal>

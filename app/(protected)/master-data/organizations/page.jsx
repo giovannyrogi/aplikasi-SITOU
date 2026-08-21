@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, PlusOutlined, StopOutlined, SyncOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
@@ -16,21 +16,37 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import OrganizationForm from "./OrganizationForm";
+import SubscriptionModal from "./SubscriptionModal";
 
 const fmt = (value) =>
-  new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" }).format(
-    new Date(`${value}T00:00:00`),
-  );
+  value
+    ? new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" }).format(
+        new Date(`${value}T00:00:00`),
+      )
+    : "—";
 export default function OrganizationsPage() {
   const list = useDataList("/api/organizations");
+  const refreshOrganizations = list.refresh;
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
   const [form, setForm] = useState({ open: false, item: null });
   const [confirm, setConfirm] = useState(null);
-  const saved = (message) => {
+  const [subscription, setSubscription] = useState(null);
+  const handleSubscriptionChanged = useCallback(
+    async (message) => {
+      showNotification(message);
+      await refreshOrganizations();
+    },
+    [refreshOrganizations, showNotification],
+  );
+  const handleSubscriptionError = useCallback(
+    (message) => showNotification(message, "error"),
+    [showNotification],
+  );
+  const saved = async (message) => {
     setForm({ open: false, item: null });
     showNotification(message);
-    list.refresh();
+    await list.refresh();
   };
   const deactivate = async () => {
     try {
@@ -40,7 +56,7 @@ export default function OrganizationsPage() {
           const b = await r.json();
           if (!r.ok) throw new Error(b.message);
           showNotification(b.message);
-          list.refresh();
+          await refreshOrganizations();
         },
         { message: "Menonaktifkan organisasi..." },
       );
@@ -61,8 +77,7 @@ export default function OrganizationsPage() {
       key: "renew",
       icon: <SyncOutlined />,
       label: "Perpanjang",
-      onClick: () =>
-        showNotification("Fitur perpanjangan akan tersedia pada tahap berikutnya.", "info"),
+      onClick: () => setSubscription(item),
     },
     { type: "divider" },
     {
@@ -70,7 +85,7 @@ export default function OrganizationsPage() {
       danger: true,
       disabled: !item.is_active,
       icon: <StopOutlined />,
-      label: "Nonaktifkan",
+      label: "Nonaktifkan organisasi",
       onClick: () => setConfirm(item),
     },
   ];
@@ -110,10 +125,10 @@ export default function OrganizationsPage() {
       render: (_, item) => (
         <Box>
           <FontStyle fontSize={11.5}>
-            {fmt(item.active_from)} - {fmt(item.active_until)}
+            {fmt(item.subscription_starts_on)} - {fmt(item.subscription_ends_on)}
           </FontStyle>
           <FontStyle fontSize={10.5} sx={{ color: "#5F6B7A" }}>
-            {item.days_remaining >= 0
+            {Number.isFinite(item.days_remaining) && item.days_remaining >= 0
               ? `${item.days_remaining} hari tersisa`
               : "Masa akses berakhir"}
           </FontStyle>
@@ -122,8 +137,10 @@ export default function OrganizationsPage() {
     },
     {
       title: "Status",
-      dataIndex: "subscription_status",
-      render: (v) => <StatusBadge status={v} />,
+      key: "effective_status",
+      render: (_, item) => (
+        <StatusBadge status={item.is_active ? item.subscription_status : "inactive"} />
+      ),
     },
     {
       title: "Aksi",
@@ -147,15 +164,15 @@ export default function OrganizationsPage() {
         <RowActionMenu items={actions(item)} />
       </Box>
       <Box sx={{ mt: 1.5, display: "flex", flexWrap: "wrap", gap: 1 }}>
-        <StatusBadge status={item.subscription_status} />
+        <StatusBadge status={item.is_active ? item.subscription_status : "inactive"} />
         <StatusBadge
           status={item.location_count > 0 && item.admin_count > 0 ? "ready" : "not_started"}
           label={item.location_count > 0 && item.admin_count > 0 ? "Siap digunakan" : "Onboarding"}
         />
       </Box>
       <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: "#5F6B7A" }}>
-        Berlaku sampai {fmt(item.active_until)} · {item.location_count} lokasi · {item.admin_count}{" "}
-        admin
+        Berlaku sampai {fmt(item.subscription_ends_on)} · {item.location_count} lokasi ·{" "}
+        {item.admin_count} admin
       </FontStyle>
     </Box>
   );
@@ -198,6 +215,13 @@ export default function OrganizationsPage() {
         onClose={() => setForm({ open: false, item: null })}
         onSaved={saved}
         onError={(m) => showNotification(m, "error")}
+      />
+      <SubscriptionModal
+        open={Boolean(subscription)}
+        organization={subscription}
+        onClose={() => setSubscription(null)}
+        onChanged={handleSubscriptionChanged}
+        onError={handleSubscriptionError}
       />
       <ConfirmDialog
         open={Boolean(confirm)}

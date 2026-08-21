@@ -45,7 +45,6 @@ export default function AppModal({
     <Modal
       open={open}
       onClose={requestClose}
-      disableEscapeKeyDown={disableClose || !closeOnEscape}
       aria-labelledby={titleId}
       aria-describedby={resolvedDescription ? descriptionId : undefined}
       sx={{ display: "grid", placeItems: "center", p: { xs: 1, sm: 2 } }}
