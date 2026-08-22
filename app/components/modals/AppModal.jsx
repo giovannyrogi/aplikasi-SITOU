@@ -94,7 +94,7 @@ export default function AppModal({
                 bgcolor: theme.ui.iconButtonBg,
               }}
             >
-              <Icon icon={icon} fontSize={22} />
+              {typeof icon === "string" ? <Icon icon={icon} fontSize={22} /> : icon}
             </Box>
           ) : null}
           <Box sx={{ minWidth: 0, flex: 1 }}>

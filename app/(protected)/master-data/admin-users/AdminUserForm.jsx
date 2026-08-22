@@ -9,6 +9,8 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
 import { PASSWORD_FORM_RULES, PASSWORD_HELP_TEXT } from "@/app/utils/passwordRules";
+import IndonesiaPhoneInput from "@/app/components/forms/IndonesiaPhoneInput";
+import { getIndonesianMobileFormRules } from "@/lib/validation/indonesianPhone";
 
 export default function AdminUserForm({
   open,
@@ -130,8 +132,13 @@ export default function AdminUserForm({
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              <Form.Item name="phone" label="Nomor telepon">
-                <Input autoComplete="tel" placeholder="Opsional" />
+              <Form.Item
+                name="phone"
+                label="Nomor WhatsApp"
+                rules={getIndonesianMobileFormRules()}
+                extra="Masukkan nomor setelah +62 tanpa angka 0 di awal."
+              >
+                <IndonesiaPhoneInput />
               </Form.Item>
             </Col>
             {!editing && (

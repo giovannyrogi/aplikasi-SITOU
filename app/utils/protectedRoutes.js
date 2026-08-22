@@ -10,8 +10,36 @@ export const PROTECTED_ROUTES = [
     roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER, ROLES.EMPLOYEE],
   },
   {
-    path: "/master-data",
+    path: "/master-data/organizations",
     roles: [ROLES.SUPERADMIN],
+  },
+  {
+    path: "/master-data/admin-users",
+    roles: [ROLES.SUPERADMIN],
+  },
+  {
+    path: "/master-data",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD],
+  },
+  {
+    path: "/employees",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
+  },
+  {
+    path: "/employee-assignments",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
+  },
+  {
+    path: "/employment-contracts",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
+  },
+  {
+    path: "/discipline",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
+  },
+  {
+    path: "/access",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD],
   },
 ];
 

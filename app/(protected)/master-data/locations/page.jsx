@@ -18,6 +18,8 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import LocationForm from "./LocationForm";
+import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
+import { ROLES } from "@/app/constants/roles";
 const LABEL = {
   head_office: "Kantor pusat",
   branch: "Cabang",
@@ -28,12 +30,14 @@ const LABEL = {
 };
 export default function LocationsPage() {
   const theme = useTheme();
+  const user = useAuthenticatedUser();
+  const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
   const list = useDataList("/api/locations");
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
   const [form, setForm] = useState({ open: false, item: null });
   const [confirm, setConfirm] = useState(null);
-  const organizationId = list.filters.organizationId;
+  const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
   const saved = async (m) => {
     setForm({ open: false, item: null });
     showNotification(m);
@@ -89,7 +93,7 @@ export default function LocationsPage() {
         </Box>
       ),
     },
-    { title: "Organisasi", dataIndex: "organization_name" },
+    ...(isSuperadmin ? [{ title: "Organisasi", dataIndex: "organization_name" }] : []),
     { title: "Induk", dataIndex: "parent_location_name", render: (v) => v || "-" },
     {
       title: "Admin",
@@ -158,12 +162,14 @@ export default function LocationsPage() {
             onStatusChange={list.setStatus}
             onRefresh={list.refresh}
             filters={
-              <OrganizationSelect
-                allowClear
-                value={organizationId}
-                onChange={(value) => list.updateFilters({ organizationId: value })}
-                style={{ minWidth: 220 }}
-              />
+              isSuperadmin ? (
+                <OrganizationSelect
+                  allowClear
+                  value={organizationId}
+                  onChange={(value) => list.updateFilters({ organizationId: value })}
+                  style={{ minWidth: 220 }}
+                />
+              ) : null
             }
           />
         }

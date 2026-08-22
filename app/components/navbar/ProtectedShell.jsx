@@ -12,6 +12,7 @@ import MobileLeftNavBar from "./MobileLeftNavBar";
 import TopMenu from "./TopMenu";
 import SubscriptionBanner from "../subscription/SubscriptionBanner";
 import ExpiredSessionModal from "../modals/ExpiredSessionModal";
+import { AuthenticatedUserProvider } from "../auth/AuthenticatedUserProvider";
 
 export default function ProtectedShell({ user, children }) {
   const theme = useTheme();
@@ -86,9 +87,34 @@ export default function ProtectedShell({ user, children }) {
   };
 
   return (
-    <Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: theme.ui.pageBg }}>
-      <Box sx={{ display: { xs: "none", lg: "block" }, width: 280, flexShrink: 0 }}>
-        <LeftNavBar menus={menus} user={user} onNavigate={navigate} />
+    <Box
+      sx={{
+        width: "100%",
+        minHeight: "100dvh",
+        display: "flex",
+        overflowX: "hidden",
+        bgcolor: theme.ui.pageBg,
+      }}
+    >
+      <Box
+        sx={{
+          display: { xs: "none", lg: "block" },
+          width: 280,
+          flexShrink: 0,
+        }}
+      >
+        <Box
+          sx={{
+            position: "fixed",
+            inset: "0 auto 0 0",
+            width: 280,
+            height: "100dvh",
+            overflow: "hidden",
+            zIndex: theme.zIndex.appBar,
+          }}
+        >
+          <LeftNavBar menus={menus} user={user} onNavigate={navigate} />
+        </Box>
       </Box>
 
       <MobileLeftNavBar
@@ -100,10 +126,29 @@ export default function ProtectedShell({ user, children }) {
       />
 
       <Box
-        sx={{ minWidth: 0, flex: 1, minHeight: "100dvh", display: "flex", flexDirection: "column" }}
+        sx={{
+          width: "100%",
+          minWidth: 0,
+          maxWidth: "100%",
+          flex: 1,
+          minHeight: "100dvh",
+          display: "flex",
+          flexDirection: "column",
+          overflowX: "hidden",
+        }}
       >
         <TopMenu user={user} onBurgerClick={() => setDrawerOpen(true)} onLogout={logout} />
-        <Box component="main" sx={{ minWidth: 0, flex: 1, p: { xs: 2, sm: 3, lg: 4 } }}>
+        <Box
+          component="main"
+          sx={{
+            width: "100%",
+            minWidth: 0,
+            maxWidth: "100%",
+            flex: 1,
+            overflowX: "hidden",
+            p: { xs: 2, sm: 3, lg: 4 },
+          }}
+        >
           <Box sx={{ mb: user.organization_subscription_ends_on ? 3 : 0 }}>
             <SubscriptionBanner
               status={user.organization_subscription_status}
@@ -120,7 +165,7 @@ export default function ProtectedShell({ user, children }) {
               }
             />
           </Box>
-          {children}
+          <AuthenticatedUserProvider user={user}>{children}</AuthenticatedUserProvider>
         </Box>
       </Box>
 

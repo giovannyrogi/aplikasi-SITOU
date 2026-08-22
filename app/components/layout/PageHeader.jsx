@@ -5,7 +5,15 @@ import AppBreadcrumbs from "../navigation/AppBreadcrumbs";
 import FontStyle from "../font-style/FontStyle";
 
 /** Menyatukan konteks navigasi, judul, ringkasan, dan aksi utama setiap halaman. */
-export default function PageHeader({ title, description, action, breadcrumbs, menuList }) {
+export default function PageHeader({
+  title,
+  description,
+  action,
+  breadcrumbs,
+  menuList,
+  leading,
+  metadata,
+}) {
   const theme = useTheme();
 
   return (
@@ -14,11 +22,14 @@ export default function PageHeader({ title, description, action, breadcrumbs, me
       elevation={0}
       sx={{
         position: "relative",
+        width: "100%",
+        minWidth: 0,
+        maxWidth: "100%",
         overflow: "hidden",
         p: { xs: 2, sm: 2.5, lg: 3 },
         bgcolor: theme.ui.panelBg,
         border: `1px solid ${theme.ui.panelBorder}`,
-        borderRadius: 2,
+        borderRadius: "8px",
         boxShadow: theme.ui.panelShadow,
         "&::before": {
           content: '""',
@@ -40,18 +51,35 @@ export default function PageHeader({ title, description, action, breadcrumbs, me
           gap: { xs: 2, sm: 3 },
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
-          <FontStyle component="h1" fontSize={{ xs: 20, sm: 24 }} fontWeight={700}>
-            {title}
-          </FontStyle>
-          {description ? (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}>
+          {leading ? <Box sx={{ flexShrink: 0 }}>{leading}</Box> : null}
+          <Box sx={{ minWidth: 0 }}>
             <FontStyle
-              fontSize={12.5}
-              sx={{ mt: 0.75, maxWidth: 760, color: theme.ui.mutedText, lineHeight: 1.65 }}
+              component="h1"
+              fontSize={{ xs: 20, sm: 24 }}
+              fontWeight={700}
+              sx={{ overflowWrap: "anywhere" }}
             >
-              {description}
+              {title}
             </FontStyle>
-          ) : null}
+            {description ? (
+              <FontStyle
+                fontSize={12.5}
+                sx={{
+                  mt: 0.75,
+                  maxWidth: 760,
+                  color: theme.ui.mutedText,
+                  lineHeight: 1.65,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {description}
+              </FontStyle>
+            ) : null}
+            {metadata ? (
+              <Box sx={{ mt: 1.25, display: "flex", gap: 0.75, flexWrap: "wrap" }}>{metadata}</Box>
+            ) : null}
+          </Box>
         </Box>
         {action ? (
           <Box

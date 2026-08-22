@@ -17,6 +17,7 @@ export default function LeftNavBar({ menus, user, onNavigate }) {
         width: 280,
         height: "100dvh",
         p: 2.25,
+        overflow: "hidden",
         bgcolor: theme.ui.navBg,
         borderRight: `1px solid ${theme.ui.navBorder}`,
       }}

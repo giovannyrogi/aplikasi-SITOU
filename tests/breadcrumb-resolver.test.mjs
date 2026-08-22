@@ -10,6 +10,11 @@ const menus = [
     submenu: [
       { label: "Organisasi", value: "organizations", path: "/master-data/organizations" },
       { label: "Lokasi", value: "locations", path: "/master-data/locations" },
+      {
+        label: "Jenis Unit Organisasi",
+        value: "organization-unit-types",
+        path: "/master-data/organization-unit-types",
+      },
     ],
   },
 ];
@@ -35,6 +40,14 @@ test("route turunan mengikuti submenu terdekat", () => {
   assert.deepEqual(
     result.map((item) => item.label),
     ["Data Master", "Lokasi"],
+  );
+});
+
+test("menu jenis unit menghasilkan breadcrumb Data Master yang tepat", () => {
+  const result = resolveMenuBreadcrumbs(menus, "/master-data/organization-unit-types");
+  assert.deepEqual(
+    result.map((item) => item.label),
+    ["Data Master", "Jenis Unit Organisasi"],
   );
 });
 

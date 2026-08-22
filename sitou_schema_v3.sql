@@ -81,13 +81,15 @@ WHERE status = 'active';
 CREATE TABLE stored_files (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID metadata file privat.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Pemilik file dan batas organisasi.
+  employee_id bigint, -- Pegawai pemilik file bila file merupakan dokumen kepegawaian.
+  onboarding_draft_id bigint, -- Draft onboarding pemilik file sebelum pegawai difinalisasi.
   storage_provider varchar(30) NOT NULL DEFAULT 'local_private' CHECK (storage_provider IN ('local_private','s3','r2','azure_blob','other')), -- Backend penyimpanan.
   object_key text NOT NULL, -- Kunci relatif privat; bukan URL publik atau path absolut.
   original_name text NOT NULL, -- Nama file saat diunggah pengguna.
   mime_type varchar(150) NOT NULL, -- MIME type hasil validasi server.
   size_bytes bigint NOT NULL CHECK (size_bytes >= 0), -- Ukuran file untuk limit dan audit.
   sha256 char(64), -- Hash integritas dan deteksi duplikasi.
-  category varchar(40) NOT NULL CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','contract','discipline_letter','identity','education','other')), -- Kelompok kegunaan file.
+  category varchar(40) NOT NULL CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','contract','assignment_decree','discipline_letter','identity','education','other')), -- Kelompok kegunaan file.
   is_confidential boolean NOT NULL DEFAULT true, -- Menandai file membutuhkan izin sensitif.
   uploaded_by_user_id bigint, -- User pengunggah; FK ditambahkan setelah tabel users.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu file diregistrasikan.
@@ -132,21 +134,43 @@ CREATE TABLE locations (
 );
 COMMENT ON TABLE locations IS 'Kantor pusat, cabang, pasar, site, dan lokasi kerja; periode tanggal menunjukkan umur operasional, bukan masa langganan SITOU.';
 
+CREATE TABLE organization_unit_types (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID master jenis unit organisasi.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik jenis unit.
+  code varchar(40) NOT NULL, -- Kode stabil uppercase untuk integrasi dan validasi.
+  name varchar(100) NOT NULL, -- Nama jenis yang ditampilkan pada UI.
+  description text, -- Penjelasan penggunaan jenis unit.
+  sort_order smallint NOT NULL DEFAULT 100, -- Urutan pilihan pada UI.
+  is_active boolean NOT NULL DEFAULT true, -- Jenis nonaktif dipertahankan untuk histori.
+  created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dibuat.
+  updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu diubah.
+  CONSTRAINT uq_organization_unit_types_org_code UNIQUE (organization_id,code),
+  CONSTRAINT uq_organization_unit_types_org_id UNIQUE (organization_id,id),
+  CONSTRAINT ck_organization_unit_types_code CHECK (code = btrim(code) AND code ~ '^[A-Z][A-Z0-9_]*$'),
+  CONSTRAINT ck_organization_unit_types_name CHECK (name = btrim(name) AND char_length(name) BETWEEN 2 AND 100),
+  CONSTRAINT ck_organization_unit_types_sort_order CHECK (sort_order >= 0)
+);
+COMMENT ON TABLE organization_unit_types IS 'Master jenis struktur organisasi yang dapat disesuaikan pada setiap organisasi.';
+CREATE UNIQUE INDEX uq_organization_unit_types_org_name_ci ON organization_unit_types(organization_id,lower(btrim(name)));
+CREATE INDEX ix_organization_unit_types_active_list ON organization_unit_types(organization_id,sort_order,name,id) WHERE is_active=true;
+
 CREATE TABLE organization_units (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID unit organisasi.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik unit.
   parent_unit_id bigint, -- Unit induk untuk struktur bertingkat.
   code varchar(30) NOT NULL, -- Kode unik unit dalam organisasi.
   name varchar(200) NOT NULL, -- Nama unit/divisi/departemen.
-  unit_type varchar(30) NOT NULL DEFAULT 'division' CHECK (unit_type IN ('directorate','division','department','subdivision','unit','team','board','other')), -- Tingkat unit.
+  unit_type_id bigint NOT NULL, -- Jenis unit dari master fleksibel milik organisasi yang sama.
   is_active boolean NOT NULL DEFAULT true, -- Status master unit.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu diubah.
   CONSTRAINT uq_units_org_code UNIQUE (organization_id,code),
   CONSTRAINT uq_units_org_id UNIQUE (organization_id,id),
-  CONSTRAINT fk_units_parent FOREIGN KEY (organization_id,parent_unit_id) REFERENCES organization_units(organization_id,id)
+  CONSTRAINT fk_units_parent FOREIGN KEY (organization_id,parent_unit_id) REFERENCES organization_units(organization_id,id),
+  CONSTRAINT fk_organization_units_type FOREIGN KEY (organization_id,unit_type_id) REFERENCES organization_unit_types(organization_id,id)
 );
-COMMENT ON TABLE organization_units IS 'Struktur direktorat/divisi/departemen bertingkat dan dapat ditempatkan di banyak cabang.';
+COMMENT ON TABLE organization_units IS 'Struktur organisasi bertingkat dengan klasifikasi fleksibel dari organization_unit_types dan cakupan lokasi many-to-many.';
+CREATE INDEX ix_organization_units_type ON organization_units(organization_id,unit_type_id);
 
 CREATE TABLE organization_unit_locations (
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi pada relasi.
@@ -188,13 +212,14 @@ CREATE TABLE users (
   username citext UNIQUE, -- Username alternatif.
   password_hash text, -- Hash password; NULL bila memakai SSO.
   full_name varchar(200) NOT NULL, -- Nama tampilan akun.
-  phone varchar(30), -- Nomor kontak akun.
+  phone varchar(30), -- Nomor kontak seluler E.164 Indonesia.
   is_active boolean NOT NULL DEFAULT true, -- Status akun.
   email_verified_at timestamptz, -- Waktu email diverifikasi.
   last_login_at timestamptz, -- Waktu login terakhir.
   last_login_ip inet, -- IP login terakhir untuk keamanan.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu akun dibuat.
-  updated_at timestamptz NOT NULL DEFAULT now() -- Waktu akun diubah.
+  updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu akun diubah.
+  CONSTRAINT ck_users_phone_e164 CHECK (phone IS NULL OR phone ~ '^\+628[1-9][0-9]{7,10}$')
 );
 COMMENT ON TABLE users IS 'Akun global. Hak akses organisasi disimpan terpisah pada user_organization_roles.';
 
@@ -234,6 +259,7 @@ CREATE TABLE user_organization_roles (
   user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Akun yang menerima role.
   organization_id bigint REFERENCES organizations(id) ON DELETE CASCADE, -- Organisasi; NULL hanya untuk superadmin platform.
   role_id bigint NOT NULL REFERENCES roles(id), -- Role yang diberikan.
+  location_scope_mode varchar(20) NOT NULL DEFAULT 'selected' CHECK (location_scope_mode IN ('all','selected')), -- Mode eksplisit mencegah akses penuh karena scope kosong.
   active_from timestamptz NOT NULL DEFAULT now(), -- Awal role berlaku.
   active_until timestamptz, -- Akhir role berlaku.
   created_by_user_id bigint REFERENCES users(id), -- Superadmin/HRD pemberi role.
@@ -266,7 +292,7 @@ CREATE TABLE employees (
   user_id bigint UNIQUE REFERENCES users(id), -- Akun self-service pegawai bila sudah dibuat.
   full_name varchar(200) NOT NULL, -- Nama lengkap.
   preferred_name varchar(100), -- Nama panggilan.
-  national_id varchar(30), -- NIK; akses wajib dimasking sesuai permission.
+  national_id varchar(30) CHECK (national_id IS NULL OR national_id ~ '^[0-9]{16}$'), -- NIK canonical 16 digit; akses wajib dimasking sesuai permission.
   birth_place varchar(120), -- Tempat lahir.
   birth_date date, -- Tanggal lahir; umur dihitung saat query.
   gender varchar(20) CHECK (gender IN ('male','female','other','undisclosed')), -- Jenis kelamin terstruktur.
@@ -288,7 +314,11 @@ CREATE TABLE employees (
   CONSTRAINT ck_employees_dates CHECK (termination_date IS NULL OR joined_date IS NULL OR termination_date >= joined_date)
 );
 COMMENT ON TABLE employees IS 'Profil inti pegawai. Posisi, lokasi, dan divisi saat ini berasal dari histori employee_assignments.';
-CREATE UNIQUE INDEX uq_employees_org_nik ON employees(organization_id,national_id) WHERE national_id IS NOT NULL AND deleted_at IS NULL;
+ALTER TABLE stored_files
+  ADD CONSTRAINT fk_stored_files_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id);
+CREATE INDEX ix_stored_files_employee ON stored_files(organization_id,employee_id,created_at DESC) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX uq_employees_org_number_normalized ON employees(organization_id,upper(btrim(employee_no)));
+CREATE UNIQUE INDEX uq_employees_org_nik ON employees(organization_id,national_id) WHERE national_id IS NOT NULL;
 CREATE INDEX ix_employees_org_status ON employees(organization_id,employment_status,id) WHERE deleted_at IS NULL;
 CREATE INDEX ix_employees_name_trgm ON employees USING gin(full_name gin_trgm_ops) WHERE deleted_at IS NULL;
 CREATE INDEX ix_employees_org_joined ON employees(organization_id,joined_date DESC) WHERE deleted_at IS NULL;
@@ -299,7 +329,7 @@ CREATE TABLE employee_contacts (
   personal_email citext, -- Email pribadi.
   work_email citext, -- Email organisasi.
   phone varchar(30), -- Nomor telepon.
-  whatsapp varchar(30), -- Nomor WhatsApp.
+  whatsapp varchar(30), -- Nomor WhatsApp E.164 Indonesia, misalnya +628123456789.
   ktp_address text, -- Alamat sesuai KTP.
   domicile_address text, -- Alamat domisili.
   village varchar(100), -- Kelurahan/desa.
@@ -308,7 +338,8 @@ CREATE TABLE employee_contacts (
   province varchar(100), -- Provinsi.
   postal_code varchar(10), -- Kode pos.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu perubahan terakhir.
-  CONSTRAINT fk_employee_contacts_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE
+  CONSTRAINT fk_employee_contacts_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE,
+  CONSTRAINT ck_employee_contacts_whatsapp_e164 CHECK (whatsapp IS NULL OR whatsapp ~ '^\+628[1-9][0-9]{7,10}$')
 );
 COMMENT ON TABLE employee_contacts IS 'Kontak dan alamat pegawai; dipisahkan agar hak akses data sensitif lebih mudah.';
 
@@ -316,16 +347,21 @@ CREATE TABLE employee_identifiers (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID identitas administrasi.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pemilik identitas.
-  identifier_type varchar(40) NOT NULL CHECK (identifier_type IN ('bpjs_health','bpjs_employment','tax_npwp','passport','other')), -- Jenis nomor identitas.
+  identifier_type varchar(40) NOT NULL CHECK (identifier_type IN ('bpjs_health','bpjs_employment','tax_npwp','family_card','passport','other')), -- Jenis nomor identitas selain KTP yang tetap bersumber dari employees.national_id.
+  identifier_label varchar(100), -- Nama identitas khusus ketika jenisnya other.
   identifier_value varchar(100) NOT NULL, -- Nilai nomor; wajib dimasking pada list umum.
   issued_at date, -- Tanggal diterbitkan.
   expires_at date, -- Tanggal kedaluwarsa.
   is_verified boolean NOT NULL DEFAULT false, -- Status verifikasi HRD.
+  document_file_id bigint, -- Foto atau PDF identitas privat.
   CONSTRAINT fk_employee_identifiers_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE,
-  CONSTRAINT uq_employee_identifier UNIQUE (employee_id,identifier_type,identifier_value)
+  CONSTRAINT fk_employee_identifier_file FOREIGN KEY (organization_id,document_file_id) REFERENCES stored_files(organization_id,id),
+  CONSTRAINT uq_employee_identifier UNIQUE (employee_id,identifier_type,identifier_value),
+  CONSTRAINT ck_employee_identifier_label CHECK (identifier_type <> 'other' OR identifier_label IS NOT NULL)
 );
 COMMENT ON TABLE employee_identifiers IS 'BPJS Kesehatan, BPJS Ketenagakerjaan, NPWP, dan identitas lain.';
 CREATE INDEX ix_identifiers_employee_type ON employee_identifiers(organization_id,employee_id,identifier_type);
+CREATE INDEX ix_employee_identifiers_file ON employee_identifiers(organization_id,document_file_id) WHERE document_file_id IS NOT NULL;
 
 CREATE TABLE employee_bank_accounts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID rekening.
@@ -349,11 +385,12 @@ CREATE TABLE employee_dependents (
   full_name varchar(200) NOT NULL, -- Nama anggota keluarga.
   birth_date date, -- Tanggal lahir.
   national_id varchar(30), -- NIK anggota keluarga; data sensitif.
-  phone varchar(30), -- Nomor kontak bila ada.
+  phone varchar(30), -- Nomor kontak seluler E.164 Indonesia.
   is_dependent boolean NOT NULL DEFAULT true, -- Apakah menjadi tanggungan resmi.
   is_emergency_contact boolean NOT NULL DEFAULT false, -- Apakah juga kontak darurat.
   notes text, -- Catatan administrasi.
-  CONSTRAINT fk_dependents_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE
+  CONSTRAINT fk_dependents_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE,
+  CONSTRAINT ck_employee_dependents_phone_e164 CHECK (phone IS NULL OR phone ~ '^\+628[1-9][0-9]{7,10}$')
 );
 COMMENT ON TABLE employee_dependents IS 'Pasangan, anak, tanggungan, dan kontak darurat disimpan per individu.';
 CREATE INDEX ix_dependents_employee ON employee_dependents(organization_id,employee_id,relationship);
@@ -364,10 +401,11 @@ CREATE TABLE employee_emergency_contacts (
   employee_id bigint NOT NULL, -- Pegawai pemilik kontak.
   full_name varchar(200) NOT NULL, -- Nama kontak darurat.
   relationship varchar(50), -- Hubungan dengan pegawai.
-  phone varchar(30) NOT NULL, -- Nomor yang dapat dihubungi.
+  phone varchar(30) NOT NULL, -- Nomor seluler E.164 Indonesia yang dapat dihubungi.
   address text, -- Alamat kontak bila diperlukan.
   is_primary boolean NOT NULL DEFAULT false, -- Penanda kontak pertama yang dihubungi.
-  CONSTRAINT fk_emergency_contact_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE
+  CONSTRAINT fk_emergency_contact_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE,
+  CONSTRAINT ck_employee_emergency_contacts_phone_e164 CHECK (phone ~ '^\+628[1-9][0-9]{7,10}$')
 );
 COMMENT ON TABLE employee_emergency_contacts IS 'Kontak darurat dapat berupa keluarga atau pihak lain.';
 CREATE INDEX ix_emergency_contacts_employee ON employee_emergency_contacts(organization_id,employee_id,is_primary DESC);
@@ -448,6 +486,49 @@ CREATE TABLE employee_documents (
 COMMENT ON TABLE employee_documents IS 'Relasi dokumen privat dengan pegawai.';
 CREATE INDEX ix_documents_employee_type ON employee_documents(organization_id,employee_id,document_type,expires_at);
 
+CREATE TABLE employee_import_batches (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  source_file_id bigint NOT NULL,
+  status varchar(20) NOT NULL DEFAULT 'uploaded' CHECK (status IN ('uploaded','validating','validated','committing','partially_committed','committed','failed','cancelled')),
+  total_rows integer NOT NULL DEFAULT 0 CHECK (total_rows >= 0),
+  valid_rows integer NOT NULL DEFAULT 0 CHECK (valid_rows >= 0),
+  invalid_rows integer NOT NULL DEFAULT 0 CHECK (invalid_rows >= 0),
+  total_employees integer NOT NULL DEFAULT 0 CHECK (total_employees >= 0),
+  valid_employees integer NOT NULL DEFAULT 0 CHECK (valid_employees >= 0),
+  invalid_employees integer NOT NULL DEFAULT 0 CHECK (invalid_employees >= 0),
+  committed_employees integer NOT NULL DEFAULT 0 CHECK (committed_employees >= 0),
+  created_by_user_id bigint NOT NULL REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  validated_at timestamptz,
+  committed_at timestamptz,
+  error_summary jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT uq_employee_import_batches_org_id UNIQUE (organization_id,id),
+  CONSTRAINT fk_employee_import_source FOREIGN KEY (organization_id,source_file_id) REFERENCES stored_files(organization_id,id)
+);
+
+CREATE TABLE employee_import_rows (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  batch_id bigint NOT NULL,
+  row_number integer NOT NULL CHECK (row_number > 0),
+  sheet_name varchar(40) NOT NULL DEFAULT 'Pegawai',
+  entity_type varchar(40) NOT NULL DEFAULT 'employee',
+  entity_ref varchar(100),
+  employee_no varchar(60),
+  raw_data jsonb NOT NULL,
+  normalized_data jsonb,
+  validation_errors jsonb NOT NULL DEFAULT '[]'::jsonb,
+  status varchar(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','valid','invalid','committed','skipped')),
+  employee_id bigint,
+  CONSTRAINT uq_employee_import_row UNIQUE (batch_id,sheet_name,row_number),
+  CONSTRAINT fk_employee_import_row_batch FOREIGN KEY (organization_id,batch_id) REFERENCES employee_import_batches(organization_id,id) ON DELETE CASCADE,
+  CONSTRAINT fk_employee_import_row_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id)
+);
+CREATE INDEX ix_employee_import_batches_status ON employee_import_batches(organization_id,status,created_at DESC);
+CREATE INDEX ix_employee_import_rows_status ON employee_import_rows(organization_id,batch_id,status,row_number);
+CREATE INDEX ix_employee_import_rows_employee ON employee_import_rows(organization_id,batch_id,employee_no,status,sheet_name,row_number);
+
 CREATE TABLE employment_types (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID jenis hubungan kerja.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi; memungkinkan istilah berbeda per organisasi.
@@ -455,6 +536,8 @@ CREATE TABLE employment_types (
   name varchar(100) NOT NULL, -- Nama tampilan.
   requires_end_date boolean NOT NULL DEFAULT false, -- Kontrak wajib punya akhir atau tidak.
   is_active boolean NOT NULL DEFAULT true, -- Status master.
+  created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dibuat.
+  updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu diubah.
   CONSTRAINT uq_employment_types_code UNIQUE (organization_id,code),
   CONSTRAINT uq_employment_types_org_id UNIQUE (organization_id,id)
 );
@@ -468,19 +551,50 @@ CREATE TABLE employment_contracts (
   contract_no varchar(100), -- Nomor kontrak.
   start_date date NOT NULL, -- Tanggal mulai kontrak.
   end_date date, -- Tanggal akhir kontrak.
-  status varchar(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','expired','terminated','renewed')), -- Status periode kontrak.
+  status varchar(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','expired','terminated','renewed','cancelled')), -- Status periode kontrak; cancelled mempertahankan salah input sebagai histori audit.
   document_file_id bigint, -- Dokumen kontrak privat.
   notes text, -- Catatan HRD.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dicatat.
+  updated_at timestamptz NOT NULL DEFAULT now(), -- Versi optimistik untuk koreksi kontrak.
+  cancelled_at timestamptz, -- Waktu kontrak dibatalkan karena salah input.
+  cancellation_reason text, -- Alasan pembatalan yang wajib diaudit.
+  cancelled_by_user_id bigint REFERENCES users(id), -- Admin/HRD atau Superadmin pembatal.
   CONSTRAINT uq_contracts_org_id UNIQUE (organization_id,id),
   CONSTRAINT fk_contract_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id),
   CONSTRAINT fk_contract_type FOREIGN KEY (organization_id,employment_type_id) REFERENCES employment_types(organization_id,id),
   CONSTRAINT fk_contract_file FOREIGN KEY (organization_id,document_file_id) REFERENCES stored_files(organization_id,id),
-  CONSTRAINT ck_contract_dates CHECK (end_date IS NULL OR end_date >= start_date)
+  CONSTRAINT ck_contract_dates CHECK (end_date IS NULL OR end_date >= start_date),
+  CONSTRAINT ck_contract_cancellation CHECK (
+    status <> 'cancelled'
+    OR (cancelled_at IS NOT NULL AND cancellation_reason IS NOT NULL AND cancelled_by_user_id IS NOT NULL)
+  )
 );
 COMMENT ON TABLE employment_contracts IS 'Seluruh histori kontrak; perpanjangan membuat baris baru dan tidak menimpa kontrak lama.';
 CREATE INDEX ix_contracts_expiring ON employment_contracts(organization_id,end_date,employee_id) WHERE status = 'active' AND end_date IS NOT NULL;
 CREATE INDEX ix_contracts_employee ON employment_contracts(organization_id,employee_id,start_date DESC);
+CREATE TRIGGER trg_employment_contracts_updated_at BEFORE UPDATE ON employment_contracts FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE employee_onboarding_drafts (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID draft form tambah pegawai.
+  organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
+  created_by_user_id bigint NOT NULL REFERENCES users(id), -- HRD/Superadmin pemilik draft.
+  status varchar(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','finalizing','completed','discarded','expired')), -- Lifecycle draft.
+  current_step smallint NOT NULL DEFAULT 0 CHECK (current_step BETWEEN 0 AND 2), -- Step wizard terakhir.
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(payload)='object'), -- Nilai form sementara privat.
+  version integer NOT NULL DEFAULT 1 CHECK (version > 0), -- Optimistic concurrency penyimpanan draft.
+  submitted_employee_id bigint, -- Pegawai hasil finalisasi untuk idempotensi.
+  expires_at timestamptz NOT NULL DEFAULT (now() + interval '7 days'), -- Batas retensi draft.
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT uq_employee_onboarding_drafts_org_id UNIQUE (organization_id,id),
+  CONSTRAINT fk_employee_onboarding_draft_employee FOREIGN KEY (organization_id,submitted_employee_id) REFERENCES employees(organization_id,id)
+);
+CREATE UNIQUE INDEX uq_active_employee_onboarding_draft ON employee_onboarding_drafts(organization_id,created_by_user_id) WHERE status IN ('active','finalizing');
+CREATE INDEX ix_employee_onboarding_drafts_expiry ON employee_onboarding_drafts(status,expires_at) WHERE status='active';
+CREATE TRIGGER trg_employee_onboarding_drafts_updated_at BEFORE UPDATE ON employee_onboarding_drafts FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+ALTER TABLE stored_files ADD CONSTRAINT fk_stored_file_onboarding_draft FOREIGN KEY (organization_id,onboarding_draft_id) REFERENCES employee_onboarding_drafts(organization_id,id);
+CREATE INDEX ix_stored_files_onboarding_draft ON stored_files(organization_id,onboarding_draft_id,category,created_at DESC) WHERE onboarding_draft_id IS NOT NULL AND deleted_at IS NULL;
+CREATE UNIQUE INDEX uq_draft_current_document ON stored_files(onboarding_draft_id,category) WHERE onboarding_draft_id IS NOT NULL AND deleted_at IS NULL AND category IN ('contract','assignment_decree');
 
 CREATE TABLE employee_assignments (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID periode penempatan/rolling.
@@ -1104,8 +1218,8 @@ DO $$
 DECLARE table_name text;
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
-    'organizations','organization_subscriptions','organization_branding','locations','organization_units','positions',
-    'users','employees','employee_contacts','work_shifts','attendance_points','leave_requests'
+    'organizations','organization_subscriptions','organization_branding','locations','organization_unit_types','organization_units','positions',
+    'users','employees','employee_contacts','employment_types','work_shifts','attendance_points','leave_requests'
   ]
   LOOP
     EXECUTE format(

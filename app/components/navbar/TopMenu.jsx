@@ -43,6 +43,9 @@ export default function TopMenu({ user, onBurgerClick, onLogout }) {
         display: "flex",
         alignItems: "center",
         gap: 1.25,
+        width: "100%",
+        minWidth: 0,
+        overflow: "hidden",
         bgcolor: theme.ui.topbarBg,
         borderBottom: `1px solid ${theme.ui.topbarBorder}`,
         backdropFilter: "blur(14px)",
@@ -56,13 +59,13 @@ export default function TopMenu({ user, onBurgerClick, onLogout }) {
         <MenuIcon />
       </IconButton>
 
-      <Box sx={{ minWidth: 0, flex: 1 }}>
+      {/* <Box sx={{ minWidth: 0, flex: 1 }}>
         <FontStyle component="p" fontSize={{ xs: 14, sm: 15 }} fontWeight={600} noWrap>
           Sistem Informasi Tenaga Operasional Unit
         </FontStyle>
-      </Box>
+      </Box> */}
 
-      <Box sx={{ display: { xs: "none", md: "block" } }}>
+      <Box sx={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
         <SubscriptionStatus
           status={user?.organization_subscription_status}
           endsOn={user?.organization_subscription_ends_on}

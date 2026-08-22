@@ -25,6 +25,7 @@
 *.pem
 # hris_perumda_postgresql.sql
 /uploads/*
+!/uploads/.gitkeep
 
 # debug
 npm-debug.log*

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 
-export default function useDataList(endpoint) {
+export default function useDataList(endpoint, { requiredFilter } = {}) {
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const activeController = useRef(null);
   const [search, setSearch] = useState("");
@@ -12,6 +12,7 @@ export default function useDataList(endpoint) {
   const [filters, setFilters] = useState({});
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
   const [state, setState] = useState({ data: [], loading: true, error: "" });
+  const enabled = !requiredFilter || Boolean(filters[requiredFilter]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 350);
@@ -33,6 +34,12 @@ export default function useDataList(endpoint) {
 
   const load = useCallback(async () => {
     activeController.current?.abort();
+
+    if (!enabled) {
+      setState({ data: [], loading: false, error: "" });
+      setPagination((current) => ({ ...current, page: 1, total: 0 }));
+      return;
+    }
 
     const controller = new AbortController();
     activeController.current = controller;
@@ -65,7 +72,7 @@ export default function useDataList(endpoint) {
         setState((current) => ({ ...current, loading: false, error: error.message }));
       }
     }
-  }, [endpoint, query, runWithLoadingBackdrop]);
+  }, [enabled, endpoint, query, runWithLoadingBackdrop]);
 
   useEffect(() => {
     const request = load();

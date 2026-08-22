@@ -2,10 +2,13 @@
 
 import moment from "moment";
 import "moment/locale/id";
+import dayjs from "dayjs";
+import "dayjs/locale/id";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
+import idID from "antd/locale/id_ID";
 import { LoadingBackdropProvider } from "../loading/LoadingBackdropProvider";
 import AppThemeProvider, {
   BRAND_COLORS,
@@ -14,11 +17,13 @@ import AppThemeProvider, {
 } from "../themeprovider/ThemeProvider";
 
 moment.locale("id");
+dayjs.locale("id");
 
 export default function AppProviders({ children }) {
   return (
     <AntdRegistry>
       <ConfigProvider
+        locale={idID}
         theme={{
           token: {
             colorPrimary: BRAND_COLORS.primary,

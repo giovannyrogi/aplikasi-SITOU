@@ -16,6 +16,7 @@ export default function ResponsiveDataView({
   pagination,
   onPageChange,
   renderCard,
+  emptyDescription,
 }) {
   const theme = useTheme();
   const mobile = useMediaQuery("(max-width:767px)");
@@ -57,7 +58,7 @@ export default function ResponsiveDataView({
             borderRadius: 1.5,
           }}
         >
-          <EmptyState />
+          <EmptyState description={emptyDescription} />
         </Box>
       );
     return (
@@ -139,7 +140,7 @@ export default function ResponsiveDataView({
         loading={loading}
         size="middle"
         scroll={{ x: 900 }}
-        locale={{ emptyText: <EmptyState /> }}
+        locale={{ emptyText: <EmptyState description={emptyDescription} /> }}
         pagination={{
           current: pagination.page,
           pageSize: pagination.pageSize,

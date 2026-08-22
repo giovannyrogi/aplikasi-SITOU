@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { findActiveSessionUser } from "@/lib/auth/userRepository";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
+import { resolveOrganizationScope } from "@/lib/auth/organizationScope.mjs";
 
 export async function getAuthenticatedUser() {
   const cookieStore = await cookies();
@@ -47,4 +48,41 @@ export async function requireRole(allowedRoleCodes = []) {
   }
 
   return { user, response: null };
+}
+
+/**
+ * Mengunci akses organisasi dari session. Superadmin boleh memakai organisasi request,
+ * sedangkan HRD selalu dibatasi ke organisasi tempat rolenya terdaftar.
+ */
+export function resolveOrganizationAccess(
+  user,
+  requestedOrganizationId,
+  { optional = false } = {},
+) {
+  const scope = resolveOrganizationScope({
+    roleCode: user.role_code,
+    sessionOrganizationId: user.organization_id,
+    requestedOrganizationId,
+    optional,
+  });
+  if (scope.error === "ORGANIZATION_REQUIRED") {
+    return {
+      organizationId: null,
+      response: Response.json(
+        {
+          success: false,
+          code: "ORGANIZATION_REQUIRED",
+          message: "Organisasi wajib dipilih.",
+        },
+        { status: 400 },
+      ),
+    };
+  }
+  if (scope.error) {
+    return {
+      organizationId: null,
+      response: forbiddenResponse("Anda tidak memiliki akses ke organisasi tersebut."),
+    };
+  }
+  return { organizationId: scope.organizationId, response: null };
 }

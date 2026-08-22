@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { Button, Col, DatePicker, Form, Input, InputNumber, Row, Select, Switch } from "antd";
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
-import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
+import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
 
 const TYPES = [
   { value: "head_office", label: "Kantor pusat" },
@@ -139,9 +139,7 @@ export default function LocationForm({
         <Form form={form} layout="vertical" onFinish={submit}>
           <Row gutter={[16, 0]}>
             <Col xs={24} sm={12}>
-              <Form.Item name="organizationId" label="Organisasi" rules={[{ required: true }]}>
-                <OrganizationSelect disabled={editing} />
-              </Form.Item>
+              <OrganizationScopeField disabled={editing} />
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item name="parentLocationId" label="Lokasi induk">
