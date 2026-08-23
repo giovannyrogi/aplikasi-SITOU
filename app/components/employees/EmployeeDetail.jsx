@@ -17,14 +17,14 @@ import {
   PlusOutlined,
   SafetyCertificateOutlined,
   SwapOutlined,
-  TeamOutlined,
   UserOutlined,
   WhatsAppOutlined,
 } from "@ant-design/icons";
-import { Avatar, Box, Divider, useTheme } from "@mui/material";
+import { Box, Divider, useTheme } from "@mui/material";
 import { usePathname, useSearchParams } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DetailTabs from "@/app/components/navigation/DetailTabs";
+import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import Notification from "@/app/components/Notifications/Notification";
@@ -130,17 +130,6 @@ function formatDate(value, fallback = "Belum ditentukan") {
     month: "short",
     year: "numeric",
   }).format(new Date(Date.UTC(year, month - 1, day)));
-}
-
-/** Menghasilkan dua huruf avatar dari nama pegawai. */
-function getInitials(name) {
-  return String(name || "P")
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 }
 
 /** Label tab memakai ikon agar bagian lebih cepat dikenali. */
@@ -251,6 +240,70 @@ function SummarySection({ icon, title, children }) {
   );
 }
 
+/** Menampilkan bukti visual privat pada ringkasan tanpa membocorkan object key penyimpanan. */
+function VisualDocumentField({ label, file, organizationId, onPreview, aspectRatio = "4 / 3" }) {
+  const theme = useTheme();
+  const fileUrl = file?.id ? `/api/uploads/${file.id}?organizationId=${organizationId}` : null;
+  const isImage = String(file?.mime_type || file?.mimeType || "").startsWith("image/");
+
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <FontStyle fontSize={11.5} fontWeight={600} sx={{ color: theme.ui.mutedText }}>
+        {label}
+      </FontStyle>
+      {fileUrl && isImage ? (
+        <Box
+          component="button"
+          type="button"
+          onClick={() => onPreview({ url: fileUrl, title: label, alt: `${label} pegawai` })}
+          sx={{
+            mt: 1,
+            width: "100%",
+            maxWidth: 230,
+            p: 0,
+            overflow: "hidden",
+            display: "block",
+            cursor: "zoom-in",
+            border: `1px solid ${theme.ui.panelBorderSubtle}`,
+            borderRadius: "8px",
+            bgcolor: theme.ui.pageBg,
+            aspectRatio,
+            "&:focus-visible": {
+              outline: `3px solid ${theme.palette.primary.main}`,
+              outlineOffset: 2,
+            },
+          }}
+          aria-label={`Perbesar ${label}`}
+        >
+          {/* Endpoint file privat dipakai langsung agar authorization server tetap berlaku. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={fileUrl}
+            alt={label}
+            style={{ width: "100%", height: "100%", display: "block", objectFit: "cover" }}
+          />
+        </Box>
+      ) : fileUrl ? (
+        <Box sx={{ mt: 1, display: "grid", gap: 0.5 }}>
+          <CompactInfoChip label="Dokumen tersimpan" tone="info" />
+          <Button size="small" icon={<FileTextOutlined />} href={fileUrl} target="_blank">
+            Buka dokumen
+          </Button>
+        </Box>
+      ) : (
+        <FontStyle fontSize={13} fontWeight={600} sx={{ mt: 0.75 }}>
+          Belum diunggah
+        </FontStyle>
+      )}
+      {fileUrl && isImage ? (
+        <FontStyle fontSize={11.5} sx={{ mt: 0.75, color: theme.ui.mutedText }}>
+          Klik gambar untuk memperbesar
+        </FontStyle>
+      ) : null}
+    </Box>
+  );
+}
+
 /** Detail pegawai menyatukan profil dan seluruh histori tanpa sumber kebenaran duplikat. */
 export default function EmployeeDetail({ employeeId }) {
   const theme = useTheme();
@@ -286,6 +339,7 @@ export default function EmployeeDetail({ employeeId }) {
   const [actionCase, setActionCase] = useState(null);
   const [selectedContract, setSelectedContract] = useState(null);
   const [contractToCancel, setContractToCancel] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   /** Memuat seluruh bagian paralel agar perpindahan tab tidak menghasilkan request waterfall. */
   const load = useCallback(async () => {
@@ -347,6 +401,15 @@ export default function EmployeeDetail({ employeeId }) {
 
   if (!state.employee) return <Notification {...notification} onClose={closeNotification} />;
   const employee = state.employee;
+  const profilePhoto = state.profile.profilePhoto || null;
+  const ktpDocument = (state.profile.identifiers || []).find(
+    (identifier) => identifier.identifier_type === "ktp" || identifier.identifierType === "ktp",
+  )?.document_file;
+  // Enum backend diterjemahkan sebelum tab dibentuk agar Ringkasan selalu memakai status berbahasa Indonesia.
+  const status = EMPLOYEE_STATUS[employee.employment_status] || [
+    employee.employment_status,
+    "neutral",
+  ];
 
   const contentSx = { p: { xs: 2, sm: 2.5, lg: 3 }, minWidth: 0 };
 
@@ -359,23 +422,39 @@ export default function EmployeeDetail({ employeeId }) {
           <TabSectionHeader
             title="Ringkasan pegawai"
             description="Informasi utama yang paling sering dibutuhkan untuk mengenali status dan penempatan pegawai."
-            action={
-              !readOnly ? (
-                <Button type="primary" icon={<EditOutlined />} onClick={() => setModal("profile")}>
-                  Kelola profil lengkap
-                </Button>
-              ) : null
-            }
           />
           <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" },
-              columnGap: 4,
-              rowGap: 3.5,
+              columnGap: { xs: 4, lg: 5 },
+              rowGap: { xs: 4, lg: 5 },
             }}
           >
+            <Box sx={{ gridColumn: { xs: "auto", lg: "1 / -1" } }}>
+              <SummarySection icon={<UserOutlined />} title="Profil pegawai">
+                <InfoField label="Nama lengkap" value={employee.full_name} />
+                <InfoField label="Status pegawai" value={status[0]} />
+                <InfoField label="Nomor pegawai" value={employee.employee_no} />
+                <InfoField label="Organisasi" value={employee.organization_name} />
+              </SummarySection>
+            </Box>
+            <SummarySection icon={<IdcardOutlined />} title="Foto dan identitas">
+              <VisualDocumentField
+                label="Pas foto"
+                file={profilePhoto}
+                organizationId={organizationId}
+                onPreview={setImagePreview}
+                aspectRatio="1 / 1"
+              />
+              <VisualDocumentField
+                label="KTP"
+                file={ktpDocument}
+                organizationId={organizationId}
+                onPreview={setImagePreview}
+              />
+            </SummarySection>
             <SummarySection icon={<IdcardOutlined />} title="Informasi pribadi">
               <InfoField label="Nomor pegawai" value={employee.employee_no} />
               <InfoField label="NIK" value={employee.national_id} />
@@ -585,6 +664,31 @@ export default function EmployeeDetail({ employeeId }) {
                       <FontStyle fontSize={12} sx={{ mt: 0.65, color: theme.ui.mutedText }}>
                         Nomor kontrak: {item.contract_no || "Belum dicatat"}
                       </FontStyle>
+                      {item.status === "cancelled" && item.cancellation_reason ? (
+                        <Box
+                          sx={{
+                            mt: 1.25,
+                            borderLeft: `3px solid ${theme.status.danger.main}`,
+                            pl: 1.25,
+                            pr: 1,
+                          }}
+                        >
+                          <FontStyle fontSize={11.5} fontWeight={700}>
+                            Alasan pembatalan
+                          </FontStyle>
+                          <FontStyle
+                            fontSize={11.5}
+                            sx={{ mt: 0.35, color: theme.ui.mutedText, whiteSpace: "pre-wrap" }}
+                          >
+                            {item.cancellation_reason}
+                          </FontStyle>
+                          {item.cancelled_at ? (
+                            <FontStyle fontSize={10.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
+                              Dibatalkan pada {formatDate(item.cancelled_at)}
+                            </FontStyle>
+                          ) : null}
+                        </Box>
+                      ) : null}
                     </Box>
                     <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", flexShrink: 0 }}>
                       {item.document_file_id ? (
@@ -832,10 +936,23 @@ export default function EmployeeDetail({ employeeId }) {
                               {formatDate(action.effective_until, "selesai sesuai keputusan")}
                             </FontStyle>
                           </Box>
-                          <CompactInfoChip
-                            label={ACTION_STATUS[action.status]?.[0] || "Status belum dikenali"}
-                            tone={ACTION_STATUS[action.status]?.[1] || "neutral"}
-                          />
+                          <Box
+                            sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}
+                          >
+                            <CompactInfoChip
+                              label={ACTION_STATUS[action.status]?.[0] || "Status belum dikenali"}
+                              tone={ACTION_STATUS[action.status]?.[1] || "neutral"}
+                            />
+                            {action.document_file_id ? (
+                              <Button
+                                size="small"
+                                icon={<FileTextOutlined />}
+                                href={`/api/uploads/${action.document_file_id}?organizationId=${organizationId}&download=1`}
+                              >
+                                Unduh dokumen
+                              </Button>
+                            ) : null}
+                          </Box>
                         </Box>
                       ))}
                     </Box>
@@ -844,7 +961,9 @@ export default function EmployeeDetail({ employeeId }) {
                       Belum ada tindakan yang diterbitkan untuk kasus ini.
                     </FontStyle>
                   )}
-                  {!readOnly && disciplineCase.status !== "closed_no_action" ? (
+                  {!readOnly &&
+                  disciplineCase.actions.length === 0 &&
+                  disciplineCase.status !== "closed_no_action" ? (
                     <Button
                       type="link"
                       icon={<FileTextOutlined />}
@@ -893,52 +1012,17 @@ export default function EmployeeDetail({ employeeId }) {
       : []),
   ];
 
-  const profilePhotoUrl = employee.profile_photo_file_id
-    ? `/api/uploads/${employee.profile_photo_file_id}?organizationId=${organizationId}`
-    : undefined;
-  const status = EMPLOYEE_STATUS[employee.employment_status] || [
-    employee.employment_status,
-    "neutral",
-  ];
-
   return (
     <Box sx={{ width: "100%", minWidth: 0, maxWidth: "100%", display: "grid", gap: 3 }}>
       <PageHeader
-        title={employee.full_name}
-        description={`${employee.employee_no} · ${employee.organization_name}`}
-        leading={
-          <Avatar
-            src={profilePhotoUrl}
-            alt={`Pas foto ${employee.full_name}`}
-            sx={{
-              width: { xs: 54, sm: 68 },
-              height: { xs: 54, sm: 68 },
-              bgcolor: theme.ui.panelAccentBg,
-              color: theme.palette.primary.main,
-              border: `2px solid ${theme.ui.panelBorderSubtle}`,
-              fontSize: { xs: 17, sm: 21 },
-              fontWeight: 700,
-            }}
-          >
-            {getInitials(employee.full_name)}
-          </Avatar>
-        }
-        metadata={
-          <>
-            <CompactInfoChip label={status[0]} tone={status[1]} />
-            <CompactInfoChip
-              icon={<EnvironmentOutlined />}
-              label={employee.location_name || "Belum ditempatkan"}
-              tone="info"
-            />
-            {employee.position_name ? (
-              <CompactInfoChip
-                icon={<TeamOutlined />}
-                label={employee.position_name}
-                tone="neutral"
-              />
-            ) : null}
-          </>
+        title="Detail data pegawai"
+        description="Lihat dan kelola profil, riwayat penempatan, kontrak, dokumen, kompetensi, serta disiplin pegawai."
+        action={
+          !readOnly ? (
+            <Button type="primary" icon={<EditOutlined />} onClick={() => setModal("profile")}>
+              Kelola profil lengkap
+            </Button>
+          ) : null
         }
       />
       <DetailTabs items={tabItems} activeKey={activeTab} onChange={changeTab} />
@@ -1032,6 +1116,13 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
+      <ImagePreviewModal
+        open={Boolean(imagePreview)}
+        onClose={() => setImagePreview(null)}
+        imageUrl={imagePreview?.url}
+        title={imagePreview?.title}
+        alt={imagePreview?.alt}
+      />
       <Notification {...notification} onClose={closeNotification} />
     </Box>
   );

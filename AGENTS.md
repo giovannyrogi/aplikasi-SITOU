@@ -232,6 +232,7 @@ Aturan utama:
 - Berat dapat berujung SP3, skorsing, penurunan jabatan, dan/atau PHK sesuai proses resmi.
 - SP1, SP2, dan SP3 masing-masing berlaku 3 bulan sejak diterbitkan dan gugur bila tidak ada pelanggaran dalam masa berlaku.
 - Pegawai dapat diberi kesempatan menjelaskan/membela diri sebelum sanksi berat, kecuali tertangkap tangan.
+- Satu kasus disiplin hanya boleh memiliki satu tindakan resmi. Pelanggaran atau pengulangan berikutnya dicatat sebagai kasus baru; tindakan yang memiliki surat wajib menyediakan satu aksi unduh dokumen berizin.
 
 Sistem hanya membentuk `discipline_indicators`. HRD harus:
 
@@ -259,6 +260,7 @@ Dilarang membuat job yang otomatis mengubah indikator menjadi SP/PHK. Direct SP2
 - Browser hanya menerima ID metadata dan mengakses `/api/uploads/:fileId`; endpoint catch-all berdasarkan path dilarang.
 - Response file memakai `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`, CSP ketat, nama download tersanitasi, authorization organisasi/scope, dan audit untuk preview/download sensitif.
 - Gambar menerima JPEG/PNG/WebP maksimal 5 MB. Dokumen menerima PDF maksimal 10 MB; DOCX hanya untuk kategori yang membutuhkannya dan tidak dipreview inline. MIME harus dideteksi dari byte.
+- Pas foto, KTP, Kartu Keluarga, NPWP, BPJS, ijazah, dan sertifikat adalah bukti visual: upload baru hanya menerima JPEG/PNG/WebP. Kontrak, SK penempatan, dan surat sanksi adalah dokumen resmi: upload baru hanya menerima PDF. File lama dengan tipe sebelumnya tetap dapat dibuka secara berizin, tetapi tidak boleh menggantikan validasi tipe baru.
 - Tulis upload ke file sementara, hash SHA-256, lalu atomic move. Bersihkan byte bila transaksi metadata gagal. File aktif dihapus secara soft delete dan diproses retention job.
 
 ### Import pegawai multi-sheet
@@ -415,7 +417,8 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 - Form panjang memakai stepper, draft server yang aman, dan peringatan perubahan belum disimpan.
 - Seluruh area pemilihan/upload Excel, PDF, gambar, dan dokumen wajib menyusun reusable `app/components/forms/FileUploadField.jsx`; jangan membuat dropzone atau daftar file terpilih sendiri pada halaman fitur.
 - Wizard tambah pegawai memakai draft server privat selama tujuh hari. Maksimal satu draft aktif per actor dan organisasi; draft hanya ditulis saat pengguna menekan Lanjut, Kembali, Simpan draft & tutup, atau finalisasi, memakai optimistic concurrency, dan tidak boleh menyimpan NIK/payload ke log. Perubahan field dilarang mengirim request autosave per ketikan. Close harus menunggu penyimpanan terakhir berhasil.
-- Pada onboarding pegawai, upload KTP dan pas foto bersifat opsional serta ditempatkan berdekatan dengan field NIK. KTP dicatat sebagai `employee_documents.document_type='ktp'`, sedangkan pas foto direferensikan oleh `employees.profile_photo_file_id`. Kontrak aktif wajib memiliki nomor kontrak dan PDF privat kategori `contract`. Penempatan aktif wajib memiliki nomor SK dan PDF privat kategori `assignment_decree`; browser hanya menerima file ID.
+- Pada onboarding pegawai, upload KTP dan pas foto bersifat opsional serta ditempatkan berdekatan dengan field NIK. KTP dicatat sebagai `employee_documents.document_type='ktp'`, sedangkan pas foto direferensikan oleh `employees.profile_photo_file_id`. Kelola Profil Lengkap menyediakan pas foto sebagai pilihan pada dropdown Identitas administratif; pilihan ini hanya menampilkan upload gambar dan tidak dicatat sebagai nomor identitas. Saat jenis identitas diubah, seluruh nilai dan file khusus jenis sebelumnya wajib direset agar tidak terbawa ke jenis baru. Kontrak aktif wajib memiliki nomor kontrak dan PDF privat kategori `contract`. Penempatan aktif wajib memiliki nomor SK dan PDF privat kategori `assignment_decree`; browser hanya menerima file ID.
+- Kelola Profil Lengkap harus memuat dan menampilkan data profil yang telah tersimpan untuk diedit, sementara section tanpa data tetap kosong. Checkbox yang berkaitan dengan satu input ditempatkan berurutan tepat di bawah input tersebut; pilihan tingkat keahlian memakai dropdown istilah Bahasa Indonesia yang baku.
 - File draft memakai staging `org_{organizationId}/pegawai/drafts/draft_{draftId}/...`, hanya dapat diakses pembuat draft, lalu dialihkan ke kepemilikan pegawai saat finalisasi.
 - Petunjuk import yang tampil di workbook, modal, dan dokumentasi wajib memakai satu definisi terpusat. Setiap sheet harus diberi label Wajib, Wajib bersyarat, atau Opsional beserta fungsi, kapan diisi, dan aturan penting dengan Bahasa Indonesia yang mudah dipahami.
 - Sediakan loading, skeleton, empty, no-result, validation error, server error, permission denied, session expired, dan confirmation dialog.

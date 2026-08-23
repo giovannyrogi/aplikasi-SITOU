@@ -9,26 +9,76 @@ import FontStyle from "@/app/components/font-style/FontStyle";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import IndonesiaPhoneInput from "@/app/components/forms/IndonesiaPhoneInput";
 import PrivateFileUpload from "@/app/components/forms/PrivateFileUpload";
-import PrivatePdfUpload from "@/app/components/forms/PrivatePdfUpload";
 import { getIndonesianMobileFormRules } from "@/lib/validation/indonesianPhone";
+
+/** Menyatukan metadata file dari respons upload dan join database untuk komponen upload. */
+function normalizeStoredFile(file, fallback = {}) {
+  const source = file || {};
+  const id = source.id ?? fallback.id;
+  if (!id) return null;
+  const name =
+    source.name ?? source.original_name ?? source.originalName ?? fallback.name ?? "File tersimpan";
+  const mimeType = source.type ?? source.mime_type ?? source.mimeType ?? fallback.mimeType ?? "";
+  const size = source.size ?? source.size_bytes ?? source.sizeBytes ?? fallback.size ?? null;
+
+  return {
+    ...source,
+    id: String(id),
+    name,
+    original_name: name,
+    type: mimeType,
+    mime_type: mimeType,
+    size,
+    size_bytes: size,
+  };
+}
 
 /** Mengubah kontrak snake_case API ke field camelCase yang digunakan form. */
 function normalizeProfile(profile) {
   const map = (items, mapping) =>
-    (items || []).map((item) =>
-      Object.fromEntries(Object.entries(mapping).map(([target, source]) => [target, item[source]])),
+    (Array.isArray(items) ? items : []).map((item) =>
+      Object.fromEntries(
+        Object.entries(mapping).map(([target, source]) => [target, item[source] ?? item[target]]),
+      ),
     );
+  const mapFiles = (items, mapping, fileField, fileIdField, fileMetadata) =>
+    (Array.isArray(items) ? items : []).map((item) => {
+      const normalized = Object.fromEntries(
+        Object.entries(mapping).map(([target, source]) => [target, item[source] ?? item[target]]),
+      );
+      const storedFile = normalizeStoredFile(item[fileMetadata.object] ?? item[fileField], {
+        id: normalized[fileIdField],
+        name: item[fileMetadata.name],
+        mimeType: item[fileMetadata.mimeType],
+        size: item[fileMetadata.size],
+      });
+      return {
+        ...normalized,
+        [fileIdField]: storedFile?.id ?? normalized[fileIdField] ?? null,
+        [fileField]: storedFile,
+      };
+    });
   return {
-    identifiers: map(profile.identifiers, {
-      identifierType: "identifier_type",
-      identifierLabel: "identifier_label",
-      identifierValue: "identifier_value",
-      issuedAt: "issued_at",
-      expiresAt: "expires_at",
-      isVerified: "is_verified",
-      documentFileId: "document_file_id",
-      documentFile: "document_file",
-    }),
+    identifiers: mapFiles(
+      profile.identifiers,
+      {
+        identifierType: "identifier_type",
+        identifierLabel: "identifier_label",
+        identifierValue: "identifier_value",
+        issuedAt: "issued_at",
+        expiresAt: "expires_at",
+        isVerified: "is_verified",
+        documentFileId: "document_file_id",
+      },
+      "documentFile",
+      "documentFileId",
+      {
+        object: "document_file",
+        name: "document_name",
+        mimeType: "document_mime_type",
+        size: "document_size_bytes",
+      },
+    ),
     bankAccounts: map(profile.bankAccounts, {
       bankName: "bank_name",
       accountNumber: "account_number",
@@ -56,33 +106,70 @@ function normalizeProfile(profile) {
       platform: "platform",
       handleOrUrl: "handle_or_url",
     }),
-    educations: map(profile.educations, {
-      educationLevel: "education_level",
-      institution: "institution",
-      fieldOfStudy: "field_of_study",
-      graduationYear: "graduation_year",
-      isHighest: "is_highest",
-      certificateFileId: "certificate_file_id",
-      certificateFile: "certificate_file",
-    }),
+    educations: mapFiles(
+      profile.educations,
+      {
+        educationLevel: "education_level",
+        institution: "institution",
+        fieldOfStudy: "field_of_study",
+        graduationYear: "graduation_year",
+        isHighest: "is_highest",
+        certificateFileId: "certificate_file_id",
+      },
+      "certificateFile",
+      "certificateFileId",
+      {
+        object: "certificate_file",
+        name: "certificate_name",
+        mimeType: "certificate_mime_type",
+        size: "certificate_size_bytes",
+      },
+    ),
     skills: map(profile.skills, {
       skillName: "skill_name",
       proficiencyLevel: "proficiency_level",
       notes: "notes",
     }),
-    certifications: map(profile.certifications, {
-      certificationName: "certification_name",
-      issuer: "issuer",
-      credentialNo: "credential_no",
-      issuedAt: "issued_at",
-      expiresAt: "expires_at",
-      certificateFileId: "certificate_file_id",
-      certificateFile: "certificate_file",
-    }),
+    certifications: mapFiles(
+      profile.certifications,
+      {
+        certificationName: "certification_name",
+        issuer: "issuer",
+        credentialNo: "credential_no",
+        issuedAt: "issued_at",
+        expiresAt: "expires_at",
+        certificateFileId: "certificate_file_id",
+      },
+      "certificateFile",
+      "certificateFileId",
+      {
+        object: "certificate_file",
+        name: "certificate_name",
+        mimeType: "certificate_mime_type",
+        size: "certificate_size_bytes",
+      },
+    ),
+  };
+}
+
+/** Menjaga section Collapse yang belum pernah dibuka tetap dikirim sebagai array kosong. */
+function normalizeProfileSubmission(profile) {
+  const source = profile || {};
+  const array = (value) => (Array.isArray(value) ? value : []);
+  return {
+    identifiers: array(source.identifiers),
+    bankAccounts: array(source.bankAccounts),
+    dependents: array(source.dependents),
+    emergencyContacts: array(source.emergencyContacts),
+    socialAccounts: array(source.socialAccounts),
+    educations: array(source.educations),
+    skills: array(source.skills),
+    certifications: array(source.certifications),
   };
 }
 
 const IDENTITY_CONFIG = {
+  pas_foto: { label: "Pas foto", fileKind: "pas_foto" },
   ktp: { label: "KTP", numberLabel: "NIK", fileKind: "ktp" },
   family_card: { label: "Kartu Keluarga", numberLabel: "Nomor KK", fileKind: "kk" },
   bpjs_health: {
@@ -99,11 +186,43 @@ const IDENTITY_CONFIG = {
   other: { label: "Identitas lainnya", numberLabel: "Nomor identitas", fileKind: "identitas_lain" },
 };
 
-/** Mengunggah dokumen identitas pada baris yang sama dengan nomor administrasinya. */
+const IDENTITY_OPTIONS = [
+  { value: "pas_foto", label: "Pas foto" },
+  { value: "ktp", label: "KTP" },
+  { value: "family_card", label: "Kartu Keluarga" },
+  { value: "bpjs_health", label: "BPJS Kesehatan" },
+  { value: "bpjs_employment", label: "BPJS Ketenagakerjaan" },
+  { value: "tax_npwp", label: "NPWP" },
+  { value: "other", label: "Lainnya" },
+];
+
+const SOCIAL_PLATFORM_OPTIONS = [
+  "Facebook",
+  "Instagram",
+  "TikTok",
+  "LinkedIn",
+  "X",
+  "YouTube",
+  "Telegram",
+  "WhatsApp",
+  "Threads",
+].map((platform) => ({ value: platform, label: platform }));
+
+const PROFICIENCY_OPTIONS = [
+  { value: "pemula", label: "Pemula" },
+  { value: "dasar", label: "Dasar" },
+  { value: "menengah", label: "Menengah" },
+  { value: "mahir", label: "Mahir" },
+  { value: "ahli", label: "Ahli" },
+];
+
+/** Mengunggah file sesuai jenis yang dipilih tanpa membuka akses path penyimpanan privat. */
 function IdentityDocumentField({ field, form, employee, organizationId, onError }) {
   const type = Form.useWatch(["identifiers", field.name, "identifierType"], form) || "other";
   const file = Form.useWatch(["identifiers", field.name, "documentFile"], form);
+  const fileId = Form.useWatch(["identifiers", field.name, "documentFileId"], form);
   const config = IDENTITY_CONFIG[type] || IDENTITY_CONFIG.other;
+  const isProfilePhoto = type === "pas_foto";
   const setFile = (nextFile) => {
     form.setFieldValue(["identifiers", field.name, "documentFile"], nextFile);
     form.setFieldValue(["identifiers", field.name, "documentFileId"], nextFile?.id || null);
@@ -111,16 +230,26 @@ function IdentityDocumentField({ field, form, employee, organizationId, onError 
   return (
     <PrivateFileUpload
       value={file}
+      fileId={fileId}
       uploadUrl="/api/uploads"
       removeUrl={file ? `/api/uploads/${file.id}?organizationId=${organizationId}` : undefined}
       fields={{ fileKind: config.fileKind, employeeId: employee.id }}
       organizationId={organizationId}
       onChange={setFile}
       onError={onError}
-      accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
       maxSizeBytes={5 * 1024 * 1024}
-      emptyTitle={`Pilih atau tarik foto/PDF ${config.label}`}
-      helpText="Gunakan foto yang jelas atau PDF maksimal 5 MB."
+      emptyTitle={
+        isProfilePhoto
+          ? "Pilih atau tarik pas foto ke area ini"
+          : `Pilih atau tarik gambar ${config.label}`
+      }
+      helpText={
+        isProfilePhoto
+          ? "Opsional. Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
+          : "Gunakan JPEG, PNG, atau WebP yang jelas maksimal 5 MB."
+      }
+      selectedText={isProfilePhoto ? "Pas foto tersimpan secara privat" : undefined}
     />
   );
 }
@@ -129,6 +258,7 @@ function IdentityDocumentField({ field, form, employee, organizationId, onError 
 function IdentityMetadataFields({ field, form }) {
   const type = Form.useWatch(["identifiers", field.name, "identifierType"], form) || "other";
   const config = IDENTITY_CONFIG[type] || IDENTITY_CONFIG.other;
+  if (type === "pas_foto") return null;
   const hasValidityPeriod = !["ktp", "family_card"].includes(type);
   return (
     <>
@@ -153,24 +283,45 @@ function IdentityMetadataFields({ field, form }) {
   );
 }
 
-/** Menghubungkan ijazah atau sertifikat ke record profil yang sedang diedit. */
-function CertificateDocumentField({ listName, field, form, employee, organizationId, onError }) {
+/** Membersihkan metadata jenis lama agar nomor atau file tidak terbawa ke identitas baru. */
+function resetIdentityFields(form, index, identifierType) {
+  const prefix = ["identifiers", index];
+  form.setFields([
+    { name: [...prefix, "identifierType"], value: identifierType },
+    { name: [...prefix, "identifierLabel"], value: null },
+    { name: [...prefix, "identifierValue"], value: null },
+    { name: [...prefix, "issuedAt"], value: null },
+    { name: [...prefix, "expiresAt"], value: null },
+    { name: [...prefix, "isVerified"], value: false },
+    { name: [...prefix, "documentFileId"], value: null },
+    { name: [...prefix, "documentFile"], value: null },
+  ]);
+}
+
+/** Menghubungkan foto ijazah atau sertifikat ke record profil yang sedang diedit. */
+function CredentialImageField({ listName, field, form, employee, organizationId, onError }) {
   const file = Form.useWatch([listName, field.name, "certificateFile"], form);
+  const fileId = Form.useWatch([listName, field.name, "certificateFileId"], form);
   const fileKind = listName === "educations" ? "pendidikan" : "sertifikasi";
   const setFile = (nextFile) => {
     form.setFieldValue([listName, field.name, "certificateFile"], nextFile);
     form.setFieldValue([listName, field.name, "certificateFileId"], nextFile?.id || null);
   };
   return (
-    <PrivatePdfUpload
+    <PrivateFileUpload
       value={file}
+      fileId={fileId}
       uploadUrl="/api/uploads"
       removeUrl={file ? `/api/uploads/${file.id}?organizationId=${organizationId}` : undefined}
       fields={{ fileKind, employeeId: employee.id }}
       organizationId={organizationId}
       onChange={setFile}
       onError={onError}
-      helpText={`${listName === "educations" ? "Ijazah" : "Sertifikat"} PDF maksimal 10 MB.`}
+      accept="image/jpeg,image/png,image/webp"
+      maxSizeBytes={5 * 1024 * 1024}
+      emptyTitle={`Pilih atau tarik foto ${listName === "educations" ? "ijazah" : "sertifikat"} ke area ini`}
+      helpText="Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
+      selectedText="Gambar tersimpan secara privat"
     />
   );
 }
@@ -229,6 +380,7 @@ export default function EmployeeProfileSectionsForm({
   const [form] = Form.useForm();
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const onErrorRef = useRef(onError);
+  const loadedProfileRef = useRef(null);
 
   /** Callback terbaru disimpan tanpa menjadikannya dependency request profil. */
   useEffect(() => {
@@ -251,39 +403,22 @@ export default function EmployeeProfileSectionsForm({
         if (!response.ok) throw new Error(body.message);
         if (active) {
           const normalized = normalizeProfile(body.data || {});
-          normalized.identifiers = normalized.identifiers.map((item) => ({
-            ...item,
-            documentFile: item.documentFileId
-              ? {
-                  id: item.documentFileId,
-                  original_name: item.documentFile?.original_name,
-                  mime_type: item.documentFile?.mime_type,
-                  size_bytes: item.documentFile?.size_bytes,
-                }
-              : null,
-          }));
-          normalized.educations = normalized.educations.map((item) => ({
-            ...item,
-            certificateFile: item.certificateFileId
-              ? {
-                  id: item.certificateFileId,
-                  original_name: item.certificateFile?.original_name,
-                  mime_type: item.certificateFile?.mime_type,
-                  size_bytes: item.certificateFile?.size_bytes,
-                }
-              : null,
-          }));
-          normalized.certifications = normalized.certifications.map((item) => ({
-            ...item,
-            certificateFile: item.certificateFileId
-              ? {
-                  id: item.certificateFileId,
-                  original_name: item.certificateFile?.original_name,
-                  mime_type: item.certificateFile?.mime_type,
-                  size_bytes: item.certificateFile?.size_bytes,
-                }
-              : null,
-          }));
+          // Pas foto memakai upload yang sama, tetapi tidak dikirim sebagai nomor identitas.
+          if (body.data?.profilePhoto) {
+            const profilePhoto = normalizeStoredFile(body.data.profilePhoto);
+            normalized.identifiers.unshift({
+              identifierType: "pas_foto",
+              identifierLabel: null,
+              identifierValue: null,
+              issuedAt: null,
+              expiresAt: null,
+              isVerified: false,
+              documentFileId: profilePhoto?.id || null,
+              documentFile: profilePhoto,
+            });
+          }
+          // Snapshot melindungi panel Collapse yang belum dibuka dari payload kosong saat submit.
+          loadedProfileRef.current = normalized;
           form.setFieldsValue(normalized);
         }
       },
@@ -298,20 +433,29 @@ export default function EmployeeProfileSectionsForm({
   }, [employee.id, form, open, organizationId, runWithLoadingBackdrop]);
 
   /** Menyimpan semua section sekaligus agar constraint rekening/kontak utama konsisten. */
-  const submit = async (profile) => {
+  const submit = async () => {
     try {
       await runWithLoadingBackdrop(
         async () => {
+          // Semua path form dibaca, termasuk panel Collapse yang masih tertutup.
+          const normalizedProfile = normalizeProfileSubmission({
+            ...(loadedProfileRef.current || {}),
+            ...form.getFieldsValue(true),
+          });
           const response = await fetch(`/api/employees/${employee.id}/profile`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               organizationId,
               profile: {
-                ...profile,
-                identifiers: profile.identifiers.map(({ documentFile: _file, ...item }) => item),
-                educations: profile.educations.map(({ certificateFile: _file, ...item }) => item),
-                certifications: profile.certifications.map(
+                ...normalizedProfile,
+                identifiers: normalizedProfile.identifiers
+                  .filter((item) => item.identifierType !== "pas_foto")
+                  .map(({ documentFile: _file, ...item }) => item),
+                educations: normalizedProfile.educations.map(
+                  ({ certificateFile: _file, ...item }) => item,
+                ),
+                certifications: normalizedProfile.certifications.map(
                   ({ certificateFile: _file, ...item }) => item,
                 ),
               },
@@ -336,6 +480,7 @@ export default function EmployeeProfileSectionsForm({
   const items = [
     {
       key: "identifiers",
+      forceRender: true,
       label: "Identitas administratif",
       children: (
         <ListSection
@@ -351,14 +496,10 @@ export default function EmployeeProfileSectionsForm({
                 rules={[{ required: true }]}
               >
                 <Select
-                  options={[
-                    { value: "ktp", label: "KTP" },
-                    { value: "family_card", label: "Kartu Keluarga" },
-                    { value: "bpjs_health", label: "BPJS Kesehatan" },
-                    { value: "bpjs_employment", label: "BPJS Ketenagakerjaan" },
-                    { value: "tax_npwp", label: "NPWP" },
-                    { value: "other", label: "Lainnya" },
-                  ]}
+                  options={IDENTITY_OPTIONS}
+                  onChange={(identifierType) =>
+                    resetIdentityFields(form, field.name, identifierType)
+                  }
                 />
               </Form.Item>
               <Form.Item
@@ -400,6 +541,7 @@ export default function EmployeeProfileSectionsForm({
     },
     {
       key: "banks",
+      forceRender: true,
       label: "Rekening",
       children: (
         <ListSection
@@ -426,9 +568,15 @@ export default function EmployeeProfileSectionsForm({
               >
                 <Input />
               </Form.Item>
-              <Form.Item name={[field.name, "isPrimary"]} valuePropName="checked">
-                <Checkbox>Rekening utama</Checkbox>
-              </Form.Item>
+              <Box sx={{ gridColumn: { xs: "1 / -1", sm: "1" }, mt: -0.5 }}>
+                <Form.Item
+                  name={[field.name, "isPrimary"]}
+                  valuePropName="checked"
+                  style={{ marginBottom: 0 }}
+                >
+                  <Checkbox>Rekening utama</Checkbox>
+                </Form.Item>
+              </Box>
             </Box>
           )}
         </ListSection>
@@ -436,6 +584,7 @@ export default function EmployeeProfileSectionsForm({
     },
     {
       key: "family",
+      forceRender: true,
       label: "Keluarga dan tanggungan",
       children: (
         <ListSection
@@ -476,12 +625,29 @@ export default function EmployeeProfileSectionsForm({
               >
                 <IndonesiaPhoneInput />
               </Form.Item>
-              <Form.Item name={[field.name, "isDependent"]} valuePropName="checked">
-                <Checkbox>Termasuk tanggungan</Checkbox>
-              </Form.Item>
-              <Form.Item name={[field.name, "isEmergencyContact"]} valuePropName="checked">
-                <Checkbox>Dapat dihubungi saat darurat</Checkbox>
-              </Form.Item>
+              <Box
+                sx={{
+                  gridColumn: "1 / -1",
+                  display: "grid",
+                  gap: 0.5,
+                  mt: -0.5,
+                }}
+              >
+                <Form.Item
+                  name={[field.name, "isEmergencyContact"]}
+                  valuePropName="checked"
+                  style={{ marginBottom: 0 }}
+                >
+                  <Checkbox>Dapat dihubungi saat darurat</Checkbox>
+                </Form.Item>
+                <Form.Item
+                  name={[field.name, "isDependent"]}
+                  valuePropName="checked"
+                  style={{ marginBottom: 0 }}
+                >
+                  <Checkbox>Termasuk tanggungan</Checkbox>
+                </Form.Item>
+              </Box>
               <Form.Item
                 name={[field.name, "notes"]}
                 label="Catatan"
@@ -496,6 +662,7 @@ export default function EmployeeProfileSectionsForm({
     },
     {
       key: "emergency",
+      forceRender: true,
       label: "Kontak darurat",
       children: (
         <ListSection
@@ -522,9 +689,15 @@ export default function EmployeeProfileSectionsForm({
               >
                 <IndonesiaPhoneInput />
               </Form.Item>
-              <Form.Item name={[field.name, "isPrimary"]} valuePropName="checked">
-                <Checkbox>Kontak utama</Checkbox>
-              </Form.Item>
+              <Box sx={{ gridColumn: "1 / -1", mt: -0.5 }}>
+                <Form.Item
+                  name={[field.name, "isPrimary"]}
+                  valuePropName="checked"
+                  style={{ marginBottom: 0 }}
+                >
+                  <Checkbox>Kontak utama</Checkbox>
+                </Form.Item>
+              </Box>
               <Form.Item
                 name={[field.name, "address"]}
                 label="Alamat"
@@ -539,6 +712,7 @@ export default function EmployeeProfileSectionsForm({
     },
     {
       key: "education",
+      forceRender: true,
       label: "Pendidikan",
       children: (
         <ListSection
@@ -571,7 +745,7 @@ export default function EmployeeProfileSectionsForm({
                 <Input />
               </Form.Item>
               <Box sx={{ gridColumn: "1 / -1" }}>
-                <CertificateDocumentField
+                <CredentialImageField
                   listName="educations"
                   field={field}
                   form={form}
@@ -587,6 +761,7 @@ export default function EmployeeProfileSectionsForm({
     },
     {
       key: "skills",
+      forceRender: true,
       label: "Keahlian",
       children: (
         <ListSection name="skills" addLabel="Tambah keahlian" initialValue={{}}>
@@ -600,7 +775,7 @@ export default function EmployeeProfileSectionsForm({
                 <Input />
               </Form.Item>
               <Form.Item name={[field.name, "proficiencyLevel"]} label="Tingkat">
-                <Input />
+                <Select options={PROFICIENCY_OPTIONS} placeholder="Pilih tingkat keahlian" />
               </Form.Item>
               <Form.Item
                 name={[field.name, "notes"]}
@@ -616,6 +791,7 @@ export default function EmployeeProfileSectionsForm({
     },
     {
       key: "certifications",
+      forceRender: true,
       label: "Sertifikasi",
       children: (
         <ListSection name="certifications" addLabel="Tambah sertifikasi" initialValue={{}}>
@@ -644,7 +820,7 @@ export default function EmployeeProfileSectionsForm({
                 <Input />
               </Form.Item>
               <Box sx={{ gridColumn: "1 / -1" }}>
-                <CertificateDocumentField
+                <CredentialImageField
                   listName="certifications"
                   field={field}
                   form={form}
@@ -660,6 +836,7 @@ export default function EmployeeProfileSectionsForm({
     },
     {
       key: "social",
+      forceRender: true,
       label: "Akun sosial",
       children: (
         <ListSection name="socialAccounts" addLabel="Tambah akun sosial" initialValue={{}}>
@@ -670,7 +847,12 @@ export default function EmployeeProfileSectionsForm({
                 label="Platform"
                 rules={[{ required: true }]}
               >
-                <Input />
+                <Select
+                  options={SOCIAL_PLATFORM_OPTIONS}
+                  placeholder="Pilih platform"
+                  showSearch
+                  optionFilterProp="label"
+                />
               </Form.Item>
               <Form.Item
                 name={[field.name, "handleOrUrl"]}

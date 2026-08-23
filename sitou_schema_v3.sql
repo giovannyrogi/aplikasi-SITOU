@@ -1103,6 +1103,7 @@ CREATE TABLE disciplinary_actions (
   issued_by_user_id bigint NOT NULL REFERENCES users(id), -- HRD pencatat/penerbit di sistem.
   notes text, -- Catatan internal berizin.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dicatat.
+  CONSTRAINT uq_disciplinary_action_case UNIQUE (organization_id,discipline_case_id), -- Satu tindakan resmi per kasus.
   CONSTRAINT fk_action_case FOREIGN KEY (organization_id,discipline_case_id) REFERENCES discipline_cases(organization_id,id),
   CONSTRAINT fk_action_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id),
   CONSTRAINT fk_action_document FOREIGN KEY (organization_id,document_file_id) REFERENCES stored_files(organization_id,id),

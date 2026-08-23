@@ -2,16 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "antd";
-import {
-  EditOutlined,
-  EyeOutlined,
-  FileAddOutlined,
-  FolderOpenOutlined,
-  ImportOutlined,
-  PlusOutlined,
-  SafetyCertificateOutlined,
-  SwapOutlined,
-} from "@ant-design/icons";
+import { EyeOutlined, ImportOutlined, PlusOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
@@ -66,7 +57,7 @@ export default function EmployeeDirectory() {
     router.push(`/employees/${item.id}?${query.toString()}`);
   };
 
-  /** Menyusun aksi yang sama pada tabel desktop dan kartu mobile. */
+  /** Menyediakan satu pintu masuk agar seluruh riwayat dibuka dari workspace detail pegawai. */
   const actions = (item) => [
     {
       key: "summary",
@@ -74,40 +65,6 @@ export default function EmployeeDirectory() {
       label: "Lihat ringkasan",
       onClick: () => openDetail(item),
     },
-    {
-      key: "assignments",
-      icon: <SwapOutlined />,
-      label: "Lihat penempatan",
-      onClick: () => openDetail(item, "assignments"),
-    },
-    {
-      key: "contracts",
-      icon: <FileAddOutlined />,
-      label: "Lihat kontrak",
-      onClick: () => openDetail(item, "contracts"),
-    },
-    {
-      key: "documents",
-      icon: <FolderOpenOutlined />,
-      label: "Lihat dokumen",
-      onClick: () => openDetail(item, "documents"),
-    },
-    {
-      key: "discipline",
-      icon: <SafetyCertificateOutlined />,
-      label: "Lihat disiplin",
-      onClick: () => openDetail(item, "discipline"),
-    },
-    ...(!readOnly
-      ? [
-          {
-            key: "edit",
-            icon: <EditOutlined />,
-            label: "Edit profil",
-            onClick: () => setForm({ open: true, item }),
-          },
-        ]
-      : []),
   ];
 
   const columns = [

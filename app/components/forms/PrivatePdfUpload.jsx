@@ -7,6 +7,7 @@ const MAX_PDF_BYTES = 10 * 1024 * 1024;
 /** Field PDF privat reusable; browser hanya menyimpan metadata file ID dari API. */
 export default function PrivatePdfUpload({
   value,
+  fileId,
   uploadUrl,
   removeUrl,
   fields = {},
@@ -20,6 +21,7 @@ export default function PrivatePdfUpload({
   return (
     <PrivateFileUpload
       value={value}
+      fileId={fileId}
       uploadUrl={uploadUrl}
       removeUrl={removeUrl}
       fields={fields}

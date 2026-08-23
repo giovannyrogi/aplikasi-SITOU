@@ -6,6 +6,7 @@ import FileUploadField from "@/app/components/forms/FileUploadField";
 /** Mengunggah satu file privat dan hanya menyimpan metadata ID yang dikembalikan API. */
 export default function PrivateFileUpload({
   value,
+  fileId,
   uploadUrl,
   removeUrl,
   fields = {},
@@ -21,6 +22,15 @@ export default function PrivateFileUpload({
   showRemove = true,
 }) {
   const [uploading, setUploading] = useState(false);
+  // Metadata join dapat tidak lengkap, tetapi ID dari API tetap cukup untuk menampilkan file privat tersimpan.
+  const storedValue =
+    value ||
+    (fileId
+      ? {
+          id: String(fileId),
+          name: "File tersimpan",
+        }
+      : null);
 
   /** Server tetap menjadi pemeriksa akhir MIME; batas klien hanya memberi feedback lebih cepat. */
   const upload = async (file) => {
@@ -47,7 +57,7 @@ export default function PrivateFileUpload({
 
   /** Hapus memakai endpoint berizin dan baru membersihkan state setelah server berhasil. */
   const remove = async () => {
-    if (!value || !removeUrl) return true;
+    if (!storedValue || !removeUrl) return true;
     setUploading(true);
     try {
       const response = await fetch(removeUrl, { method: "DELETE" });
@@ -65,7 +75,7 @@ export default function PrivateFileUpload({
 
   return (
     <FileUploadField
-      value={value}
+      value={storedValue}
       accept={accept}
       maxSizeBytes={maxSizeBytes}
       emptyTitle={emptyTitle}
@@ -76,7 +86,9 @@ export default function PrivateFileUpload({
       onSelect={upload}
       onRemove={remove}
       onError={onError}
-      previewUrl={value ? `/api/uploads/${value.id}?organizationId=${organizationId}` : undefined}
+      previewUrl={
+        storedValue ? `/api/uploads/${storedValue.id}?organizationId=${organizationId}` : undefined
+      }
       showRemove={showRemove}
     />
   );

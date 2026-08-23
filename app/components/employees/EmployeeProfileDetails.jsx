@@ -35,6 +35,16 @@ function formatProfileDate(value) {
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+/** Membatasi tautan sosial hanya pada URL HTTP(S) agar data profil tidak menjalankan skema berbahaya. */
+function getSafeExternalUrl(value) {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Section detail memberi garis pembatas yang jelas tanpa membuat card bertumpuk. */
 export function ProfileSection({ icon, title, description, children }) {
   const theme = useTheme();
@@ -114,13 +124,14 @@ function DetailRows({ items, emptyText }) {
 
 /** Ringkasan tambahan menampilkan keluarga, kontak darurat, dan akun sosial. */
 export function EmployeeRelatedSummary({ profile }) {
+  const theme = useTheme();
   return (
     <Box
       sx={{
-        mt: 4,
+        mt: { xs: 5, lg: 6 },
         display: "grid",
         gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" },
-        gap: { xs: 3, lg: 4 },
+        gap: { xs: 4, lg: 5 },
       }}
     >
       <ProfileSection icon={<TeamOutlined />} title="Keluarga dan tanggungan">
@@ -158,11 +169,31 @@ export function EmployeeRelatedSummary({ profile }) {
       </ProfileSection>
       <ProfileSection icon={<LinkOutlined />} title="Akun sosial">
         <DetailRows
-          items={(profile.socialAccounts || []).map((item) => ({
-            key: item.id,
-            title: item.platform,
-            description: item.handle_or_url,
-          }))}
+          items={(profile.socialAccounts || []).map((item) => {
+            const externalUrl = getSafeExternalUrl(item.handle_or_url);
+            return {
+              key: item.id,
+              title: item.platform,
+              description: externalUrl ? (
+                <Box
+                  component="a"
+                  href={externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    color: theme.palette.primary.main,
+                    textDecoration: "underline",
+                    overflowWrap: "anywhere",
+                    "&:hover": { color: theme.palette.primary.dark },
+                  }}
+                >
+                  {item.handle_or_url}
+                </Box>
+              ) : (
+                item.handle_or_url
+              ),
+            };
+          })}
           emptyText="Belum ada akun sosial yang dicatat."
         />
       </ProfileSection>
