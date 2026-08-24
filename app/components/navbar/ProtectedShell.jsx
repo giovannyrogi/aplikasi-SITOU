@@ -137,7 +137,12 @@ export default function ProtectedShell({ user, children }) {
           overflowX: "hidden",
         }}
       >
-        <TopMenu user={user} onBurgerClick={() => setDrawerOpen(true)} onLogout={logout} />
+        <TopMenu
+          user={user}
+          onBurgerClick={() => setDrawerOpen(true)}
+          onProfile={() => navigate("/profile")}
+          onLogout={logout}
+        />
         <Box
           component="main"
           sx={{

@@ -1,25 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Avatar, Box, IconButton, Menu, MenuItem, Paper, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, Menu, MenuItem, Paper, Tooltip, useTheme } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
+import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import FontStyle from "../font-style/FontStyle";
 import SubscriptionStatus from "../subscription/SubscriptionStatus";
 
-const getInitials = (name = "") =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-
-export default function TopMenu({ user, onBurgerClick, onLogout }) {
+export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
   const theme = useTheme();
-  const [accountAnchor, setAccountAnchor] = useState(null);
+  const [settingsAnchor, setSettingsAnchor] = useState(null);
+  const settingsOpen = Boolean(settingsAnchor);
   const actionSx = {
     width: 40,
     height: 40,
@@ -27,6 +21,17 @@ export default function TopMenu({ user, onBurgerClick, onLogout }) {
     bgcolor: theme.ui.iconButtonBg,
     border: `1px solid ${theme.ui.navUserBorder}`,
     "&:hover": { bgcolor: theme.ui.iconButtonHover },
+  };
+  const menuItemSx = {
+    minHeight: 46,
+    px: 1.25,
+    py: 0.75,
+    gap: 1.25,
+    borderRadius: 2,
+  };
+  const closeAndRun = (action) => {
+    setSettingsAnchor(null);
+    action();
   };
 
   return (
@@ -58,13 +63,6 @@ export default function TopMenu({ user, onBurgerClick, onLogout }) {
       >
         <MenuIcon />
       </IconButton>
-
-      {/* <Box sx={{ minWidth: 0, flex: 1 }}>
-        <FontStyle component="p" fontSize={{ xs: 14, sm: 15 }} fontWeight={600} noWrap>
-          Sistem Informasi Tenaga Operasional Unit
-        </FontStyle>
-      </Box> */}
-
       <Box sx={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
         <SubscriptionStatus
           status={user?.organization_subscription_status}
@@ -73,68 +71,99 @@ export default function TopMenu({ user, onBurgerClick, onLogout }) {
           daysRemaining={user?.organization_days_remaining}
         />
       </Box>
-
       <Tooltip title="Notifikasi belum tersedia">
         <IconButton aria-label="Notifikasi belum tersedia" aria-disabled="true" sx={actionSx}>
           <NotificationsNoneRoundedIcon />
         </IconButton>
       </Tooltip>
-
-      <Tooltip title="Menu akun">
+      <Tooltip title="Pengaturan">
         <IconButton
-          onClick={(event) => setAccountAnchor(event.currentTarget)}
-          aria-label="Buka menu akun"
-          aria-controls={accountAnchor ? "account-menu" : undefined}
-          aria-expanded={accountAnchor ? "true" : undefined}
-          sx={{ p: 0.25 }}
+          onClick={(event) => setSettingsAnchor(event.currentTarget)}
+          aria-label="Buka pengaturan"
+          aria-controls={settingsOpen ? "settings-menu" : undefined}
+          aria-haspopup="menu"
+          aria-expanded={settingsOpen ? "true" : undefined}
+          sx={actionSx}
         >
-          <Avatar
-            sx={{
-              width: 40,
-              height: 40,
-              bgcolor: theme.palette.primary.main,
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            {getInitials(user?.full_name) || "U"}
-          </Avatar>
+          <SettingsRoundedIcon />
         </IconButton>
       </Tooltip>
-
       <Menu
-        id="account-menu"
-        anchorEl={accountAnchor}
-        open={Boolean(accountAnchor)}
-        onClose={() => setAccountAnchor(null)}
+        id="settings-menu"
+        anchorEl={settingsAnchor}
+        open={settingsOpen}
+        onClose={() => setSettingsAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
         slotProps={{
           paper: {
+            elevation: 0,
             sx: {
               mt: 1,
-              minWidth: 220,
-              border: `1px solid ${theme.ui.navBorder}`,
-              boxShadow: theme.ui.shellShadow,
+              width: 216,
+              maxWidth: "calc(100vw - 24px)",
+              p: 0.5,
+              bgcolor: theme.ui.menuPaperBg,
+              border: `1px solid ${theme.ui.panelBorder}`,
+              borderRadius: 2.5,
+              boxShadow: theme.ui.panelShadow,
             },
           },
+          list: { sx: { p: 0 } },
         }}
       >
-        <Box sx={{ px: 2, py: 1 }}>
-          <FontStyle fontSize={13} fontWeight={600} noWrap>
-            {user?.full_name || user?.username}
-          </FontStyle>
-          <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }} noWrap>
-            @{user?.username}
-          </FontStyle>
-        </Box>
         <MenuItem
-          onClick={() => {
-            setAccountAnchor(null);
-            onLogout();
+          onClick={() => closeAndRun(onProfile)}
+          sx={{
+            ...menuItemSx,
+            color: theme.palette.text.primary,
+            "&:hover": { bgcolor: theme.ui.navItemHover },
           }}
-          sx={{ gap: 1.25, color: theme.palette.error.main }}
         >
-          <LogoutRoundedIcon fontSize="small" />
-          <FontStyle fontSize={12.5} fontWeight={600} component="span">
+          <Box
+            component="span"
+            sx={{
+              width: 32,
+              height: 32,
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+              borderRadius: 1.75,
+              color: theme.palette.primary.main,
+              bgcolor: theme.ui.iconButtonBg,
+            }}
+          >
+            <PersonOutlineRoundedIcon sx={{ fontSize: 18 }} />
+          </Box>
+          <FontStyle component="span" fontSize={12.5} fontWeight={600}>
+            Profil
+          </FontStyle>
+        </MenuItem>
+        <MenuItem
+          onClick={() => closeAndRun(onLogout)}
+          sx={{
+            ...menuItemSx,
+            mt: 0.25,
+            color: theme.status.danger.text,
+            "&:hover": { bgcolor: theme.status.danger.background },
+          }}
+        >
+          <Box
+            component="span"
+            sx={{
+              width: 32,
+              height: 32,
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+              borderRadius: 1.75,
+              color: theme.status.danger.main,
+              bgcolor: theme.status.danger.background,
+            }}
+          >
+            <LogoutRoundedIcon sx={{ fontSize: 18 }} />
+          </Box>
+          <FontStyle component="span" fontSize={12.5} fontWeight={600}>
             Keluar
           </FontStyle>
         </MenuItem>

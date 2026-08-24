@@ -67,14 +67,6 @@ const MENU_CONFIG = [
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
-      {
-        label: "Admin Organisasi",
-        value: "master-admin-users",
-        path: "/master-data/admin-users",
-        icon: <Icon icon="solar:user-id-bold-duotone" fontSize="20px" />,
-        showIcon: true,
-        roles: [ROLES.SUPERADMIN],
-      },
     ],
   },
   {

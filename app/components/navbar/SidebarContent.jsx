@@ -109,11 +109,11 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
             fontWeight: 600,
           }}
         >
-          {getInitials(user?.full_name) || "U"}
+          {getInitials(user?.display_name) || "U"}
         </Avatar>
         <Box sx={{ minWidth: 0 }}>
-          <FontStyle fontSize={12.5} fontWeight={600} noWrap title={user?.full_name || ""}>
-            {user?.full_name || user?.username || "Pengguna"}
+          <FontStyle fontSize={12.5} fontWeight={600} noWrap title={user?.display_name || ""}>
+            {user?.display_name || user?.username || "Pengguna"}
           </FontStyle>
           <FontStyle
             fontSize={11}

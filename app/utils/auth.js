@@ -15,6 +15,7 @@ export async function getAuthenticatedUser() {
     userId: session.userId,
     roleCode: session.roleCode,
     organizationId: session.organizationId,
+    credentialVersion: Number(session.credentialVersion),
   });
   return user ? { ...user, session_expires_at: Number(session.expiresAt) } : null;
 }

@@ -20,7 +20,9 @@
     "db:migrate-employee-drafts": "node scripts/apply-employee-onboarding-drafts-migration.mjs",
     "employee-drafts:expire": "node scripts/expire-employee-drafts.mjs",
     "test:employee-drafts:db": "node scripts/test-employee-onboarding-drafts-db.mjs",
-    "test:employee-import:db": "node scripts/test-employee-import-db.mjs"
+    "test:employee-import:db": "node scripts/test-employee-import-db.mjs",
+    "test:account-identity:db": "node scripts/test-account-identity-db.mjs",
+    "db:migrate": "node scripts/apply-development-migration.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",

@@ -54,9 +54,9 @@ export default function OrganizationAccountsPage() {
       key: "account",
       render: (_, item) => (
         <Box>
-          <FontStyle fontWeight={700}>{item.full_name}</FontStyle>
+          <FontStyle fontWeight={700}>{item.display_name}</FontStyle>
           <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
-            @{item.username} · {item.email}
+            @{item.username}{item.contact_email ? ` · ${item.contact_email}` : ""}
           </FontStyle>
         </Box>
       ),
@@ -115,7 +115,7 @@ export default function OrganizationAccountsPage() {
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
         <Box>
-          <FontStyle fontWeight={700}>{item.full_name}</FontStyle>
+          <FontStyle fontWeight={700}>{item.display_name}</FontStyle>
           <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
             @{item.username}
           </FontStyle>

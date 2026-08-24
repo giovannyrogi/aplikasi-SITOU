@@ -6,6 +6,10 @@ export const PUBLIC_PATH_PREFIXES = ["/verify"];
 
 export const PROTECTED_ROUTES = [
   {
+    path: "/profile",
+    roles: ALL_ROLE_CODES,
+  },
+  {
     path: "/dashboard",
     roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER, ROLES.EMPLOYEE],
   },

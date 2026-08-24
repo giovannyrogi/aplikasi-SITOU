@@ -15,15 +15,34 @@ const strongAccount = {
   organizationId: 1,
   employeeId: 2,
   username: "pegawai.test",
-  email: "pegawai.test@sitou.local",
-  fullName: "Pegawai Test",
   roleCode: "employee",
   locationScopeMode: "all",
   locationIds: [],
   isActive: true,
   password: "Test#123",
+  confirmPassword: "Test#123",
 };
 
+test("tambah akun menolak konfirmasi password yang berbeda", () => {
+  const result = accountCreateSchema.safeParse({
+    ...strongAccount,
+    confirmPassword: "Berbeda#123",
+  });
+  assert.equal(result.success, false);
+  assert.equal(
+    result.error.issues.some((issue) => issue.path.join(".") === "confirmPassword"),
+    true,
+  );
+});
+test("payload akun menolak identitas yang seharusnya bersumber dari profil", () => {
+  const result = accountCreateSchema.safeParse({
+    ...strongAccount,
+    email: "duplikat@sitou.local",
+    fullName: "Data Duplikat",
+    phone: "+628123456789",
+  });
+  assert.equal(result.success, false);
+});
 test("akun HRD selected wajib memiliki minimal satu lokasi", () => {
   const result = accountCreateSchema.safeParse({
     ...strongAccount,

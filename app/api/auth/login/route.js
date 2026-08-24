@@ -64,6 +64,7 @@ export async function POST(request) {
       userId: result.user.id,
       roleCode: result.user.role_code,
       organizationId: result.user.organization_id,
+      credentialVersion: result.user.credential_version,
       expiresAt,
     });
 

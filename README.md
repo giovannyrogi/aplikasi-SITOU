@@ -36,3 +36,7 @@ Urutan upgrade database lama:
 3. Terapkan `20260821_003_contract_subscription_columns.sql` untuk menghapus kolom legacy.
 
 Baca `AGENTS.md` untuk aturan pengembangan dan `docs/database-schema.md` untuk peta database.
+
+## Identitas akun
+
+`users` hanya menyimpan kredensial dan metadata keamanan. Nama serta kontak akun organisasi dibaca langsung dari profil pegawai; Superadmin memakai `platform_user_profiles`, sedangkan akun HRD/Pimpinan yang belum tertaut ditampilkan menggunakan username. Menu Pengaturan menyediakan Profil dan Keluar tanpa menampilkan identitas pada pop-up.

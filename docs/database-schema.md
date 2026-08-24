@@ -17,7 +17,7 @@ Dokumen ini adalah peta cepat database SITOU. Gunakan dokumen ini sebelum membuk
 1. Superadmin membuat identitas `organizations` dan periode pertama `organization_subscriptions` dalam satu transaksi.
 2. Superadmin atau Admin/HRD menyiapkan `organization_unit_types` sebelum membuat struktur pada `organization_units`.
 3. Superadmin membuat minimal satu `locations` yang aktif dan berada dalam umur operasional.
-4. Superadmin membuat akun `users`, memasang role `hrd`, lalu menetapkan cakupan lokasi.
+4. Superadmin membuat kredensial `users`, memasang role `hrd`, menautkan profil pegawai bila tersedia, lalu menetapkan cakupan lokasi.
 5. Organisasi siap digunakan ketika status administratif aktif, memiliki langganan efektif `active`/`grace`, lokasi operasional, dan Admin/HRD aktif.
 
 `organizations.is_active=false` adalah penghentian administratif manual. Status langganan efektif dihitung dengan timezone organisasi: `scheduled`, `active`, `grace`, atau `expired`; status manual `suspended` dan `cancelled` selalu mengalahkan tanggal. Job menyelaraskan status tersimpan, tetapi login dan validasi session tetap memeriksa tanggal. Perpanjangan selalu menambah baris baru dan periode non-suspended/non-cancelled tidak boleh tumpang tindih.
@@ -63,7 +63,9 @@ API master jenis unit menggunakan `GET/POST /api/organization-unit-types`, `GET/
 
 | Tabel                     | Fungsi                                                                    | Kolom Kunci                                                                                                                     |
 | ------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `users`                   | Akun login global.                                                        | `email`, `username`, `password_hash`, `full_name`, `phone`, `is_active`, `email_verified_at`, `last_login_at`, `last_login_ip`. |
+| `users`                   | Kredensial login global tanpa duplikasi identitas.                              | `username`, `password_hash`, `is_active`, `credential_version`, `last_login_at`, `last_login_ip`. |
+| `platform_user_profiles`  | Identitas Superadmin/platform.                                                   | `user_id`, `full_name`, `email`, `whatsapp`, audit waktu. |
+| `v_user_identity`          | Proyeksi identitas profil pegawai/platform dengan fallback username.             | `display_name`, `identity_source`, `contact_email`, `whatsapp`, `employee_id`. |
 | `roles`                   | Role dasar platform/organisasi/self.                                      | `code`, `name`, `scope`, `description`, `is_system`.                                                                            |
 | `permissions`             | Hak granular backend.                                                     | `code`, `description`.                                                                                                          |
 | `role_permissions`        | Mapping role ke permission.                                               | `role_id`, `permission_id`.                                                                                                     |

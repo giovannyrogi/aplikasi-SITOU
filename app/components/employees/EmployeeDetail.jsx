@@ -24,7 +24,6 @@ import { Box, Divider, useTheme } from "@mui/material";
 import { usePathname, useSearchParams } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DetailTabs from "@/app/components/navigation/DetailTabs";
-import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import Notification from "@/app/components/Notifications/Notification";
@@ -240,70 +239,6 @@ function SummarySection({ icon, title, children }) {
   );
 }
 
-/** Menampilkan bukti visual privat pada ringkasan tanpa membocorkan object key penyimpanan. */
-function VisualDocumentField({ label, file, organizationId, onPreview, aspectRatio = "4 / 3" }) {
-  const theme = useTheme();
-  const fileUrl = file?.id ? `/api/uploads/${file.id}?organizationId=${organizationId}` : null;
-  const isImage = String(file?.mime_type || file?.mimeType || "").startsWith("image/");
-
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <FontStyle fontSize={11.5} fontWeight={600} sx={{ color: theme.ui.mutedText }}>
-        {label}
-      </FontStyle>
-      {fileUrl && isImage ? (
-        <Box
-          component="button"
-          type="button"
-          onClick={() => onPreview({ url: fileUrl, title: label, alt: `${label} pegawai` })}
-          sx={{
-            mt: 1,
-            width: "100%",
-            maxWidth: 230,
-            p: 0,
-            overflow: "hidden",
-            display: "block",
-            cursor: "zoom-in",
-            border: `1px solid ${theme.ui.panelBorderSubtle}`,
-            borderRadius: "8px",
-            bgcolor: theme.ui.pageBg,
-            aspectRatio,
-            "&:focus-visible": {
-              outline: `3px solid ${theme.palette.primary.main}`,
-              outlineOffset: 2,
-            },
-          }}
-          aria-label={`Perbesar ${label}`}
-        >
-          {/* Endpoint file privat dipakai langsung agar authorization server tetap berlaku. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={fileUrl}
-            alt={label}
-            style={{ width: "100%", height: "100%", display: "block", objectFit: "cover" }}
-          />
-        </Box>
-      ) : fileUrl ? (
-        <Box sx={{ mt: 1, display: "grid", gap: 0.5 }}>
-          <CompactInfoChip label="Dokumen tersimpan" tone="info" />
-          <Button size="small" icon={<FileTextOutlined />} href={fileUrl} target="_blank">
-            Buka dokumen
-          </Button>
-        </Box>
-      ) : (
-        <FontStyle fontSize={13} fontWeight={600} sx={{ mt: 0.75 }}>
-          Belum diunggah
-        </FontStyle>
-      )}
-      {fileUrl && isImage ? (
-        <FontStyle fontSize={11.5} sx={{ mt: 0.75, color: theme.ui.mutedText }}>
-          Klik gambar untuk memperbesar
-        </FontStyle>
-      ) : null}
-    </Box>
-  );
-}
-
 /** Detail pegawai menyatukan profil dan seluruh histori tanpa sumber kebenaran duplikat. */
 export default function EmployeeDetail({ employeeId }) {
   const theme = useTheme();
@@ -339,7 +274,6 @@ export default function EmployeeDetail({ employeeId }) {
   const [actionCase, setActionCase] = useState(null);
   const [selectedContract, setSelectedContract] = useState(null);
   const [contractToCancel, setContractToCancel] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
 
   /** Memuat seluruh bagian paralel agar perpindahan tab tidak menghasilkan request waterfall. */
   const load = useCallback(async () => {
@@ -401,10 +335,6 @@ export default function EmployeeDetail({ employeeId }) {
 
   if (!state.employee) return <Notification {...notification} onClose={closeNotification} />;
   const employee = state.employee;
-  const profilePhoto = state.profile.profilePhoto || null;
-  const ktpDocument = (state.profile.identifiers || []).find(
-    (identifier) => identifier.identifier_type === "ktp" || identifier.identifierType === "ktp",
-  )?.document_file;
   // Enum backend diterjemahkan sebelum tab dibentuk agar Ringkasan selalu memakai status berbahasa Indonesia.
   const status = EMPLOYEE_STATUS[employee.employment_status] || [
     employee.employment_status,
@@ -440,21 +370,6 @@ export default function EmployeeDetail({ employeeId }) {
                 <InfoField label="Organisasi" value={employee.organization_name} />
               </SummarySection>
             </Box>
-            <SummarySection icon={<IdcardOutlined />} title="Foto dan identitas">
-              <VisualDocumentField
-                label="Pas foto"
-                file={profilePhoto}
-                organizationId={organizationId}
-                onPreview={setImagePreview}
-                aspectRatio="1 / 1"
-              />
-              <VisualDocumentField
-                label="KTP"
-                file={ktpDocument}
-                organizationId={organizationId}
-                onPreview={setImagePreview}
-              />
-            </SummarySection>
             <SummarySection icon={<IdcardOutlined />} title="Informasi pribadi">
               <InfoField label="Nomor pegawai" value={employee.employee_no} />
               <InfoField label="NIK" value={employee.national_id} />
@@ -1116,13 +1031,6 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
-      <ImagePreviewModal
-        open={Boolean(imagePreview)}
-        onClose={() => setImagePreview(null)}
-        imageUrl={imagePreview?.url}
-        title={imagePreview?.title}
-        alt={imagePreview?.alt}
-      />
       <Notification {...notification} onClose={closeNotification} />
     </Box>
   );

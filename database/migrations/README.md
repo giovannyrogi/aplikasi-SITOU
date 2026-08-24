@@ -6,7 +6,7 @@ Folder ini menyimpan perubahan schema secara berurutan untuk database SITOU yang
 
 - Database kosong baru: gunakan `sitou_schema_v3.sql` sebagai schema lengkap terkini. Jangan lanjut menjalankan seluruh migration historis di folder ini.
 - Database lama: jalankan hanya migration yang belum pernah diterapkan, sesuai urutan nomor nama file.
-- Database development lokal `sitou_db` saat ini sudah memiliki hasil migration `001` sampai `012`; jangan menyalin dan menjalankannya ulang secara manual.
+- Database development lokal `sitou_db` saat ini sudah memiliki hasil migration `001` sampai `015`; jangan menyalin dan menjalankannya ulang secara manual.
 
 Jangan menjalankan semua file secara acak atau mengulang migration tanpa pemeriksaan. Sebagian migration mengubah atau menghapus kolom lama dan sengaja berhenti ketika kondisi data tidak aman.
 
@@ -17,7 +17,7 @@ Jangan menjalankan semua file secara acak atau mengulang migration tanpa pemerik
 3. Jalankan migration berikutnya melalui skrip proyek:
 
 ```powershell
-node scripts/apply-development-migration.js database/migrations/NAMA_FILE.sql
+npm run db:migrate -- database/migrations/NAMA_FILE.sql
 ```
 
 4. Verifikasi schema, constraint, index, data, API terkait, dan production build.
@@ -28,3 +28,5 @@ Migration yang telah diterapkan tidak boleh diedit. Koreksi dibuat sebagai migra
 Migration `011` menambahkan version timestamp dan metadata pembatalan logis pada `employment_contracts`. Migration ini memungkinkan koreksi salah input dan pembatalan kontrak tanpa menghapus histori maupun dokumen terkait.
 
 Migration `012` menghubungkan identitas administratif pegawai dengan file privat melalui `document_file_id`, menambahkan label untuk jenis identitas fleksibel, serta menambahkan jenis Kartu Keluarga. KTP tetap memakai `employees.national_id` sebagai sumber nilai NIK; identitas lain dipakai untuk BPJS, NPWP, KK, dan kebutuhan organisasi lainnya.
+
+Migration `014` menambahkan profil platform, view identitas terpusat, dan versi kredensial. Migration `015` mengarsipkan identitas legacy ke `user_identity_legacy_backups`, memverifikasi kelengkapan backup, lalu menghapus kolom identitas dari `users`. Arsip migration bukan sumber identitas aplikasi dan wajib mengikuti kebijakan akses serta retention data pribadi.

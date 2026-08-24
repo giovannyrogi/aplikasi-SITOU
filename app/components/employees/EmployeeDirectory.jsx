@@ -200,6 +200,7 @@ export default function EmployeeDirectory() {
               isSuperadmin ? (
                 <OrganizationSelect
                   allowClear
+                  autoSelectFirst
                   value={organizationId}
                   onChange={(value) =>
                     list.updateFilters({ ...list.filters, organizationId: value })

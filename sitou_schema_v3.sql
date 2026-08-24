@@ -207,22 +207,30 @@ COMMENT ON TABLE positions IS 'Master jabatan terpisah dari pegawai agar histori
 -- ============================================================================
 
 CREATE TABLE users (
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID akun login global.
-  email citext NOT NULL UNIQUE, -- Email login unik dan case-insensitive.
-  username citext UNIQUE, -- Username alternatif.
-  password_hash text, -- Hash password; NULL bila memakai SSO.
-  full_name varchar(200) NOT NULL, -- Nama tampilan akun.
-  phone varchar(30), -- Nomor kontak seluler E.164 Indonesia.
-  is_active boolean NOT NULL DEFAULT true, -- Status akun.
-  email_verified_at timestamptz, -- Waktu email diverifikasi.
-  last_login_at timestamptz, -- Waktu login terakhir.
-  last_login_ip inet, -- IP login terakhir untuk keamanan.
-  created_at timestamptz NOT NULL DEFAULT now(), -- Waktu akun dibuat.
-  updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu akun diubah.
-  CONSTRAINT ck_users_phone_e164 CHECK (phone IS NULL OR phone ~ '^\+628[1-9][0-9]{7,10}$')
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  username citext NOT NULL UNIQUE,
+  password_hash text,
+  is_active boolean NOT NULL DEFAULT true,
+  credential_version integer NOT NULL DEFAULT 1 CHECK (credential_version > 0),
+  last_login_at timestamptz,
+  last_login_ip inet,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
-COMMENT ON TABLE users IS 'Akun global. Hak akses organisasi disimpan terpisah pada user_organization_roles.';
+COMMENT ON TABLE users IS 'Kredensial global. Identitas berasal dari profil pegawai atau profil platform.';
 
+CREATE TABLE platform_user_profiles (
+  user_id bigint PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  full_name varchar(200) NOT NULL,
+  email citext,
+  whatsapp varchar(30),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ck_platform_profiles_whatsapp CHECK (whatsapp IS NULL OR whatsapp ~ '^\+628[1-9][0-9]{7,10}$')
+);
+CREATE UNIQUE INDEX uq_platform_profiles_email ON platform_user_profiles(email) WHERE email IS NOT NULL;
+CREATE UNIQUE INDEX uq_platform_profiles_whatsapp ON platform_user_profiles(whatsapp) WHERE whatsapp IS NOT NULL;
+COMMENT ON TABLE platform_user_profiles IS 'Identitas Superadmin/platform yang tidak memiliki profil pegawai organisasi.';
 ALTER TABLE organization_subscriptions
   ADD CONSTRAINT fk_organization_subscriptions_creator
   FOREIGN KEY (created_by_user_id) REFERENCES users(id);
@@ -1214,13 +1222,26 @@ WHERE e.deleted_at IS NULL
 GROUP BY e.organization_id,e.id,e.employee_no,e.full_name;
 COMMENT ON VIEW v_employee_attention_summary IS 'Ringkasan 30 hari untuk dashboard pimpinan/HRD tanpa membuka bukti sensitif.';
 
+CREATE VIEW v_user_identity AS
+SELECT user_account.id AS user_id,user_account.username::text AS username,
+  COALESCE(employee.full_name,platform_profile.full_name,'@' || user_account.username::text) AS display_name,
+  CASE WHEN employee.id IS NOT NULL THEN 'employee' WHEN platform_profile.user_id IS NOT NULL THEN 'platform' ELSE 'username' END AS identity_source,
+  COALESCE(contact.work_email,contact.personal_email,platform_profile.email)::text AS contact_email,
+  COALESCE(contact.whatsapp,platform_profile.whatsapp) AS whatsapp,
+  employee.id AS employee_id,employee.organization_id AS employee_organization_id,
+  employee.preferred_name,contact.personal_email::text AS personal_email,contact.work_email::text AS work_email
+FROM users user_account
+LEFT JOIN employees employee ON employee.user_id=user_account.id AND employee.deleted_at IS NULL
+LEFT JOIN employee_contacts contact ON contact.organization_id=employee.organization_id AND contact.employee_id=employee.id
+LEFT JOIN platform_user_profiles platform_profile ON platform_profile.user_id=user_account.id;
+COMMENT ON VIEW v_user_identity IS 'Identitas terpusat: profil pegawai, profil platform, lalu username.';
 -- updated_at diterapkan hanya pada tabel yang memang dapat diedit.
 DO $$
 DECLARE table_name text;
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
     'organizations','organization_subscriptions','organization_branding','locations','organization_unit_types','organization_units','positions',
-    'users','employees','employee_contacts','employment_types','work_shifts','attendance_points','leave_requests'
+    'users','platform_user_profiles','employees','employee_contacts','employment_types','work_shifts','attendance_points','leave_requests'
   ]
   LOOP
     EXECUTE format(
@@ -1239,6 +1260,15 @@ INSERT INTO roles(code,name,scope,description,is_system) VALUES
   ('employee','Karyawan','self','Mengakses data sendiri dan kanal self-service masa depan.',true)
 ON CONFLICT (code) DO NOTHING;
 
+INSERT INTO permissions(code,description) VALUES
+  ('profile_self.read','Membaca profil akun sendiri.'),
+  ('profile_self.update','Memperbarui kontak profil sendiri.')
+ON CONFLICT (code) DO NOTHING;
+INSERT INTO role_permissions(role_id,permission_id)
+SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
+WHERE role.code IN ('superadmin','hrd','leader','employee')
+  AND permission.code IN ('profile_self.read','profile_self.update')
+ON CONFLICT DO NOTHING;
 COMMIT;
 
 -- CATATAN DEPLOYMENT:

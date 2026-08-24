@@ -39,7 +39,7 @@ try {
   }
 
   const existingUser = await client.query(
-    "SELECT id FROM users WHERE username = $1 OR email = $2 LIMIT 1",
+    "SELECT user_account.id FROM users user_account LEFT JOIN platform_user_profiles profile ON profile.user_id=user_account.id WHERE user_account.username=$1 OR profile.email=$2 LIMIT 1",
     [USERNAME, EMAIL],
   );
   if (existingUser.rowCount > 0) {

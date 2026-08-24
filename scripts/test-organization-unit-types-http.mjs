@@ -20,6 +20,7 @@ async function createCookie(user) {
     userId: String(user.id),
     roleCode: user.role_code,
     organizationId: user.organization_id ? String(user.organization_id) : null,
+    credentialVersion: Number(user.credential_version),
     expiresAt: Date.now() + 10 * 60 * 1000,
   });
   return `${SESSION_COOKIE_NAME}=${token}`;
@@ -87,7 +88,7 @@ async function run() {
   try {
     superadmin = (
       await client.query(
-        `SELECT user_account.id,role.code AS role_code,NULL::bigint AS organization_id
+        `SELECT user_account.id,user_account.credential_version,role.code AS role_code,NULL::bigint AS organization_id
           FROM users user_account
           JOIN user_organization_roles membership ON membership.user_id=user_account.id
           JOIN roles role ON role.id=membership.role_id
@@ -98,7 +99,7 @@ async function run() {
     ).rows[0];
     hrd = (
       await client.query(
-        `SELECT user_account.id,role.code AS role_code,membership.organization_id
+        `SELECT user_account.id,user_account.credential_version,role.code AS role_code,membership.organization_id
           FROM users user_account
           JOIN user_organization_roles membership ON membership.user_id=user_account.id
           JOIN roles role ON role.id=membership.role_id

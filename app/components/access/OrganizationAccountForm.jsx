@@ -8,8 +8,6 @@ import OrganizationScopeField from "@/app/components/forms/OrganizationScopeFiel
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { PASSWORD_FORM_RULES } from "@/app/utils/passwordRules";
-import IndonesiaPhoneInput from "@/app/components/forms/IndonesiaPhoneInput";
-import { getIndonesianMobileFormRules } from "@/lib/validation/indonesianPhone";
 
 /** Form akun mendukung akun akses mandiri dan tautan profil wajib khusus Karyawan. */
 export default function OrganizationAccountForm({
@@ -42,9 +40,6 @@ export default function OrganizationAccountForm({
         ? {
             employeeId: item.employee_id,
             username: item.username,
-            email: item.email,
-            fullName: item.full_name,
-            phone: item.phone,
             roleCode: item.role_code,
             locationScopeMode: item.location_scope_mode,
             locationIds: item.location_ids,
@@ -69,7 +64,7 @@ export default function OrganizationAccountForm({
       .catch(() => onError("Referensi akun tidak dapat dimuat."));
   }, [onError, open, organizationId, targetOrganizationId, user.organization_id]);
 
-  /** Menyimpan akun tanpa mengirim confirmPassword ke endpoint create/update biasa. */
+  /** Backend memvalidasi password dan konfirmasinya; confirmPassword tidak pernah disimpan. */
   const submit = async (values) => {
     try {
       await runWithLoadingBackdrop(
@@ -104,7 +99,7 @@ export default function OrganizationAccountForm({
     <AppModal
       open={open}
       title={editing ? "Edit akun organisasi" : "Tambah akun organisasi"}
-      description="Buat akun akses organisasi; profil pegawai dapat ditautkan sekarang atau nanti."
+      description="Buat kredensial akses; identitas bersumber dari profil pegawai yang ditautkan."
       size="lg"
       onClose={onClose}
       footer={
@@ -156,24 +151,6 @@ export default function OrganizationAccountForm({
           <Form.Item name="username" label="Username" rules={[{ required: true, min: 3 }]}>
             <Input maxLength={80} autoComplete="off" />
           </Form.Item>
-          <Form.Item
-            name="email"
-            label="Email akun"
-            rules={[{ required: true }, { type: "email" }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item name="fullName" label="Nama tampilan" rules={[{ required: true }]}>
-            <Input maxLength={200} />
-          </Form.Item>
-          <Form.Item
-            name="phone"
-            label="Nomor WhatsApp"
-            rules={getIndonesianMobileFormRules()}
-            extra="Masukkan nomor setelah +62 tanpa angka 0 di awal."
-          >
-            <IndonesiaPhoneInput />
-          </Form.Item>
           <Form.Item name="roleCode" label="Role" rules={[{ required: true }]}>
             <Select
               options={[
@@ -184,9 +161,28 @@ export default function OrganizationAccountForm({
             />
           </Form.Item>
           {!editing ? (
-            <Form.Item name="password" label="Password awal" rules={PASSWORD_FORM_RULES}>
-              <Input.Password autoComplete="new-password" />
-            </Form.Item>
+            <>
+              <Form.Item name="password" label="Password" rules={PASSWORD_FORM_RULES}>
+                <Input.Password autoComplete="new-password" />
+              </Form.Item>
+              <Form.Item
+                name="confirmPassword"
+                label="Konfirmasi password"
+                dependencies={["password"]}
+                rules={[
+                  { required: true, message: "Konfirmasi password wajib diisi." },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      return !value || getFieldValue("password") === value
+                        ? Promise.resolve()
+                        : Promise.reject(new Error("Konfirmasi password tidak sama."));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password autoComplete="new-password" />
+              </Form.Item>
+            </>
           ) : null}
         </Box>
         {roleCode === "hrd" ? (
@@ -254,7 +250,7 @@ export function AccountPasswordForm({ open, item, onClose, onSaved, onError }) {
     <AppModal
       open={open}
       title="Reset password"
-      description={`Tetapkan password baru untuk ${item?.full_name || "akun"}.`}
+      description={`Tetapkan password baru untuk ${item?.display_name || `@${item?.username}`}.`}
       size="sm"
       onClose={onClose}
       footer={
