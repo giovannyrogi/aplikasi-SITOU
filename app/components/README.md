@@ -37,27 +37,31 @@ Area daftar operasional wajib memeriksa `DataPanel` sebelum membuat wrapper baru
 
 `LoadingBackdrop` dan `Notification` dikontrol parent. Modal fitur wajib menyusun `AppModal`; dilarang membuat modal shell lain.
 
-Pada detail pegawai, tab Dokumen hanya menampilkan checklist kelengkapan. Upload serta aksi file ditempatkan pada konteks domainnya supaya pengguna tidak melihat dua kontrol dengan fungsi sama: identitas melalui Profil Lengkap, kontrak melalui histori Kontrak, SK melalui histori Penempatan, dan dokumen kompetensi melalui tab Kompetensi.
+Pada detail pegawai, tab Dokumen hanya menampilkan checklist kelengkapan. Upload serta aksi file ditempatkan pada konteks domainnya supaya pengguna tidak melihat dua kontrol dengan fungsi sama: identitas melalui Profil Lengkap, kontrak melalui histori Kontrak, SK melalui histori Penempatan, serta ijazah dan sertifikat melalui tab Pendidikan.
 
 Popup AntD seperti Select, DatePicker, Dropdown, Tooltip, dan Popover memakai `zIndexPopupBase` terpusat pada `approvider/AppProviders.jsx`. Jangan memberi z-index per field; popup harus tetap berada di atas `AppModal` dan di bawah LoadingBackdrop/Notification.
+Seluruh tanggal form memakai `DatePicker` dengan locale terpusat; komponen fitur hanya mengubah nilai Day.js menjadi ISO `YYYY-MM-DD` ketika menyusun request API dan tidak menyediakan input tanggal manual.
 
 ## Form dan Select
 
-| Komponen                             | Tujuan                                                                          | Props penting                                                                           |
-| ------------------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `forms/AsyncSelect`                  | Select async umum dengan loading dan empty state.                               | Props AntD `Select`, `loading`, `options`                                               |
-| `forms/OrganizationScopeField`       | Pemilih organisasi Superadmin atau organisasi session HRD yang terkunci.        | `disabled`                                                                              |
-| `forms/FileUploadField`              | Dropzone umum untuk Excel, PDF, gambar, dan dokumen dengan state file terpilih. | `value`, `accept`, `maxSizeBytes`, `onSelect`, `onRemove`, `previewUrl`                 |
-| `forms/IndonesiaPhoneInput`          | Input nomor seluler Indonesia dengan prefix tetap `+62` dan nilai E.164.        | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                |
-| `forms/PrivateFileUpload`            | Adapter upload privat umum berbasis file ID untuk gambar dan dokumen.           | `value`, `uploadUrl`, `removeUrl`, `fields`, `accept`, `maxSizeBytes`, `showRemove`     |
-| `forms/PrivatePdfUpload`             | Adapter upload PDF privat berbasis file ID yang menyusun `FileUploadField`.     | `value`, `uploadUrl`, `removeUrl`, `fields`, `organizationId`, `onChange`, `showRemove` |
-| `selects/OrganizationSelect`         | Pilihan organisasi dari endpoint options.                                       | `excludeIds`, props `AsyncSelect`                                                       |
-| `selects/LocationSelect`             | Pilihan lokasi aktif berdasarkan organisasi.                                    | `organizationId`, props `AsyncSelect`                                                   |
-| `selects/OrganizationUnitTypeSelect` | Pilihan jenis unit aktif per organisasi dan pilihan lama saat edit.             | `organizationId`, `includeId`, props `AsyncSelect`                                      |
-| `selects/EmployeeSelect`             | Pilihan pegawai aktif sesuai organisasi dan cakupan lokasi actor.               | `organizationId`, `excludeId`, props `AsyncSelect`                                      |
+| Komponen                             | Tujuan                                                                                                  | Props penting                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `forms/AsyncSelect`                  | Select async umum dengan loading dan empty state.                                                       | Props AntD `Select`, `loading`, `options`                                               |
+| `forms/OrganizationScopeField`       | Pemilih organisasi Superadmin atau organisasi session HRD yang terkunci.                                | `disabled`                                                                              |
+| `forms/FileUploadField`              | Dropzone umum untuk Excel, PDF, gambar, dan dokumen; gambar selalu dilihat melalui `ImagePreviewModal`. | `value`, `accept`, `maxSizeBytes`, `onSelect`, `onRemove`, `previewUrl`                 |
+| `forms/IndonesiaPhoneInput`          | Input nomor seluler Indonesia dengan prefix tetap `+62` dan nilai E.164.                                | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                |
+| `forms/IndonesianNationalIdInput`    | Input NIK 16 digit dengan penyaring angka, counter, dan indikator valid.                                | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                |
+| `forms/PrivateFileUpload`            | Adapter upload privat umum berbasis file ID untuk gambar dan dokumen.                                   | `value`, `uploadUrl`, `removeUrl`, `fields`, `accept`, `maxSizeBytes`, `showRemove`     |
+| `forms/PrivatePdfUpload`             | Adapter upload PDF privat berbasis file ID yang menyusun `FileUploadField`.                             | `value`, `uploadUrl`, `removeUrl`, `fields`, `organizationId`, `onChange`, `showRemove` |
+| `selects/OrganizationSelect`         | Pilihan organisasi dari endpoint options.                                                               | `excludeIds`, props `AsyncSelect`                                                       |
+| `selects/LocationSelect`             | Pilihan lokasi aktif berdasarkan organisasi.                                                            | `organizationId`, props `AsyncSelect`                                                   |
+| `selects/OrganizationUnitTypeSelect` | Pilihan jenis unit aktif per organisasi dan pilihan lama saat edit.                                     | `organizationId`, `includeId`, props `AsyncSelect`                                      |
+| `selects/EmployeeSelect`             | Pilihan pegawai aktif sesuai organisasi dan cakupan lokasi actor.                                       | `organizationId`, `excludeId`, props `AsyncSelect`                                      |
 
 Form domain tetap berada di modul fitur dan dirender sebagai children `AppModal`. Gunakan `hooks/useFormModalClose` bersama `ConfirmDialog` untuk dirty-state warning.
+Form panjang dengan tab/collapse wajib mengarahkan validasi ke section bermasalah: tampilkan Notification, buka dan tandai section, lalu fokuskan field pertama yang gagal.
 Seluruh UI pemilihan file wajib memakai `forms/FileUploadField`; adapter domain boleh menyusunnya untuk menangani endpoint atau lifecycle khusus.
+Seluruh aksi lihat gambar wajib memakai `modals/ImagePreviewModal`; jangan membuka gambar langsung pada tab browser atau membuat modal preview per fitur.
 
 ## Subscription dan Feedback
 
@@ -80,18 +84,21 @@ Seluruh UI pemilihan file wajib memakai `forms/FileUploadField`; adapter domain 
 
 ## Kepegawaian dan Akses
 
-| Komponen                           | Tujuan                                                                                                                         | Props penting                                         |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| `employees/EmployeeDirectory`      | Satu pintu masuk daftar pegawai dengan aksi cepat menuju tab profil, penempatan, kontrak, dokumen, dan disiplin.               | Tanpa props; role dan organisasi berasal dari session |
-| `employees/EmployeeForm`           | Workflow profil, KTP/pas foto opsional, kontrak, PDF kontrak, penempatan, PDF SK, dan draft tujuh hari berbasis aksi pengguna. | `open`, `item`, `organizationId`, callback            |
-| `employees/EmployeeImportModal`    | Stepper import Excel data kepegawaian, petunjuk, preview per pegawai, dan commit idempotent.                                   | `open`, `organizationId`, callback                    |
-| `employees/EmployeeDetail`         | Workspace detail responsif untuk ringkasan, histori, checklist dokumen, disiplin, dan akun sesuai role.                        | `employeeId`; tab aktif melalui query `tab`           |
-| `employees/EmployeeLifecycleForms` | Form record baru untuk rolling/mutasi dan kontrak tanpa menimpa histori.                                                       | `employee`, callback                                  |
-| `discipline/DisciplineForms`       | Membuka kasus manual dan menerbitkan tindakan keputusan HRD.                                                                   | `organizationId` atau `disciplineCase`, callback      |
-| `access/OrganizationAccountForm`   | Membuat akun organisasi, tautan profil opsional untuk HRD/Pimpinan, wajib untuk Karyawan, serta mengatur scope.                | `item`, `organizationId`, callback                    |
+| Komponen                               | Tujuan                                                                                                                                                                                                                       | Props penting                                          |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `employees/EmployeeDirectory`          | Satu pintu masuk daftar pegawai dengan aksi lihat ringkasan serta edit yang dibatasi untuk HRD dan Superadmin.                                                                                                               | Tanpa props; role dan organisasi berasal dari session  |
+| `employees/EmployeeForm`               | Workflow profil, KTP/pas foto opsional, kontrak, PDF kontrak, penempatan, PDF SK, dan draft tujuh hari berbasis aksi pengguna.                                                                                               | `open`, `item`, `organizationId`, callback             |
+| `employees/EmployeeImportModal`        | Stepper import Excel data kepegawaian, petunjuk, preview per pegawai, dan commit idempotent.                                                                                                                                 | `open`, `organizationId`, callback                     |
+| `employees/EmployeeDetail`             | Workspace detail responsif dengan ringkasan identitas tanpa duplikasi, preview pas foto/KTP, tab jaminan, pendidikan terstruktur, histori kontrak beserta jejak audit pelaku/waktu, dokumen, disiplin, dan akun sesuai role. | `employeeId`; tab aktif melalui query `tab`            |
+| `employees/EmployeeLifecycleForms`     | Form record baru untuk rolling/mutasi dan kontrak tanpa menimpa histori.                                                                                                                                                     | `employee`, callback                                   |
+| `discipline/DisciplineForms`           | Membuka kasus, mengedit draft tindakan, menerbitkan keputusan, dan mencabut tindakan aktif dengan alasan tanpa menghapus histori.                                                                                            | `organizationId`, `disciplineCase`, `action`, callback |
+| `discipline/DisciplineCaseDetailModal` | Detail lengkap kasus, pembelaan, tindakan, eskalasi, audit penerbit/pencabutan, dan satu aksi unduh surat melalui `AppModal`.                                                                                                | `open`, `disciplineCase`, `organizationId`, `onClose`  |
+| `access/OrganizationAccountForm`       | Membuat akun organisasi, tautan profil opsional untuk HRD/Pimpinan, wajib untuk Pegawai, serta mengatur scope.                                                                                                               | `item`, `organizationId`, callback                     |
 
 Komponen domain di atas menyusun fondasi reusable umum dan tidak membuat modal, tabel, chip, notification, atau loading shell baru.
 
 Halaman detail memakai `DetailTabs` sebelum membuat tab shell baru. Informasi dikelompokkan berdasarkan kebutuhan pengguna, status diterjemahkan ke Bahasa Indonesia, dan aksi utama ditempatkan pada header section. Pimpinan memakai workspace yang sama dalam mode read-only tanpa menerima tab atau data akun.
+
+Data sensitif yang panjang memakai pola kartu ringkas dan `AppModal` detail. Kartu hanya membantu pemindaian daftar; uraian lengkap, pembelaan, audit, eskalasi, serta dokumen ditampilkan pada modal. Satu dokumen resmi hanya menyediakan satu aksi unduh yang tetap melewati endpoint berizin.
 
 `TopMenu` memakai tombol Pengaturan tanpa identitas pengguna pada pop-up. Aksi Profil wajib menuju `/profile` melalui lifecycle loading shell; aksi Keluar memakai alur logout terpusat.

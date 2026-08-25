@@ -7,7 +7,7 @@ import {
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
 import { disciplineCaseUpdateSchema } from "@/lib/discipline/schemas";
-import { getDisciplineCase, updateDisciplineCase } from "@/lib/discipline/service";
+import { getDisciplineCaseForActor, updateDisciplineCase } from "@/lib/discipline/service";
 
 /** Mengambil detail kasus beserta histori tindakan. */
 export async function GET(request, { params }) {
@@ -20,7 +20,7 @@ export async function GET(request, { params }) {
       user,
       new URL(request.url).searchParams.get("organizationId"),
     );
-    return successResponse(await getDisciplineCase(id, organizationId));
+    return successResponse(await getDisciplineCaseForActor(id, organizationId, user));
   } catch (error) {
     return handleRouteError("discipline.cases.detail", error, requestId);
   }

@@ -13,11 +13,13 @@ import {
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
 import {
+  assertStoredFileAvailable,
   createStoredFileStream,
   getStoredFile,
   sanitizeDownloadName,
   softDeleteStoredFile,
 } from "@/lib/files/storage";
+import { canViewDraftDisciplinaryActions } from "@/lib/discipline/visibility.mjs";
 
 /** Memeriksa scope pegawai untuk HRD dengan akses lokasi tertentu. */
 async function enforceFileScope(user, file) {
@@ -31,6 +33,20 @@ async function enforceFileScope(user, file) {
     if (!draft.rows[0])
       throw new ServiceError("FILE_FORBIDDEN", "Anda tidak memiliki akses ke file tersebut.", 403);
     return;
+  }
+  if (file.category === "discipline_letter" && !canViewDraftDisciplinaryActions(user)) {
+    const draftAction = await pool.query(
+      `SELECT 1 FROM disciplinary_actions
+       WHERE organization_id=$1 AND document_file_id=$2 AND status='draft'
+       LIMIT 1`,
+      [file.organization_id, file.id],
+    );
+    if (draftAction.rows[0])
+      throw new ServiceError(
+        "FILE_FORBIDDEN",
+        "Surat tindakan draft hanya dapat diakses oleh pengelola disiplin.",
+        403,
+      );
   }
   if (!file.employee_id) return;
   await ensureActorEmployeeAccess(user, file.employee_id, file.organization_id);
@@ -49,6 +65,7 @@ export async function GET(request, { params }) {
     );
     const file = await getStoredFile(fileId, organizationId);
     await enforceFileScope(user, file);
+    await assertStoredFileAvailable(file);
     const mode =
       new URL(request.url).searchParams.get("download") === "1" ? "attachment" : "inline";
     await writeAudit(pool, {

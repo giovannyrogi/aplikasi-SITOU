@@ -9,7 +9,7 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { PASSWORD_FORM_RULES } from "@/app/utils/passwordRules";
 
-/** Form akun mendukung akun akses mandiri dan tautan profil wajib khusus Karyawan. */
+/** Form akun mendukung akun akses mandiri dan tautan profil wajib khusus Pegawai. */
 export default function OrganizationAccountForm({
   open,
   item,
@@ -128,12 +128,12 @@ export default function OrganizationAccountForm({
                 validator: (_, value) =>
                   roleCode !== "employee" || value
                     ? Promise.resolve()
-                    : Promise.reject(new Error("Profil pegawai wajib dipilih untuk Karyawan.")),
+                    : Promise.reject(new Error("Profil pegawai wajib dipilih untuk akun Pegawai.")),
               },
             ]}
             extra={
               roleCode === "employee"
-                ? "Akun Karyawan harus terhubung ke profil dan penempatan aktif."
+                ? "Akun Pegawai harus terhubung ke profil dan penempatan aktif."
                 : "Kosongkan untuk membuat akun akses tanpa profil pegawai."
             }
           >
@@ -156,7 +156,7 @@ export default function OrganizationAccountForm({
               options={[
                 { value: "hrd", label: "HRD" },
                 { value: "leader", label: "Pimpinan" },
-                { value: "employee", label: "Karyawan" },
+                { value: "employee", label: "Pegawai" },
               ]}
             />
           </Form.Item>

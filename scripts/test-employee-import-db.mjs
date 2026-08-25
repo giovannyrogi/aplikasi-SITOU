@@ -47,7 +47,7 @@ try {
     "INSERT INTO employees(organization_id,employee_no,full_name,national_id) VALUES ($1,$2,'Duplikat NIK',$3)",
     [organizationId, `${employeeNo}-LAIN`, nationalId],
   );
-  console.log("Constraint Nomor Pegawai dan NIK menolak duplikasi termasuk soft-deleted.");
+  console.log("Constraint NIP dan NIK menolak duplikasi termasuk soft-deleted.");
 } finally {
   await client.query("ROLLBACK").catch(() => {});
   await client.end().catch(() => {});

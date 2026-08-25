@@ -1,8 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { accountCreateSchema, accountPasswordSchema } from "../lib/access/schemas.js";
-import { employeeProfileSectionsSchema } from "../lib/employees/profileSchemas.js";
-import { disciplinaryActionCreateSchema } from "../lib/discipline/schemas.js";
+import {
+  employeeProfileMultipartSchema,
+  employeeProfileSectionsSchema,
+} from "../lib/employees/profileSchemas.js";
+import {
+  disciplinaryActionCreateSchema,
+  disciplinaryActionRevokeSchema,
+} from "../lib/discipline/schemas.js";
 import {
   assignmentSchema,
   contractSchema,
@@ -10,6 +16,11 @@ import {
   employeeContractCorrectionSchema,
   employeeDraftSaveSchema,
 } from "../lib/employees/schemas.js";
+import {
+  isValidIndonesianNationalId,
+  normalizeIndonesianNationalId,
+  optionalIndonesianNationalIdSchema,
+} from "../lib/validation/indonesianNationalId.js";
 
 const strongAccount = {
   organizationId: 1,
@@ -66,7 +77,7 @@ test("akun Pimpinan dapat dibuat tanpa profil pegawai", () => {
   assert.equal(result.success, true);
 });
 
-test("akun Karyawan wajib ditautkan ke profil pegawai", () => {
+test("akun Pegawai wajib ditautkan ke profil pegawai", () => {
   const result = accountCreateSchema.safeParse({
     ...strongAccount,
     employeeId: null,
@@ -115,6 +126,43 @@ test("profil menerima identitas administratif beserta file privat", () => {
   assert.equal(result.success, true);
 });
 
+test("NIK terpusat hanya menerima tepat 16 digit", () => {
+  assert.equal(normalizeIndonesianNationalId("7171 0821-0294 0002"), "7171082102940002");
+  assert.equal(isValidIndonesianNationalId("7171082102940002"), true);
+  assert.equal(isValidIndonesianNationalId("717108210294000"), false);
+  assert.equal(optionalIndonesianNationalIdSchema.safeParse("71710821029400020").success, false);
+});
+
+test("NIK anggota keluarga mengikuti validasi 16 digit yang sama", () => {
+  const result = employeeProfileSectionsSchema.safeParse({
+    dependents: [
+      {
+        relationship: "child",
+        fullName: "Contoh Pegawai",
+        nationalId: "1234",
+      },
+    ],
+  });
+  assert.equal(result.success, false);
+  assert.equal(
+    result.error.issues.some((issue) => issue.path.join(".") === "dependents.0.nationalId"),
+    true,
+  );
+});
+
+test("upload profil tertunda wajib memiliki token dan target unik", () => {
+  const token = "d9ab55b8-54a8-4b78-9bf2-c71b07ea2965";
+  const result = employeeProfileMultipartSchema.safeParse({
+    organizationId: 1,
+    profile: {},
+    uploads: [
+      { token, target: "profilePhoto" },
+      { token, target: "profilePhoto" },
+    ],
+  });
+  assert.equal(result.success, false);
+});
+
 test("identitas lainnya wajib mempunyai nama yang dapat dipahami pengguna", () => {
   const result = employeeProfileSectionsSchema.safeParse({
     identifiers: [{ identifierType: "other", identifierValue: "ABC-001" }],
@@ -122,6 +170,34 @@ test("identitas lainnya wajib mempunyai nama yang dapat dipahami pengguna", () =
   assert.equal(result.success, false);
   assert.equal(
     result.error.issues.some((issue) => issue.path.join(".") === "identifiers.0.identifierLabel"),
+    true,
+  );
+});
+
+test("profil menolak jenis identitas administratif yang sama", () => {
+  const result = employeeProfileSectionsSchema.safeParse({
+    identifiers: [
+      { identifierType: "bpjs_health", identifierValue: "0001234567890" },
+      { identifierType: "bpjs_health", identifierValue: "0009876543210" },
+    ],
+  });
+  assert.equal(result.success, false);
+  assert.equal(
+    result.error.issues.some((issue) => issue.path.join(".") === "identifiers.1.identifierType"),
+    true,
+  );
+});
+
+test("profil menolak platform akun sosial duplikat tanpa membedakan kapitalisasi", () => {
+  const result = employeeProfileSectionsSchema.safeParse({
+    socialAccounts: [
+      { platform: "Facebook", handleOrUrl: "https://facebook.com/pegawai" },
+      { platform: "facebook", handleOrUrl: "https://facebook.com/pegawai-lain" },
+    ],
+  });
+  assert.equal(result.success, false);
+  assert.equal(
+    result.error.issues.some((issue) => issue.path.join(".") === "socialAccounts.1.platform"),
     true,
   );
 });
@@ -136,6 +212,44 @@ test("tindakan tertulis aktif wajib memiliki nomor dan file", () => {
     directEscalation: false,
   });
   assert.equal(result.success, false);
+});
+
+test("SP berstatus draft boleh disimpan sebelum nomor dan file surat lengkap", () => {
+  const result = disciplinaryActionCreateSchema.safeParse({
+    organizationId: 1,
+    actionType: "sp1",
+    issuedDate: "2026-08-22",
+    effectiveFrom: "2026-08-22",
+    status: "draft",
+    directEscalation: false,
+  });
+  assert.equal(result.success, true);
+});
+
+test("pencabutan tindakan wajib memiliki alasan yang layak", () => {
+  assert.equal(
+    disciplinaryActionRevokeSchema.safeParse({ organizationId: 1, reason: "salah" }).success,
+    false,
+  );
+  assert.equal(
+    disciplinaryActionRevokeSchema.safeParse({
+      organizationId: 1,
+      reason: "Surat diterbitkan menggunakan dasar keputusan yang keliru.",
+    }).success,
+    true,
+  );
+});
+
+test("teguran lisan aktif tidak mewajibkan nomor dan file surat", () => {
+  const result = disciplinaryActionCreateSchema.safeParse({
+    organizationId: 1,
+    actionType: "oral_warning",
+    issuedDate: "2026-08-22",
+    effectiveFrom: "2026-08-22",
+    status: "active",
+    directEscalation: false,
+  });
+  assert.equal(result.success, true);
 });
 
 test("SP2 langsung wajib memiliki alasan eskalasi", () => {
@@ -208,10 +322,21 @@ test("penempatan wajib memiliki nomor dan dokumen SK", () => {
 test("checkpoint draft hanya menerima struktur wizard dan version positif", () => {
   const valid = employeeDraftSaveSchema.safeParse({
     organizationId: 1,
-    currentStep: 1,
+    currentStep: 3,
     version: 1,
     payload: {
       employeeNo: "PGW-001",
+      profile: {
+        educations: [
+          {
+            educationLevel: "S1",
+            institution: "Universitas Contoh",
+            fieldOfStudy: "Sistem Informasi",
+            graduationYear: 2024,
+            isHighest: true,
+          },
+        ],
+      },
       contract: { employmentTypeId: "1", startDate: "2026-08-22" },
     },
   });
@@ -223,4 +348,24 @@ test("checkpoint draft hanya menerima struktur wizard dan version positif", () =
     payload: { employeeNo: "PGW-001", injected: "tidak boleh" },
   });
   assert.equal(unknown.success, false);
+});
+
+test("checkpoint draft menerima pendidikan yang belum lengkap pada step Profil", () => {
+  const result = employeeDraftSaveSchema.safeParse({
+    organizationId: 1,
+    currentStep: 0,
+    version: 1,
+    payload: {
+      employeeNo: "PGW-001",
+      fullName: "Pegawai Contoh",
+      profile: { educations: [{ isHighest: true }] },
+      contract: { status: "active", startDate: "2026-08-25" },
+      assignment: {
+        assignmentType: "primary",
+        changeType: "initial",
+        effectiveFrom: "2026-08-25",
+      },
+    },
+  });
+  assert.equal(result.success, true);
 });

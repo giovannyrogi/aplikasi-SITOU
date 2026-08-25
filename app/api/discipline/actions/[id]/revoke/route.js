@@ -6,35 +6,32 @@ import {
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
-import { disciplinaryActionUpdateSchema } from "@/lib/discipline/schemas";
-import { updateDisciplinaryAction } from "@/lib/discipline/service";
+import { disciplinaryActionRevokeSchema } from "@/lib/discipline/schemas";
+import { revokeDisciplinaryAction } from "@/lib/discipline/service";
 
-/** Mengedit draft atau menerbitkannya; tindakan aktif tidak dapat ditimpa. */
-export async function PATCH(request, { params }) {
+/** Mencabut tindakan aktif tanpa menghapus keputusan, surat, atau histori kasus. */
+export async function POST(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("discipline.manage");
   if (response) return response;
   const rejected = validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
-  const parsed = await readJson(request, disciplinaryActionUpdateSchema, requestId);
+  const parsed = await readJson(request, disciplinaryActionRevokeSchema, requestId);
   if (parsed.response) return parsed.response;
   try {
     const { id } = await params;
     const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);
-    const data = await updateDisciplinaryAction(
+    const data = await revokeDisciplinaryAction(
       id,
       { ...parsed.data, organizationId },
       user,
       requestId,
     );
     return successResponse(data, {
-      code: "DISCIPLINARY_ACTION_UPDATED",
-      message:
-        parsed.data.status === "active"
-          ? "Tindakan disiplin berhasil diterbitkan."
-          : "Draft tindakan disiplin berhasil diperbarui.",
+      code: "DISCIPLINARY_ACTION_REVOKED",
+      message: "Tindakan disiplin berhasil dicabut dan tetap tersimpan dalam histori.",
     });
   } catch (error) {
-    return handleRouteError("discipline.actions.update", error, requestId);
+    return handleRouteError("discipline.actions.revoke", error, requestId);
   }
 }

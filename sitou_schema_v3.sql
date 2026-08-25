@@ -246,7 +246,7 @@ CREATE TABLE roles (
   description text, -- Penjelasan kewenangan role.
   is_system boolean NOT NULL DEFAULT false -- Role bawaan tidak boleh dihapus sembarang.
 );
-COMMENT ON TABLE roles IS 'Role dasar platform: superadmin, pimpinan, HRD, dan karyawan.';
+COMMENT ON TABLE roles IS 'Role dasar platform: superadmin, pimpinan, HRD, dan pegawai.';
 
 CREATE TABLE permissions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID permission.
@@ -296,7 +296,7 @@ COMMENT ON TABLE user_location_scopes IS 'Pembatas akses lokasi bagi admin/pimpi
 CREATE TABLE employees (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID pegawai internal.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik pegawai.
-  employee_no varchar(60) NOT NULL, -- NIP/nomor pegawai; teks agar nol awal tidak hilang.
+  employee_no varchar(60) NOT NULL, -- NIP; teks agar nol awal tidak hilang.
   user_id bigint UNIQUE REFERENCES users(id), -- Akun self-service pegawai bila sudah dibuat.
   full_name varchar(200) NOT NULL, -- Nama lengkap.
   preferred_name varchar(100), -- Nama panggilan.
@@ -1110,6 +1110,9 @@ CREATE TABLE disciplinary_actions (
   document_file_id bigint, -- Surat resmi privat; wajib oleh aplikasi untuk tindakan tertulis.
   issued_by_user_id bigint NOT NULL REFERENCES users(id), -- HRD pencatat/penerbit di sistem.
   notes text, -- Catatan internal berizin.
+  revoked_at timestamptz, -- Waktu tindakan aktif dicabut secara logis.
+  revoked_by_user_id bigint REFERENCES users(id), -- HRD/Superadmin pencabut tindakan.
+  revocation_reason text, -- Alasan wajib yang dipertahankan dalam histori.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dicatat.
   CONSTRAINT uq_disciplinary_action_case UNIQUE (organization_id,discipline_case_id), -- Satu tindakan resmi per kasus.
   CONSTRAINT fk_action_case FOREIGN KEY (organization_id,discipline_case_id) REFERENCES discipline_cases(organization_id,id),
@@ -1118,6 +1121,10 @@ CREATE TABLE disciplinary_actions (
   CONSTRAINT ck_action_dates CHECK (effective_until IS NULL OR effective_until >= effective_from),
   CONSTRAINT ck_action_letter CHECK (action_type='oral_warning' OR status='draft' OR (letter_no IS NOT NULL AND document_file_id IS NOT NULL)),
   CONSTRAINT ck_action_escalation CHECK (NOT direct_escalation OR escalation_reason IS NOT NULL),
+  CONSTRAINT ck_disciplinary_action_revocation CHECK (
+    (status='revoked' AND revoked_at IS NOT NULL AND revoked_by_user_id IS NOT NULL AND length(btrim(revocation_reason)) >= 10)
+    OR (status<>'revoked' AND revoked_at IS NULL AND revoked_by_user_id IS NULL AND revocation_reason IS NULL)
+  ),
   CONSTRAINT ck_sp_validity CHECK (action_type NOT IN ('sp1','sp2','sp3') OR effective_until = (issued_date + interval '3 months')::date)
 );
 COMMENT ON TABLE disciplinary_actions IS 'Tindakan resmi HRD. SP1/SP2/SP3 berlaku tepat 3 bulan; histori tidak ditimpa.';
@@ -1257,7 +1264,7 @@ INSERT INTO roles(code,name,scope,description,is_system) VALUES
   ('superadmin','Super Administrator','platform','Membuat organisasi, lokasi awal, dan akun admin.',true),
   ('leader','Pimpinan','organization','Memantau dashboard dan histori sesuai cakupan tanpa mengubah data HRD.',true),
   ('hrd','HRD','organization','Mengelola pegawai, absensi, izin, rolling, kontrak, dan tindakan disiplin.',true),
-  ('employee','Karyawan','self','Mengakses data sendiri dan kanal self-service masa depan.',true)
+  ('employee','Pegawai','self','Mengakses data sendiri dan kanal self-service masa depan.',true)
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO permissions(code,description) VALUES

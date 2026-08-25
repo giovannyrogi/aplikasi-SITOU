@@ -4,7 +4,7 @@
 
 SITOU menerima satu workbook `.xlsx` maksimal 10 MB. Workbook memuat `Petunjuk`, `Pegawai`, `Kontak`, `Identitas`, `Rekening`, `Keluarga`, `Kontak_Darurat`, `Akun_Sosial`, `Pendidikan`, `Keahlian`, `Sertifikasi`, `Kontrak`, `Penempatan`, dan hidden sheet `Referensi`.
 
-`Nomor Pegawai` menghubungkan seluruh sheet. Sheet `Kontrak` dan `Penempatan` dapat memiliki beberapa baris untuk menyimpan histori tanpa menimpa periode lama. Referensi seperti `KON-001` dan `PEN-001` harus unik dalam workbook.
+`NIP` menghubungkan seluruh sheet. Sheet `Kontrak` dan `Penempatan` dapat memiliki beberapa baris untuk menyimpan histori tanpa menimpa periode lama. Referensi seperti `KON-001` dan `PEN-001` harus unik dalam workbook.
 
 Import tidak memproses akun login, foto, dokumen, kasus disiplin, tindakan sanksi, absensi, atau payroll. Pas foto, scan identitas, sertifikat, kontrak bertanda tangan, dan dokumen lain diunggah manual melalui detail pegawai setelah import berhasil.
 
@@ -12,7 +12,7 @@ Import tidak memproses akun login, foto, dokumen, kasus disiplin, tindakan sanks
 
 | Sheet                                       | Status          | Penggunaan                                                                                                                                                          |
 | ------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Pegawai`                                   | Wajib           | Selalu diisi satu baris per pegawai. Nomor Pegawai, nama lengkap, NIK 16 digit, dan status wajib tersedia.                                                          |
+| `Pegawai`                                   | Wajib           | Selalu diisi satu baris per pegawai. NIP, nama lengkap, NIK 16 digit, dan status wajib tersedia.                                                                    |
 | `Kontrak`                                   | Wajib bersyarat | Wajib untuk pegawai berstatus aktif, masa percobaan, atau cuti (`active`, `probation`, atau `leave`); dapat memuat histori kontrak yang periodenya tidak bertumpuk. |
 | `Penempatan`                                | Wajib bersyarat | Wajib untuk pegawai berstatus aktif, masa percobaan, atau cuti (`active`, `probation`, atau `leave`); dapat memuat histori rolling, promosi, demosi, atau mutasi.   |
 | `Kontak`, `Identitas`, `Rekening`           | Opsional        | Diisi bila data administratif tersebut tersedia.                                                                                                                    |
@@ -24,8 +24,8 @@ Sheet opsional yang tidak diperlukan boleh dibiarkan kosong dan tidak menghalang
 ## Identitas dan Duplikasi
 
 - NIK wajib berisi tepat 16 digit.
-- Nomor Pegawai dinormalisasi dengan trim dan uppercase; NIK disimpan sebagai digit canonical.
-- Nomor Pegawai atau NIK yang sama dalam workbook membuat seluruh data pegawai terkait invalid.
+- NIP dinormalisasi dengan trim dan uppercase; NIK disimpan sebagai digit canonical.
+- NIP atau NIK yang sama dalam workbook membuat seluruh data pegawai terkait invalid.
 - Pemeriksaan database mencakup pegawai aktif, nonaktif, dan soft-deleted.
 - Commit memeriksa ulang identitas dalam transaction lock. Unique index database mencegah dua request bersamaan membuat data ganda.
 - Nama bukan kunci unik karena orang berbeda dapat memiliki nama yang sama.
@@ -33,7 +33,7 @@ Sheet opsional yang tidak diperlukan boleh dibiarkan kosong dan tidak menghalang
 ## Alur Pengguna
 
 1. Unduh template organisasi agar sheet `Referensi` berisi master aktif yang boleh digunakan.
-2. Isi sheet `Pegawai`, lalu gunakan Nomor Pegawai yang sama pada sheet terkait.
+2. Isi sheet `Pegawai`, lalu gunakan NIP yang sama pada sheet terkait.
 3. Hapus seluruh baris contoh `CONTOH-001`.
 4. Upload workbook dan tunggu validasi; tahap ini belum menulis data pegawai final.
 5. Periksa ringkasan per pegawai dan unduh laporan kesalahan bila diperlukan.

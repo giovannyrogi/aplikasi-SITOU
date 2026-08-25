@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Checkbox, DatePicker, Form, Input, Select, Steps } from "antd";
 import {
   CheckCircleOutlined,
@@ -18,12 +18,83 @@ import OrganizationScopeField from "@/app/components/forms/OrganizationScopeFiel
 import PrivatePdfUpload from "@/app/components/forms/PrivatePdfUpload";
 import PrivateFileUpload from "@/app/components/forms/PrivateFileUpload";
 import IndonesiaPhoneInput from "@/app/components/forms/IndonesiaPhoneInput";
+import IndonesianNationalIdInput from "@/app/components/forms/IndonesianNationalIdInput";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { getIndonesianMobileFormRules } from "@/lib/validation/indonesianPhone";
+import { getIndonesianNationalIdFormRules } from "@/lib/validation/indonesianNationalId";
+import { BLOOD_TYPE_OPTIONS, EDUCATION_LEVEL_OPTIONS } from "@/lib/employees/profileOptions";
 
 const required = (message) => [{ required: true, message }];
 const dateValue = (value) => (value ? dayjs(value) : null);
+
+const FIELD_LABELS = {
+  organizationId: "Organisasi",
+  employeeNo: "NIP",
+  fullName: "Nama lengkap",
+  preferredName: "Nama panggilan",
+  nationalId: "NIK",
+  birthPlace: "Tempat lahir",
+  birthDate: "Tanggal lahir",
+  joinedDate: "Tanggal bergabung",
+  gender: "Jenis kelamin",
+  religion: "Agama",
+  maritalStatus: "Status perkawinan",
+  bloodType: "Golongan darah",
+  nationality: "Kewarganegaraan",
+  employmentStatus: "Status pegawai",
+  "contact.personalEmail": "Email pribadi",
+  "contact.whatsapp": "Nomor WhatsApp",
+  "contact.ktpAddress": "Alamat sesuai KTP",
+  "contact.domicileAddress": "Alamat domisili",
+  "profile.educations.0.educationLevel": "Jenjang pendidikan",
+  "profile.educations.0.institution": "Nama institusi pendidikan",
+  "profile.educations.0.fieldOfStudy": "Program studi atau jurusan",
+  "profile.educations.0.graduationYear": "Tahun kelulusan",
+  "contract.employmentTypeId": "Jenis kepegawaian",
+  "contract.contractNo": "Nomor kontrak",
+  "contract.startDate": "Tanggal mulai kontrak",
+  "contract.endDate": "Tanggal akhir kontrak",
+  "assignment.locationId": "Lokasi",
+  "assignment.organizationUnitId": "Divisi atau unit",
+  "assignment.positionId": "Jabatan",
+  "assignment.supervisorEmployeeId": "Atasan langsung",
+  "assignment.effectiveFrom": "Tanggal efektif penempatan",
+  "assignment.decreeNo": "Nomor SK",
+};
+
+/** Mengubah path dari API menjadi NamePath AntD dengan indeks array bertipe angka. */
+function normalizeFieldPath(name) {
+  const parts = Array.isArray(name) ? name : String(name).split(".");
+  const formParts = parts[0] === "payload" ? parts.slice(1) : parts;
+  return formParts.map((part) => (/^\d+$/.test(String(part)) ? Number(part) : part));
+}
+
+/** Menentukan langkah wizard yang memiliki field bermasalah. */
+function getStepFromFieldPath(name) {
+  const key = normalizeFieldPath(name).join(".");
+  if (key.startsWith("profile.educations")) return 1;
+  if (key.startsWith("contract.")) return 2;
+  if (key.startsWith("assignment.")) return 3;
+  return 0;
+}
+
+/** Menghasilkan label ramah pengguna untuk notifikasi validasi. */
+function getFieldLabel(name) {
+  const key = normalizeFieldPath(name).join(".");
+  return FIELD_LABELS[key] || FIELD_LABELS[key.split(".").at(-1)] || "Field yang ditandai";
+}
+
+/** Menyusun pesan yang menyebut field pertama dan jumlah koreksi lain bila ada. */
+function getValidationMessage(errorFields = []) {
+  const first = errorFields[0];
+  if (!first) return "Periksa field yang ditandai merah, lalu coba kembali.";
+  const detail = first.errors?.[0] || "Nilai belum sesuai.";
+  const remaining = errorFields.length - 1;
+  return `Perbaiki ${getFieldLabel(first.name)}: ${detail}${
+    remaining > 0 ? ` Masih ada ${remaining} field lain yang perlu diperiksa.` : ""
+  }`;
+}
 
 /** Menyiapkan nilai awal konsisten untuk draft pegawai baru. */
 function getCreateDefaults(organizationId) {
@@ -32,6 +103,9 @@ function getCreateDefaults(organizationId) {
     nationality: "Indonesia",
     employmentStatus: "active",
     contact: {},
+    profile: {
+      educations: [{ isHighest: true }],
+    },
     assignment: { assignmentType: "primary", changeType: "initial", effectiveFrom: dayjs() },
     contract: { status: "active", startDate: dayjs() },
   };
@@ -47,6 +121,18 @@ function hydrateDraft(payload, organizationId) {
     birthDate: dateValue(payload.birthDate),
     joinedDate: dateValue(payload.joinedDate),
     contact: { ...defaults.contact, ...(payload.contact || {}) },
+    profile: {
+      educations: (payload.profile?.educations?.length
+        ? payload.profile.educations
+        : defaults.profile.educations
+      ).map((education) => ({
+        ...education,
+        graduationYear: education.graduationYear
+          ? dayjs(String(education.graduationYear), "YYYY")
+          : null,
+        isHighest: true,
+      })),
+    },
     contract: {
       ...defaults.contract,
       ...(payload.contract || {}),
@@ -84,6 +170,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   const saveQueueRef = useRef(Promise.resolve(true));
   const draftRef = useRef(null);
   const dirtyRef = useRef(false);
+  const onErrorRef = useRef(onError);
   const selectedOrganizationId = Form.useWatch("organizationId", form);
   const selectedLocationId = Form.useWatch(["assignment", "locationId"], form);
   const editing = Boolean(item);
@@ -92,6 +179,72 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   const assignmentFile = files.find((file) => file.category === "assignment_decree") || null;
   const profilePhotoFile = files.find((file) => file.category === "employee_photo") || null;
   const ktpFile = files.find((file) => file.category === "identity") || null;
+  const educationFile = files.find((file) => file.category === "education") || null;
+
+  /** Menjaga callback notifikasi terbaru tanpa memicu ulang efek inisialisasi form. */
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  /** Melaporkan error melalui callback stabil agar render Notification tidak mereset isian. */
+  const reportError = useCallback((message) => {
+    onErrorRef.current?.(message);
+  }, []);
+
+  /** Membuka langkah pemilik field, menggulir halus, lalu memindahkan fokus untuk koreksi. */
+  const guideToField = useCallback(
+    (name, targetStep = getStepFromFieldPath(name)) => {
+      const fieldPath = normalizeFieldPath(name);
+      setStep(targetStep);
+      window.setTimeout(() => {
+        form.scrollToField(fieldPath, { behavior: "smooth", block: "center" });
+        window.setTimeout(() => {
+          form.getFieldInstance(fieldPath)?.focus?.({ preventScroll: true });
+        }, 350);
+      }, 80);
+    },
+    [form],
+  );
+
+  /** Mengarahkan pengguna ke kontrol non-Form seperti dropzone dokumen wajib. */
+  const guideToElement = useCallback((elementId) => {
+    document.getElementById(elementId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
+  /** Menampilkan detail validasi dan mengarahkan pengguna ke field pertama yang salah. */
+  const handleValidationFailure = useCallback(
+    (validationError) => {
+      const errorFields = validationError?.errorFields || [];
+      reportError(getValidationMessage(errorFields));
+      if (errorFields[0]?.name) guideToField(errorFields[0].name);
+    },
+    [guideToField, reportError],
+  );
+
+  /** Menempelkan error API ke field form, membuka step terkait, dan memberi pesan yang dapat ditindaklanjuti. */
+  const handleApiFieldErrors = useCallback(
+    (fieldErrors) => {
+      const entries = Object.entries(fieldErrors || {});
+      if (!entries.length) return false;
+      const normalizedEntries = entries.map(([name, error]) => [normalizeFieldPath(name), error]);
+      form.setFields(
+        normalizedEntries.map(([name, error]) => ({
+          name,
+          errors: [error],
+        })),
+      );
+      const [firstName, firstError] = normalizedEntries[0];
+      guideToField(firstName);
+      const remaining = normalizedEntries.length - 1;
+      reportError(
+        `Perbaiki ${getFieldLabel(firstName)}: ${firstError}${
+          remaining > 0 ? ` Masih ada ${remaining} field lain yang perlu diperiksa.` : ""
+        }`,
+      );
+      return true;
+    },
+    [form, guideToField, reportError],
+  );
 
   /** Menjaga ref version tetap sinkron untuk penyimpanan draft yang berjalan berurutan. */
   const rememberDraft = (value) => {
@@ -166,7 +319,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
           );
         } catch (error) {
           if (error.name !== "AbortError")
-            onError(error.message || "Dokumen pegawai gagal dimuat.");
+            reportError(error.message || "Dokumen pegawai gagal dimuat.");
         }
       })();
       return () => controller.abort();
@@ -206,7 +359,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
       } catch (error) {
         if (active) {
           setDraftStatus("error");
-          onError(error.message || "Draft pegawai tidak dapat dimuat.");
+          reportError(error.message || "Draft pegawai tidak dapat dimuat.");
         }
       }
     })();
@@ -217,9 +370,9 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
     editing,
     form,
     item,
-    onError,
     open,
     organizationId,
+    reportError,
     targetOrganizationId,
     user.organization_id,
   ]);
@@ -232,11 +385,11 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
     fetch(`/api/employees/reference-options?organizationId=${target}`)
       .then((response) => response.json())
       .then((body) => active && setReferences(body.data || {}))
-      .catch(() => active && onError("Referensi form pegawai tidak dapat dimuat."));
+      .catch(() => active && reportError("Referensi form pegawai tidak dapat dimuat."));
     return () => {
       active = false;
     };
-  }, [onError, open, organizationId, selectedOrganizationId, user.organization_id]);
+  }, [open, organizationId, reportError, selectedOrganizationId, user.organization_id]);
 
   const availableUnits = useMemo(
     () =>
@@ -258,6 +411,15 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
       birthDate: formatDate(values.birthDate),
       joinedDate: formatDate(values.joinedDate),
       contact,
+      profile: {
+        educations: (values.profile?.educations || []).map((education) => ({
+          ...education,
+          graduationYear: education.graduationYear?.year
+            ? education.graduationYear.year()
+            : education.graduationYear || null,
+          isHighest: true,
+        })),
+      },
       ...(editing
         ? { version: item.updated_at }
         : {
@@ -295,14 +457,20 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
           }),
         });
         const body = await response.json();
-        if (!response.ok) throw new Error(body.message || "Draft tidak dapat disimpan.");
+        if (!response.ok) {
+          if (handleApiFieldErrors(body.fieldErrors)) {
+            setDraftStatus("error");
+            return false;
+          }
+          throw new Error(body.message || "Draft tidak dapat disimpan.");
+        }
         rememberDraft(body.data);
         dirtyRef.current = false;
         setDraftStatus("saved");
         return true;
       } catch (error) {
         setDraftStatus("error");
-        onError(error.message);
+        reportError(error.message);
         return false;
       }
     });
@@ -336,21 +504,36 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
 
   /** Navigasi step memvalidasi bagian aktif dan menyimpan posisi terakhir. */
   const nextStep = async () => {
-    const fields =
-      step === 0
-        ? ["organizationId", "employeeNo", "fullName", "joinedDate", "employmentStatus"]
-        : [
-            ["contract", "employmentTypeId"],
-            ["contract", "contractNo"],
-            ["contract", "startDate"],
-          ];
+    const fieldsByStep = [
+      [
+        "organizationId",
+        "employeeNo",
+        "fullName",
+        "nationalId",
+        "joinedDate",
+        "employmentStatus",
+        ["contact", "personalEmail"],
+        ["contact", "whatsapp"],
+      ],
+      [
+        ["profile", "educations", 0, "educationLevel"],
+        ["profile", "educations", 0, "institution"],
+      ],
+      [
+        ["contract", "employmentTypeId"],
+        ["contract", "contractNo"],
+        ["contract", "startDate"],
+      ],
+    ];
     try {
-      await form.validateFields(fields);
-    } catch {
+      await form.validateFields(fieldsByStep[step] || []);
+    } catch (validationError) {
+      handleValidationFailure(validationError);
       return;
     }
-    if (step === 1 && !contractFile) {
-      onError("Dokumen kontrak aktif wajib diunggah sebelum melanjutkan.");
+    if (step === 2 && !contractFile) {
+      reportError("Dokumen kontrak aktif wajib diunggah sebelum melanjutkan.");
+      guideToElement("employee-contract-document");
       return;
     }
     const next = step + 1;
@@ -369,7 +552,8 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   const submit = async (values) => {
     try {
       if (!editing && !assignmentFile) {
-        onError("Dokumen SK penempatan wajib diunggah sebelum menyimpan pegawai.");
+        reportError("Dokumen SK penempatan wajib diunggah sebelum menyimpan pegawai.");
+        guideToElement("employee-assignment-document");
         return;
       }
       await runWithLoadingBackdrop(
@@ -382,7 +566,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               body: JSON.stringify(serialize(values)),
             });
           } else {
-            const saved = await saveDraftNow(2);
+            const saved = await saveDraftNow(3);
             if (!saved) throw new Error("Draft belum berhasil disimpan.");
             response = await fetch(`/api/employees/drafts/${draftRef.current.id}/submit`, {
               method: "POST",
@@ -392,19 +576,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
           }
           const body = await response.json();
           if (!response.ok) {
-            if (body.fieldErrors) {
-              form.setFields(
-                Object.entries(body.fieldErrors).map(([name, error]) => ({
-                  name: name.split("."),
-                  errors: [error],
-                })),
-              );
-              if (Object.keys(body.fieldErrors).some((name) => name.startsWith("contract.")))
-                setStep(1);
-              else if (Object.keys(body.fieldErrors).some((name) => name.startsWith("assignment.")))
-                setStep(2);
-              else setStep(0);
-            }
+            if (handleApiFieldErrors(body.fieldErrors)) return;
             throw new Error(body.message || "Data pegawai tidak dapat disimpan.");
           }
           draftRef.current = null;
@@ -418,7 +590,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
         },
       );
     } catch (error) {
-      onError(error.message);
+      reportError(error.message);
     }
   };
 
@@ -454,7 +626,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
         { message: "Menyiapkan draft baru..." },
       );
     } catch (error) {
-      onError(error.message);
+      reportError(error.message);
     }
   };
 
@@ -505,7 +677,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
       <AppModal
         open={open}
         title={editing ? "Edit data pegawai" : "Tambah data pegawai"}
-        description="Lengkapi profil, kontrak, dokumen, dan penempatan dalam satu alur."
+        description="Lengkapi profil, pendidikan, kontrak, dokumen, dan penempatan dalam satu alur."
         size="xl"
         onClose={requestClose}
         disableClose={!editing && draftStatus === "loading"}
@@ -514,7 +686,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
             <Button onClick={step ? previousStep : requestClose}>
               {step ? "Kembali" : editing ? "Batal" : "Simpan draft & tutup"}
             </Button>
-            {!editing && step < 2 ? (
+            {!editing && step < 3 ? (
               <Button
                 type="primary"
                 onClick={nextStep}
@@ -557,7 +729,12 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 size="small"
                 responsive={false}
                 titlePlacement={mobile ? "vertical" : "horizontal"}
-                items={[{ title: "Profil" }, { title: "Kontrak" }, { title: "Penempatan" }]}
+                items={[
+                  { title: "Profil" },
+                  { title: "Pendidikan" },
+                  { title: "Kontrak" },
+                  { title: "Penempatan" },
+                ]}
               />
             </Box>
             <Box
@@ -619,7 +796,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 type="error"
                 showIcon
                 title="Draft belum aman tersimpan"
-                description="Periksa koneksi lalu tekan kembali tombol penyimpanan draft."
+                description="Periksa field yang ditandai atau koneksi, lalu simpan draft kembali."
                 style={{ marginBottom: 16 }}
               />
             ) : null}
@@ -629,6 +806,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
           form={form}
           layout="vertical"
           onFinish={submit}
+          onFinishFailed={handleValidationFailure}
           onValuesChange={markDraftDirty}
           requiredMark
         >
@@ -637,8 +815,8 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               <OrganizationScopeField disabled />
               <Form.Item
                 name="employeeNo"
-                label="Nomor pegawai"
-                rules={required("Nomor pegawai wajib diisi.")}
+                label="NIP (Nomor Induk Pegawai)"
+                rules={required("NIP wajib diisi.")}
               >
                 <Input maxLength={60} />
               </Form.Item>
@@ -652,12 +830,8 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               <Form.Item name="preferredName" label="Nama panggilan">
                 <Input maxLength={100} />
               </Form.Item>
-              <Form.Item
-                name="nationalId"
-                label="NIK"
-                rules={[{ pattern: /^\d{16}$/, message: "NIK harus terdiri dari tepat 16 digit." }]}
-              >
-                <Input maxLength={16} inputMode="numeric" />
+              <Form.Item name="nationalId" label="NIK" rules={getIndonesianNationalIdFormRules()}>
+                <IndonesianNationalIdInput />
               </Form.Item>
               <Box
                 sx={{
@@ -700,7 +874,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                         ...(file ? [file] : []),
                       ])
                     }
-                    onError={onError}
+                    onError={reportError}
                     disabled={!editing && !draft}
                   />
                 </Form.Item>
@@ -738,7 +912,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                         ...(file ? [file] : []),
                       ])
                     }
-                    onError={onError}
+                    onError={reportError}
                     disabled={!editing && !draft}
                   />
                 </Form.Item>
@@ -771,6 +945,13 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               </Form.Item>
               <Form.Item name="maritalStatus" label="Status perkawinan">
                 <Input maxLength={30} />
+              </Form.Item>
+              <Form.Item name="bloodType" label="Golongan darah">
+                <Select
+                  allowClear
+                  placeholder="Pilih golongan darah"
+                  options={BLOOD_TYPE_OPTIONS}
+                />
               </Form.Item>
               <Form.Item name="nationality" label="Kewarganegaraan">
                 <Input maxLength={60} />
@@ -847,6 +1028,71 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
             <>
               <Box sx={{ ...gridSx, display: step === 1 ? "grid" : "none" }}>
                 <Form.Item
+                  name={["profile", "educations", 0, "educationLevel"]}
+                  label="Jenjang pendidikan"
+                  rules={required("Jenjang pendidikan wajib dipilih.")}
+                >
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="Pilih jenjang pendidikan"
+                    options={EDUCATION_LEVEL_OPTIONS}
+                  />
+                </Form.Item>
+                <Form.Item
+                  name={["profile", "educations", 0, "institution"]}
+                  label="Nama institusi pendidikan"
+                  rules={required("Nama institusi pendidikan wajib diisi.")}
+                >
+                  <Input maxLength={200} placeholder="Contoh: Universitas Sam Ratulangi" />
+                </Form.Item>
+                <Form.Item
+                  name={["profile", "educations", 0, "fieldOfStudy"]}
+                  label="Program studi atau jurusan"
+                >
+                  <Input maxLength={150} placeholder="Contoh: Teknik Informatika" />
+                </Form.Item>
+                <Form.Item
+                  name={["profile", "educations", 0, "graduationYear"]}
+                  label="Tahun kelulusan"
+                >
+                  <DatePicker
+                    picker="year"
+                    format="YYYY"
+                    placeholder="Pilih tahun kelulusan"
+                    disabledDate={(current) => current && current.year() > dayjs().year()}
+                    style={{ width: "100%" }}
+                  />
+                </Form.Item>
+                <Form.Item label="Foto ijazah (opsional)" style={{ gridColumn: "1 / -1" }}>
+                  <PrivateFileUpload
+                    value={educationFile}
+                    uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
+                    removeUrl={
+                      educationFile
+                        ? `/api/employees/drafts/${draft?.id}/files/${educationFile.id}${query}`
+                        : null
+                    }
+                    fields={{ fileKind: "pendidikan" }}
+                    organizationId={targetOrganizationId}
+                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                    maxSizeBytes={5 * 1024 * 1024}
+                    emptyTitle="Pilih atau tarik foto ijazah ke area ini"
+                    helpText="Gunakan JPEG, PNG, atau WebP maksimal 5 MB. Data dapat dilengkapi kembali melalui profil pegawai."
+                    selectedText="Foto ijazah tersimpan pada draft privat"
+                    onChange={(file) =>
+                      setFiles((current) => [
+                        ...current.filter((value) => value.category !== "education"),
+                        ...(file ? [file] : []),
+                      ])
+                    }
+                    onError={reportError}
+                    disabled={!draft}
+                  />
+                </Form.Item>
+              </Box>
+              <Box sx={{ ...gridSx, display: step === 2 ? "grid" : "none" }}>
+                <Form.Item
                   name={["contract", "employmentTypeId"]}
                   label="Jenis kepegawaian"
                   rules={required("Jenis kepegawaian wajib dipilih.")}
@@ -877,33 +1123,35 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 <Form.Item name={["contract", "endDate"]} label="Tanggal akhir">
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
-                <Form.Item label="Dokumen kontrak" required>
-                  <PrivatePdfUpload
-                    value={contractFile}
-                    uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
-                    removeUrl={
-                      contractFile
-                        ? `/api/employees/drafts/${draft?.id}/files/${contractFile.id}${query}`
-                        : null
-                    }
-                    fields={{ fileKind: "kontrak" }}
-                    organizationId={targetOrganizationId}
-                    onChange={(file) =>
-                      setFiles((current) => [
-                        ...current.filter((value) => value.category !== "contract"),
-                        ...(file ? [file] : []),
-                      ])
-                    }
-                    onError={onError}
-                    disabled={!draft}
-                    helpText="Unggah kontrak yang telah ditandatangani dalam format PDF, maksimal 10 MB."
-                  />
-                </Form.Item>
+                <Box id="employee-contract-document">
+                  <Form.Item label="Dokumen kontrak" required>
+                    <PrivatePdfUpload
+                      value={contractFile}
+                      uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
+                      removeUrl={
+                        contractFile
+                          ? `/api/employees/drafts/${draft?.id}/files/${contractFile.id}${query}`
+                          : null
+                      }
+                      fields={{ fileKind: "kontrak" }}
+                      organizationId={targetOrganizationId}
+                      onChange={(file) =>
+                        setFiles((current) => [
+                          ...current.filter((value) => value.category !== "contract"),
+                          ...(file ? [file] : []),
+                        ])
+                      }
+                      onError={reportError}
+                      disabled={!draft}
+                      helpText="Unggah kontrak yang telah ditandatangani dalam format PDF, maksimal 10 MB."
+                    />
+                  </Form.Item>
+                </Box>
                 <Form.Item name={["contract", "notes"]} label="Catatan kontrak">
                   <Input.TextArea rows={3} maxLength={2000} showCount />
                 </Form.Item>
               </Box>
-              <Box sx={{ ...gridSx, display: step === 2 ? "grid" : "none" }}>
+              <Box sx={{ ...gridSx, display: step === 3 ? "grid" : "none" }}>
                 <Form.Item
                   name={["assignment", "locationId"]}
                   label="Lokasi"
@@ -968,28 +1216,30 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 >
                   <Input maxLength={100} />
                 </Form.Item>
-                <Form.Item label="Dokumen SK penempatan" required>
-                  <PrivatePdfUpload
-                    value={assignmentFile}
-                    uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
-                    removeUrl={
-                      assignmentFile
-                        ? `/api/employees/drafts/${draft?.id}/files/${assignmentFile.id}${query}`
-                        : null
-                    }
-                    fields={{ fileKind: "sk_penempatan" }}
-                    organizationId={targetOrganizationId}
-                    onChange={(file) =>
-                      setFiles((current) => [
-                        ...current.filter((value) => value.category !== "assignment_decree"),
-                        ...(file ? [file] : []),
-                      ])
-                    }
-                    onError={onError}
-                    disabled={!draft}
-                    helpText="Unggah SK penempatan awal dalam format PDF, maksimal 10 MB."
-                  />
-                </Form.Item>
+                <Box id="employee-assignment-document">
+                  <Form.Item label="Dokumen SK penempatan" required>
+                    <PrivatePdfUpload
+                      value={assignmentFile}
+                      uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
+                      removeUrl={
+                        assignmentFile
+                          ? `/api/employees/drafts/${draft?.id}/files/${assignmentFile.id}${query}`
+                          : null
+                      }
+                      fields={{ fileKind: "sk_penempatan" }}
+                      organizationId={targetOrganizationId}
+                      onChange={(file) =>
+                        setFiles((current) => [
+                          ...current.filter((value) => value.category !== "assignment_decree"),
+                          ...(file ? [file] : []),
+                        ])
+                      }
+                      onError={reportError}
+                      disabled={!draft}
+                      helpText="Unggah SK penempatan awal dalam format PDF, maksimal 10 MB."
+                    />
+                  </Form.Item>
+                </Box>
                 <Form.Item name={["assignment", "notes"]} label="Catatan penempatan">
                   <Input.TextArea rows={3} maxLength={2000} showCount />
                 </Form.Item>

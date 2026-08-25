@@ -10,7 +10,7 @@ import { storeEmployeeDraftFile } from "@/lib/files/storage";
 
 const MAX_REQUEST_BYTES = 11 * 1024 * 1024;
 
-/** Mengunggah pas foto, KTP, PDF kontrak, atau SK ke staging privat milik draft. */
+/** Mengunggah gambar profil/ijazah atau PDF kontrak/SK ke staging privat milik draft. */
 export async function POST(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("private_files.manage");

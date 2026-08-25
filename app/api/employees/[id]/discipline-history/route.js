@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
       new URL(request.url).searchParams.get("organizationId"),
     );
     await ensureActorEmployeeAccess(user, id, organizationId);
-    return successResponse(await getEmployeeDisciplineHistory(id, organizationId));
+    return successResponse(await getEmployeeDisciplineHistory(id, organizationId, user));
   } catch (error) {
     return handleRouteError("employees.discipline-history", error, requestId);
   }

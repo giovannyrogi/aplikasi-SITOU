@@ -165,7 +165,7 @@ export default function EmployeeImportModal({
               type="info"
               showIcon
               title="Import hanya membuat pegawai baru"
-              description="Data pegawai yang memiliki Nomor Pegawai atau NIK sama akan ditolak. NIK wajib berisi 16 digit."
+              description="Data pegawai yang memiliki NIP atau NIK sama akan ditolak. NIK wajib berisi 16 digit."
             />
             <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 1 }}>
               <Button icon={<DownloadOutlined />} href={`/api/employees/imports/template${query}`}>
@@ -254,7 +254,7 @@ export default function EmployeeImportModal({
                     <Box component="ol" sx={{ m: 0, pl: 2.5, display: "grid", gap: 1 }}>
                       {[
                         "Isi sheet Pegawai terlebih dahulu. Satu baris hanya untuk satu pegawai baru.",
-                        "Gunakan Nomor Pegawai yang sama pada seluruh sheet yang berkaitan dengan pegawai tersebut.",
+                        "Gunakan NIP yang sama pada seluruh sheet yang berkaitan dengan pegawai tersebut.",
                         "Untuk pegawai berstatus aktif, masa percobaan, atau cuti (active, probation, atau leave), isi minimal satu kontrak yang berlaku dan satu penempatan utama yang berlaku.",
                         "Ambil kode lokasi, Divisi & Unit, jabatan, dan jenis kepegawaian dari sheet Referensi. Jangan mengetik nama sebagai pengganti kode.",
                         "Gunakan format tanggal YYYY-MM-DD dan gunakan YA atau TIDAK pada kolom pilihan.",

@@ -9,7 +9,7 @@ Bangun dashboard HRIS multi-organisasi yang stabil untuk:
 - Superadmin membuat organisasi, lokasi awal, akun HRD, dan cakupan akses.
 - HRD mengelola seluruh profil, kontrak, penempatan, rolling, izin, absensi, dokumen, dan tindakan disiplin.
 - Pimpinan memantau data dan histori pegawai tanpa mengubah administrasi HRD.
-- Karyawan disiapkan sebagai role self-service untuk aplikasi web/mobile lanjutan.
+- Pegawai disiapkan sebagai role self-service untuk aplikasi web/mobile lanjutan.
 - Absensi tahap awal masuk melalui import Excel/CSV dan koreksi HRD; mobile attendance dikembangkan setelah dashboard stabil.
 
 Jangan membangun payroll, pengenalan wajah, atau keputusan sanksi otomatis kecuali ada permintaan dan aturan baru yang disetujui.
@@ -38,10 +38,11 @@ Route handler tidak boleh berisi query dan aturan bisnis panjang. Gunakan servic
 - Panduan baca cepat database: `docs/database-schema.md`. Buka dokumen ini lebih dulu untuk memahami tabel, kolom penting, relasi, dan aturan data; buka `sitou_schema_v3.sql` hanya ketika perlu detail constraint, index, view SQL, atau membuat migration.
 - Perubahan database hanya melalui migration baru; jangan mengedit database produksi manual.
 - Istilah domain resmi adalah **organisasi**. UI, pesan API, dokumentasi, komentar, test, dan penamaan abstraksi domain dilarang menyebut organisasi sebagai "tenant" atau "perusahaan". Nilai teknis schema yang sudah menjadi kontrak, seperti `organization_id` dan enum `company`, tetap dipertahankan, tetapi label yang dibaca pengguna wajib memakai "organisasi".
+- Istilah pengguna resmi adalah **Pegawai** dan **NIP (Nomor Induk Pegawai)**. UI, notifikasi, validasi, template import, dokumentasi, dan test dilarang memakai label "Karyawan" atau "Nomor Pegawai"; identifier teknis lama seperti role code `employee`, kolom `employee_no`, dan alias kompatibilitas tidak diubah tanpa migration kontrak khusus.
 - Event absensi mentah bersifat append-only.
 - `attendance_daily_summaries` adalah hasil olahan dan boleh dihitung ulang.
 - Lokasi/divisi/jabatan aktif berasal dari `employee_assignments`, bukan kolom duplikat pada `employees`.
-- Riwayat kontrak dan penempatan tidak boleh ditimpa atau dihapus fisik. Salah input kontrak dikoreksi melalui aksi edit yang diaudit atau dibatalkan secara logis dengan alasan; dokumen setiap record histori tetap dapat dilihat melalui file ID berizin.
+- Riwayat kontrak dan penempatan tidak boleh ditimpa atau dihapus fisik. Salah input kontrak dikoreksi melalui aksi edit yang diaudit atau dibatalkan secara logis dengan alasan; dokumen setiap record histori tetap dapat dilihat melalui file ID berizin. Tampilan histori lifecycle wajib menampilkan pelaku dan waktu pencatatan, koreksi terakhir, serta pembatalan dari kolom domain atau `audit_logs`; data audit tidak boleh disimpulkan dari actor yang sedang login.
 - File bersifat privat; `object_key` tidak pernah dikirim mentah ke browser.
 
 ## 4. Aturan multi-organisasi wajib
@@ -82,7 +83,7 @@ await db.transaction(async (tx) => {
 - Mengelola kontrak, penempatan, shift, absensi, izin, dokumen, kasus, dan sanksi.
 - Menjadi satu-satunya approver cuti/izin.
 - Mengunggah dokumen sanksi dan mengubah status tindakan.
-- Mengelola akun HRD, Pimpinan, dan Karyawan organisasinya. Tautan profil pegawai bersifat opsional untuk HRD/Pimpinan dan wajib untuk Karyawan; HRD tidak boleh memberi role Superadmin, menonaktifkan akun sendiri, atau menonaktifkan HRD aktif terakhir.
+- Mengelola akun HRD, Pimpinan, dan Pegawai organisasinya. Tautan profil pegawai bersifat opsional untuk HRD/Pimpinan dan wajib untuk Pegawai; HRD tidak boleh memberi role Superadmin, menonaktifkan akun sendiri, atau menonaktifkan HRD aktif terakhir.
 - Cakupan HRD selalu eksplisit melalui `location_scope_mode=all|selected`; ketiadaan baris scope tidak boleh ditafsirkan sebagai akses penuh ketika mode `selected`.
 
 ### Pimpinan
@@ -91,12 +92,12 @@ await db.transaction(async (tx) => {
 - Tidak dapat mengubah profil HRD, memutus izin, atau menerbitkan sanksi melalui sistem.
 - Dokumen dan data sangat sensitif memerlukan permission khusus.
 
-### Karyawan
+### Pegawai
 
 - Tahap sekarang dapat dibuat tanpa akun aktif.
 - Tahap mobile/web lanjutan: melihat data sendiri, absensi, mengajukan izin/cuti, dan mengunggah lampiran.
 - Tidak pernah boleh memilih `employee_id` milik orang lain.
-- Permission self-service wajib memakai kode dan endpoint `*_self` yang memetakan pegawai dari session. Dilarang memberikan permission baca generik modul organisasi kepada Karyawan sebelum endpoint self-service tersedia.
+- Permission self-service wajib memakai kode dan endpoint `*_self` yang memetakan pegawai dari session. Dilarang memberikan permission baca generik modul organisasi kepada Pegawai sebelum endpoint self-service tersedia.
 
 Semua aksi diperiksa di backend. Menyembunyikan tombol di frontend bukan kontrol keamanan.
 
@@ -211,7 +212,7 @@ Dashboard dan laporan rutin membaca rekap, bukan menghitung jutaan event setiap 
 
 - Approval final hanya oleh role HRD aktif.
 - Tahap sekarang HRD dapat mencatat izin langsung dengan `submission_source='hrd_entry'`.
-- Tahap mobile karyawan dapat submit; keputusan tetap HRD.
+- Tahap mobile Pegawai dapat submit; keputusan tetap HRD.
 - Pimpinan hanya melihat sesuai permission.
 - Jenis sakit dapat mewajibkan `required_attachment_category='medical_letter'`.
 - Request tidak boleh menjadi approved jika lampiran wajib belum ada dan valid.
@@ -233,6 +234,9 @@ Aturan utama:
 - SP1, SP2, dan SP3 masing-masing berlaku 3 bulan sejak diterbitkan dan gugur bila tidak ada pelanggaran dalam masa berlaku.
 - Pegawai dapat diberi kesempatan menjelaskan/membela diri sebelum sanksi berat, kecuali tertangkap tangan.
 - Satu kasus disiplin hanya boleh memiliki satu tindakan resmi. Pelanggaran atau pengulangan berikutnya dicatat sebagai kasus baru; tindakan yang memiliki surat wajib menyediakan satu aksi unduh dokumen berizin.
+- Tindakan berstatus `draft`, termasuk metadata dan suratnya, hanya boleh dikembalikan kepada HRD dan Superadmin. Pimpinan hanya menerima tindakan yang sudah menjadi histori resmi seperti aktif, berakhir, dicabut, atau diajukan banding; penyaringan wajib dilakukan di query/service dan endpoint file, bukan hanya di UI.
+- Daftar kasus pada detail pegawai memakai kartu ringkas untuk pemindaian dan `AppModal` untuk uraian, pembelaan, tindakan, eskalasi, audit penerbit, serta surat. Kartu tindakan yang dicabut wajib menampilkan status, pelaku, waktu, dan ringkasan alasan maksimal dua baris; alasan utuh tetap berada di modal detail. Jangan memadatkan seluruh informasi sensitif di kartu atau membuat halaman/modal shell lain.
+- Tindakan tertulis aktif wajib memiliki nomor surat dan satu PDF berizin. Teguran lisan tidak mewajibkan nomor maupun dokumen surat. Pimpinan hanya dapat membaca detail dan mengunduh surat sesuai permission; kontrol perubahan tetap khusus HRD/Superadmin.
 
 Sistem hanya membentuk `discipline_indicators`. HRD harus:
 
@@ -244,6 +248,8 @@ Sistem hanya membentuk `discipline_indicators`. HRD harus:
 
 Dilarang membuat job yang otomatis mengubah indikator menjadi SP/PHK. Direct SP2/SP3 wajib menyimpan `direct_escalation=true` dan alasan. Dokumen dan uraian kasus hanya boleh terlihat oleh role berwenang.
 
+Lifecycle tindakan disiplin wajib mempertahankan histori: status `draft` masih dapat diedit dan boleh belum memiliki surat lengkap; perubahan ke `active` memvalidasi ulang nomor serta PDF tindakan tertulis. Tindakan `active` dilarang ditimpa atau dihapus dan hanya dapat menjadi `revoked` melalui aksi pencabutan beralasan yang menyimpan waktu, pelaku, audit, serta seluruh data dan dokumen keputusan asal.
+
 ## 14. File privat
 
 - Development boleh memakai direktori privat di luar public web root.
@@ -253,15 +259,17 @@ Dilarang membuat job yang otomatis mengubah indikator menjadi SP/PHK. Direct SP2
 - Jangan membangun URL `/uploads/...` yang bisa ditebak.
 - Nama objek gunakan UUID; jangan gunakan nama asli atau NIK.
 - Upload logo juga masuk `stored_files`, lalu direferensikan oleh `organization_branding` atau lokasi.
-- Delete normal adalah soft delete + retention job; jangan hapus bukti aktif secara langsung.
+- Dokumen histori resmi seperti kontrak, SK penempatan, dan surat sanksi memakai soft delete/retention dan tidak boleh dihapus fisik melalui form profil. Lampiran profil yang dapat diganti seperti pas foto, identitas, pendidikan, dan sertifikasi wajib menghapus byte fisik setelah penghapusan referensi database berhasil.
 - Development memakai `UPLOAD_ROOT` atau default `<project>/uploads`; production wajib memakai mounted persistent storage yang dibackup, bukan filesystem ephemeral.
 - Struktur pegawai wajib `org_{organizationId}/pegawai/employee_{employeeId}/{kategori}/{tahun}/{uuid}.{ext}`. Kategori meliputi `pas_foto`, `identitas/ktp`, `identitas/kk`, `identitas/npwp`, `kontrak`, `pendidikan`, `sertifikasi`, `sanksi/sp1|sp2|sp3|lainnya`, dan `dokumen_lain`.
 - Nama fisik wajib UUID. Nama pegawai, NIK, nomor rekening, nomor surat, dan data pribadi lain dilarang berada dalam object key, path, atau log.
 - Browser hanya menerima ID metadata dan mengakses `/api/uploads/:fileId`; endpoint catch-all berdasarkan path dilarang.
 - Response file memakai `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`, CSP ketat, nama download tersanitasi, authorization organisasi/scope, dan audit untuk preview/download sensitif.
 - Gambar menerima JPEG/PNG/WebP maksimal 5 MB. Dokumen menerima PDF maksimal 10 MB; DOCX hanya untuk kategori yang membutuhkannya dan tidak dipreview inline. MIME harus dideteksi dari byte.
+- Dropzone gambar wajib menampilkan pratinjau dan metadata file setelah upload berhasil. File lama berbasis `fileId` harus memiliki lifecycle lihat, ganti, dan hapus yang sama dengan file baru; aksi hapus wajib membersihkan state UI serta melepas referensi profil terkait secara transaksional agar ID file usang tidak muncul kembali.
+- Pada form komposit yang memiliki tombol simpan utama seperti `Profil lengkap pegawai`, pemilihan file hanya boleh membuat pratinjau lokal. Byte file, metadata `stored_files`, dan referensi domain baru disimpan ketika tombol simpan utama berhasil; kegagalan validasi atau transaksi wajib membersihkan file sementara dan tidak boleh meninggalkan metadata/file baru setengah jadi.
 - Pas foto, KTP, Kartu Keluarga, NPWP, BPJS, ijazah, dan sertifikat adalah bukti visual: upload baru hanya menerima JPEG/PNG/WebP. Kontrak, SK penempatan, dan surat sanksi adalah dokumen resmi: upload baru hanya menerima PDF. File lama dengan tipe sebelumnya tetap dapat dibuka secara berizin, tetapi tidak boleh menggantikan validasi tipe baru.
-- Tulis upload ke file sementara, hash SHA-256, lalu atomic move. Bersihkan byte bila transaksi metadata gagal. File aktif dihapus secara soft delete dan diproses retention job.
+- Tulis upload ke file sementara, hash SHA-256, lalu atomic move. Bersihkan byte bila transaksi metadata gagal. Penghapusan lampiran profil memakai karantina atomik: pulihkan file bila transaksi database gagal dan hapus byte karantina setelah commit berhasil. Bukti histori resmi tetap memakai soft delete dan retention.
 
 ### Import pegawai multi-sheet
 
@@ -269,7 +277,7 @@ Dilarang membuat job yang otomatis mengubah indikator menjadi SP/PHK. Direct SP2
 - Import hanya menerima `.xlsx` maksimal 10 MB. Foto, dokumen, kasus disiplin, dan tindakan sanksi tidak boleh dimasukkan; seluruh file dilengkapi manual melalui detail pegawai setelah profil tersedia.
 - UI wajib menjelaskan data yang diproses, hubungan antar-sheet, batas file, preview, dampak commit parsial, dan langkah upload dokumen manual setelah import.
 - `employee_no` adalah penghubung lintas-sheet. Referensi histori harus unik dalam workbook dan tidak boleh memakai ID database yang ditebak klien.
-- Import hanya membuat pegawai baru. NIK wajib 16 digit. Nomor Pegawai dan NIK dinormalisasi serta diperiksa terhadap seluruh record termasuk soft-deleted; jangan mengubah import menjadi upsert tanpa keputusan produk dan audit baru.
+- Import hanya membuat pegawai baru. NIK wajib 16 digit. NIP dan NIK dinormalisasi serta diperiksa terhadap seluruh record termasuk soft-deleted; jangan mengubah import menjadi upsert tanpa keputusan produk dan audit baru.
 - Validasi dilakukan sebelum commit dan error ditampilkan per pegawai, sheet, serta nomor baris. Satu error membuat seluruh kelompok pegawai invalid.
 - Commit wajib atomik per pegawai, idempotent, dan dapat menghasilkan `partially_committed`; kegagalan satu pegawai tidak menggagalkan kelompok valid lain.
 - Container OOXML wajib diperiksa sebelum parsing: tolak macro, external link, embedded object, enkripsi, formula, struktur tidak valid, dan perluasan data berlebihan.
@@ -349,6 +357,7 @@ Endpoint awal yang disarankan:
 - Rate limit login, reset password, upload, export, dan attendance endpoint.
 - NIK, BPJS, rekening, koordinat, dokumen, dan kasus disiplin dimasking di list/log.
 - Nomor WhatsApp/kontak seluler Indonesia wajib memakai komponen `IndonesiaPhoneInput` dan aturan terpusat `lib/validation/indonesianPhone.js`. UI menampilkan prefix tetap `+62`, pengguna mengisi mulai digit `8` tanpa awalan `0`, dan database menyimpan format E.164 `+628...`; dilarang membuat regex/normalisasi nomor sendiri di fitur lain.
+- Seluruh input NIK wajib memakai reusable `IndonesianNationalIdInput` dan aturan terpusat `lib/validation/indonesianNationalId.js`. Input hanya menerima maksimal 16 digit, menampilkan counter selama belum lengkap, berubah menjadi ikon centang saat tepat 16 digit, dan wajib divalidasi kembali oleh schema backend; dilarang membuat regex atau input NIK terpisah pada fitur lain.
 - Jangan masukkan rahasia atau data pribadi ke analytics, fixture publik, screenshot, seed, atau error tracker.
 - Audit login, perubahan role, pegawai, rolling, koreksi absensi, izin, dokumen sensitif, dan sanksi.
 - Validasi MIME dari byte; jangan percaya ekstensi.
@@ -378,7 +387,7 @@ Minimal sebelum pekerjaan dianggap selesai:
 - Integration test tidak ada dua penempatan utama aktif.
 - Integration test import: preview, error per baris, duplicate retry, dan commit idempotent.
 - Integration test mobile event retry tidak menggandakan event.
-- Integration test HRD-only decision; pimpinan dan karyawan ditolak.
+- Integration test HRD-only decision; Pimpinan dan Pegawai ditolak.
 - Test izin sakit tidak dapat approved tanpa surat dokter ketika diwajibkan.
 - Test lintas organisasi untuk setiap repository/use case utama.
 - Test file privat tidak bisa diakses dengan object key langsung.
@@ -390,12 +399,15 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 
 - Seluruh antarmuka Bahasa Indonesia dan dapat dipahami pengguna nonteknis.
 - Locale tanggal dan waktu wajib dipasang terpusat melalui `app/components/approvider/AppProviders.jsx`. Seluruh DatePicker/Calendar AntD memakai locale `id_ID` dan Day.js locale `id`, sedangkan MUI date picker memakai adapter locale `id`; dilarang mengatur nama bulan, hari, placeholder, atau tombol kalender per halaman secara manual.
+- Seluruh field tanggal, bulan, dan tahun pada form wajib memakai date picker dengan mode yang sesuai dari library UI yang sudah terpasang, bukan `Input` teks atau input angka manual. Gunakan date picker standar untuk tanggal, month picker untuk bulan, dan year picker untuk tahun. Nilai form menggunakan objek tanggal adapter dan hanya dinormalisasi ke format kontrak API pada batas request.
 - Sebelum membuat komponen UI baru, periksa `app/components` dan gunakan komponen reusable yang sudah ada untuk fungsi/kebutuhan yang sama. Perluas API komponen yang ada bila masih dalam tanggung jawab yang sama; jangan membuat duplikat hanya karena dipakai pada halaman berbeda.
 - Seluruh typography MUI wajib menggunakan reusable component `app/components/font-style/FontStyle.jsx`, bukan mengimpor `Typography` langsung pada halaman atau komponen fitur. Gunakan font weight normal `500`, medium `600`, dan bold maksimal `700`; dilarang memakai bobot di atas `700`.
 - Implementasi UI/UX wajib mengikuti best practice React/Next.js: komponen terfokus, state minimal, aksesibilitas dasar, semantic HTML, serta styling responsif yang tidak mengandalkan ukuran layar tunggal.
 - Saat memakai atau mengubah komponen library UI seperti AntD/MUI, periksa kontrak versi yang benar-benar terpasang pada type definition atau dokumentasi lokal. Dilarang menambahkan prop/API deprecated; khusus AntD 6 gunakan `Alert.title` bukan `Alert.message`, `Steps.titlePlacement` bukan `Steps.labelPlacement`, `Tabs.destroyOnHidden` bukan `destroyInactiveTabPane`, `Timeline.items.content` bukan `items.children`, dan `Space.Compact` untuk prefix/suffix field, bukan `Input.addonBefore`/`addonAfter` yang deprecated. AntD `List` juga tidak boleh dipakai karena telah deprecated; susun daftar dengan semantic HTML/reusable data view yang sesuai kebutuhan.
 - Sebelum perubahan UI dianggap selesai, periksa console browser dan cari penggunaan API deprecated pada seluruh area terkait agar warning yang sama tidak berpindah ke halaman lain.
+- Validasi gagal dan tampilan Notification dilarang me-reset, me-remount, atau memuat ulang nilai form yang sedang diisi. Efek inisialisasi modal/wizard wajib memakai dependency stabil dan hanya dijalankan ketika sesi form, organisasi, atau record yang diedit benar-benar berubah.
 - Metadata `key` dari render prop `Form.List` tidak boleh disebarkan ke beberapa elemen JSX. Pasang `key` hanya secara langsung pada wrapper baris dan berikan `name` field turunan secara eksplisit agar tidak menghasilkan duplicate key atau hydration warning React.
+- Dropdown kategori pada data berulang yang bersifat satu-per-pegawai, seperti jenis identitas administratif dan platform akun sosial, wajib menonaktifkan pilihan yang sudah dipakai baris lain serta divalidasi ulang di backend. Nilai awal baris baru wajib berasal dari pilihan pertama yang masih tersedia, bukan nilai hardcoded; kategori yang secara bisnis boleh berulang tidak boleh ikut dikunci.
 - SITOU menggunakan satu tema light yang konsisten. Jangan menambahkan dark mode, theme switcher, atau penyimpanan preferensi tema kecuali ada keputusan produk baru.
 - Warna brand, status, feedback, state interaktif, dan permukaan UI wajib bersumber dari token terpusat di app/components/themeprovider/ThemeProvider.jsx. Dilarang menulis nilai hex, rgb/rgba, gradient, atau shadow berwarna langsung di halaman/komponen fitur bila token semantik yang sesuai dapat disediakan atau sudah tersedia.
 - Gunakan theme.brand untuk identitas SITOU, theme.status untuk success/warning/info/danger/neutral, palette MUI untuk state komponen, dan theme.ui untuk kebutuhan visual reusable atau halaman khusus. Token AntD harus mengambil sumber warna yang sama agar MUI dan AntD konsisten.
@@ -418,6 +430,7 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 - Form panjang memakai stepper, draft server yang aman, dan peringatan perubahan belum disimpan.
 - Seluruh area pemilihan/upload Excel, PDF, gambar, dan dokumen wajib menyusun reusable `app/components/forms/FileUploadField.jsx`; jangan membuat dropzone atau daftar file terpilih sendiri pada halaman fitur.
 - Wizard tambah pegawai memakai draft server privat selama tujuh hari. Maksimal satu draft aktif per actor dan organisasi; draft hanya ditulis saat pengguna menekan Lanjut, Kembali, Simpan draft & tutup, atau finalisasi, memakai optimistic concurrency, dan tidak boleh menyimpan NIK/payload ke log. Perubahan field dilarang mengirim request autosave per ketikan. Close harus menunggu penyimpanan terakhir berhasil.
+- Schema checkpoint draft wajib menerima nilai parsial dari step yang belum diselesaikan dan tetap menolak key asing atau payload berlebihan. Kelengkapan field wajib divalidasi pada navigasi step dan diulang dengan schema final saat submit; kegagalan API wajib dipetakan kembali ke field/step terkait tanpa menghapus isian pengguna.
 - Pada onboarding pegawai, upload KTP dan pas foto bersifat opsional serta ditempatkan berdekatan dengan field NIK. KTP dicatat sebagai `employee_documents.document_type='ktp'`, sedangkan pas foto direferensikan oleh `employees.profile_photo_file_id`. Kelola Profil Lengkap menyediakan pas foto sebagai pilihan pada dropdown Identitas administratif; pilihan ini hanya menampilkan upload gambar dan tidak dicatat sebagai nomor identitas. Saat jenis identitas diubah, seluruh nilai dan file khusus jenis sebelumnya wajib direset agar tidak terbawa ke jenis baru. Kontrak aktif wajib memiliki nomor kontrak dan PDF privat kategori `contract`. Penempatan aktif wajib memiliki nomor SK dan PDF privat kategori `assignment_decree`; browser hanya menerima file ID.
 - Kelola Profil Lengkap harus memuat dan menampilkan data profil yang telah tersimpan untuk diedit, sementara section tanpa data tetap kosong. Checkbox yang berkaitan dengan satu input ditempatkan berurutan tepat di bawah input tersebut; pilihan tingkat keahlian memakai dropdown istilah Bahasa Indonesia yang baku.
 - File draft memakai staging `org_{organizationId}/pegawai/drafts/draft_{draftId}/...`, hanya dapat diakses pembuat draft, lalu dialihkan ke kepemilikan pegawai saat finalisasi.
@@ -469,15 +482,18 @@ Pekerjaan selesai hanya jika:
 - Hanya ada satu modal shell umum, yaitu `app/components/modals/AppModal.jsx`. Modal khusus, preview, dan confirmation wajib menyusun `AppModal`.
 - Komponen hanya boleh dihapus setelah seluruh import, pemanggilan dinamis, route, dan dokumentasi diperiksa.
 - Form CRUD memakai dirty-state warning, validasi dekat field, mencegah submit ganda, dan menjelaskan dampak aksi berisiko.
+- Form panjang yang memakai tab, step, atau collapse wajib menampilkan `Notification` pada setiap kegagalan validasi/simpan, menandai section bermasalah dengan state error yang jelas, membuka section tersebut, lalu menggulir dan memfokuskan field error pertama. Error tidak boleh hanya terlihat pada field yang sedang tertutup atau gagal diam-diam; penanda section harus hilang setelah isian terkait valid.
 - Gunakan `PageHeader`, `DataToolbar`, `ResponsiveDataView`, `CompactInfoChip`, `RowActionMenu`, `ConfirmDialog`, select reusable, `Notification`, dan `LoadingBackdrop` sebelum membuat implementasi fitur sendiri. `CompactInfoChip` adalah satu-satunya chip untuk metadata dan status; dilarang membuat badge/chip reusable kedua dengan fungsi yang sama.
 - Breadcrumb halaman wajib bersumber dari konfigurasi menu melalui `AppBreadcrumbs`. Parent tanpa path tampil sebagai konteks nonklik, sedangkan route turunan mengikuti menu terdekat yang paling spesifik.
 - Area daftar operasional wajib memeriksa dan memakai reusable `DataPanel` sebelum membuat wrapper baru. Toolbar embedded, tabel/card list, dan pagination berada dalam satu paper tanpa nested panel.
 - Setiap pembuatan atau perubahan UI/UX wajib diperiksa kerapian alignment, baseline, hierarchy, lebar control, spacing, dan konsistensi antarhalaman yang memakai alur serta komponen sama. Breadcrumb, judul, deskripsi, toolbar, tabel, dan aksi tidak boleh tampak bergeser, berdempetan, terlalu melebar, atau berbeda struktur tanpa alasan produk yang jelas.
 - Halaman detail wajib mempunyai hierarchy identitas, status, navigasi, section informasi, dan aksi yang jelas. Kelompokkan informasi berdasarkan kebutuhan pengguna, bukan mengikuti urutan kolom database atau menampilkan kumpulan label-nilai datar tanpa struktur.
 - Navigasi tab detail wajib memeriksa dan memakai `navigation/DetailTabs` sebelum membuat shell baru. Active state harus jelas, target sentuh minimal 44px, dapat dioperasikan dengan keyboard, dapat dipertahankan melalui URL bila relevan, dan tidak menyebabkan horizontal page overflow pada mobile.
+- Ringkasan halaman detail wajib menyajikan setiap fakta satu kali; dilarang mengulang nomor, status, identitas, atau metadata yang sama pada beberapa section. Gabungkan profil dan identitas yang berasal dari sumber data yang sama, tampilkan bukti visual penting dekat konteksnya, dan pindahkan informasi administratif khusus ke tab tersendiri bila membuat ringkasan sulit dipindai.
+- Ringkasan pegawai wajib memprioritaskan data inti saat pembuatan pegawai, kontak, penempatan aktif, hubungan kerja, keluarga, kontak darurat, dan akun sosial. Pas foto serta KTP ditampilkan sebagai visual privat yang dapat diperbesar, sedangkan BPJS ditempatkan pada tab Jaminan agar hierarchy informasi tetap jelas.
 - Aksi utama detail ditempatkan konsisten di kanan header section pada desktop dan menjadi mudah dijangkau atau lebar penuh pada mobile. Aksi tidak boleh bercampur di antara nilai data atau menggeser hierarchy informasi.
 - Enum dan status backend yang dibaca pengguna wajib diterjemahkan ke Bahasa Indonesia. Data kosong memakai kalimat kontekstual seperti `Belum ditempatkan` atau `Belum diunggah`, bukan kode mentah atau tanda hubung yang ambigu.
-- Tab Dokumen pada detail pegawai hanya menjadi checklist kelengkapan tanpa upload, nama file, atau aksi file. Pengelolaan dan satu-satunya aksi buka dokumen berada pada konteks domainnya: identitas di Profil Lengkap, kontrak di tab Kontrak, SK di tab Penempatan, serta ijazah/sertifikat di tab Kompetensi.
+- Tab Dokumen pada detail pegawai hanya menjadi checklist kelengkapan tanpa upload, nama file, atau aksi file. Status tersedia wajib berasal dari record domain yang masih mereferensikan metadata file aktif; file yatim atau metadata yang sudah dilepas tidak boleh membuat dokumen terlihat tersedia. Pengelolaan dan satu-satunya aksi buka dokumen berada pada konteks domainnya: identitas di Profil Lengkap, kontrak di tab Kontrak, SK di tab Penempatan, serta ijazah/sertifikat di tab Pendidikan.
 - Header detail pegawai hanya memakai pas foto pegawai atau avatar inisial sebagai fallback; logo aplikasi dilarang dipakai sebagai pengganti pas foto.
 - Sidebar desktop harus tetap setinggi viewport dan memiliki scroll navigasi internal sendiri ketika menu atau konten halaman memanjang.
 - Perubahan halaman detail wajib diuji untuk kemudahan pemindaian informasi, alignment, jarak aman, nama/teks panjang, data kosong, seluruh role, keyboard, zoom, dan viewport 320-1920px. Section harus informatif tanpa nested card berlebihan.
@@ -485,9 +501,10 @@ Pekerjaan selesai hanya jika:
 - AntD Table digunakan pada tablet/desktop. Mobile memakai card list dari data yang sama beserta loading, empty/error, dan pagination yang dapat dijangkau.
 - `AppModal` harus mendukung ukuran `sm`, `md`, `lg`, `xl` atau custom width, header/footer tetap, konten scrollable, focus management, Escape/backdrop policy, form submit, dan hampir full-screen pada mobile.
 - `ImagePreviewModal` hanya menerima URL endpoint privat, blob, atau file lokal; jangan pernah mengirim `object_key` ke browser.
+- Seluruh aksi melihat gambar, termasuk pas foto, KTP, Kartu Keluarga, BPJS, NPWP, ijazah, sertifikasi, serta gambar fitur berikutnya, wajib memakai reusable `app/components/modals/ImagePreviewModal.jsx`. Dilarang membuka gambar langsung melalui tab browser, `window.open`, modal baru, atau preview shell khusus fitur; dokumen non-gambar tetap mengikuti viewer/unduh berizin sesuai jenis file.
 - Identitas dan status administratif organisasi disimpan pada `organizations`; masa akses tidak boleh disimpan kembali sebagai kolom tanggal pada tabel tersebut.
 - Histori masa akses organisasi bersumber dari `organization_subscriptions` dengan `starts_on`, `ends_on`, `grace_ends_on`, dan status lifecycle. Perpanjangan selalu membuat record baru, tidak boleh menimpa histori, dan periode efektif tidak boleh overlap.
-- Session organisasi selalu divalidasi ulang terhadap `users.is_active`, role aktif, `organizations.is_active`, dan status langganan efektif `active` atau `grace`. Login Admin/HRD tidak diblokir oleh lokasi scope selama organisasi dan langganan aktif; scope hanya membatasi data yang dapat dikelola. Pimpinan yang memiliki `user_location_scopes` wajib masih mempunyai lokasi efektif. Karyawan wajib memiliki profil `employees` aktif, penempatan utama efektif, lokasi administratif/operasional aktif, dan `organization_units` aktif. Status langganan tetap dihitung dari tanggal dan timezone organisasi walaupun job rekonsiliasi terlambat.
+- Session organisasi selalu divalidasi ulang terhadap `users.is_active`, role aktif, `organizations.is_active`, dan status langganan efektif `active` atau `grace`. Login Admin/HRD tidak diblokir oleh lokasi scope selama organisasi dan langganan aktif; scope hanya membatasi data yang dapat dikelola. Pimpinan yang memiliki `user_location_scopes` wajib masih mempunyai lokasi efektif. Pegawai wajib memiliki profil `employees` aktif, penempatan utama efektif, lokasi administratif/operasional aktif, dan `organization_units` aktif. Status langganan tetap dihitung dari tanggal dan timezone organisasi walaupun job rekonsiliasi terlambat.
 - Penolakan login wajib memakai kode stabil dan pesan spesifik: masalah akun/profil/penempatan/lokasi/divisi mengarahkan pengguna ke Admin organisasi, sedangkan organisasi nonaktif atau masa berlaku tidak efektif mengarahkan pengguna ke Admin SITOU.
 - Umur operasional lokasi memakai `operational_from` dan `operational_until`; nama `active_from`/`active_until` tidak digunakan pada `locations`.
 - Peringatan maksimal 30 hari dan masa tenggang tampil di shell dengan tombol `Perpanjang`.

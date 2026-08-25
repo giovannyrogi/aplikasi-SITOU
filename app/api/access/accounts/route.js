@@ -11,7 +11,7 @@ import {
 import { accountCreateSchema, accountListFilterSchema } from "@/lib/access/schemas";
 import { createOrganizationAccount, listOrganizationAccounts } from "@/lib/access/service";
 
-/** Menampilkan akun HRD, Pimpinan, dan Karyawan pada organisasi efektif. */
+/** Menampilkan akun HRD, Pimpinan, dan Pegawai pada organisasi efektif. */
 export async function GET(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("accounts.read");
@@ -35,7 +35,7 @@ export async function GET(request) {
   }
 }
 
-/** Membuat akun organisasi; profil hanya wajib untuk role Karyawan. */
+/** Membuat akun organisasi; profil hanya wajib untuk role Pegawai. */
 export async function POST(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("accounts.manage");

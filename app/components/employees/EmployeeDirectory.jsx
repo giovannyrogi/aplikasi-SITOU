@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "antd";
-import { EyeOutlined, ImportOutlined, PlusOutlined } from "@ant-design/icons";
+import { EditOutlined, EyeOutlined, ImportOutlined, PlusOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
@@ -65,6 +65,16 @@ export default function EmployeeDirectory() {
       label: "Lihat ringkasan",
       onClick: () => openDetail(item),
     },
+    ...(!readOnly
+      ? [
+          {
+            key: "edit",
+            icon: <EditOutlined />,
+            label: "Edit data pegawai",
+            onClick: () => setForm({ open: true, item }),
+          },
+        ]
+      : []),
   ];
 
   const columns = [

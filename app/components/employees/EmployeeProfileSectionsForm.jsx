@@ -1,15 +1,50 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Button, Checkbox, Collapse, Form, Input, Select } from "antd";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { useEffect, useRef, useState } from "react";
+import { Button, Checkbox, Collapse, DatePicker, Form, Input, Select } from "antd";
+import { DeleteOutlined, PlusOutlined, WarningOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
+import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
+import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import IndonesiaPhoneInput from "@/app/components/forms/IndonesiaPhoneInput";
+import IndonesianNationalIdInput from "@/app/components/forms/IndonesianNationalIdInput";
 import PrivateFileUpload from "@/app/components/forms/PrivateFileUpload";
 import { getIndonesianMobileFormRules } from "@/lib/validation/indonesianPhone";
+import { getIndonesianNationalIdFormRules } from "@/lib/validation/indonesianNationalId";
+import { EDUCATION_LEVEL_OPTIONS } from "@/lib/employees/profileOptions";
+
+/** Mengubah tanggal API menjadi nilai Day.js yang diterima DatePicker AntD. */
+function toDatePickerValue(value) {
+  if (!value) return null;
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed : null;
+}
+
+/** Mengubah nilai DatePicker kembali menjadi tanggal kalender ISO untuk API. */
+function toIsoDate(value) {
+  if (!value) return null;
+  if (typeof value?.format === "function") return value.format("YYYY-MM-DD");
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : null;
+}
+
+/** Mengubah tahun numerik API menjadi nilai Day.js untuk DatePicker mode tahun. */
+function toYearPickerValue(value) {
+  if (!value) return null;
+  const parsed = dayjs(String(value), "YYYY", true);
+  return parsed.isValid() ? parsed : null;
+}
+
+/** Mengubah pilihan tahun menjadi angka yang disimpan oleh kontrak API pendidikan. */
+function toYearNumber(value) {
+  if (!value) return null;
+  if (typeof value?.year === "function") return value.year();
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
+}
 
 /** Menyatukan metadata file dari respons upload dan join database untuk komponen upload. */
 function normalizeStoredFile(file, fallback = {}) {
@@ -78,7 +113,11 @@ function normalizeProfile(profile) {
         mimeType: "document_mime_type",
         size: "document_size_bytes",
       },
-    ),
+    ).map((item) => ({
+      ...item,
+      issuedAt: toDatePickerValue(item.issuedAt),
+      expiresAt: toDatePickerValue(item.expiresAt),
+    })),
     bankAccounts: map(profile.bankAccounts, {
       bankName: "bank_name",
       accountNumber: "account_number",
@@ -94,7 +133,7 @@ function normalizeProfile(profile) {
       isDependent: "is_dependent",
       isEmergencyContact: "is_emergency_contact",
       notes: "notes",
-    }),
+    }).map((item) => ({ ...item, birthDate: toDatePickerValue(item.birthDate) })),
     emergencyContacts: map(profile.emergencyContacts, {
       fullName: "full_name",
       relationship: "relationship",
@@ -124,7 +163,10 @@ function normalizeProfile(profile) {
         mimeType: "certificate_mime_type",
         size: "certificate_size_bytes",
       },
-    ),
+    ).map((item) => ({
+      ...item,
+      graduationYear: toYearPickerValue(item.graduationYear),
+    })),
     skills: map(profile.skills, {
       skillName: "skill_name",
       proficiencyLevel: "proficiency_level",
@@ -148,7 +190,11 @@ function normalizeProfile(profile) {
         mimeType: "certificate_mime_type",
         size: "certificate_size_bytes",
       },
-    ),
+    ).map((item) => ({
+      ...item,
+      issuedAt: toDatePickerValue(item.issuedAt),
+      expiresAt: toDatePickerValue(item.expiresAt),
+    })),
   };
 }
 
@@ -157,14 +203,28 @@ function normalizeProfileSubmission(profile) {
   const source = profile || {};
   const array = (value) => (Array.isArray(value) ? value : []);
   return {
-    identifiers: array(source.identifiers),
+    identifiers: array(source.identifiers).map((item) => ({
+      ...item,
+      issuedAt: toIsoDate(item.issuedAt),
+      expiresAt: toIsoDate(item.expiresAt),
+    })),
     bankAccounts: array(source.bankAccounts),
-    dependents: array(source.dependents),
+    dependents: array(source.dependents).map((item) => ({
+      ...item,
+      birthDate: toIsoDate(item.birthDate),
+    })),
     emergencyContacts: array(source.emergencyContacts),
     socialAccounts: array(source.socialAccounts),
-    educations: array(source.educations),
+    educations: array(source.educations).map((item) => ({
+      ...item,
+      graduationYear: toYearNumber(item.graduationYear),
+    })),
     skills: array(source.skills),
-    certifications: array(source.certifications),
+    certifications: array(source.certifications).map((item) => ({
+      ...item,
+      issuedAt: toIsoDate(item.issuedAt),
+      expiresAt: toIsoDate(item.expiresAt),
+    })),
   };
 }
 
@@ -208,6 +268,57 @@ const SOCIAL_PLATFORM_OPTIONS = [
   "Threads",
 ].map((platform) => ({ value: platform, label: platform }));
 
+/** Menyamakan pilihan kategorikal agar pemeriksaan duplikat tidak peka kapitalisasi. */
+function normalizeUniqueChoice(value) {
+  return String(value || "")
+    .trim()
+    .toLocaleLowerCase("id-ID");
+}
+
+/** Mengembalikan pilihan pertama yang belum digunakan pada baris berulang. */
+function getFirstAvailableChoice(options, rows, valueKey) {
+  const usedValues = new Set(
+    (rows || []).map((item) => normalizeUniqueChoice(item?.[valueKey])).filter(Boolean),
+  );
+  return (
+    options.find((option) => !usedValues.has(normalizeUniqueChoice(option.value)))?.value || null
+  );
+}
+
+/** Dropdown unik mempertahankan pilihan baris sendiri dan mengunci pilihan milik baris lain. */
+function UniqueListSelect({ form, listName, fieldIndex, valueKey, options, ...props }) {
+  const rows = Form.useWatch(listName, form) || [];
+  const currentValue = normalizeUniqueChoice(rows[fieldIndex]?.[valueKey]);
+  const usedByOtherRows = new Set(
+    rows
+      .filter((_, index) => index !== fieldIndex)
+      .map((item) => normalizeUniqueChoice(item?.[valueKey]))
+      .filter(Boolean),
+  );
+  const resolvedOptions = options.map((option) => ({
+    ...option,
+    disabled:
+      normalizeUniqueChoice(option.value) !== currentValue &&
+      usedByOtherRows.has(normalizeUniqueChoice(option.value)),
+  }));
+
+  return <Select {...props} options={resolvedOptions} />;
+}
+
+/** Validator form mencegah nilai ganda walaupun state diubah tanpa melalui dropdown. */
+function uniqueListChoiceRule(form, listName, valueKey, label) {
+  return {
+    validator: async (_, value) => {
+      if (!value) return;
+      const normalizedValue = normalizeUniqueChoice(value);
+      const duplicates = (form.getFieldValue(listName) || []).filter(
+        (item) => normalizeUniqueChoice(item?.[valueKey]) === normalizedValue,
+      );
+      if (duplicates.length > 1) throw new Error(`${label} sudah digunakan pada data lain.`);
+    },
+  };
+}
+
 const PROFICIENCY_OPTIONS = [
   { value: "pemula", label: "Pemula" },
   { value: "dasar", label: "Dasar" },
@@ -216,10 +327,40 @@ const PROFICIENCY_OPTIONS = [
   { value: "ahli", label: "Ahli" },
 ];
 
+const PROFILE_SECTION_BY_FIELD = {
+  identifiers: "identifiers",
+  bankAccounts: "banks",
+  dependents: "family",
+  emergencyContacts: "emergency",
+  educations: "education",
+  skills: "skills",
+  certifications: "certifications",
+  socialAccounts: "social",
+};
+
+/** Memetakan field AntD yang gagal ke panel profil agar panel dapat dibuka otomatis. */
+function resolveErrorSections(errorFields = []) {
+  return [
+    ...new Set(
+      errorFields.map((field) => PROFILE_SECTION_BY_FIELD[field?.name?.[0]]).filter(Boolean),
+    ),
+  ];
+}
+
 /** Mengunggah file sesuai jenis yang dipilih tanpa membuka akses path penyimpanan privat. */
-function IdentityDocumentField({ field, form, employee, organizationId, onError }) {
+function IdentityDocumentField({
+  field,
+  form,
+  employee,
+  organizationId,
+  onError,
+  onRemoveRequest,
+}) {
   const type = Form.useWatch(["identifiers", field.name, "identifierType"], form) || "other";
-  const file = Form.useWatch(["identifiers", field.name, "documentFile"], form);
+  const file = Form.useWatch(["identifiers", field.name, "documentFile"], {
+    form,
+    preserve: true,
+  });
   const fileId = Form.useWatch(["identifiers", field.name, "documentFileId"], form);
   const config = IDENTITY_CONFIG[type] || IDENTITY_CONFIG.other;
   const isProfilePhoto = type === "pas_foto";
@@ -231,8 +372,12 @@ function IdentityDocumentField({ field, form, employee, organizationId, onError 
     <PrivateFileUpload
       value={file}
       fileId={fileId}
-      uploadUrl="/api/uploads"
-      removeUrl={file ? `/api/uploads/${file.id}?organizationId=${organizationId}` : undefined}
+      deferred
+      removeUrl={
+        file?.id || fileId
+          ? `/api/uploads/${file?.id || fileId}?organizationId=${organizationId}`
+          : undefined
+      }
       fields={{ fileKind: config.fileKind, employeeId: employee.id }}
       organizationId={organizationId}
       onChange={setFile}
@@ -250,6 +395,13 @@ function IdentityDocumentField({ field, form, employee, organizationId, onError 
           : "Gunakan JPEG, PNG, atau WebP yang jelas maksimal 5 MB."
       }
       selectedText={isProfilePhoto ? "Pas foto tersimpan secara privat" : undefined}
+      onRemoveRequest={({ fileId: selectedFileId }) =>
+        onRemoveRequest({
+          fileId: selectedFileId,
+          label: config.label,
+          apply: () => setFile(null),
+        })
+      }
     />
   );
 }
@@ -265,17 +417,21 @@ function IdentityMetadataFields({ field, form }) {
       <Form.Item
         name={[field.name, "identifierValue"]}
         label={config.numberLabel}
-        rules={[{ required: true, message: `${config.numberLabel} wajib diisi.` }]}
+        rules={
+          type === "ktp"
+            ? getIndonesianNationalIdFormRules({ required: true })
+            : [{ required: true, message: `${config.numberLabel} wajib diisi.` }]
+        }
       >
-        <Input maxLength={100} inputMode={type === "ktp" ? "numeric" : undefined} />
+        {type === "ktp" ? <IndonesianNationalIdInput /> : <Input maxLength={100} />}
       </Form.Item>
       {hasValidityPeriod ? (
         <>
           <Form.Item name={[field.name, "issuedAt"]} label="Tanggal terbit">
-            <Input placeholder="YYYY-MM-DD" />
+            <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
           </Form.Item>
           <Form.Item name={[field.name, "expiresAt"]} label="Tanggal berakhir">
-            <Input placeholder="YYYY-MM-DD" />
+            <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
           </Form.Item>
         </>
       ) : null}
@@ -299,8 +455,19 @@ function resetIdentityFields(form, index, identifierType) {
 }
 
 /** Menghubungkan foto ijazah atau sertifikat ke record profil yang sedang diedit. */
-function CredentialImageField({ listName, field, form, employee, organizationId, onError }) {
-  const file = Form.useWatch([listName, field.name, "certificateFile"], form);
+function CredentialImageField({
+  listName,
+  field,
+  form,
+  employee,
+  organizationId,
+  onError,
+  onRemoveRequest,
+}) {
+  const file = Form.useWatch([listName, field.name, "certificateFile"], {
+    form,
+    preserve: true,
+  });
   const fileId = Form.useWatch([listName, field.name, "certificateFileId"], form);
   const fileKind = listName === "educations" ? "pendidikan" : "sertifikasi";
   const setFile = (nextFile) => {
@@ -311,8 +478,12 @@ function CredentialImageField({ listName, field, form, employee, organizationId,
     <PrivateFileUpload
       value={file}
       fileId={fileId}
-      uploadUrl="/api/uploads"
-      removeUrl={file ? `/api/uploads/${file.id}?organizationId=${organizationId}` : undefined}
+      deferred
+      removeUrl={
+        file?.id || fileId
+          ? `/api/uploads/${file?.id || fileId}?organizationId=${organizationId}`
+          : undefined
+      }
       fields={{ fileKind, employeeId: employee.id }}
       organizationId={organizationId}
       onChange={setFile}
@@ -322,12 +493,19 @@ function CredentialImageField({ listName, field, form, employee, organizationId,
       emptyTitle={`Pilih atau tarik foto ${listName === "educations" ? "ijazah" : "sertifikat"} ke area ini`}
       helpText="Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
       selectedText="Gambar tersimpan secara privat"
+      onRemoveRequest={({ fileId: selectedFileId }) =>
+        onRemoveRequest({
+          fileId: selectedFileId,
+          label: listName === "educations" ? "foto ijazah" : "foto sertifikat",
+          apply: () => setFile(null),
+        })
+      }
     />
   );
 }
 
 /** Wrapper daftar memberi pola tambah/hapus konsisten untuk setiap section profil. */
-function ListSection({ name, addLabel, initialValue, children }) {
+function ListSection({ name, addLabel, initialValue, children, onRemoveItem, onAddUnavailable }) {
   return (
     <Form.List name={name}>
       {(fields, { add, remove }) => (
@@ -353,13 +531,23 @@ function ListSection({ name, addLabel, initialValue, children }) {
                   danger
                   icon={<DeleteOutlined />}
                   aria-label={`Hapus ${addLabel} ${index + 1}`}
-                  onClick={() => remove(field.name)}
+                  onClick={() => onRemoveItem(field.name, remove)}
                 />
               </Box>
               {children(field)}
             </Box>
           ))}
-          <Button icon={<PlusOutlined />} onClick={() => add(initialValue)}>
+          <Button
+            icon={<PlusOutlined />}
+            onClick={() => {
+              const nextValue = typeof initialValue === "function" ? initialValue() : initialValue;
+              if (nextValue === null) {
+                onAddUnavailable?.();
+                return;
+              }
+              add(nextValue);
+            }}
+          >
             {addLabel}
           </Button>
         </Box>
@@ -378,6 +566,10 @@ export default function EmployeeProfileSectionsForm({
   onError,
 }) {
   const [form] = Form.useForm();
+  const [activeSections, setActiveSections] = useState([]);
+  const [errorSections, setErrorSections] = useState([]);
+  const [removedFileIds, setRemovedFileIds] = useState([]);
+  const [removalConfirmation, setRemovalConfirmation] = useState(null);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const onErrorRef = useRef(onError);
   const loadedProfileRef = useRef(null);
@@ -402,6 +594,10 @@ export default function EmployeeProfileSectionsForm({
         const body = await response.json();
         if (!response.ok) throw new Error(body.message);
         if (active) {
+          setActiveSections([]);
+          setErrorSections([]);
+          setRemovedFileIds([]);
+          setRemovalConfirmation(null);
           const normalized = normalizeProfile(body.data || {});
           // Pas foto memakai upload yang sama, tetapi tidak dikirim sebagai nomor identitas.
           if (body.data?.profilePhoto) {
@@ -432,6 +628,32 @@ export default function EmployeeProfileSectionsForm({
     };
   }, [employee.id, form, open, organizationId, runWithLoadingBackdrop]);
 
+  /** Meminta persetujuan sebelum data atau file dikeluarkan dari perubahan profil. */
+  const requestRemoval = ({ label, fileId, fileIds = [], apply }) => {
+    const ids = [...fileIds, fileId].filter(Boolean).map(String);
+    setRemovalConfirmation({ label, fileIds: ids, apply });
+  };
+
+  /** Menghapus baris form setelah konfirmasi dan mengantrekan file terkait untuk soft delete saat simpan. */
+  const requestListRemoval = (name, addLabel, fieldName, remove) => {
+    const value = form.getFieldValue([name, fieldName]) || {};
+    requestRemoval({
+      label: addLabel.replace(/^Tambah\s+/i, "").toLowerCase(),
+      fileIds: [value.documentFileId, value.certificateFileId],
+      apply: () => remove(fieldName),
+    });
+  };
+
+  /** Konfirmasi hanya mengubah state form; database baru berubah saat profil disimpan. */
+  const confirmRemoval = () => {
+    if (!removalConfirmation) return;
+    removalConfirmation.apply();
+    setRemovedFileIds((current) => [
+      ...new Set([...current, ...removalConfirmation.fileIds].map(String)),
+    ]);
+    setRemovalConfirmation(null);
+  };
+
   /** Menyimpan semua section sekaligus agar constraint rekening/kontak utama konsisten. */
   const submit = async () => {
     try {
@@ -442,34 +664,97 @@ export default function EmployeeProfileSectionsForm({
             ...(loadedProfileRef.current || {}),
             ...form.getFieldsValue(true),
           });
-          const response = await fetch(`/api/employees/${employee.id}/profile`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+          const uploads = [];
+          const multipart = new FormData();
+          const registerUpload = (file, target, index = null) => {
+            if (!file?.localFile || !file?.uploadToken) return;
+            uploads.push({ token: file.uploadToken, target, index });
+            multipart.append(`upload:${file.uploadToken}`, file.localFile, file.localFile.name);
+          };
+          const identifiers = [];
+          for (const item of normalizedProfile.identifiers) {
+            if (item.identifierType === "pas_foto") {
+              registerUpload(item.documentFile, "profilePhoto");
+              continue;
+            }
+            const index = identifiers.length;
+            registerUpload(item.documentFile, "identifier", index);
+            const { documentFile: _file, ...identifier } = item;
+            identifiers.push({
+              ...identifier,
+              documentFileId: _file?.pending ? null : identifier.documentFileId,
+            });
+          }
+          const educations = normalizedProfile.educations.map((item, index) => {
+            registerUpload(item.certificateFile, "education", index);
+            const { certificateFile: _file, ...education } = item;
+            return {
+              ...education,
+              certificateFileId: _file?.pending ? null : education.certificateFileId,
+            };
+          });
+          const certifications = normalizedProfile.certifications.map((item, index) => {
+            registerUpload(item.certificateFile, "certification", index);
+            const { certificateFile: _file, ...certification } = item;
+            return {
+              ...certification,
+              certificateFileId: _file?.pending ? null : certification.certificateFileId,
+            };
+          });
+          multipart.append(
+            "payload",
+            JSON.stringify({
               organizationId,
+              removedFileIds,
+              uploads,
               profile: {
                 ...normalizedProfile,
-                identifiers: normalizedProfile.identifiers
-                  .filter((item) => item.identifierType !== "pas_foto")
-                  .map(({ documentFile: _file, ...item }) => item),
-                educations: normalizedProfile.educations.map(
-                  ({ certificateFile: _file, ...item }) => item,
-                ),
-                certifications: normalizedProfile.certifications.map(
-                  ({ certificateFile: _file, ...item }) => item,
-                ),
+                identifiers,
+                educations,
+                certifications,
               },
             }),
+          );
+          const response = await fetch(`/api/employees/${employee.id}/profile`, {
+            method: "PATCH",
+            body: multipart,
           });
           const body = await response.json();
           if (!response.ok) throw new Error(body.message);
           await onSaved(body.message);
+          setRemovedFileIds([]);
         },
         { message: "Menyimpan profil lengkap..." },
       );
     } catch (error) {
       onError(error.message);
     }
+  };
+
+  /** Validasi gagal membuka panel terkait, menandainya, lalu memfokuskan field pertama. */
+  const handleFinishFailed = ({ errorFields = [] }) => {
+    const sections = resolveErrorSections(errorFields);
+    const firstError = errorFields[0]?.name;
+    setErrorSections(sections);
+    setActiveSections((current) => [...new Set([...current, ...sections])]);
+    onError?.(
+      sections.length > 1
+        ? `Profil belum dapat disimpan. Periksa ${sections.length} bagian yang ditandai merah.`
+        : "Profil belum dapat disimpan. Periksa bagian yang ditandai merah.",
+    );
+    if (firstError) {
+      window.setTimeout(() => {
+        form.scrollToField(firstError, { behavior: "smooth", block: "center", focus: true });
+      }, 250);
+    }
+  };
+
+  /** Border error hilang segera setelah seluruh field bermasalah pada panel diperbaiki. */
+  const refreshErrorSections = () => {
+    const remainingErrors = form
+      .getFieldsError()
+      .filter((field) => Array.isArray(field.errors) && field.errors.length > 0);
+    setErrorSections(resolveErrorSections(remainingErrors));
   };
 
   const twoColumns = {
@@ -486,16 +771,38 @@ export default function EmployeeProfileSectionsForm({
         <ListSection
           name="identifiers"
           addLabel="Tambah identitas"
-          initialValue={{ identifierType: "bpjs_health", isVerified: false, documentFileId: null }}
+          initialValue={() => {
+            const identifierType = getFirstAvailableChoice(
+              IDENTITY_OPTIONS,
+              form.getFieldValue("identifiers"),
+              "identifierType",
+            );
+            return identifierType
+              ? { identifierType, isVerified: false, documentFileId: null }
+              : null;
+          }}
+          onAddUnavailable={() =>
+            onError?.("Semua jenis identitas administratif sudah ditambahkan.")
+          }
+          onRemoveItem={(fieldName, remove) =>
+            requestListRemoval("identifiers", "Tambah identitas", fieldName, remove)
+          }
         >
           {(field) => (
             <Box sx={twoColumns}>
               <Form.Item
                 name={[field.name, "identifierType"]}
                 label="Jenis"
-                rules={[{ required: true }]}
+                rules={[
+                  { required: true, message: "Jenis identitas wajib dipilih." },
+                  uniqueListChoiceRule(form, "identifiers", "identifierType", "Jenis identitas"),
+                ]}
               >
-                <Select
+                <UniqueListSelect
+                  form={form}
+                  listName="identifiers"
+                  fieldIndex={field.name}
+                  valueKey="identifierType"
                   options={IDENTITY_OPTIONS}
                   onChange={(identifierType) =>
                     resetIdentityFields(form, field.name, identifierType)
@@ -532,6 +839,7 @@ export default function EmployeeProfileSectionsForm({
                   employee={employee}
                   organizationId={organizationId}
                   onError={onError}
+                  onRemoveRequest={requestRemoval}
                 />
               </Box>
             </Box>
@@ -548,6 +856,9 @@ export default function EmployeeProfileSectionsForm({
           name="bankAccounts"
           addLabel="Tambah rekening"
           initialValue={{ isPrimary: false }}
+          onRemoveItem={(fieldName, remove) =>
+            requestListRemoval("bankAccounts", "Tambah rekening", fieldName, remove)
+          }
         >
           {(field) => (
             <Box sx={twoColumns}>
@@ -591,6 +902,9 @@ export default function EmployeeProfileSectionsForm({
           name="dependents"
           addLabel="Tambah keluarga"
           initialValue={{ relationship: "child", isDependent: true, isEmergencyContact: false }}
+          onRemoveItem={(fieldName, remove) =>
+            requestListRemoval("dependents", "Tambah keluarga", fieldName, remove)
+          }
         >
           {(field) => (
             <Box sx={twoColumns}>
@@ -613,10 +927,14 @@ export default function EmployeeProfileSectionsForm({
                 <Input />
               </Form.Item>
               <Form.Item name={[field.name, "birthDate"]} label="Tanggal lahir">
-                <Input placeholder="YYYY-MM-DD" />
+                <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
               </Form.Item>
-              <Form.Item name={[field.name, "nationalId"]} label="NIK anggota keluarga">
-                <Input inputMode="numeric" maxLength={16} />
+              <Form.Item
+                name={[field.name, "nationalId"]}
+                label="NIK anggota keluarga"
+                rules={getIndonesianNationalIdFormRules()}
+              >
+                <IndonesianNationalIdInput />
               </Form.Item>
               <Form.Item
                 name={[field.name, "phone"]}
@@ -669,6 +987,9 @@ export default function EmployeeProfileSectionsForm({
           name="emergencyContacts"
           addLabel="Tambah kontak darurat"
           initialValue={{ isPrimary: false }}
+          onRemoveItem={(fieldName, remove) =>
+            requestListRemoval("emergencyContacts", "Tambah kontak darurat", fieldName, remove)
+          }
         >
           {(field) => (
             <Box sx={twoColumns}>
@@ -719,27 +1040,44 @@ export default function EmployeeProfileSectionsForm({
           name="educations"
           addLabel="Tambah pendidikan"
           initialValue={{ isHighest: false }}
+          onRemoveItem={(fieldName, remove) =>
+            requestListRemoval("educations", "Tambah pendidikan", fieldName, remove)
+          }
         >
           {(field) => (
             <Box sx={twoColumns}>
               <Form.Item
                 name={[field.name, "educationLevel"]}
-                label="Jenjang"
-                rules={[{ required: true }]}
+                label="Jenjang pendidikan"
+                rules={[{ required: true, message: "Pilih jenjang pendidikan." }]}
               >
-                <Input />
+                <Select
+                  options={EDUCATION_LEVEL_OPTIONS}
+                  placeholder="Pilih jenjang pendidikan"
+                  showSearch
+                  optionFilterProp="label"
+                />
               </Form.Item>
-              <Form.Item name={[field.name, "institution"]} label="Institusi">
-                <Input />
+              <Form.Item name={[field.name, "institution"]} label="Nama institusi pendidikan">
+                <Input placeholder="Contoh: Universitas Sam Ratulangi" maxLength={200} />
               </Form.Item>
-              <Form.Item name={[field.name, "fieldOfStudy"]} label="Bidang studi">
-                <Input />
+              <Form.Item name={[field.name, "fieldOfStudy"]} label="Program studi atau jurusan">
+                <Input placeholder="Contoh: Teknik Informatika" maxLength={150} />
               </Form.Item>
-              <Form.Item name={[field.name, "graduationYear"]} label="Tahun lulus">
-                <Input type="number" />
+              <Form.Item name={[field.name, "graduationYear"]} label="Tahun kelulusan">
+                <DatePicker
+                  picker="year"
+                  format="YYYY"
+                  placeholder="Pilih tahun kelulusan"
+                  style={{ width: "100%" }}
+                />
               </Form.Item>
-              <Form.Item name={[field.name, "isHighest"]} valuePropName="checked">
-                <Checkbox>Pendidikan tertinggi</Checkbox>
+              <Form.Item
+                name={[field.name, "isHighest"]}
+                valuePropName="checked"
+                style={{ gridColumn: "1 / -1", marginBottom: 0 }}
+              >
+                <Checkbox>Tandai sebagai pendidikan tertinggi</Checkbox>
               </Form.Item>
               <Form.Item name={[field.name, "certificateFileId"]} hidden>
                 <Input />
@@ -752,6 +1090,7 @@ export default function EmployeeProfileSectionsForm({
                   employee={employee}
                   organizationId={organizationId}
                   onError={onError}
+                  onRemoveRequest={requestRemoval}
                 />
               </Box>
             </Box>
@@ -764,7 +1103,14 @@ export default function EmployeeProfileSectionsForm({
       forceRender: true,
       label: "Keahlian",
       children: (
-        <ListSection name="skills" addLabel="Tambah keahlian" initialValue={{}}>
+        <ListSection
+          name="skills"
+          addLabel="Tambah keahlian"
+          initialValue={{}}
+          onRemoveItem={(fieldName, remove) =>
+            requestListRemoval("skills", "Tambah keahlian", fieldName, remove)
+          }
+        >
           {(field) => (
             <Box sx={twoColumns}>
               <Form.Item
@@ -794,7 +1140,14 @@ export default function EmployeeProfileSectionsForm({
       forceRender: true,
       label: "Sertifikasi",
       children: (
-        <ListSection name="certifications" addLabel="Tambah sertifikasi" initialValue={{}}>
+        <ListSection
+          name="certifications"
+          addLabel="Tambah sertifikasi"
+          initialValue={{}}
+          onRemoveItem={(fieldName, remove) =>
+            requestListRemoval("certifications", "Tambah sertifikasi", fieldName, remove)
+          }
+        >
           {(field) => (
             <Box sx={twoColumns}>
               <Form.Item
@@ -811,10 +1164,10 @@ export default function EmployeeProfileSectionsForm({
                 <Input />
               </Form.Item>
               <Form.Item name={[field.name, "issuedAt"]} label="Tanggal terbit">
-                <Input placeholder="YYYY-MM-DD" />
+                <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
               </Form.Item>
               <Form.Item name={[field.name, "expiresAt"]} label="Kedaluwarsa">
-                <Input placeholder="YYYY-MM-DD" />
+                <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
               </Form.Item>
               <Form.Item name={[field.name, "certificateFileId"]} hidden>
                 <Input />
@@ -827,6 +1180,7 @@ export default function EmployeeProfileSectionsForm({
                   employee={employee}
                   organizationId={organizationId}
                   onError={onError}
+                  onRemoveRequest={requestRemoval}
                 />
               </Box>
             </Box>
@@ -839,15 +1193,37 @@ export default function EmployeeProfileSectionsForm({
       forceRender: true,
       label: "Akun sosial",
       children: (
-        <ListSection name="socialAccounts" addLabel="Tambah akun sosial" initialValue={{}}>
+        <ListSection
+          name="socialAccounts"
+          addLabel="Tambah akun sosial"
+          initialValue={() => {
+            const platform = getFirstAvailableChoice(
+              SOCIAL_PLATFORM_OPTIONS,
+              form.getFieldValue("socialAccounts"),
+              "platform",
+            );
+            return platform ? { platform } : null;
+          }}
+          onAddUnavailable={() => onError?.("Semua platform akun sosial sudah ditambahkan.")}
+          onRemoveItem={(fieldName, remove) =>
+            requestListRemoval("socialAccounts", "Tambah akun sosial", fieldName, remove)
+          }
+        >
           {(field) => (
             <Box sx={twoColumns}>
               <Form.Item
                 name={[field.name, "platform"]}
                 label="Platform"
-                rules={[{ required: true }]}
+                rules={[
+                  { required: true, message: "Platform wajib dipilih." },
+                  uniqueListChoiceRule(form, "socialAccounts", "platform", "Platform"),
+                ]}
               >
-                <Select
+                <UniqueListSelect
+                  form={form}
+                  listName="socialAccounts"
+                  fieldIndex={field.name}
+                  valueKey="platform"
                   options={SOCIAL_PLATFORM_OPTIONS}
                   placeholder="Pilih platform"
                   showSearch
@@ -867,39 +1243,97 @@ export default function EmployeeProfileSectionsForm({
       ),
     },
   ];
+  const collapseItems = items.map((item) => {
+    const hasError = errorSections.includes(item.key);
+    return {
+      ...item,
+      className: hasError ? "profile-section-error" : undefined,
+      label: (
+        <Box
+          component="span"
+          sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}
+        >
+          <span>{item.label}</span>
+          {hasError ? (
+            <Box
+              component="span"
+              sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: "error.main" }}
+            >
+              <WarningOutlined aria-hidden="true" />
+              <FontStyle component="span" fontSize={11.5} fontWeight={600}>
+                Periksa isian
+              </FontStyle>
+            </Box>
+          ) : null}
+        </Box>
+      ),
+    };
+  });
   return (
-    <AppModal
-      open={open}
-      title="Profil lengkap pegawai"
-      description="Kelola data administratif sensitif pada satu transaksi."
-      size="xl"
-      onClose={onClose}
-      footer={
-        <>
-          <Button onClick={onClose}>Batal</Button>
-          <Button type="primary" onClick={() => form.submit()}>
-            Simpan profil lengkap
-          </Button>
-        </>
-      }
-    >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={submit}
-        initialValues={{
-          identifiers: [],
-          bankAccounts: [],
-          dependents: [],
-          emergencyContacts: [],
-          socialAccounts: [],
-          educations: [],
-          skills: [],
-          certifications: [],
-        }}
+    <>
+      <AppModal
+        open={open}
+        title="Profil lengkap pegawai"
+        description="Kelola data administratif sensitif pada satu transaksi."
+        size="xl"
+        onClose={onClose}
+        footer={
+          <>
+            <Button onClick={onClose}>Batal</Button>
+            <Button type="primary" onClick={() => form.submit()}>
+              Simpan profil lengkap
+            </Button>
+          </>
+        }
       >
-        <Collapse items={items} />
-      </Form>
-    </AppModal>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={submit}
+          onFinishFailed={handleFinishFailed}
+          onFieldsChange={refreshErrorSections}
+          initialValues={{
+            identifiers: [],
+            bankAccounts: [],
+            dependents: [],
+            emergencyContacts: [],
+            socialAccounts: [],
+            educations: [],
+            skills: [],
+            certifications: [],
+          }}
+        >
+          <Box
+            sx={{
+              "& .profile-section-error": {
+                border: "1px solid",
+                borderColor: "error.main",
+                borderRadius: "8px",
+                overflow: "hidden",
+              },
+            }}
+          >
+            <Collapse
+              items={collapseItems}
+              activeKey={activeSections}
+              onChange={(keys) => setActiveSections(Array.isArray(keys) ? keys : [keys])}
+            />
+          </Box>
+        </Form>
+      </AppModal>
+      <ConfirmDialog
+        open={Boolean(removalConfirmation)}
+        title="Hapus data profil?"
+        message={
+          removalConfirmation?.fileIds?.length
+            ? `Data ${removalConfirmation.label} dan file terkait akan dihapus setelah Anda menekan Simpan profil lengkap. Yakin ingin melanjutkan?`
+            : `Data ${removalConfirmation?.label || "ini"} akan dihapus setelah Anda menekan Simpan profil lengkap. Yakin ingin melanjutkan?`
+        }
+        confirmText="Hapus"
+        danger
+        onConfirm={confirmRemoval}
+        onClose={() => setRemovalConfirmation(null)}
+      />
+    </>
   );
 }

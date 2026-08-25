@@ -46,7 +46,7 @@ test("petunjuk mengklasifikasikan seluruh sheet dari satu sumber yang sama", () 
     assert.equal(guidance.requirement, "optional");
 });
 
-test("setiap sheet data ditautkan menggunakan Nomor Pegawai", () => {
+test("setiap sheet data ditautkan menggunakan NIP", () => {
   for (const sheet of EMPLOYEE_IMPORT_SHEETS)
     assert.equal(sheet.columns[0][0], "employeeNo", `${sheet.name} tidak memiliki employeeNo`);
 });

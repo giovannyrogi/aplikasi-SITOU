@@ -6,7 +6,7 @@ Folder ini menyimpan perubahan schema secara berurutan untuk database SITOU yang
 
 - Database kosong baru: gunakan `sitou_schema_v3.sql` sebagai schema lengkap terkini. Jangan lanjut menjalankan seluruh migration historis di folder ini.
 - Database lama: jalankan hanya migration yang belum pernah diterapkan, sesuai urutan nomor nama file.
-- Database development lokal `sitou_db` saat ini sudah memiliki hasil migration `001` sampai `015`; jangan menyalin dan menjalankannya ulang secara manual.
+- Database development lokal `sitou_db` memiliki hasil migration `001` sampai `016`. Migration `016` menambahkan histori pencabutan tindakan disiplin tanpa menghapus tindakan atau dokumen historis. Migration `017` menormalkan nama role lama menjadi Pegawai dan perlu dijalankan pada database lama.
 
 Jangan menjalankan semua file secara acak atau mengulang migration tanpa pemeriksaan. Sebagian migration mengubah atau menghapus kolom lama dan sengaja berhenti ketika kondisi data tidak aman.
 

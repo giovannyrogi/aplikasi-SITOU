@@ -5,10 +5,13 @@ import { Button } from "antd";
 import {
   BankOutlined,
   BookOutlined,
+  CalendarOutlined,
+  ClockCircleOutlined,
   ContactsOutlined,
   CloseCircleOutlined,
   EditOutlined,
   EnvironmentOutlined,
+  EyeOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
   IdcardOutlined,
@@ -27,6 +30,7 @@ import DetailTabs from "@/app/components/navigation/DetailTabs";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import Notification from "@/app/components/Notifications/Notification";
+import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { ROLES } from "@/app/constants/roles";
@@ -35,14 +39,22 @@ import { AssignmentForm, ContractCancelForm, ContractForm } from "./EmployeeLife
 import EmployeeProfileSectionsForm from "./EmployeeProfileSectionsForm";
 import {
   EmployeeBankDetails,
-  EmployeeCompetencyDetails,
+  EmployeeEducationDetails,
   EmployeeRelatedSummary,
 } from "./EmployeeProfileDetails";
 import EmptyState from "@/app/components/data-display/EmptyState";
 import {
   DisciplineCaseForm,
   DisciplinaryActionForm,
+  DisciplinaryActionRevokeForm,
 } from "@/app/components/discipline/DisciplineForms";
+import DisciplineCaseDetailModal from "@/app/components/discipline/DisciplineCaseDetailModal";
+import {
+  ACTION_LABELS,
+  ACTION_STATUS,
+  CASE_STATUS,
+  SEVERITY,
+} from "@/app/components/discipline/disciplineLabels";
 
 const EMPLOYEE_STATUS = {
   active: ["Aktif", "success"],
@@ -73,51 +85,36 @@ const CONTRACT_STATUS = {
   cancelled: ["Dibatalkan", "danger"],
 };
 
-const CASE_STATUS = {
-  open: ["Terbuka", "warning"],
-  investigating: ["Dalam pemeriksaan", "info"],
-  closed_no_action: ["Ditutup tanpa tindakan", "neutral"],
-  action_issued: ["Tindakan diterbitkan", "danger"],
-};
-
-const SEVERITY = {
-  light: ["Ringan", "info"],
-  moderate: ["Sedang", "warning"],
-  severe: ["Berat", "danger"],
-};
-
-const ACTION_LABELS = {
-  oral_warning: "Teguran lisan",
-  sp1: "SP1",
-  sp2: "SP2",
-  sp3: "SP3",
-  suspension: "Skorsing",
-  salary_delay: "Penundaan gaji",
-  promotion_delay: "Penundaan promosi",
-  demotion: "Demosi",
-  fine: "Denda",
-  termination: "Pengakhiran hubungan kerja",
-  other: "Tindakan lain",
-};
-
-const ACTION_STATUS = {
-  draft: ["Draft", "neutral"],
-  active: ["Aktif", "danger"],
-  expired: ["Berakhir", "neutral"],
-  revoked: ["Dicabut", "warning"],
-  appealed: ["Dalam banding", "info"],
-};
-
 const VALID_TABS = [
   "summary",
   "assignments",
   "contracts",
   "documents",
-  "competencies",
+  "insurance",
+  "education",
   "bank",
   "discipline",
   "account",
 ];
+
+/** Bookmark lama tetap diarahkan ke nama tab baru tanpa mempertahankan label Kompetensi. */
+function normalizeDetailTab(value) {
+  return value === "competencies" ? "education" : value;
+}
+
+const GENDER_LABELS = {
+  male: "Laki-laki",
+  female: "Perempuan",
+  other: "Lainnya",
+  undisclosed: "Tidak disebutkan",
+};
+
+const MARITAL_STATUS_LABELS = {
+  single: "Belum menikah",
+  married: "Menikah",
+  divorced: "Cerai hidup",
+  widowed: "Cerai mati",
+};
 
 /** Memformat tanggal ISO menjadi Bahasa Indonesia tanpa mengubah timezone tanggal kalender. */
 function formatDate(value, fallback = "Belum ditentukan") {
@@ -129,6 +126,17 @@ function formatDate(value, fallback = "Belum ditentukan") {
     month: "short",
     year: "numeric",
   }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+/** Memformat waktu audit agar pelaku dan waktu perubahan mudah ditelusuri. */
+function formatDateTime(value, fallback = "Belum ditentukan") {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
 /** Label tab memakai ikon agar bagian lebih cepat dikenali. */
@@ -194,7 +202,7 @@ function InfoField({ label, value, icon }) {
 }
 
 /** Section ringkasan mengelompokkan data berdasarkan kebutuhan pengguna. */
-function SummarySection({ icon, title, children }) {
+function SummarySection({ icon, title, children, contentSx }) {
   const theme = useTheme();
   return (
     <Box component="section">
@@ -231,9 +239,388 @@ function SummarySection({ icon, title, children }) {
           display: "grid",
           gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" },
           gap: 2.25,
+          ...contentSx,
         }}
       >
         {children}
+      </Box>
+    </Box>
+  );
+}
+
+/** Bukti visual menampilkan thumbnail privat dan membuka gambar melalui preview reusable. */
+function VisualIdentity({
+  title,
+  file,
+  aspectRatio,
+  emptyText,
+  organizationId,
+  onPreview,
+  objectFit = "contain",
+  frameless = false,
+  sx,
+}) {
+  const theme = useTheme();
+  const fileId = file?.id || file?.document_file_id;
+  const imageUrl = fileId
+    ? `/api/uploads/${fileId}?organizationId=${encodeURIComponent(organizationId)}`
+    : null;
+
+  return (
+    <Box sx={{ minWidth: 0, ...sx }}>
+      <FontStyle fontSize={11.5} fontWeight={700} sx={{ mb: 1 }}>
+        {title}
+      </FontStyle>
+      {imageUrl ? (
+        <Box
+          component="button"
+          type="button"
+          onClick={() => onPreview({ title, imageUrl, alt: `${title} pegawai` })}
+          aria-label={`Perbesar ${title.toLowerCase()}`}
+          sx={{
+            width: "100%",
+            p: 0,
+            display: "block",
+            overflow: "hidden",
+            cursor: "zoom-in",
+            bgcolor: frameless ? "transparent" : theme.ui.panelSubtleBg,
+            border: frameless ? "none" : `1px solid ${theme.ui.panelBorder}`,
+            borderRadius: "8px",
+            transition: frameless ? "opacity 160ms ease" : "border-color 160ms ease",
+            "&:hover": frameless ? { opacity: 0.94 } : { borderColor: theme.ui.panelBorder },
+            "&:focus-visible": {
+              outline: `2px solid ${theme.palette.primary.main}`,
+              outlineOffset: 3,
+            },
+            "&:focus:not(:focus-visible)": {
+              outline: "none",
+            },
+          }}
+        >
+          {/* Endpoint privat tidak kompatibel dengan optimasi next/image. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt={title}
+            style={{
+              width: "100%",
+              ...(aspectRatio ? { aspectRatio } : {}),
+              display: "block",
+              objectFit,
+            }}
+          />
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            minHeight: 132,
+            display: "grid",
+            placeItems: "center",
+            px: 2,
+            textAlign: "center",
+            bgcolor: theme.ui.panelSubtleBg,
+            border: `1px dashed ${theme.ui.panelBorder}`,
+            borderRadius: "8px",
+          }}
+        >
+          <Box>
+            <IdcardOutlined style={{ color: theme.ui.mutedText, fontSize: 24 }} />
+            <FontStyle fontSize={11.5} sx={{ mt: 1, color: theme.ui.mutedText }}>
+              {emptyText}
+            </FontStyle>
+          </Box>
+        </Box>
+      )}
+      {file?.original_name ? (
+        <FontStyle
+          fontSize={10.5}
+          sx={{ mt: 0.75, color: theme.ui.mutedText, overflowWrap: "anywhere" }}
+        >
+          {file.original_name}
+        </FontStyle>
+      ) : null}
+    </Box>
+  );
+}
+
+/** Ringkasan jaminan menjaga nomor kepesertaan dan bukti visual dalam konteks yang sama. */
+function InsuranceItem({ label, identifier, organizationId, onPreview }) {
+  return (
+    <Box
+      component="section"
+      sx={{
+        minWidth: 0,
+        display: "grid",
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(0, 1fr) 220px" },
+        gap: { xs: 2.5, sm: 3 },
+        alignItems: "start",
+      }}
+    >
+      <Box sx={{ minWidth: 0, display: "grid", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <FontStyle component="h3" fontSize={14} fontWeight={700}>
+            {label}
+          </FontStyle>
+          <CompactInfoChip
+            label={identifier ? "Sudah dicatat" : "Belum dilengkapi"}
+            tone={identifier ? "success" : "neutral"}
+          />
+        </Box>
+        <InfoField label="Nomor kepesertaan" value={identifier?.identifier_value} />
+        <InfoField label="Masa berlaku" value={formatDate(identifier?.expires_at)} />
+      </Box>
+      <VisualIdentity
+        title={`Bukti ${label}`}
+        file={identifier?.document_file}
+        aspectRatio="1.586 / 1"
+        emptyText={`Bukti ${label} belum diunggah.`}
+        organizationId={organizationId}
+        onPreview={onPreview}
+      />
+    </Box>
+  );
+}
+
+/** Kartu kasus memisahkan fakta, tindakan, audit pencabutan, dan aksi pada hierarchy yang jelas. */
+function DisciplineCaseCard({
+  disciplineCase,
+  readOnly,
+  onDetail,
+  onEditDraft,
+  onRevoke,
+  onCreateAction,
+}) {
+  const theme = useTheme();
+  const action = disciplineCase.actions?.[0] || null;
+  const isRevoked = action?.status === "revoked";
+  const severity = SEVERITY[disciplineCase.severity] || [disciplineCase.severity, "neutral"];
+  const caseStatus = CASE_STATUS[disciplineCase.status] || [disciplineCase.status, "neutral"];
+  const actionStatus = action ? ACTION_STATUS[action.status] || [action.status, "neutral"] : null;
+
+  return (
+    <Box
+      component="article"
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        bgcolor: theme.palette.background.paper,
+        border: `1px solid ${theme.ui.panelBorderSubtle}`,
+        borderRadius: "8px",
+        boxShadow: theme.ui.panelShadow,
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          inset: "0 auto 0 0",
+          width: 4,
+          bgcolor: isRevoked ? theme.status.warning.main : theme.palette.primary.main,
+        },
+      }}
+    >
+      <Box sx={{ p: { xs: 2, sm: 2.5 }, pl: { xs: 2.5, sm: 3 } }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: { xs: "flex-start", sm: "center" },
+            justifyContent: "space-between",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <FontStyle fontSize={14} fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
+              {disciplineCase.case_no}
+            </FontStyle>
+            <Box
+              sx={{
+                mt: 0.75,
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                color: theme.ui.mutedText,
+              }}
+            >
+              <CalendarOutlined />
+              <FontStyle fontSize={11.5}>
+                Kejadian {formatDate(disciplineCase.incident_date)}
+              </FontStyle>
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+            <CompactInfoChip label={severity[0]} tone={severity[1]} />
+            <CompactInfoChip label={caseStatus[0]} tone={caseStatus[1]} />
+          </Box>
+        </Box>
+
+        <Box sx={{ mt: 2.25 }}>
+          <FontStyle fontSize={11.5} fontWeight={600} sx={{ color: theme.ui.mutedText }}>
+            Uraian kejadian
+          </FontStyle>
+          <FontStyle
+            fontSize={12.5}
+            sx={{
+              mt: 0.65,
+              lineHeight: 1.7,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {disciplineCase.description}
+          </FontStyle>
+        </Box>
+
+        <Divider sx={{ my: 2.25, borderColor: theme.ui.panelBorderSubtle }} />
+
+        {action ? (
+          <Box sx={{ display: "grid", gap: 1.5 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: { xs: "flex-start", sm: "center" },
+                justifyContent: "space-between",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 1.25,
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <FontStyle fontSize={11.5} fontWeight={600} sx={{ color: theme.ui.mutedText }}>
+                  Tindakan disiplin
+                </FontStyle>
+                <Box sx={{ mt: 0.75, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+                  <CompactInfoChip
+                    label={ACTION_LABELS[action.action_type] || action.action_type}
+                    tone="danger"
+                  />
+                  <CompactInfoChip label={actionStatus[0]} tone={actionStatus[1]} />
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  color: theme.ui.mutedText,
+                }}
+              >
+                <ClockCircleOutlined />
+                <FontStyle fontSize={11.5}>Diterbitkan {formatDate(action.issued_date)}</FontStyle>
+              </Box>
+            </Box>
+
+            {isRevoked ? (
+              <Box
+                sx={{
+                  p: { xs: 1.5, sm: 2 },
+                  bgcolor: theme.status.warning.background,
+                  border: `1px solid ${theme.status.warning.border}`,
+                  borderRadius: "8px",
+                }}
+              >
+                <FontStyle
+                  fontSize={12.5}
+                  fontWeight={700}
+                  sx={{ color: theme.status.warning.text }}
+                >
+                  Riwayat pencabutan
+                </FontStyle>
+                <Box
+                  sx={{
+                    mt: 1.25,
+                    display: "grid",
+                    gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" },
+                    gap: { xs: 1.25, sm: 2 },
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <FontStyle fontSize={11} sx={{ color: theme.status.warning.text }}>
+                      Dicabut oleh
+                    </FontStyle>
+                    <FontStyle fontSize={12.25} fontWeight={600} sx={{ mt: 0.35 }}>
+                      {action.revoked_by_name || "Belum diketahui"}
+                    </FontStyle>
+                  </Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <FontStyle fontSize={11} sx={{ color: theme.status.warning.text }}>
+                      Waktu pencabutan
+                    </FontStyle>
+                    <FontStyle fontSize={12.25} fontWeight={600} sx={{ mt: 0.35 }}>
+                      {formatDateTime(action.revoked_at)}
+                    </FontStyle>
+                  </Box>
+                </Box>
+                <FontStyle fontSize={11} sx={{ mt: 1.25, color: theme.status.warning.text }}>
+                  Alasan pencabutan
+                </FontStyle>
+                <FontStyle
+                  fontSize={12.25}
+                  fontWeight={600}
+                  sx={{
+                    mt: 0.35,
+                    lineHeight: 1.65,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {action.revocation_reason || "Alasan pencabutan belum dicatat."}
+                </FontStyle>
+              </Box>
+            ) : null}
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              p: 1.5,
+              bgcolor: theme.ui.panelSubtleBg,
+              borderRadius: "8px",
+            }}
+          >
+            <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
+              Belum ada tindakan yang ditetapkan untuk kasus ini.
+            </FontStyle>
+          </Box>
+        )}
+
+        <Box
+          sx={{
+            mt: 2.25,
+            pt: 2,
+            display: "flex",
+            gap: 1,
+            flexWrap: "wrap",
+            borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
+            "& .ant-btn": {
+              minHeight: 44,
+              width: { xs: "100%", sm: "auto" },
+            },
+          }}
+        >
+          <Button icon={<EyeOutlined />} onClick={() => onDetail(disciplineCase)}>
+            Lihat detail kasus
+          </Button>
+          {!readOnly && action?.status === "draft" ? (
+            <Button icon={<EditOutlined />} onClick={() => onEditDraft(disciplineCase)}>
+              Edit draft
+            </Button>
+          ) : null}
+          {!readOnly && action?.status === "active" ? (
+            <Button danger icon={<CloseCircleOutlined />} onClick={() => onRevoke(action)}>
+              Cabut tindakan
+            </Button>
+          ) : null}
+          {!readOnly && !action && disciplineCase.status !== "closed_no_action" ? (
+            <Button
+              type="primary"
+              icon={<FileTextOutlined />}
+              onClick={() => onCreateAction(disciplineCase)}
+            >
+              Tetapkan tindakan
+            </Button>
+          ) : null}
+        </Box>
       </Box>
     </Box>
   );
@@ -249,7 +636,7 @@ export default function EmployeeDetail({ employeeId }) {
   const { notification, showNotification, closeNotification } = useAppNotification();
   const organizationId = searchParams.get("organizationId") || user.organization_id;
   const readOnly = user.role_code === ROLES.LEADER;
-  const requestedTab = searchParams.get("tab");
+  const requestedTab = normalizeDetailTab(searchParams.get("tab"));
   const initialTab =
     VALID_TABS.includes(requestedTab) && !(readOnly && ["account", "bank"].includes(requestedTab))
       ? requestedTab
@@ -272,8 +659,11 @@ export default function EmployeeDetail({ employeeId }) {
   });
   const [modal, setModal] = useState(null);
   const [actionCase, setActionCase] = useState(null);
+  const [revokeAction, setRevokeAction] = useState(null);
+  const [detailCase, setDetailCase] = useState(null);
   const [selectedContract, setSelectedContract] = useState(null);
   const [contractToCancel, setContractToCancel] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   /** Memuat seluruh bagian paralel agar perpindahan tab tidak menghasilkan request waterfall. */
   const load = useCallback(async () => {
@@ -314,7 +704,7 @@ export default function EmployeeDetail({ employeeId }) {
   /** Menyelaraskan tab dari histori browser tanpa memicu request halaman baru. */
   useEffect(() => {
     const syncFromHistory = () => {
-      const tab = new URLSearchParams(window.location.search).get("tab");
+      const tab = normalizeDetailTab(new URLSearchParams(window.location.search).get("tab"));
       setActiveTab(
         VALID_TABS.includes(tab) && !(readOnly && ["account", "bank"].includes(tab))
           ? tab
@@ -340,6 +730,10 @@ export default function EmployeeDetail({ employeeId }) {
     employee.employment_status,
     "neutral",
   ];
+  const identifiers = state.profile.identifiers || [];
+  const ktpIdentifier = identifiers.find((item) => item.identifier_type === "ktp");
+  const bpjsHealth = identifiers.find((item) => item.identifier_type === "bpjs_health");
+  const bpjsEmployment = identifiers.find((item) => item.identifier_type === "bpjs_employment");
 
   const contentSx = { p: { xs: 2, sm: 2.5, lg: 3 }, minWidth: 0 };
 
@@ -359,23 +753,100 @@ export default function EmployeeDetail({ employeeId }) {
               display: "grid",
               gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" },
               columnGap: { xs: 4, lg: 5 },
-              rowGap: { xs: 4, lg: 5 },
+              rowGap: { xs: 5, lg: 6 },
             }}
           >
             <Box sx={{ gridColumn: { xs: "auto", lg: "1 / -1" } }}>
-              <SummarySection icon={<UserOutlined />} title="Profil pegawai">
-                <InfoField label="Nama lengkap" value={employee.full_name} />
-                <InfoField label="Status pegawai" value={status[0]} />
-                <InfoField label="Nomor pegawai" value={employee.employee_no} />
-                <InfoField label="Organisasi" value={employee.organization_name} />
+              <SummarySection
+                icon={<UserOutlined />}
+                title="Identitas dan profil pegawai"
+                contentSx={{
+                  gridTemplateColumns: "minmax(0, 1fr)",
+                  gap: { xs: 3, md: 3.5 },
+                  alignItems: "start",
+                }}
+              >
+                <Box
+                  sx={{
+                    minWidth: 0,
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "minmax(0, 1fr)",
+                      sm: "repeat(2, minmax(0, 1fr))",
+                    },
+                    gap: { xs: 2.25, sm: 2.5 },
+                  }}
+                >
+                  <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+                    <FontStyle component="h3" fontSize={18} fontWeight={700}>
+                      {employee.full_name}
+                    </FontStyle>
+                    {employee.preferred_name ? (
+                      <FontStyle fontSize={12} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
+                        Nama panggilan: {employee.preferred_name}
+                      </FontStyle>
+                    ) : null}
+                    <Box sx={{ mt: 1.25, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+                      <CompactInfoChip label={status[0]} tone={status[1]} />
+                      <CompactInfoChip label={`NIP: ${employee.employee_no}`} tone="info" />
+                    </Box>
+                  </Box>
+                  <InfoField label="Organisasi" value={employee.organization_name} />
+                  <InfoField label="NIK" value={employee.national_id} />
+                  <InfoField label="Tempat lahir" value={employee.birth_place} />
+                  <InfoField label="Tanggal lahir" value={formatDate(employee.birth_date)} />
+                  <InfoField
+                    label="Jenis kelamin"
+                    value={GENDER_LABELS[employee.gender] || employee.gender}
+                  />
+                  <InfoField label="Agama" value={employee.religion} />
+                  <InfoField
+                    label="Status perkawinan"
+                    value={
+                      MARITAL_STATUS_LABELS[employee.marital_status] || employee.marital_status
+                    }
+                  />
+                  <InfoField label="Golongan darah" value={employee.blood_type} />
+                  <InfoField label="Kewarganegaraan" value={employee.nationality} />
+                  <InfoField label="Tanggal bergabung" value={formatDate(employee.joined_date)} />
+                </Box>
+                <Box
+                  sx={{
+                    minWidth: 0,
+                    pt: { xs: 2.5, sm: 3 },
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "minmax(0, 1fr)",
+                      sm: "180px minmax(280px, 420px)",
+                    },
+                    gap: { xs: 3, sm: 3.5 },
+                    alignItems: "start",
+                    justifyContent: { xs: "stretch", sm: "start" },
+                    borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
+                  }}
+                >
+                  <VisualIdentity
+                    title="Pas foto"
+                    file={state.profile.profilePhoto}
+                    aspectRatio="3 / 4"
+                    emptyText="Pas foto belum diunggah."
+                    organizationId={organizationId}
+                    onPreview={setImagePreview}
+                    objectFit="cover"
+                    sx={{ width: "100%", maxWidth: 180, mx: { xs: "auto", sm: 0 } }}
+                  />
+                  <VisualIdentity
+                    title="Foto KTP"
+                    file={ktpIdentifier?.document_file}
+                    emptyText="Foto KTP belum diunggah."
+                    organizationId={organizationId}
+                    onPreview={setImagePreview}
+                    frameless
+                    sx={{ width: "100%", maxWidth: 420, mx: { xs: "auto", sm: 0 } }}
+                  />
+                </Box>
               </SummarySection>
             </Box>
-            <SummarySection icon={<IdcardOutlined />} title="Informasi pribadi">
-              <InfoField label="Nomor pegawai" value={employee.employee_no} />
-              <InfoField label="NIK" value={employee.national_id} />
-              <InfoField label="Tempat lahir" value={employee.birth_place} />
-              <InfoField label="Tanggal lahir" value={formatDate(employee.birth_date)} />
-            </SummarySection>
             <SummarySection icon={<ContactsOutlined />} title="Kontak">
               <InfoField
                 label="Email pribadi"
@@ -399,14 +870,14 @@ export default function EmployeeDetail({ employeeId }) {
             <SummarySection icon={<FileTextOutlined />} title="Hubungan kerja">
               <InfoField label="Jenis kepegawaian" value={employee.employment_type_name} />
               <InfoField label="Nomor kontrak" value={employee.contract_no} />
-              <InfoField label="Tanggal bergabung" value={formatDate(employee.joined_date)} />
+              <InfoField label="Mulai kontrak" value={formatDate(employee.contract_start_date)} />
               <InfoField
                 label="Akhir kontrak"
                 value={formatDate(employee.contract_end_date, "Tanpa batas akhir")}
               />
             </SummarySection>
+            <EmployeeRelatedSummary profile={state.profile} embedded />
           </Box>
-          <EmployeeRelatedSummary profile={state.profile} />
         </Box>
       ),
     },
@@ -536,110 +1007,182 @@ export default function EmployeeDetail({ employeeId }) {
           />
           <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
           {state.history.contracts.length ? (
-            <Box sx={{ display: "grid" }}>
+            <Box component="ol" sx={{ display: "grid", m: 0, p: 0, listStyle: "none" }}>
               {state.history.contracts.map((item, index) => (
                 <Box
+                  component="li"
                   key={item.id}
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "180px minmax(0, 1fr)" },
-                    gap: { xs: 1, sm: 2.5 },
-                    py: 2,
+                    gridTemplateColumns: {
+                      xs: "minmax(0, 1fr)",
+                      md: "170px minmax(0, 1fr) auto",
+                    },
+                    alignItems: "start",
+                    gap: { xs: 2, md: 3 },
+                    py: { xs: 2.5, md: 3 },
                     borderTop: index === 0 ? "none" : `1px solid ${theme.ui.panelBorderSubtle}`,
                   }}
                 >
-                  <Box>
-                    <FontStyle fontSize={12} fontWeight={600} sx={{ color: theme.ui.mutedText }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
+                      Periode kontrak
+                    </FontStyle>
+                    <FontStyle fontSize={12.5} fontWeight={700} sx={{ mt: 0.5 }}>
                       {formatDate(item.start_date)}
                     </FontStyle>
                     <FontStyle fontSize={11.5} sx={{ mt: 0.35, color: theme.ui.mutedText }}>
                       sampai {formatDate(item.end_date, "tanpa batas akhir")}
                     </FontStyle>
+                    <Box sx={{ mt: 1.25 }}>
+                      <CompactInfoChip
+                        label={CONTRACT_STATUS[item.status]?.[0] || "Status belum dikenali"}
+                        tone={CONTRACT_STATUS[item.status]?.[1] || "neutral"}
+                      />
+                    </Box>
                   </Box>
-                  <Box
-                    sx={{
-                      minWidth: 0,
-                      display: "flex",
-                      alignItems: { xs: "flex-start", md: "center" },
-                      justifyContent: "space-between",
-                      flexDirection: { xs: "column", md: "row" },
-                      gap: 1.5,
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                        <FontStyle fontSize={13.5} fontWeight={700}>
-                          {item.employment_type_name}
-                        </FontStyle>
-                        <CompactInfoChip
-                          label={CONTRACT_STATUS[item.status]?.[0] || "Status belum dikenali"}
-                          tone={CONTRACT_STATUS[item.status]?.[1] || "neutral"}
-                        />
-                      </Box>
-                      <FontStyle fontSize={12} sx={{ mt: 0.65, color: theme.ui.mutedText }}>
-                        Nomor kontrak: {item.contract_no || "Belum dicatat"}
+                  <Box sx={{ minWidth: 0 }}>
+                    <FontStyle fontSize={14} fontWeight={700}>
+                      {item.employment_type_name}
+                    </FontStyle>
+                    <FontStyle fontSize={12} sx={{ mt: 0.65, color: theme.ui.mutedText }}>
+                      Nomor kontrak: {item.contract_no || "Belum dicatat"}
+                    </FontStyle>
+                    {item.notes ? (
+                      <FontStyle
+                        fontSize={11.5}
+                        sx={{ mt: 0.75, color: theme.ui.mutedText, whiteSpace: "pre-wrap" }}
+                      >
+                        {item.notes}
                       </FontStyle>
-                      {item.status === "cancelled" && item.cancellation_reason ? (
+                    ) : null}
+
+                    <Box
+                      aria-label="Jejak audit kontrak"
+                      sx={{
+                        mt: 1.75,
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" },
+                        gap: 1,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, minWidth: 0 }}>
+                        <UserOutlined style={{ marginTop: 3, color: theme.ui.mutedText }} />
+                        <Box sx={{ minWidth: 0 }}>
+                          <FontStyle fontSize={10.5} sx={{ color: theme.ui.mutedText }}>
+                            Dicatat oleh
+                          </FontStyle>
+                          <FontStyle fontSize={11.5} fontWeight={600} sx={{ mt: 0.2 }}>
+                            {item.created_by_name || "Pelaku tidak tersedia"}
+                          </FontStyle>
+                          <FontStyle fontSize={10.5} sx={{ mt: 0.2, color: theme.ui.mutedText }}>
+                            {formatDateTime(item.created_audit_at || item.created_at)}
+                          </FontStyle>
+                        </Box>
+                      </Box>
+                      {item.updated_audit_at ? (
                         <Box
-                          sx={{
-                            mt: 1.25,
-                            borderLeft: `3px solid ${theme.status.danger.main}`,
-                            pl: 1.25,
-                            pr: 1,
-                          }}
+                          sx={{ display: "flex", alignItems: "flex-start", gap: 1, minWidth: 0 }}
                         >
-                          <FontStyle fontSize={11.5} fontWeight={700}>
-                            Alasan pembatalan
-                          </FontStyle>
-                          <FontStyle
-                            fontSize={11.5}
-                            sx={{ mt: 0.35, color: theme.ui.mutedText, whiteSpace: "pre-wrap" }}
-                          >
-                            {item.cancellation_reason}
-                          </FontStyle>
-                          {item.cancelled_at ? (
-                            <FontStyle fontSize={10.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-                              Dibatalkan pada {formatDate(item.cancelled_at)}
+                          <EditOutlined style={{ marginTop: 3, color: theme.ui.mutedText }} />
+                          <Box sx={{ minWidth: 0 }}>
+                            <FontStyle fontSize={10.5} sx={{ color: theme.ui.mutedText }}>
+                              Terakhir dikoreksi oleh
                             </FontStyle>
-                          ) : null}
+                            <FontStyle fontSize={11.5} fontWeight={600} sx={{ mt: 0.2 }}>
+                              {item.updated_by_name || "Pelaku tidak tersedia"}
+                            </FontStyle>
+                            <FontStyle fontSize={10.5} sx={{ mt: 0.2, color: theme.ui.mutedText }}>
+                              {formatDateTime(item.updated_audit_at)}
+                            </FontStyle>
+                          </Box>
                         </Box>
                       ) : null}
                     </Box>
-                    <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", flexShrink: 0 }}>
-                      {item.document_file_id ? (
-                        <Button
-                          size="small"
-                          icon={<FileTextOutlined />}
-                          href={`/api/uploads/${item.document_file_id}?organizationId=${organizationId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+
+                    {item.status === "cancelled" && item.cancellation_reason ? (
+                      <Box
+                        sx={{
+                          mt: 1.75,
+                          borderLeft: `3px solid ${theme.status.danger.main}`,
+                          bgcolor: theme.status.danger.background,
+                          py: 1.25,
+                          px: 1.5,
+                          borderRadius: 1,
+                        }}
+                      >
+                        <FontStyle fontSize={11.5} fontWeight={700}>
+                          Pembatalan kontrak
+                        </FontStyle>
+                        <FontStyle
+                          fontSize={11.5}
+                          sx={{ mt: 0.45, color: theme.ui.mutedText, whiteSpace: "pre-wrap" }}
                         >
-                          Dokumen kontrak
+                          {item.cancellation_reason}
+                        </FontStyle>
+                        <Box
+                          sx={{
+                            mt: 0.8,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.75,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <ClockCircleOutlined style={{ color: theme.ui.mutedText }} />
+                          <FontStyle fontSize={10.5} sx={{ color: theme.ui.mutedText }}>
+                            Dibatalkan oleh {item.cancelled_by_name || "pelaku tidak tersedia"} pada{" "}
+                            {formatDateTime(item.cancelled_at)}
+                          </FontStyle>
+                        </Box>
+                      </Box>
+                    ) : null}
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: { xs: "column", sm: "row", md: "column", xl: "row" },
+                      gap: 1,
+                      flexWrap: "wrap",
+                      justifyContent: { md: "flex-end" },
+                      flexShrink: 0,
+                      "& .ant-btn": {
+                        minHeight: 40,
+                        width: { xs: "100%", sm: "auto" },
+                        fontWeight: 600,
+                      },
+                    }}
+                  >
+                    {item.document_file_id ? (
+                      <Button
+                        icon={<FileTextOutlined />}
+                        href={`/api/uploads/${item.document_file_id}?organizationId=${organizationId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Dokumen kontrak
+                      </Button>
+                    ) : null}
+                    {!readOnly && item.status !== "cancelled" ? (
+                      <>
+                        <Button
+                          icon={<EditOutlined />}
+                          onClick={() => {
+                            setSelectedContract(item);
+                            setModal("contractEdit");
+                          }}
+                        >
+                          Edit
                         </Button>
-                      ) : null}
-                      {!readOnly && item.status !== "cancelled" ? (
-                        <>
-                          <Button
-                            size="small"
-                            icon={<EditOutlined />}
-                            onClick={() => {
-                              setSelectedContract(item);
-                              setModal("contractEdit");
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="small"
-                            danger
-                            icon={<CloseCircleOutlined />}
-                            onClick={() => setContractToCancel(item)}
-                          >
-                            Batalkan
-                          </Button>
-                        </>
-                      ) : null}
-                    </Box>
+                        <Button
+                          danger
+                          icon={<CloseCircleOutlined />}
+                          onClick={() => setContractToCancel(item)}
+                        >
+                          Batalkan
+                        </Button>
+                      </>
+                    ) : null}
                   </Box>
                 </Box>
               ))}
@@ -730,16 +1273,48 @@ export default function EmployeeDetail({ employeeId }) {
       ),
     },
     {
-      key: "competencies",
-      label: <TabLabel icon={<BookOutlined />}>Kompetensi</TabLabel>,
+      key: "insurance",
+      label: <TabLabel icon={<SafetyCertificateOutlined />}>Jaminan</TabLabel>,
       children: (
         <Box sx={contentSx}>
           <TabSectionHeader
-            title="Pendidikan dan kompetensi"
-            description="Lihat riwayat pendidikan, keahlian, serta sertifikasi pegawai dalam satu bagian."
+            title="Jaminan pegawai"
+            description="Lihat nomor kepesertaan dan bukti BPJS tanpa memenuhi ringkasan utama pegawai."
           />
           <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
-          <EmployeeCompetencyDetails profile={state.profile} organizationId={organizationId} />
+          <Box sx={{ display: "grid", gap: 4 }}>
+            <InsuranceItem
+              label="BPJS Kesehatan"
+              identifier={bpjsHealth}
+              organizationId={organizationId}
+              onPreview={setImagePreview}
+            />
+            <Divider sx={{ borderColor: theme.ui.panelBorderSubtle }} />
+            <InsuranceItem
+              label="BPJS Ketenagakerjaan"
+              identifier={bpjsEmployment}
+              organizationId={organizationId}
+              onPreview={setImagePreview}
+            />
+          </Box>
+        </Box>
+      ),
+    },
+    {
+      key: "education",
+      label: <TabLabel icon={<BookOutlined />}>Pendidikan</TabLabel>,
+      children: (
+        <Box sx={contentSx}>
+          <TabSectionHeader
+            title="Pendidikan dan pengembangan"
+            description="Telusuri riwayat pendidikan, tingkat keahlian, serta sertifikasi pegawai secara terstruktur."
+          />
+          <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
+          <EmployeeEducationDetails
+            profile={state.profile}
+            organizationId={organizationId}
+            onPreview={setImagePreview}
+          />
         </Box>
       ),
     },
@@ -785,110 +1360,15 @@ export default function EmployeeDetail({ employeeId }) {
           {state.discipline.length ? (
             <Box sx={{ display: "grid", gap: 2 }}>
               {state.discipline.map((disciplineCase) => (
-                <Box
-                  component="article"
+                <DisciplineCaseCard
                   key={disciplineCase.id}
-                  sx={{
-                    p: { xs: 2, sm: 2.5 },
-                    bgcolor: theme.ui.panelSubtleBg,
-                    border: `1px solid ${theme.ui.panelBorderSubtle}`,
-                    borderRadius: "8px",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: { xs: "flex-start", sm: "center" },
-                      justifyContent: "space-between",
-                      flexDirection: { xs: "column", sm: "row" },
-                      gap: 1.5,
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <FontStyle fontSize={13.5} fontWeight={700}>
-                        {disciplineCase.case_no}
-                      </FontStyle>
-                      <FontStyle fontSize={11.5} sx={{ mt: 0.4, color: theme.ui.mutedText }}>
-                        Kejadian {formatDate(disciplineCase.incident_date)}
-                      </FontStyle>
-                    </Box>
-                    <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-                      <CompactInfoChip
-                        label={SEVERITY[disciplineCase.severity]?.[0]}
-                        tone={SEVERITY[disciplineCase.severity]?.[1]}
-                      />
-                      <CompactInfoChip
-                        label={CASE_STATUS[disciplineCase.status]?.[0] || disciplineCase.status}
-                        tone={CASE_STATUS[disciplineCase.status]?.[1] || "neutral"}
-                      />
-                    </Box>
-                  </Box>
-                  <FontStyle fontSize={12.5} sx={{ mt: 1.5, lineHeight: 1.65 }}>
-                    {disciplineCase.description}
-                  </FontStyle>
-                  {disciplineCase.actions.length ? (
-                    <Box sx={{ mt: 2, display: "grid", gap: 1 }}>
-                      {disciplineCase.actions.map((action) => (
-                        <Box
-                          key={action.id}
-                          sx={{
-                            display: "flex",
-                            alignItems: { xs: "flex-start", sm: "center" },
-                            justifyContent: "space-between",
-                            flexDirection: { xs: "column", sm: "row" },
-                            gap: 1,
-                            py: 1.25,
-                            borderTop: `1px solid ${theme.ui.panelBorder}`,
-                          }}
-                        >
-                          <Box>
-                            <FontStyle fontSize={12.5} fontWeight={700}>
-                              {ACTION_LABELS[action.action_type] || action.action_type}
-                            </FontStyle>
-                            <FontStyle fontSize={11.5} sx={{ mt: 0.35, color: theme.ui.mutedText }}>
-                              Terbit {formatDate(action.issued_date)} · Berlaku{" "}
-                              {formatDate(action.effective_from)} sampai{" "}
-                              {formatDate(action.effective_until, "selesai sesuai keputusan")}
-                            </FontStyle>
-                          </Box>
-                          <Box
-                            sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}
-                          >
-                            <CompactInfoChip
-                              label={ACTION_STATUS[action.status]?.[0] || "Status belum dikenali"}
-                              tone={ACTION_STATUS[action.status]?.[1] || "neutral"}
-                            />
-                            {action.document_file_id ? (
-                              <Button
-                                size="small"
-                                icon={<FileTextOutlined />}
-                                href={`/api/uploads/${action.document_file_id}?organizationId=${organizationId}&download=1`}
-                              >
-                                Unduh dokumen
-                              </Button>
-                            ) : null}
-                          </Box>
-                        </Box>
-                      ))}
-                    </Box>
-                  ) : (
-                    <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: theme.ui.mutedText }}>
-                      Belum ada tindakan yang diterbitkan untuk kasus ini.
-                    </FontStyle>
-                  )}
-                  {!readOnly &&
-                  disciplineCase.actions.length === 0 &&
-                  disciplineCase.status !== "closed_no_action" ? (
-                    <Button
-                      type="link"
-                      icon={<FileTextOutlined />}
-                      onClick={() => setActionCase(disciplineCase)}
-                      style={{ marginTop: 12, paddingInline: 0 }}
-                    >
-                      Tetapkan tindakan
-                    </Button>
-                  ) : null}
-                </Box>
+                  disciplineCase={disciplineCase}
+                  readOnly={readOnly}
+                  onDetail={setDetailCase}
+                  onEditDraft={setActionCase}
+                  onRevoke={setRevokeAction}
+                  onCreateAction={setActionCase}
+                />
               ))}
             </Box>
           ) : (
@@ -1022,6 +1502,7 @@ export default function EmployeeDetail({ employeeId }) {
             employee_id: employee.id,
             organization_id: organizationId,
           }}
+          action={actionCase.actions?.[0] || null}
           onClose={() => setActionCase(null)}
           onSaved={async (message) => {
             setActionCase(null);
@@ -1031,6 +1512,33 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
+      {!readOnly && revokeAction ? (
+        <DisciplinaryActionRevokeForm
+          open
+          action={revokeAction}
+          organizationId={organizationId}
+          onClose={() => setRevokeAction(null)}
+          onSaved={async (message) => {
+            setRevokeAction(null);
+            showNotification(message);
+            await load();
+          }}
+          onError={(message) => showNotification(message, "error")}
+        />
+      ) : null}
+      <DisciplineCaseDetailModal
+        open={Boolean(detailCase)}
+        disciplineCase={detailCase}
+        organizationId={organizationId}
+        onClose={() => setDetailCase(null)}
+      />
+      <ImagePreviewModal
+        open={Boolean(imagePreview)}
+        onClose={() => setImagePreview(null)}
+        imageUrl={imagePreview?.imageUrl}
+        title={imagePreview?.title}
+        alt={imagePreview?.alt}
+      />
       <Notification {...notification} onClose={closeNotification} />
     </Box>
   );

@@ -13,15 +13,15 @@ const activeEmployee = {
   employee_unit_is_active: true,
 };
 
-test("Admin/HRD tidak mengikuti policy penempatan karyawan", () => {
+test("Admin/HRD tidak mengikuti policy penempatan pegawai", () => {
   assert.equal(getEmployeeAccessFailure({ role_code: "hrd" }), null);
 });
 
-test("karyawan dengan lokasi aktif dapat login", () => {
+test("pegawai dengan lokasi aktif dapat login", () => {
   assert.equal(getEmployeeAccessFailure(activeEmployee), null);
 });
 
-test("karyawan ditolak ketika lokasi penempatan dinonaktifkan", () => {
+test("pegawai ditolak ketika lokasi penempatan dinonaktifkan", () => {
   const failure = getEmployeeAccessFailure({
     ...activeEmployee,
     employee_location_is_active: false,
@@ -30,12 +30,12 @@ test("karyawan ditolak ketika lokasi penempatan dinonaktifkan", () => {
   assert.match(failure.message, /Admin organisasi Anda/);
 });
 
-test("karyawan ditolak ketika divisi penempatan dinonaktifkan", () => {
+test("pegawai ditolak ketika divisi penempatan dinonaktifkan", () => {
   const failure = getEmployeeAccessFailure({ ...activeEmployee, employee_unit_is_active: false });
   assert.equal(failure.code, "EMPLOYEE_UNIT_INACTIVE");
 });
 
-test("karyawan ditolak ketika tidak memiliki penempatan utama aktif", () => {
+test("pegawai ditolak ketika tidak memiliki penempatan utama aktif", () => {
   const failure = getEmployeeAccessFailure({ ...activeEmployee, employee_assignment_id: null });
   assert.equal(failure.code, "EMPLOYEE_ASSIGNMENT_INACTIVE");
 });

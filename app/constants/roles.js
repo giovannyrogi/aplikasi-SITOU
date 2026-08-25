@@ -9,7 +9,7 @@ export const ROLE_LABELS = {
   [ROLES.SUPERADMIN]: "Superadmin",
   [ROLES.HRD]: "HRD",
   [ROLES.LEADER]: "Pimpinan",
-  [ROLES.EMPLOYEE]: "Karyawan",
+  [ROLES.EMPLOYEE]: "Pegawai",
 };
 
 const ROLE_ALIAS_MAP = {

@@ -56,7 +56,8 @@ export default function OrganizationAccountsPage() {
         <Box>
           <FontStyle fontWeight={700}>{item.display_name}</FontStyle>
           <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
-            @{item.username}{item.contact_email ? ` · ${item.contact_email}` : ""}
+            @{item.username}
+            {item.contact_email ? ` · ${item.contact_email}` : ""}
           </FontStyle>
         </Box>
       ),
@@ -80,7 +81,7 @@ export default function OrganizationAccountsPage() {
       dataIndex: "role_code",
       render: (value) => (
         <CompactInfoChip
-          label={value === "leader" ? "Pimpinan" : value === "employee" ? "Karyawan" : "HRD"}
+          label={value === "leader" ? "Pimpinan" : value === "employee" ? "Pegawai" : "HRD"}
           tone={roleTone[value]}
         />
       ),
@@ -141,7 +142,7 @@ export default function OrganizationAccountsPage() {
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
         title="Akun Organisasi"
-        description="Kelola akun HRD, Pimpinan, dan Karyawan pada organisasi yang dipilih."
+        description="Kelola akun HRD, Pimpinan, dan Pegawai pada organisasi yang dipilih."
         action={
           <Button
             type="primary"
