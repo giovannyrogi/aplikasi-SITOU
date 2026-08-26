@@ -1,0 +1,84 @@
+"use client";
+
+import { Icon } from "@iconify/react";
+import { Box, Paper, Skeleton, useTheme } from "@mui/material";
+import FontStyle from "@/app/components/font-style/FontStyle";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
+
+/** Daftar prioritas yang mengarahkan perhatian pengguna tanpa membanjiri dashboard. */
+export default function DashboardAttentionList({ items = [], loading }) {
+  const theme = useTheme();
+  return (
+    <Paper
+      component="section"
+      elevation={0}
+      sx={{
+        height: "100%",
+        p: { xs: 2, sm: 2.5 },
+        border: `1px solid ${theme.ui.dashboardCardBorder}`,
+        borderRadius: "8px",
+        bgcolor: theme.ui.dashboardCardBg,
+        boxShadow: theme.ui.dashboardCardShadow,
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Icon icon="solar:bell-bing-bold-duotone" width={22} color={theme.status.warning.main} />
+        <FontStyle component="h2" fontSize={15} fontWeight={700}>
+          Perlu ditinjau
+        </FontStyle>
+      </Box>
+      <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
+        Prioritas yang membutuhkan pemeriksaan atau tindak lanjut.
+      </FontStyle>
+      <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, mt: 2 }}>
+        {loading ? (
+          [1, 2, 3].map((item) => (
+            <Box component="li" key={item} sx={{ py: 1.5 }}>
+              <Skeleton />
+              <Skeleton width="65%" />
+            </Box>
+          ))
+        ) : items.length ? (
+          items.map((item) => (
+            <Box
+              component="li"
+              key={`${item.type}-${item.id}`}
+              sx={{
+                py: 1.4,
+                borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
+                display: "grid",
+                gridTemplateColumns: "minmax(0,1fr) auto",
+                gap: 1.25,
+                alignItems: "start",
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <FontStyle fontSize={12.5} fontWeight={600} sx={{ overflowWrap: "anywhere" }}>
+                  {item.title}
+                </FontStyle>
+                <FontStyle
+                  fontSize={10.8}
+                  sx={{ mt: 0.35, color: theme.ui.mutedText, lineHeight: 1.5 }}
+                >
+                  {item.description}
+                </FontStyle>
+              </Box>
+              <CompactInfoChip
+                label={
+                  item.priority === 1 ? "Mendesak" : item.priority === 2 ? "Perhatian" : "Tinjau"
+                }
+                tone={item.priority === 1 ? "danger" : "warning"}
+              />
+            </Box>
+          ))
+        ) : (
+          <Box component="li" sx={{ py: 4, textAlign: "center" }}>
+            <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
+              Tidak ada prioritas mendesak saat ini.
+            </FontStyle>
+          </Box>
+        )}
+      </Box>
+    </Paper>
+  );
+}

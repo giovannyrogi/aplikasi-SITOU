@@ -1,11 +1,6 @@
-import PageHeader from "@/app/components/layout/PageHeader";
+import DashboardClient from "@/app/components/dashboard/DashboardClient";
 
-/** Menyediakan konteks halaman dashboard sambil menunggu modul ringkasan dikembangkan. */
+/** Merender dashboard role-aware di dalam protected shell. */
 export default function DashboardPage() {
-  return (
-    <PageHeader
-      title="Dashboard"
-      description="Ringkasan operasional SITOU akan ditampilkan pada tahap pengembangan berikutnya."
-    />
-  );
+  return <DashboardClient />;
 }

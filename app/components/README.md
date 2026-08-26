@@ -73,6 +73,23 @@ Seluruh aksi lihat gambar wajib memakai `modals/ImagePreviewModal`; jangan membu
 | `Notifications/Notification`      | Feedback berhasil, gagal, peringatan, atau informasi.                                          | `open`, `message`, `severity`, `onClose`                                              |
 | `font-style/FontStyle`            | Satu-satunya typography MUI SITOU.                                                             | Props typography; bobot 500, 600, atau maksimal 700                                   |
 
+## Dashboard dan Visualisasi
+
+| Komponen                           | Tujuan                                                                                                  | Props penting                               |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `dashboard/DashboardMetric`        | Panel KPI dengan aksen status, angka lokal, ikon, dan dukungan microtrend.                              | `metric`, `loading`                         |
+| `dashboard/DashboardChart`         | Shell grafik dengan header, tinggi stabil, loading, empty state, dan hover yang halus.                  | `title`, `description`, `icon`, `loading`   |
+| `dashboard/AreaTrendChart`         | Grafik area untuk tren kumulatif berdasarkan periode.                                                   | `data`                                      |
+| `dashboard/HorizontalBarChart`     | Grafik batang horizontal untuk label kategori yang panjang.                                             | `data`, `percent`                           |
+| `dashboard/StackedBarChart`        | Grafik batang bertumpuk untuk komposisi beberapa seri.                                                  | `data`, `horizontal`                        |
+| `dashboard/DonutChart`             | Grafik donut kelengkapan data dengan total dan legend Bahasa Indonesia.                                 | `data`                                      |
+| `dashboard/MetricSparkline`        | Grafik mini tanpa sumbu untuk tren pada KPI.                                                            | `data`, `color`                             |
+| `dashboard/DashboardAttentionList` | Daftar prioritas operasional dengan tingkat urgensi.                                                    | `items`, `loading`                          |
+| `dashboard/DashboardActivityList`  | Daftar aktivitas audit terbaru tanpa membuka payload sensitif.                                          | `items`, `loading`                          |
+| `dashboard/chartAdapter`           | Sumber konfigurasi ApexCharts untuk theme, format Indonesia, responsive behavior, tooltip, dan animasi. | `createChartOptions`, `formatChartCategory` |
+
+Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender melalui `ApexChartClient` dengan SSR nonaktif. Grafik fitur tidak boleh menyalin konfigurasi theme, tooltip, breakpoint, atau reduced motion secara terpisah. Grafik harus mendukung keputusan pengguna dan selalu memiliki state loading, kosong, serta error pada shell-nya.
+
 ## Branding
 
 - `branding/AppLogo` adalah satu-satunya komponen untuk menampilkan logo SITOU. Gunakan `variant="full"` untuk logo beserta tagline dan `variant="mark"` untuk simbol ringkas.
