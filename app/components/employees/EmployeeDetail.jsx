@@ -173,7 +173,7 @@ function TabSectionHeader({ title, description, action }) {
 }
 
 /** Field ringkasan membedakan label dan nilai serta menjaga teks panjang tetap terbaca. */
-function InfoField({ label, value, icon, sx }) {
+function InfoField({ label, value, valueContent, icon, sx }) {
   const theme = useTheme();
   return (
     <Box sx={{ minWidth: 0, ...sx }}>
@@ -183,13 +183,17 @@ function InfoField({ label, value, icon, sx }) {
           {label}
         </FontStyle>
       </Box>
-      <FontStyle
-        fontSize={13}
-        fontWeight={600}
-        sx={{ mt: 0.65, lineHeight: 1.55, overflowWrap: "anywhere" }}
-      >
-        {value || "Belum ditentukan"}
-      </FontStyle>
+      {valueContent ? (
+        <Box sx={{ mt: 0.65 }}>{valueContent}</Box>
+      ) : (
+        <FontStyle
+          fontSize={13}
+          fontWeight={600}
+          sx={{ mt: 0.65, lineHeight: 1.55, overflowWrap: "anywhere" }}
+        >
+          {value || "Belum ditentukan"}
+        </FontStyle>
+      )}
     </Box>
   );
 }
@@ -895,7 +899,7 @@ export default function EmployeeDetail({ employeeId }) {
                 <>
                   <InfoField
                     label="Status hubungan kerja"
-                    value={<CompactInfoChip label={status[0]} tone={status[1]} />}
+                    valueContent={<CompactInfoChip label={status[0]} tone={status[1]} />}
                   />
                   <InfoField
                     label="Tanggal berakhir"

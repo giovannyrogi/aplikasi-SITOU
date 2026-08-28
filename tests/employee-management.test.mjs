@@ -18,6 +18,7 @@ import {
   employeeContractCorrectionSchema,
   employeeDraftSaveSchema,
 } from "../lib/employees/schemas.js";
+import { normalizeMaritalStatus } from "../lib/employees/profileOptions.js";
 import {
   isValidIndonesianNationalId,
   normalizeIndonesianNationalId,
@@ -387,6 +388,13 @@ test("status perkawinan hanya menerima pilihan resmi", () => {
     }).success,
     false,
   );
+});
+
+test("label status perkawinan dari draft lama dinormalkan ke kode resmi", () => {
+  assert.equal(normalizeMaritalStatus("Belum Menikah"), "single");
+  assert.equal(normalizeMaritalStatus("Menikah"), "married");
+  assert.equal(normalizeMaritalStatus("Cerai Hidup"), "divorced");
+  assert.equal(normalizeMaritalStatus("Cerai Mati"), "widowed");
 });
 
 test("validasi origin menerima origin publik yang diteruskan reverse proxy", () => {

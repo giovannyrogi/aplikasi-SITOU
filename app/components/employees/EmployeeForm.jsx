@@ -27,6 +27,7 @@ import {
   BLOOD_TYPE_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
   MARITAL_STATUS_OPTIONS,
+  normalizeMaritalStatus,
 } from "@/lib/employees/profileOptions";
 
 const required = (message) => [{ required: true, message }];
@@ -122,6 +123,7 @@ function hydrateDraft(payload, organizationId) {
     ...defaults,
     ...payload,
     organizationId,
+    maritalStatus: normalizeMaritalStatus(payload.maritalStatus),
     birthDate: dateValue(payload.birthDate),
     joinedDate: dateValue(payload.joinedDate),
     contact: { ...defaults.contact, ...(payload.contact || {}) },
@@ -293,7 +295,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
         birthDate: dateValue(item.birth_date),
         gender: item.gender,
         religion: item.religion,
-        maritalStatus: item.marital_status,
+        maritalStatus: normalizeMaritalStatus(item.marital_status),
         bloodType: item.blood_type,
         nationality: item.nationality,
         joinedDate: dateValue(item.joined_date),
@@ -422,6 +424,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
     if (domicileSameAsKtp) contact.domicileAddress = contact.ktpAddress || null;
     return {
       ...values,
+      maritalStatus: normalizeMaritalStatus(values.maritalStatus),
       birthDate: formatDate(values.birthDate),
       joinedDate: formatDate(values.joinedDate),
       contact,
@@ -839,7 +842,11 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               <Form.Item name="preferredName" label="Nama panggilan">
                 <Input maxLength={100} />
               </Form.Item>
-              <Form.Item name="nationalId" label="NIK" rules={getIndonesianNationalIdFormRules({ required: true })}>
+              <Form.Item
+                name="nationalId"
+                label="NIK"
+                rules={getIndonesianNationalIdFormRules({ required: true })}
+              >
                 <IndonesianNationalIdInput />
               </Form.Item>
               <Box
@@ -1126,10 +1133,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                     }))}
                   />
                 </Form.Item>
-                <Form.Item
-                  name={["contract", "contractNo"]}
-                  label="Nomor kontrak (opsional)"
-                >
+                <Form.Item name={["contract", "contractNo"]} label="Nomor kontrak (opsional)">
                   <Input maxLength={100} />
                 </Form.Item>
                 <Form.Item
@@ -1172,9 +1176,6 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                     />
                   </Form.Item>
                 </Box>
-                <Form.Item name={["contract", "notes"]} label="Catatan kontrak">
-                  <Input.TextArea rows={3} maxLength={2000} showCount />
-                </Form.Item>
               </Box>
               <Box sx={{ ...gridSx, display: step === 3 ? "grid" : "none" }}>
                 <Form.Item
@@ -1265,9 +1266,6 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                     />
                   </Form.Item>
                 </Box>
-                <Form.Item name={["assignment", "notes"]} label="Catatan penempatan">
-                  <Input.TextArea rows={3} maxLength={2000} showCount />
-                </Form.Item>
               </Box>
             </>
           ) : null}
