@@ -34,6 +34,11 @@ gagal dan menampilkan tabel, kolom, constraint, atau permission yang belum lengk
 Seed database production yang masih kosong dijalankan dengan
 `ENV_FILE=.env.production npm run seed:superadmin`.
 
+Untuk deployment di balik reverse proxy, isi `APP_ORIGIN=https://sitou.pasarmanado.id`
+dan pastikan proxy menimpa `X-Forwarded-Proto` serta `X-Forwarded-Host` dengan nilai
+publik yang benar. Validasi origin upload tetap aktif, tetapi kini memahami origin publik
+yang diteruskan proxy sehingga request tidak dibandingkan dengan alamat internal aplikasi.
+
 ## Masa akses organisasi
 
 Identitas organisasi disimpan pada `organizations`. Semua histori masa akses berada pada `organization_subscriptions`; onboarding membuat periode pertama dan perpanjangan selalu menambah periode baru. Lokasi memakai `operational_from` dan `operational_until` untuk umur operasional, bukan untuk masa berlangganan SITOU.

@@ -63,6 +63,9 @@ const requiredConstraints = [
   "ck_contract_cancellation",
   "uq_disciplinary_action_case",
   "ck_disciplinary_action_revocation",
+  "ck_employees_national_id",
+  "ck_employees_marital_status",
+  "ck_employee_onboarding_draft_current_step",
 ];
 
 const expectedRolePermissions = {
@@ -152,6 +155,10 @@ try {
   const columnResult = await client.query(
     "SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public'",
   );
+  const employeeNikResult = await client.query(
+    "SELECT is_nullable FROM information_schema.columns " +
+      "WHERE table_schema='public' AND table_name='employees' AND column_name='national_id'",
+  );
   const constraintResult = await client.query(
     "SELECT constraint_name FROM information_schema.table_constraints " +
       "WHERE constraint_schema='public' AND constraint_name=ANY($1::text[])",
@@ -189,6 +196,8 @@ try {
   const missingConstraints = requiredConstraints.filter(
     (constraint) => !existingConstraints.has(constraint),
   );
+  const invalidColumnDefinitions =
+    employeeNikResult.rows[0]?.is_nullable === "NO" ? [] : ["employees.national_id:NOT_NULL"];
   const missingPermissions = Object.entries(expectedRolePermissions).flatMap(
     ([roleCode, permissionCodes]) =>
       permissionCodes
@@ -202,11 +211,13 @@ try {
       missingRelations.length === 0 &&
       missingColumns.length === 0 &&
       remainingLegacyColumns.length === 0 &&
+      invalidColumnDefinitions.length === 0 &&
       missingConstraints.length === 0 &&
       missingPermissions.length === 0,
     missing_relations: missingRelations,
     missing_columns: missingColumns,
     remaining_legacy_columns: remainingLegacyColumns,
+    invalid_column_definitions: invalidColumnDefinitions,
     missing_constraints: missingConstraints,
     missing_role_permissions: missingPermissions,
   };

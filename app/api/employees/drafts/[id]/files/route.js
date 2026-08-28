@@ -5,6 +5,7 @@ import {
   getRequestId,
   handleRouteError,
   successResponse,
+  validateMutationRequest,
 } from "@/lib/api/routeHelpers";
 import { storeEmployeeDraftFile } from "@/lib/files/storage";
 
@@ -15,11 +16,10 @@ export async function POST(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("private_files.manage");
   if (response) return response;
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
-    return errorResponse("INVALID_ORIGIN", "Asal permintaan tidak diizinkan.", 403, requestId);
-  if (Number(request.headers.get("content-length") || 0) > MAX_REQUEST_BYTES)
-    return errorResponse("PAYLOAD_TOO_LARGE", "Ukuran upload maksimal 10 MB.", 413, requestId);
+  const rejected = validateMutationRequest(request, user.id, requestId, {
+    maxBytes: MAX_REQUEST_BYTES,
+  });
+  if (rejected) return rejected;
   const id = parsePositiveInteger((await params).id, "ID draft");
   if (id.error) return errorResponse("INVALID_ID", id.error, 400, requestId);
   try {

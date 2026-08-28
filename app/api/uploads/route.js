@@ -8,20 +8,11 @@ import {
   getRequestId,
   handleRouteError,
   successResponse,
+  validateMutationRequest,
 } from "@/lib/api/routeHelpers";
 import { listEmployeeFiles, storeEmployeeFile } from "@/lib/files/storage";
 
 const MAX_REQUEST_BYTES = 11 * 1024 * 1024;
-
-/** Memastikan upload berasal dari origin aplikasi dan tidak melewati batas request. */
-function validateUploadRequest(request, requestId) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
-    return errorResponse("INVALID_ORIGIN", "Asal permintaan tidak diizinkan.", 403, requestId);
-  if (Number(request.headers.get("content-length") || 0) > MAX_REQUEST_BYTES)
-    return errorResponse("PAYLOAD_TOO_LARGE", "Ukuran upload maksimal 10 MB.", 413, requestId);
-  return null;
-}
 
 /** Mengembalikan metadata file pegawai; isi file tetap diakses melalui route file ID. */
 export async function GET(request) {
@@ -46,7 +37,9 @@ export async function POST(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("private_files.manage");
   if (response) return response;
-  const rejected = validateUploadRequest(request, requestId);
+  const rejected = validateMutationRequest(request, user.id, requestId, {
+    maxBytes: MAX_REQUEST_BYTES,
+  });
   if (rejected) return rejected;
   try {
     const form = await request.formData();

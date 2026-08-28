@@ -300,12 +300,12 @@ CREATE TABLE employees (
   user_id bigint UNIQUE REFERENCES users(id), -- Akun self-service pegawai bila sudah dibuat.
   full_name varchar(200) NOT NULL, -- Nama lengkap.
   preferred_name varchar(100), -- Nama panggilan.
-  national_id varchar(30) CHECK (national_id IS NULL OR national_id ~ '^[0-9]{16}$'), -- NIK canonical 16 digit; akses wajib dimasking sesuai permission.
+  national_id varchar(30) NOT NULL CONSTRAINT ck_employees_national_id CHECK (national_id ~ '^[0-9]{16}$'), -- NIK canonical 16 digit wajib; akses wajib dimasking sesuai permission.
   birth_place varchar(120), -- Tempat lahir.
   birth_date date, -- Tanggal lahir; umur dihitung saat query.
   gender varchar(20) CHECK (gender IN ('male','female','other','undisclosed')), -- Jenis kelamin terstruktur.
   religion varchar(50), -- Agama sesuai data administrasi.
-  marital_status varchar(30), -- Status perkawinan.
+  marital_status varchar(30) CONSTRAINT ck_employees_marital_status CHECK (marital_status IS NULL OR marital_status IN ('single','married','divorced','widowed')), -- Status perkawinan memakai kode stabil; label UI berbahasa Indonesia.
   blood_type varchar(3), -- Golongan darah.
   nationality varchar(60) NOT NULL DEFAULT 'Indonesia', -- Kewarganegaraan.
   joined_date date, -- Tanggal pertama bergabung untuk hitung masa kerja.
@@ -587,7 +587,7 @@ CREATE TABLE employee_onboarding_drafts (
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   created_by_user_id bigint NOT NULL REFERENCES users(id), -- HRD/Superadmin pemilik draft.
   status varchar(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','finalizing','completed','discarded','expired')), -- Lifecycle draft.
-  current_step smallint NOT NULL DEFAULT 0 CHECK (current_step BETWEEN 0 AND 2), -- Step wizard terakhir.
+  current_step smallint NOT NULL DEFAULT 0 CONSTRAINT ck_employee_onboarding_draft_current_step CHECK (current_step BETWEEN 0 AND 3), -- Step wizard terakhir (Profil, Pendidikan, Kontrak, Penempatan).
   payload jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(payload)='object'), -- Nilai form sementara privat.
   version integer NOT NULL DEFAULT 1 CHECK (version > 0), -- Optimistic concurrency penyimpanan draft.
   submitted_employee_id bigint, -- Pegawai hasil finalisasi untuk idempotensi.

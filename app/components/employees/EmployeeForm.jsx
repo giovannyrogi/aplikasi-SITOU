@@ -23,7 +23,11 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { getIndonesianMobileFormRules } from "@/lib/validation/indonesianPhone";
 import { getIndonesianNationalIdFormRules } from "@/lib/validation/indonesianNationalId";
-import { BLOOD_TYPE_OPTIONS, EDUCATION_LEVEL_OPTIONS } from "@/lib/employees/profileOptions";
+import {
+  BLOOD_TYPE_OPTIONS,
+  EDUCATION_LEVEL_OPTIONS,
+  MARITAL_STATUS_OPTIONS,
+} from "@/lib/employees/profileOptions";
 
 const required = (message) => [{ required: true, message }];
 const dateValue = (value) => (value ? dayjs(value) : null);
@@ -173,6 +177,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   const onErrorRef = useRef(onError);
   const selectedOrganizationId = Form.useWatch("organizationId", form);
   const selectedLocationId = Form.useWatch(["assignment", "locationId"], form);
+  const selectedEmploymentTypeId = Form.useWatch(["contract", "employmentTypeId"], form);
   const editing = Boolean(item);
   const targetOrganizationId = String(organizationId || user.organization_id || "");
   const contractFile = files.find((file) => file.category === "contract") || null;
@@ -400,6 +405,15 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
     [references.organizationUnits, selectedLocationId],
   );
 
+  const selectedEmploymentType = useMemo(
+    () =>
+      (references.employmentTypes || []).find(
+        (value) => String(value.id) === String(selectedEmploymentTypeId || ""),
+      ) || null,
+    [references.employmentTypes, selectedEmploymentTypeId],
+  );
+  const contractRequiresEndDate = Boolean(selectedEmploymentType?.requires_end_date);
+
   /** Mengubah dayjs menjadi tanggal ISO sebelum draft disimpan atau data difinalisasi. */
   const serialize = (values) => {
     const formatDate = (value) => (value?.format ? value.format("YYYY-MM-DD") : value || null);
@@ -430,7 +444,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
             contract: {
               ...values.contract,
               startDate: formatDate(values.contract?.startDate),
-              endDate: formatDate(values.contract?.endDate),
+              endDate: contractRequiresEndDate ? formatDate(values.contract?.endDate) : null,
             },
           }),
     };
@@ -521,19 +535,14 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
       ],
       [
         ["contract", "employmentTypeId"],
-        ["contract", "contractNo"],
         ["contract", "startDate"],
+        ...(contractRequiresEndDate ? [["contract", "endDate"]] : []),
       ],
     ];
     try {
       await form.validateFields(fieldsByStep[step] || []);
     } catch (validationError) {
       handleValidationFailure(validationError);
-      return;
-    }
-    if (step === 2 && !contractFile) {
-      reportError("Dokumen kontrak aktif wajib diunggah sebelum melanjutkan.");
-      guideToElement("employee-contract-document");
       return;
     }
     const next = step + 1;
@@ -830,7 +839,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               <Form.Item name="preferredName" label="Nama panggilan">
                 <Input maxLength={100} />
               </Form.Item>
-              <Form.Item name="nationalId" label="NIK" rules={getIndonesianNationalIdFormRules()}>
+              <Form.Item name="nationalId" label="NIK" rules={getIndonesianNationalIdFormRules({ required: true })}>
                 <IndonesianNationalIdInput />
               </Form.Item>
               <Box
@@ -859,10 +868,10 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                       editing ? { fileKind: "ktp", employeeId: item.id } : { fileKind: "ktp" }
                     }
                     organizationId={targetOrganizationId}
-                    accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                     maxSizeBytes={5 * 1024 * 1024}
                     emptyTitle="Pilih atau tarik KTP ke area ini"
-                    helpText="Opsional. Gunakan JPEG, PNG, WebP, atau PDF maksimal 5 MB."
+                    helpText="Opsional. Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
                     selectedText={
                       editing
                         ? "KTP aktif tersimpan secara privat"
@@ -944,7 +953,11 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 <Input maxLength={50} />
               </Form.Item>
               <Form.Item name="maritalStatus" label="Status perkawinan">
-                <Input maxLength={30} />
+                <Select
+                  allowClear
+                  placeholder="Pilih status perkawinan"
+                  options={MARITAL_STATUS_OPTIONS}
+                />
               </Form.Item>
               <Form.Item name="bloodType" label="Golongan darah">
                 <Select
@@ -1100,6 +1113,13 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                   <Select
                     showSearch
                     optionFilterProp="label"
+                    onChange={(value) => {
+                      const employmentType = (references.employmentTypes || []).find(
+                        (option) => String(option.id) === String(value),
+                      );
+                      if (!employmentType?.requires_end_date)
+                        form.setFieldValue(["contract", "endDate"], null);
+                    }}
                     options={(references.employmentTypes || []).map((value) => ({
                       value: value.id,
                       label: `${value.code} - ${value.name}`,
@@ -1108,8 +1128,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 </Form.Item>
                 <Form.Item
                   name={["contract", "contractNo"]}
-                  label="Nomor kontrak"
-                  rules={required("Nomor kontrak aktif wajib diisi.")}
+                  label="Nomor kontrak (opsional)"
                 >
                   <Input maxLength={100} />
                 </Form.Item>
@@ -1120,11 +1139,17 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 >
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
-                <Form.Item name={["contract", "endDate"]} label="Tanggal akhir">
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
+                {contractRequiresEndDate ? (
+                  <Form.Item
+                    name={["contract", "endDate"]}
+                    label="Tanggal akhir"
+                    rules={required("Tanggal akhir wajib diisi untuk jenis kepegawaian ini.")}
+                  >
+                    <DatePicker style={{ width: "100%" }} />
+                  </Form.Item>
+                ) : null}
                 <Box id="employee-contract-document">
-                  <Form.Item label="Dokumen kontrak" required>
+                  <Form.Item label="Dokumen kontrak (opsional)">
                     <PrivatePdfUpload
                       value={contractFile}
                       uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
@@ -1143,7 +1168,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                       }
                       onError={reportError}
                       disabled={!draft}
-                      helpText="Unggah kontrak yang telah ditandatangani dalam format PDF, maksimal 10 MB."
+                      helpText="Opsional. Gunakan dokumen PDF maksimal 10 MB."
                     />
                   </Form.Item>
                 </Box>

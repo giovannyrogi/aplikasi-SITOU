@@ -13,6 +13,7 @@ import {
 import {
   assignmentSchema,
   contractSchema,
+  employeeCreateSchema,
   employeeContractCancellationSchema,
   employeeContractCorrectionSchema,
   employeeDraftSaveSchema,
@@ -22,6 +23,7 @@ import {
   normalizeIndonesianNationalId,
   optionalIndonesianNationalIdSchema,
 } from "../lib/validation/indonesianNationalId.js";
+import { validateRequestOrigin } from "../lib/api/routeHelpers.js";
 
 const strongAccount = {
   organizationId: 1,
@@ -339,6 +341,75 @@ test("kontrak aktif wajib memiliki nomor dan dokumen privat", () => {
   );
 });
 
+const validEmployeeOnboarding = {
+  organizationId: 1,
+  employeeNo: "PGW-001",
+  fullName: "Pegawai Contoh",
+  nationalId: "7171082102940002",
+  maritalStatus: "married",
+  employmentStatus: "active",
+  contract: {
+    employmentTypeId: 1,
+    startDate: "2026-08-28",
+    status: "active",
+  },
+  assignment: {
+    locationId: 1,
+    organizationUnitId: 1,
+    effectiveFrom: "2026-08-28",
+    decreeNo: "SK-001",
+    documentFileId: 1,
+  },
+};
+
+test("onboarding pegawai mewajibkan NIK 16 digit", () => {
+  const result = employeeCreateSchema.safeParse({
+    ...validEmployeeOnboarding,
+    nationalId: null,
+  });
+  assert.equal(result.success, false);
+  assert.equal(result.error.issues.some((issue) => issue.path.join(".") === "nationalId"), true);
+});
+
+test("onboarding menerima nomor dan dokumen kontrak yang belum tersedia", () => {
+  const result = employeeCreateSchema.safeParse(validEmployeeOnboarding);
+  assert.equal(result.success, true);
+  assert.equal(result.data.contract.contractNo, null);
+  assert.equal(result.data.contract.documentFileId, null);
+});
+
+test("status perkawinan hanya menerima pilihan resmi", () => {
+  assert.equal(employeeCreateSchema.safeParse(validEmployeeOnboarding).success, true);
+  assert.equal(
+    employeeCreateSchema.safeParse({
+      ...validEmployeeOnboarding,
+      maritalStatus: "status bebas",
+    }).success,
+    false,
+  );
+});
+
+test("validasi origin menerima origin publik yang diteruskan reverse proxy", () => {
+  const request = new Request("http://127.0.0.1:3000/api/uploads", {
+    headers: {
+      origin: "https://sitou.pasarmanado.id",
+      "x-forwarded-proto": "https",
+      host: "sitou.pasarmanado.id",
+    },
+  });
+  assert.equal(validateRequestOrigin(request, "request-test"), null);
+});
+
+test("validasi origin tetap menolak origin asing", () => {
+  const request = new Request("http://127.0.0.1:3000/api/uploads", {
+    headers: {
+      origin: "https://contoh-berbahaya.invalid",
+      "x-forwarded-proto": "https",
+      host: "sitou.pasarmanado.id",
+    },
+  });
+  assert.equal(validateRequestOrigin(request, "request-test").status, 403);
+});
 test("koreksi kontrak memakai versi dan tetap mewajibkan dokumen", () => {
   const result = employeeContractCorrectionSchema.safeParse({
     organizationId: 1,

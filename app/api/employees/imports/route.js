@@ -1,9 +1,9 @@
 import { requirePermission, resolvePermissionOrganization } from "@/lib/auth/permissions";
 import {
-  errorResponse,
   getRequestId,
   handleRouteError,
   successResponse,
+  validateMutationRequest,
 } from "@/lib/api/routeHelpers";
 import { createEmployeeImport } from "@/lib/employees/importService";
 
@@ -12,11 +12,10 @@ export async function POST(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("employee_import.manage");
   if (response) return response;
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
-    return errorResponse("INVALID_ORIGIN", "Asal permintaan tidak diizinkan.", 403, requestId);
-  if (Number(request.headers.get("content-length") || 0) > 11 * 1024 * 1024)
-    return errorResponse("PAYLOAD_TOO_LARGE", "File Excel maksimal 10 MB.", 413, requestId);
+  const rejected = validateMutationRequest(request, user.id, requestId, {
+    maxBytes: 11 * 1024 * 1024,
+  });
+  if (rejected) return rejected;
   try {
     const form = await request.formData();
     const organizationId = resolvePermissionOrganization(user, form.get("organizationId") || null);
