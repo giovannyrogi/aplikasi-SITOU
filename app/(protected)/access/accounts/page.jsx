@@ -148,7 +148,7 @@ export default function OrganizationAccountsPage() {
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setForm({ open: true, item: null })}
-            disabled={!organizationId}
+            disabled={!isSuperadmin && !organizationId}
           >
             Tambah akun
           </Button>
@@ -169,6 +169,7 @@ export default function OrganizationAccountsPage() {
               isSuperadmin ? (
                 <OrganizationSelect
                   allowClear
+                  autoSelectFirst
                   value={organizationId}
                   onChange={(value) => list.updateFilters({ organizationId: value })}
                 />
