@@ -1,17 +1,54 @@
 const numberFormatter = new Intl.NumberFormat("id-ID");
 const monthFormatter = new Intl.DateTimeFormat("id-ID", { month: "short", year: "numeric" });
+const fullMonthFormatter = new Intl.DateTimeFormat("id-ID", {
+  month: "long",
+  year: "numeric",
+});
 
 /** Memformat kategori bulan ISO tanpa bergantung pada locale browser pengguna. */
 export function formatChartCategory(value) {
-  if (!/^\d{4}-\d{2}$/.test(String(value))) return String(value || "");
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return "Belum ditentukan";
+  }
+  if (!/^\d{4}-\d{2}$/.test(String(value))) return String(value);
   return monthFormatter.format(new Date(`${value}-01T00:00:00`));
+}
+
+/** Memformat judul tooltip periode secara lengkap agar indeks internal Apex tidak tampil ke pengguna. */
+export function formatChartTooltipCategory(value) {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return "Periode belum ditentukan";
+  }
+  if (!/^\d{4}-\d{2}$/.test(String(value))) return String(value);
+  return fullMonthFormatter.format(new Date(`${value}-01T00:00:00`));
+}
+
+/** Menjamin kategori chart selalu berupa label yang dapat dibaca ApexCharts. */
+export function normalizeChartCategories(categories = []) {
+  return categories.map((value) => formatChartCategory(value));
+}
+
+/** Mengubah nilai seri invalid menjadi nol agar formatter tidak pernah menerima NaN. */
+export function normalizeChartSeries(series = []) {
+  return series.map((item, index) => ({
+    ...item,
+    name: String(item?.name || `Data ${index + 1}`),
+    data: Array.isArray(item?.data)
+      ? item.data.map((value) => {
+          const numericValue = Number(value);
+          return Number.isFinite(numericValue) ? numericValue : 0;
+        })
+      : [],
+  }));
 }
 
 /** Memformat nilai numerik tanpa menghasilkan label NaN ketika Apex mengirim nilai kosong. */
 function formatChartNumber(value, percent = false) {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) return "";
-  return percent ? `${numberFormatter.format(numericValue)}%` : numberFormatter.format(numericValue);
+  return percent
+    ? `${numberFormatter.format(numericValue)}%`
+    : numberFormatter.format(numericValue);
 }
 
 /** Membuat konfigurasi ApexCharts terpusat yang konsisten dengan theme SITOU. */
@@ -25,6 +62,12 @@ export function createChartOptions({
   percent = false,
   legend = true,
 }) {
+  const sourceCategories = categories.map((value) =>
+    value === null || value === undefined || String(value).trim() === ""
+      ? "Belum ditentukan"
+      : String(value),
+  );
+  const normalizedCategories = normalizeChartCategories(categories);
   const palette = colors || [
     theme.palette.primary.main,
     theme.status.info.main,
@@ -61,13 +104,11 @@ export function createChartOptions({
       },
     },
     xaxis: {
-      categories,
+      categories: normalizedCategories,
       labels: {
         rotate: 0,
         trim: true,
-        formatter: horizontal
-          ? (value) => formatChartNumber(value, percent)
-          : formatChartCategory,
+        formatter: horizontal ? (value) => formatChartNumber(value, percent) : formatChartCategory,
         style: { fontSize: "11px", fontWeight: 500 },
       },
       axisBorder: { show: false },
@@ -97,7 +138,15 @@ export function createChartOptions({
       shared: true,
       intersect: false,
       theme: "light",
-      x: { formatter: formatChartCategory },
+      x: {
+        formatter: (value, context) => {
+          const dataPointIndex = Number(context?.dataPointIndex);
+          const category = Number.isInteger(dataPointIndex)
+            ? sourceCategories[dataPointIndex]
+            : value;
+          return formatChartTooltipCategory(category);
+        },
+      },
       y: {
         formatter: (value) => formatChartNumber(value, percent),
       },

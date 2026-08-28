@@ -11,18 +11,21 @@ import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import ErrorState from "@/app/components/data-display/ErrorState";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import PageHeader from "@/app/components/layout/PageHeader";
+import Notification from "@/app/components/Notifications/Notification";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
+import useAppNotification from "@/app/hooks/useAppNotification";
 import AreaTrendChart from "./AreaTrendChart";
 import DashboardActivityList from "./DashboardActivityList";
 import DashboardAttentionList from "./DashboardAttentionList";
 import DashboardChart from "./DashboardChart";
 import DashboardMetric from "./DashboardMetric";
 import DonutChart from "./DonutChart";
+import EmployeeCompositionSummary from "./EmployeeCompositionSummary";
 import HorizontalBarChart from "./HorizontalBarChart";
 import StackedBarChart from "./StackedBarChart";
 
 const { RangePicker } = DatePicker;
-const DEFAULT_RANGE = [dayjs().subtract(11, "month").startOf("month"), dayjs()];
+const DEFAULT_RANGE = [dayjs().startOf("year"), dayjs()];
 
 const generatedAtFormatter = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
@@ -44,7 +47,7 @@ function hasChartValues(chart) {
   });
 }
 
-/** Menentukan grafik operasional yang relevan bagi role dan scope dashboard. */
+/** Menentukan grafik operasional berdasarkan scope tanpa membedakan data non-sensitif per role. */
 function buildChartDefinitions(data) {
   if (!data) return [];
   if (data.scope === "platform") {
@@ -80,44 +83,11 @@ function buildChartDefinitions(data) {
       },
     ];
   }
-  if (data.role === ROLES.LEADER) {
-    return [
-      {
-        key: "growth",
-        title: "Perkembangan pegawai",
-        description: "Jumlah pegawai organisasi dari waktu ke waktu.",
-        icon: "solar:chart-2-bold-duotone",
-        Component: AreaTrendChart,
-      },
-      {
-        key: "locations",
-        title: "Distribusi per lokasi",
-        description: "Sebaran pegawai aktif pada lokasi operasional.",
-        icon: "solar:map-point-wave-bold-duotone",
-        Component: HorizontalBarChart,
-      },
-      {
-        key: "employment",
-        title: "Komposisi hubungan kerja",
-        description: "Perbandingan kontrak aktif dan riwayat berdasarkan jenis kepegawaian.",
-        icon: "solar:case-round-bold-duotone",
-        Component: StackedBarChart,
-      },
-      {
-        key: "discipline",
-        title: "Kasus disiplin resmi",
-        description:
-          "Kasus dengan tindakan resmi berdasarkan tingkat pelanggaran; draft tidak disertakan.",
-        icon: "solar:shield-warning-bold-duotone",
-        Component: HorizontalBarChart,
-      },
-    ];
-  }
   return [
     {
       key: "growth",
-      title: "Pertumbuhan pegawai",
-      description: "Perkembangan jumlah pegawai selama periode terpilih.",
+      title: "Perkembangan pegawai",
+      description: "Perbandingan pegawai yang mulai bergabung dan keluar pada setiap bulan.",
       icon: "solar:chart-2-bold-duotone",
       Component: AreaTrendChart,
     },
@@ -126,6 +96,13 @@ function buildChartDefinitions(data) {
       title: "Sebaran per lokasi",
       description: "Distribusi pegawai aktif pada lokasi yang dapat dikelola.",
       icon: "solar:map-point-wave-bold-duotone",
+      Component: HorizontalBarChart,
+    },
+    {
+      key: "units",
+      title: "Distribusi Divisi & Unit",
+      description: "Sebaran pegawai aktif pada struktur organisasi saat ini.",
+      icon: "solar:structure-bold-duotone",
       Component: HorizontalBarChart,
     },
     {
@@ -142,6 +119,14 @@ function buildChartDefinitions(data) {
       icon: "solar:clipboard-check-bold-duotone",
       Component: DonutChart,
     },
+    {
+      key: "discipline",
+      title: "Kasus disiplin resmi",
+      description:
+        "Kasus dengan tindakan resmi berdasarkan tingkat pelanggaran; draft tidak disertakan.",
+      icon: "solar:shield-warning-bold-duotone",
+      Component: HorizontalBarChart,
+    },
   ];
 }
 
@@ -154,6 +139,7 @@ export default function DashboardClient() {
   const [organizationId, setOrganizationId] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [state, setState] = useState({ loading: true, data: null, error: "" });
+  const { notification, showNotification, closeNotification } = useAppNotification();
 
   const loadDashboard = useCallback(() => {
     setState((current) => ({ ...current, loading: true, error: "" }));
@@ -161,11 +147,24 @@ export default function DashboardClient() {
   }, []);
 
   /** Menampilkan feedback loading sejak pengguna mengganti rentang pemantauan. */
-  const changeDateRange = useCallback((value) => {
-    if (!value?.[0] || !value?.[1]) return;
-    setState((current) => ({ ...current, loading: true, error: "" }));
-    setDateRange(value);
-  }, []);
+  const changeDateRange = useCallback(
+    (value) => {
+      if (!value?.[0] || !value?.[1]) return;
+      const [start, end] = value;
+      if (end.isBefore(start, "day")) {
+        showNotification("Tanggal akhir tidak boleh lebih awal dari tanggal awal.", "error");
+        return;
+      }
+      const maximumEnd = start.add(24, "month").subtract(1, "day");
+      if (end.isAfter(maximumEnd, "day")) {
+        showNotification("Rentang tanggal dashboard maksimal 24 bulan.", "warning");
+        return;
+      }
+      setState((current) => ({ ...current, loading: true, error: "" }));
+      setDateRange(value);
+    },
+    [showNotification],
+  );
 
   /** Mengganti scope organisasi Superadmin sebelum data baru diminta ke server. */
   const changeOrganization = useCallback((value) => {
@@ -207,15 +206,18 @@ export default function DashboardClient() {
 
   return (
     <Box sx={{ minWidth: 0, display: "grid", gap: { xs: 2, md: 3 } }}>
+      <Notification
+        open={notification.open}
+        message={notification.message}
+        severity={notification.severity}
+        onClose={closeNotification}
+      />
       <PageHeader
         title="Dashboard monitoring"
         description={pageDescription}
         metadata={
           <>
-            <CompactInfoChip
-              label={`Periode ${formatSelectedRange(dateRange)}`}
-              tone="info"
-            />
+            <CompactInfoChip label={`Periode ${formatSelectedRange(dateRange)}`} tone="info" />
             {state.data?.generatedAt ? (
               <CompactInfoChip
                 label={`Diperbarui ${generatedAtFormatter.format(new Date(state.data.generatedAt))}`}
@@ -349,6 +351,8 @@ export default function DashboardClient() {
             ))}
           </Box>
 
+          <EmployeeCompositionSummary data={state.data?.employeeSummary} loading={state.loading} />
+
           <Box
             component="section"
             aria-label="Visualisasi monitoring"
@@ -360,7 +364,9 @@ export default function DashboardClient() {
             }}
           >
             {(state.loading
-              ? Array.from({ length: 4 }, (_, index) => ({ key: index }))
+              ? Array.from({ length: isSuperadmin && !organizationId ? 4 : 6 }, (_, index) => ({
+                  key: index,
+                }))
               : charts
             ).map((chart, index) => {
               const Component = chart.Component;
@@ -388,7 +394,12 @@ export default function DashboardClient() {
               gap: { xs: 2, md: 3 },
             }}
           >
-            <DashboardAttentionList items={state.data?.attentionItems} loading={state.loading} />
+            <DashboardAttentionList
+              items={state.data?.attentionItems}
+              loading={state.loading}
+              organizationId={organizationId}
+              isSuperadmin={isSuperadmin}
+            />
             <DashboardActivityList items={state.data?.activities} loading={state.loading} />
           </Box>
 

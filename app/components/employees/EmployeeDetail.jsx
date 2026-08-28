@@ -21,6 +21,7 @@ import {
   SafetyCertificateOutlined,
   SwapOutlined,
   UserOutlined,
+  UserDeleteOutlined,
   WhatsAppOutlined,
 } from "@ant-design/icons";
 import { Box, Divider, useTheme } from "@mui/material";
@@ -30,6 +31,7 @@ import DetailTabs from "@/app/components/navigation/DetailTabs";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import Notification from "@/app/components/Notifications/Notification";
+import AppModal from "@/app/components/modals/AppModal";
 import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -49,23 +51,14 @@ import {
   DisciplinaryActionRevokeForm,
 } from "@/app/components/discipline/DisciplineForms";
 import DisciplineCaseDetailModal from "@/app/components/discipline/DisciplineCaseDetailModal";
+import EmployeeTerminationForm from "./EmployeeTerminationForm";
+import { getEmployeeStatusPresentation, isFinalEmploymentStatus } from "./employeeStatus";
 import {
   ACTION_LABELS,
   ACTION_STATUS,
   CASE_STATUS,
   SEVERITY,
 } from "@/app/components/discipline/disciplineLabels";
-
-const EMPLOYEE_STATUS = {
-  active: ["Aktif", "success"],
-  probation: ["Masa percobaan", "info"],
-  leave: ["Cuti", "warning"],
-  suspended: ["Ditangguhkan", "danger"],
-  draft: ["Draft", "neutral"],
-  terminated: ["Berakhir", "danger"],
-  retired: ["Pensiun", "neutral"],
-  deceased: ["Meninggal", "neutral"],
-};
 
 const CHANGE_TYPE_LABELS = {
   initial: "Penempatan awal",
@@ -180,10 +173,10 @@ function TabSectionHeader({ title, description, action }) {
 }
 
 /** Field ringkasan membedakan label dan nilai serta menjaga teks panjang tetap terbaca. */
-function InfoField({ label, value, icon }) {
+function InfoField({ label, value, icon, sx }) {
   const theme = useTheme();
   return (
-    <Box sx={{ minWidth: 0 }}>
+    <Box sx={{ minWidth: 0, ...sx }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: theme.ui.mutedText }}>
         {icon}
         <FontStyle fontSize={11.5} fontWeight={600}>
@@ -202,7 +195,7 @@ function InfoField({ label, value, icon }) {
 }
 
 /** Section ringkasan mengelompokkan data berdasarkan kebutuhan pengguna. */
-function SummarySection({ icon, title, children, contentSx }) {
+function SummarySection({ icon, title, action, children, contentSx }) {
   const theme = useTheme();
   return (
     <Box component="section">
@@ -229,9 +222,10 @@ function SummarySection({ icon, title, children, contentSx }) {
         >
           {icon}
         </Box>
-        <FontStyle component="h3" fontSize={14} fontWeight={700}>
+        <FontStyle component="h3" fontSize={14} fontWeight={700} sx={{ minWidth: 0 }}>
           {title}
         </FontStyle>
+        {action ? <Box sx={{ ml: "auto", flexShrink: 0 }}>{action}</Box> : null}
       </Box>
       <Box
         sx={{
@@ -726,10 +720,21 @@ export default function EmployeeDetail({ employeeId }) {
   if (!state.employee) return <Notification {...notification} onClose={closeNotification} />;
   const employee = state.employee;
   // Enum backend diterjemahkan sebelum tab dibentuk agar Ringkasan selalu memakai status berbahasa Indonesia.
-  const status = EMPLOYEE_STATUS[employee.employment_status] || [
-    employee.employment_status,
-    "neutral",
-  ];
+  const status = getEmployeeStatusPresentation(employee.employment_status);
+  const finalEmploymentStatus = isFinalEmploymentStatus(employee.employment_status);
+  const canManageEmployee = !readOnly && !finalEmploymentStatus;
+  // Pegawai berstatus final tidak lagi memiliki kontrak aktif, sehingga ringkasan memakai histori terakhir.
+  const latestContract = state.history.contracts?.[0] || null;
+  const relationshipContract = employee.contract_id
+    ? {
+        employment_type_name: employee.employment_type_name,
+        contract_no: employee.contract_no,
+        start_date: employee.contract_start_date,
+        end_date: employee.contract_end_date,
+      }
+    : finalEmploymentStatus
+      ? latestContract
+      : null;
   const identifiers = state.profile.identifiers || [];
   const ktpIdentifier = identifiers.find((item) => item.identifier_type === "ktp");
   const bpjsHealth = identifiers.find((item) => item.identifier_type === "bpjs_health");
@@ -867,13 +872,52 @@ export default function EmployeeDetail({ employeeId }) {
               <InfoField label="Jabatan" value={employee.position_name} />
               <InfoField label="Atasan langsung" value={employee.supervisor_name} />
             </SummarySection>
-            <SummarySection icon={<FileTextOutlined />} title="Hubungan kerja">
-              <InfoField label="Jenis kepegawaian" value={employee.employment_type_name} />
-              <InfoField label="Nomor kontrak" value={employee.contract_no} />
-              <InfoField label="Mulai kontrak" value={formatDate(employee.contract_start_date)} />
+            <SummarySection
+              icon={<FileTextOutlined />}
+              title="Hubungan kerja"
+              action={
+                finalEmploymentStatus ? (
+                  <Button
+                    icon={<EyeOutlined />}
+                    aria-label="Lihat detail akhir hubungan kerja"
+                    title="Lihat detail akhir hubungan kerja"
+                    onClick={() => setModal("terminationDetail")}
+                    style={{ minHeight: 44 }}
+                  >
+                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                      Lihat detail
+                    </Box>
+                  </Button>
+                ) : null
+              }
+            >
+              {finalEmploymentStatus ? (
+                <>
+                  <InfoField
+                    label="Status hubungan kerja"
+                    value={<CompactInfoChip label={status[0]} tone={status[1]} />}
+                  />
+                  <InfoField
+                    label="Tanggal berakhir"
+                    value={formatDate(employee.termination_date)}
+                  />
+                </>
+              ) : null}
               <InfoField
-                label="Akhir kontrak"
-                value={formatDate(employee.contract_end_date, "Tanpa batas akhir")}
+                label={finalEmploymentStatus ? "Jenis kepegawaian terakhir" : "Jenis kepegawaian"}
+                value={relationshipContract?.employment_type_name}
+              />
+              <InfoField
+                label={finalEmploymentStatus ? "Nomor kontrak terakhir" : "Nomor kontrak"}
+                value={relationshipContract?.contract_no}
+              />
+              <InfoField
+                label={finalEmploymentStatus ? "Mulai kontrak terakhir" : "Mulai kontrak"}
+                value={formatDate(relationshipContract?.start_date)}
+              />
+              <InfoField
+                label={finalEmploymentStatus ? "Akhir kontrak terakhir" : "Akhir kontrak"}
+                value={formatDate(relationshipContract?.end_date, "Tanpa batas akhir")}
               />
             </SummarySection>
             <EmployeeRelatedSummary profile={state.profile} embedded />
@@ -890,7 +934,7 @@ export default function EmployeeDetail({ employeeId }) {
             title="Histori penempatan"
             description="Telusuri lokasi, Divisi & Unit, jabatan, serta perubahan penempatan dari waktu ke waktu."
             action={
-              !readOnly ? (
+              canManageEmployee ? (
                 <Button
                   type="primary"
                   icon={<SwapOutlined />}
@@ -991,7 +1035,7 @@ export default function EmployeeDetail({ employeeId }) {
             title="Histori kontrak kerja"
             description="Lihat hubungan kerja aktif dan riwayat perpanjangan tanpa menimpa kontrak sebelumnya."
             action={
-              !readOnly ? (
+              canManageEmployee ? (
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
@@ -1163,7 +1207,7 @@ export default function EmployeeDetail({ employeeId }) {
                         Dokumen kontrak
                       </Button>
                     ) : null}
-                    {!readOnly && item.status !== "cancelled" ? (
+                    {canManageEmployee && item.status !== "cancelled" ? (
                       <>
                         <Button
                           icon={<EditOutlined />}
@@ -1345,7 +1389,7 @@ export default function EmployeeDetail({ employeeId }) {
             title="Disiplin dan sanksi"
             description="Kasus dicatat untuk pemeriksaan HRD. Sistem tidak menerbitkan sanksi secara otomatis."
             action={
-              !readOnly ? (
+              canManageEmployee ? (
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
@@ -1363,7 +1407,7 @@ export default function EmployeeDetail({ employeeId }) {
                 <DisciplineCaseCard
                   key={disciplineCase.id}
                   disciplineCase={disciplineCase}
-                  readOnly={readOnly}
+                  readOnly={!canManageEmployee}
                   onDetail={setDetailCase}
                   onEditDraft={setActionCase}
                   onRevoke={setRevokeAction}
@@ -1413,15 +1457,33 @@ export default function EmployeeDetail({ employeeId }) {
         title="Detail data pegawai"
         description="Lihat dan kelola profil, riwayat penempatan, kontrak, dokumen, kompetensi, serta disiplin pegawai."
         action={
-          !readOnly ? (
-            <Button type="primary" icon={<EditOutlined />} onClick={() => setModal("profile")}>
-              Kelola profil lengkap
-            </Button>
+          canManageEmployee ? (
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                flexWrap: "wrap",
+                width: { xs: "100%", sm: "auto" },
+                "& .ant-btn": { minHeight: 44, width: { xs: "100%", sm: "auto" } },
+              }}
+            >
+              <Button icon={<EditOutlined />} onClick={() => setModal("profile")}>
+                Kelola profil lengkap
+              </Button>
+              <Button
+                type="primary"
+                danger
+                icon={<UserDeleteOutlined />}
+                onClick={() => setModal("termination")}
+              >
+                Akhiri hubungan kerja
+              </Button>
+            </Box>
           ) : null
         }
       />
       <DetailTabs items={tabItems} activeKey={activeTab} onChange={changeTab} />
-      {!readOnly ? (
+      {canManageEmployee ? (
         <AssignmentForm
           open={modal === "assignment"}
           employee={employee}
@@ -1434,7 +1496,7 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
-      {!readOnly ? (
+      {canManageEmployee ? (
         <ContractForm
           open={modal === "contract" || modal === "contractEdit"}
           employee={employee}
@@ -1452,7 +1514,7 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
-      {!readOnly && contractToCancel ? (
+      {canManageEmployee && contractToCancel ? (
         <ContractCancelForm
           open
           employee={employee}
@@ -1466,7 +1528,7 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
-      {!readOnly ? (
+      {canManageEmployee ? (
         <EmployeeProfileSectionsForm
           open={modal === "profile"}
           employee={employee}
@@ -1480,7 +1542,7 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
-      {!readOnly ? (
+      {canManageEmployee ? (
         <DisciplineCaseForm
           open={modal === "disciplineCase"}
           organizationId={organizationId}
@@ -1494,7 +1556,7 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
-      {!readOnly && actionCase ? (
+      {canManageEmployee && actionCase ? (
         <DisciplinaryActionForm
           open
           disciplineCase={{
@@ -1512,7 +1574,7 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
-      {!readOnly && revokeAction ? (
+      {canManageEmployee && revokeAction ? (
         <DisciplinaryActionRevokeForm
           open
           action={revokeAction}
@@ -1526,6 +1588,63 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
+      {canManageEmployee ? (
+        <EmployeeTerminationForm
+          open={modal === "termination"}
+          employee={employee}
+          organizationId={organizationId}
+          onClose={() => setModal(null)}
+          onSaved={async (message) => {
+            setModal(null);
+            showNotification(message);
+            await load();
+          }}
+          onError={(message) => showNotification(message, "error")}
+        />
+      ) : null}
+      <AppModal
+        open={modal === "terminationDetail"}
+        title="Detail akhir hubungan kerja"
+        description="Informasi keputusan dan hubungan kerja terakhir pegawai."
+        icon={<UserDeleteOutlined />}
+        size="md"
+        onClose={() => setModal(null)}
+        footer={<Button onClick={() => setModal(null)}>Tutup</Button>}
+      >
+        <Box sx={{ display: "grid", gap: 3 }}>
+          <SummarySection icon={<UserOutlined />} title="Pegawai">
+            <InfoField label="Nama lengkap" value={employee.full_name} />
+            <InfoField label="NIP" value={employee.employee_no} />
+            <InfoField label="Organisasi" value={employee.organization_name} />
+            <InfoField label="Status akhir" value={status[0]} />
+          </SummarySection>
+          <SummarySection icon={<UserDeleteOutlined />} title="Keputusan akhir hubungan kerja">
+            <InfoField label="Tanggal efektif" value={formatDate(employee.termination_date)} />
+            <InfoField label="Dicatat oleh" value={employee.termination_recorded_by_name} />
+            <InfoField
+              label="Waktu pencatatan"
+              value={formatDateTime(employee.termination_recorded_at)}
+            />
+            <InfoField
+              label="Alasan"
+              value={employee.termination_reason}
+              sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}
+            />
+          </SummarySection>
+          <SummarySection icon={<FileTextOutlined />} title="Kontrak terakhir">
+            <InfoField
+              label="Jenis kepegawaian"
+              value={relationshipContract?.employment_type_name}
+            />
+            <InfoField label="Nomor kontrak" value={relationshipContract?.contract_no} />
+            <InfoField label="Mulai kontrak" value={formatDate(relationshipContract?.start_date)} />
+            <InfoField
+              label="Akhir kontrak"
+              value={formatDate(relationshipContract?.end_date, "Tanpa batas akhir")}
+            />
+          </SummarySection>
+        </Box>
+      </AppModal>
       <DisciplineCaseDetailModal
         open={Boolean(detailCase)}
         disciplineCase={detailCase}

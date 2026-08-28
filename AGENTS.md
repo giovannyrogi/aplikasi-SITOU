@@ -43,6 +43,9 @@ Route handler tidak boleh berisi query dan aturan bisnis panjang. Gunakan servic
 - `attendance_daily_summaries` adalah hasil olahan dan boleh dihitung ulang.
 - Lokasi/divisi/jabatan aktif berasal dari `employee_assignments`, bukan kolom duplikat pada `employees`.
 - Riwayat kontrak dan penempatan tidak boleh ditimpa atau dihapus fisik. Salah input kontrak dikoreksi melalui aksi edit yang diaudit atau dibatalkan secara logis dengan alasan; dokumen setiap record histori tetap dapat dilihat melalui file ID berizin. Tampilan histori lifecycle wajib menampilkan pelaku dan waktu pencatatan, koreksi terakhir, serta pembatalan dari kolom domain atau `audit_logs`; data audit tidak boleh disimpulkan dari actor yang sedang login.
+- Ringkasan hubungan kerja pegawai berstatus final wajib tetap menampilkan kontrak terakhir dari histori, status akhir, dan akses ke detail alasan, tanggal efektif, pelaku, serta waktu pencatatan. Jangan mengosongkan informasi hanya karena kontrak aktif telah ditutup.
+- Akhir hubungan kerja hanya boleh diproses melalui workflow terkonfirmasi yang atomik dengan status `terminated`, `retired`, atau `deceased`. Tanggal efektif wajib berada di antara tanggal bergabung dan hari ini; tanggal masa depan dilarang sampai scheduler khusus tersedia.
+- Pengakhiran hubungan kerja menutup penempatan dan kontrak aktif, menonaktifkan akun tertaut, serta menyimpan status, tanggal, alasan, pelaku, waktu, dan audit tanpa menghapus profil maupun histori. Pegawai berstatus final tidak boleh diubah kembali melalui form profil, kontrak, penempatan, atau profil lengkap biasa.
 - File bersifat privat; `object_key` tidak pernah dikirim mentah ke browser.
 
 ## 4. Aturan multi-organisasi wajib
@@ -518,9 +521,15 @@ Pekerjaan selesai hanya jika:
 - Dilarang memakai orb, bokeh, gradient dekoratif, nested card, shadow tebal, radius berlebihan, palette satu nada, padding ekstrem, atau dekorasi yang mengurangi keterbacaan.
 - Dashboard visual wajib memakai komponen reusable pada `app/components/dashboard` dan adapter ApexCharts terpusat. Dilarang mendefinisikan ulang konfigurasi theme, format tooltip Indonesia, responsive breakpoint, atau reduced motion pada setiap halaman.
 - Grafik dashboard harus menjawab kebutuhan monitoring atau pengambilan keputusan, bukan menjadi dekorasi. Setiap grafik wajib memiliki judul, konteks, legend bila multi-seri, tooltip Bahasa Indonesia, tinggi stabil, serta state loading, kosong, dan error.
+- Rentang awal dashboard wajib memakai 1 Januari tahun berjalan sampai hari ini. Pengguna tetap dapat memilih rentang lain maksimal 24 bulan melalui `RangePicker`.
 - Dashboard tidak boleh terasa polos ataupun berlebihan. Kekayaan visual dibangun dari hierarchy, komposisi grid, iconography, status tint, microtrend, dan spacing; hindari gradient dekoratif, animasi terus-menerus, data label yang ramai, dan kartu bertingkat.
 - Dataset dashboard wajib difilter berdasarkan role, organisasi, dan cakupan lokasi di backend. Data draft atau sensitif yang tidak berhak dilihat role dilarang dikirim ke browser hanya untuk disembunyikan di UI.
 - Query agregasi dashboard wajib dikelompokkan tanpa N+1, memakai parameter SQL, cache singkat bila sesuai, dan diuji pada dataset representatif sebelum optimasi melalui index atau materialized view.
+- Komposisi jenis kelamin, status pegawai, masa kerja, dan jenis kepegawaian pada dashboard adalah snapshot kondisi aktif saat ini; filter tanggal hanya memengaruhi tren, kontrak, disiplin, dan aktivitas. Snapshot tetap wajib mengikuti role, organisasi, serta cakupan lokasi actor di backend.
+- Grafik dinamika pegawai tidak boleh mengulang snapshot status aktif. Gunakan arus pegawai baru dan pegawai keluar per periode, sedangkan kondisi aktif, masa percobaan, dan cuti tetap berada pada visual Status Pegawai.
+- Dataset organisasi non-sensitif yang sudah tersedia pada dashboard ditampilkan konsisten untuk HRD dan Pimpinan. Perbedaan role hanya diterapkan pada mutation, cakupan data, serta data draft/sensitif yang memang dilarang dikirim kepada role tertentu.
+- Adapter ApexCharts wajib menormalkan kategori kosong dan nilai nonnumerik sebelum render. Label `NaN`, `undefined`, atau sumbu kategori kosong dilarang tampil kepada pengguna.
+- Item prioritas disiplin wajib menavigasi ke detail pegawai pada tab Disiplin melalui LoadingBackdrop dan mempertahankan scope organisasi Superadmin. Chip prioritas ditempatkan dekat nama data dengan jarak aman, sedangkan aksi detail memakai ikon mata, tooltip, dan aria-label yang jelas. Data tindakan draft tetap tidak boleh dikirim kepada Pimpinan.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

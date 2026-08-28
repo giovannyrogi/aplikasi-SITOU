@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "antd";
-import { EditOutlined, EyeOutlined, ImportOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  EyeOutlined,
+  ImportOutlined,
+  PlusOutlined,
+  UserDeleteOutlined,
+} from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
@@ -21,17 +27,8 @@ import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import EmployeeForm from "./EmployeeForm";
 import EmployeeImportModal from "./EmployeeImportModal";
-
-const EMPLOYEE_STATUS = {
-  active: ["Aktif", "success"],
-  probation: ["Masa percobaan", "info"],
-  leave: ["Cuti", "warning"],
-  suspended: ["Ditangguhkan", "danger"],
-  draft: ["Draft", "neutral"],
-  terminated: ["Berakhir", "danger"],
-  retired: ["Pensiun", "neutral"],
-  deceased: ["Meninggal", "neutral"],
-};
+import EmployeeTerminationForm from "./EmployeeTerminationForm";
+import { getEmployeeStatusPresentation, isFinalEmploymentStatus } from "./employeeStatus";
 
 /** Direktori pegawai menjadi satu pintu masuk seluruh profil dan histori kepegawaian. */
 export default function EmployeeDirectory() {
@@ -46,6 +43,7 @@ export default function EmployeeDirectory() {
   const { startNavigationLoading } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
   const [form, setForm] = useState({ open: false, item: null });
+  const [terminationEmployee, setTerminationEmployee] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
 
@@ -65,13 +63,20 @@ export default function EmployeeDirectory() {
       label: "Lihat ringkasan",
       onClick: () => openDetail(item),
     },
-    ...(!readOnly
+    ...(!readOnly && !isFinalEmploymentStatus(item.employment_status)
       ? [
           {
             key: "edit",
             icon: <EditOutlined />,
             label: "Edit data pegawai",
             onClick: () => setForm({ open: true, item }),
+          },
+          {
+            key: "terminate",
+            icon: <UserDeleteOutlined />,
+            label: "Akhiri hubungan kerja",
+            danger: true,
+            onClick: () => setTerminationEmployee(item),
           },
         ]
       : []),
@@ -114,12 +119,10 @@ export default function EmployeeDirectory() {
     {
       title: "Status",
       dataIndex: "employment_status",
-      render: (value) => (
-        <CompactInfoChip
-          label={EMPLOYEE_STATUS[value]?.[0] || value}
-          tone={EMPLOYEE_STATUS[value]?.[1] || "neutral"}
-        />
-      ),
+      render: (value) => {
+        const status = getEmployeeStatusPresentation(value);
+        return <CompactInfoChip label={status[0]} tone={status[1]} />;
+      },
     },
     {
       title: "Aksi",
@@ -130,35 +133,35 @@ export default function EmployeeDirectory() {
   ];
 
   /** Card mobile mempertahankan hierarchy informasi tanpa tabel horizontal. */
-  const renderCard = (item) => (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-        <Box sx={{ minWidth: 0 }}>
-          <FontStyle fontWeight={700}>{item.full_name}</FontStyle>
-          <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
-            {item.employee_no}
+  const renderCard = (item) => {
+    const status = getEmployeeStatusPresentation(item.employment_status);
+    return (
+      <Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <FontStyle fontWeight={700}>{item.full_name}</FontStyle>
+            <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
+              {item.employee_no}
+            </FontStyle>
+          </Box>
+          <RowActionMenu items={actions(item)} />
+        </Box>
+        <Box sx={{ mt: 1.5, display: "grid", gap: 0.5 }}>
+          <FontStyle fontSize={12}>{item.location_name || "Belum ditempatkan"}</FontStyle>
+          <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
+            {[item.unit_name, item.position_name].filter(Boolean).join(" · ") ||
+              "Divisi dan jabatan belum ditentukan"}
           </FontStyle>
         </Box>
-        <RowActionMenu items={actions(item)} />
+        <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+          <CompactInfoChip label={status[0]} tone={status[1]} />
+          {item.active_sanction_count > 0 ? (
+            <CompactInfoChip label={`${item.active_sanction_count} sanksi`} tone="danger" />
+          ) : null}
+        </Box>
       </Box>
-      <Box sx={{ mt: 1.5, display: "grid", gap: 0.5 }}>
-        <FontStyle fontSize={12}>{item.location_name || "Belum ditempatkan"}</FontStyle>
-        <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
-          {[item.unit_name, item.position_name].filter(Boolean).join(" · ") ||
-            "Divisi dan jabatan belum ditentukan"}
-        </FontStyle>
-      </Box>
-      <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-        <CompactInfoChip
-          label={EMPLOYEE_STATUS[item.employment_status]?.[0] || item.employment_status}
-          tone={EMPLOYEE_STATUS[item.employment_status]?.[1] || "neutral"}
-        />
-        {item.active_sanction_count > 0 ? (
-          <CompactInfoChip label={`${item.active_sanction_count} sanksi`} tone="danger" />
-        ) : null}
-      </Box>
-    </Box>
-  );
+    );
+  };
 
   /** Menutup modal dan menyegarkan daftar setelah transaksi selesai. */
   const saved = async (message) => {
@@ -253,6 +256,20 @@ export default function EmployeeDirectory() {
           organizationId={organizationId}
           onClose={() => setImportOpen(false)}
           onCommitted={saved}
+          onError={(message) => showNotification(message, "error")}
+        />
+      ) : null}
+      {!readOnly ? (
+        <EmployeeTerminationForm
+          open={Boolean(terminationEmployee)}
+          employee={terminationEmployee}
+          organizationId={organizationId}
+          onClose={() => setTerminationEmployee(null)}
+          onSaved={async (message) => {
+            setTerminationEmployee(null);
+            showNotification(message);
+            await list.refresh();
+          }}
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}

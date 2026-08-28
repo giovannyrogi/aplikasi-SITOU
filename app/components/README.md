@@ -75,20 +75,21 @@ Seluruh aksi lihat gambar wajib memakai `modals/ImagePreviewModal`; jangan membu
 
 ## Dashboard dan Visualisasi
 
-| Komponen                           | Tujuan                                                                                                  | Props penting                               |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `dashboard/DashboardMetric`        | Panel KPI dengan aksen status, angka lokal, ikon, dan dukungan microtrend.                              | `metric`, `loading`                         |
-| `dashboard/DashboardChart`         | Shell grafik dengan header, tinggi stabil, loading, empty state, dan hover yang halus.                  | `title`, `description`, `icon`, `loading`   |
-| `dashboard/AreaTrendChart`         | Grafik area untuk tren kumulatif berdasarkan periode.                                                   | `data`                                      |
-| `dashboard/HorizontalBarChart`     | Grafik batang horizontal untuk label kategori yang panjang.                                             | `data`, `percent`                           |
-| `dashboard/StackedBarChart`        | Grafik batang bertumpuk untuk komposisi beberapa seri.                                                  | `data`, `horizontal`                        |
-| `dashboard/DonutChart`             | Grafik donut kelengkapan data dengan total dan legend Bahasa Indonesia.                                 | `data`                                      |
-| `dashboard/MetricSparkline`        | Grafik mini tanpa sumbu untuk tren pada KPI.                                                            | `data`, `color`                             |
-| `dashboard/DashboardAttentionList` | Daftar prioritas operasional dengan tingkat urgensi.                                                    | `items`, `loading`                          |
-| `dashboard/DashboardActivityList`  | Daftar aktivitas audit terbaru tanpa membuka payload sensitif.                                          | `items`, `loading`                          |
-| `dashboard/chartAdapter`           | Sumber konfigurasi ApexCharts untuk theme, format Indonesia, responsive behavior, tooltip, dan animasi. | `createChartOptions`, `formatChartCategory` |
+| Komponen                               | Tujuan                                                                                                  | Props penting                               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `dashboard/DashboardMetric`            | Panel KPI dengan aksen status, angka lokal, ikon, dan dukungan microtrend.                              | `metric`, `loading`                         |
+| `dashboard/DashboardChart`             | Shell grafik dengan header, tinggi stabil, loading, empty state, dan hover yang halus.                  | `title`, `description`, `icon`, `loading`   |
+| `dashboard/AreaTrendChart`             | Grafik area untuk membandingkan arus perubahan berdasarkan periode.                                     | `data`                                      |
+| `dashboard/HorizontalBarChart`         | Grafik batang horizontal untuk label kategori yang panjang.                                             | `data`, `percent`                           |
+| `dashboard/StackedBarChart`            | Grafik batang bertumpuk untuk komposisi beberapa seri.                                                  | `data`, `horizontal`                        |
+| `dashboard/DonutChart`                 | Grafik donut kelengkapan data dengan total dan legend Bahasa Indonesia.                                 | `data`                                      |
+| `dashboard/MetricSparkline`            | Grafik mini tanpa sumbu untuk tren pada KPI.                                                            | `data`, `color`                             |
+| `dashboard/DashboardAttentionList`     | Daftar prioritas operasional dengan tingkat urgensi.                                                    | `items`, `loading`                          |
+| `dashboard/EmployeeCompositionSummary` | Satu panel snapshot komposisi jenis kelamin, status, masa kerja, dan jenis kepegawaian.                 | `data`, `loading`                           |
+| `dashboard/DashboardActivityList`      | Daftar aktivitas audit terbaru tanpa membuka payload sensitif.                                          | `items`, `loading`                          |
+| `dashboard/chartAdapter`               | Sumber konfigurasi ApexCharts untuk theme, format Indonesia, responsive behavior, tooltip, dan animasi. | `createChartOptions`, `formatChartCategory` |
 
-Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender melalui `ApexChartClient` dengan SSR nonaktif. Grafik fitur tidak boleh menyalin konfigurasi theme, tooltip, breakpoint, atau reduced motion secara terpisah. Grafik harus mendukung keputusan pengguna dan selalu memiliki state loading, kosong, serta error pada shell-nya.
+Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender melalui `ApexChartClient` dengan SSR nonaktif. Adapter wajib menormalkan kategori dan nilai numerik agar label `NaN` atau `undefined` tidak pernah tampil. Grafik fitur tidak boleh menyalin konfigurasi theme, tooltip, breakpoint, atau reduced motion secara terpisah. Grafik harus mendukung keputusan pengguna dan selalu memiliki state loading, kosong, serta error pada shell-nya. `DashboardAttentionList` menerima scope organisasi agar item disiplin dapat membuka tab sanksi pegawai yang tepat; chip prioritas ditempatkan bersama judul dan aksi detail memakai ikon mata yang mudah dikenali.
 
 ## Branding
 
@@ -108,6 +109,7 @@ Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender
 | `employees/EmployeeImportModal`        | Stepper import Excel data kepegawaian, petunjuk, preview per pegawai, dan commit idempotent.                                                                                                                                 | `open`, `organizationId`, callback                     |
 | `employees/EmployeeDetail`             | Workspace detail responsif dengan ringkasan identitas tanpa duplikasi, preview pas foto/KTP, tab jaminan, pendidikan terstruktur, histori kontrak beserta jejak audit pelaku/waktu, dokumen, disiplin, dan akun sesuai role. | `employeeId`; tab aktif melalui query `tab`            |
 | `employees/EmployeeLifecycleForms`     | Form record baru untuk rolling/mutasi dan kontrak tanpa menimpa histori.                                                                                                                                                     | `employee`, callback                                   |
+| `employees/EmployeeTerminationForm`    | Workflow terkonfirmasi untuk status Diberhentikan, Pensiun, atau Meninggal dunia; menutup data aktif tanpa menghapus histori.                                                                                                | `open`, `employee`, `organizationId`, callback         |
 | `discipline/DisciplineForms`           | Membuka kasus, mengedit draft tindakan, menerbitkan keputusan, dan mencabut tindakan aktif dengan alasan tanpa menghapus histori.                                                                                            | `organizationId`, `disciplineCase`, `action`, callback |
 | `discipline/DisciplineCaseDetailModal` | Detail lengkap kasus, pembelaan, tindakan, eskalasi, audit penerbit/pencabutan, dan satu aksi unduh surat melalui `AppModal`.                                                                                                | `open`, `disciplineCase`, `organizationId`, `onClose`  |
 | `access/OrganizationAccountForm`       | Membuat akun organisasi, tautan profil opsional untuk HRD/Pimpinan, wajib untuk Pegawai, serta mengatur scope.                                                                                                               | `item`, `organizationId`, callback                     |

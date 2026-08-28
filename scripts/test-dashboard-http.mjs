@@ -38,6 +38,28 @@ async function verifyDashboard(path, user, expectedScope) {
   if (data.scope !== expectedScope || !Array.isArray(data.metrics) || !data.charts) {
     throw new Error(`${user.role_code}: kontrak respons dashboard tidak lengkap.`);
   }
+  if (expectedScope === "organization") {
+    const expectedCharts = [
+      "growth",
+      "locations",
+      "units",
+      "contracts",
+      "completeness",
+      "discipline",
+    ];
+    const missingChart = expectedCharts.find((key) => !data.charts[key]);
+    if (missingChart) {
+      throw new Error(`${user.role_code}: grafik ${missingChart} tidak tersedia.`);
+    }
+    const growthSeries = data.charts.growth.series?.map((series) => series.name);
+    if (
+      growthSeries?.length !== 2 ||
+      growthSeries[0] !== "Pegawai baru" ||
+      growthSeries[1] !== "Pegawai keluar"
+    ) {
+      throw new Error(`${user.role_code}: seri Perkembangan pegawai tidak sesuai.`);
+    }
+  }
   console.log(`OK ${user.role_code} (${data.scope}): ${data.metrics.length} metrik.`);
 }
 

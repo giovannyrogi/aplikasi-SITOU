@@ -1,13 +1,30 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { Box, Paper, Skeleton, useTheme } from "@mui/material";
+import { Box, IconButton, Paper, Skeleton, Tooltip, useTheme } from "@mui/material";
+import { useRouter } from "next/navigation";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
+import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 
 /** Daftar prioritas yang mengarahkan perhatian pengguna tanpa membanjiri dashboard. */
-export default function DashboardAttentionList({ items = [], loading }) {
+export default function DashboardAttentionList({
+  items = [],
+  loading,
+  organizationId,
+  isSuperadmin,
+}) {
   const theme = useTheme();
+  const router = useRouter();
+  const { startNavigationLoading } = useLoadingBackdrop();
+
+  /** Membuka histori disiplin pegawai dan mempertahankan scope organisasi Superadmin. */
+  const openDiscipline = (item) => {
+    const query = new URLSearchParams({ tab: "discipline" });
+    if (isSuperadmin && organizationId) query.set("organizationId", organizationId);
+    startNavigationLoading({ message: "Membuka histori sanksi pegawai..." });
+    router.push(`/employees/${item.id}?${query.toString()}`);
+  };
   return (
     <Paper
       component="section"
@@ -49,13 +66,34 @@ export default function DashboardAttentionList({ items = [], loading }) {
                 display: "grid",
                 gridTemplateColumns: "minmax(0,1fr) auto",
                 gap: 1.25,
-                alignItems: "start",
+                alignItems: "center",
               }}
             >
               <Box sx={{ minWidth: 0 }}>
-                <FontStyle fontSize={12.5} fontWeight={600} sx={{ overflowWrap: "anywhere" }}>
-                  {item.title}
-                </FontStyle>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    columnGap: 1,
+                    rowGap: 0.75,
+                    minWidth: 0,
+                  }}
+                >
+                  <FontStyle fontSize={12.5} fontWeight={600} sx={{ overflowWrap: "anywhere" }}>
+                    {item.title}
+                  </FontStyle>
+                  <CompactInfoChip
+                    label={
+                      item.priority === 1
+                        ? "Mendesak"
+                        : item.priority === 2
+                          ? "Perhatian"
+                          : "Tinjau"
+                    }
+                    tone={item.priority === 1 ? "danger" : "warning"}
+                  />
+                </Box>
                 <FontStyle
                   fontSize={10.8}
                   sx={{ mt: 0.35, color: theme.ui.mutedText, lineHeight: 1.5 }}
@@ -63,12 +101,29 @@ export default function DashboardAttentionList({ items = [], loading }) {
                   {item.description}
                 </FontStyle>
               </Box>
-              <CompactInfoChip
-                label={
-                  item.priority === 1 ? "Mendesak" : item.priority === 2 ? "Perhatian" : "Tinjau"
-                }
-                tone={item.priority === 1 ? "danger" : "warning"}
-              />
+              <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                {item.type === "discipline" ? (
+                  <Tooltip title="Lihat detail sanksi" arrow>
+                    <IconButton
+                      aria-label={`Lihat detail sanksi ${item.title}`}
+                      onClick={() => openDiscipline(item)}
+                      sx={{
+                        width: 44,
+                        height: 44,
+                        border: `1px solid ${theme.status.danger.border}`,
+                        color: theme.status.danger.main,
+                        bgcolor: theme.status.danger.background,
+                        "&:hover": {
+                          bgcolor: theme.status.danger.background,
+                          borderColor: theme.status.danger.main,
+                        },
+                      }}
+                    >
+                      <Icon icon="solar:eye-linear" width={20} />
+                    </IconButton>
+                  </Tooltip>
+                ) : null}
+              </Box>
             </Box>
           ))
         ) : (

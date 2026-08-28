@@ -89,7 +89,7 @@ export async function DELETE(request, context) {
     const data = await terminateEmployee(resolved.id, organizationId, parsed.data, user, requestId);
     return successResponse(data, {
       code: "EMPLOYEE_TERMINATED",
-      message: "Status pegawai dan penempatan aktif telah diakhiri.",
+      message: "Hubungan kerja pegawai berhasil diakhiri dan seluruh histori tetap tersimpan.",
     });
   } catch (error) {
     return handleRouteError("employees.terminate", error, requestId);
