@@ -13,17 +13,26 @@ SITOU (Sistem Informasi Tenaga Operasional Unit) adalah dashboard HRIS multi-org
 ## Menjalankan development
 
 1. Salin konfigurasi database dan session ke `.env.development`.
-2. Jalankan schema atau migration yang belum diterapkan.
-3. Seed akun Superadmin dengan `npm run seed:superadmin`.
-4. Jalankan aplikasi dengan `npm run dev`.
+2. Untuk database kosong, jalankan `sitou_schema_v3.sql` satu kali. Jangan jalankan migration historis setelah schema final.
+3. Untuk database berisi data, jalankan hanya migration yang belum diterapkan secara berurutan.
+4. Pastikan database siap dengan `npm run db:check`.
+5. Seed akun Superadmin dengan `npm run seed:superadmin`.
+6. Jalankan aplikasi dengan `npm run dev`.
 
 Perintah pemeriksaan utama:
 
 ```bash
 npm run lint
 npm run build
+npm run db:check
 npm run subscriptions:reconcile
 ```
+
+Pada VPS yang memuat environment dari file production, jalankan preflight dengan
+`ENV_FILE=.env.production npm run db:check` sebelum restart aplikasi. Perintah akan
+gagal dan menampilkan tabel, kolom, constraint, atau permission yang belum lengkap.
+Seed database production yang masih kosong dijalankan dengan
+`ENV_FILE=.env.production npm run seed:superadmin`.
 
 ## Masa akses organisasi
 

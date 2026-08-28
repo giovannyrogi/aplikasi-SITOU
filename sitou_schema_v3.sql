@@ -1268,14 +1268,99 @@ INSERT INTO roles(code,name,scope,description,is_system) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO permissions(code,description) VALUES
+  ('employees.read','Melihat daftar dan detail pegawai.'),
+  ('employees.read_sensitive','Melihat data pribadi dan administrasi sensitif pegawai.'),
+  ('employees.create','Membuat profil pegawai.'),
+  ('employees.update','Memperbarui profil pegawai.'),
+  ('employees.deactivate','Mengakhiri status aktif pegawai.'),
+  ('assignments.read','Melihat histori penempatan pegawai.'),
+  ('assignments.manage','Membuat penempatan awal, rolling, mutasi, promosi, dan demosi.'),
+  ('contracts.read','Melihat kontrak kerja pegawai.'),
+  ('contracts.manage','Membuat dan memperbarui siklus kontrak kerja.'),
+  ('discipline.read','Melihat kasus dan histori sanksi.'),
+  ('discipline.manage','Membuka kasus dan menerbitkan tindakan disiplin.'),
+  ('accounts.read','Melihat akun organisasi.'),
+  ('accounts.manage','Membuat, menautkan, dan mengubah akun organisasi.'),
+  ('employee_import.read','Melihat batch dan pratinjau import pegawai.'),
+  ('employee_import.manage','Mengunggah, memvalidasi, dan commit import pegawai.'),
+  ('private_files.read','Melihat metadata file privat.'),
+  ('private_files.read_sensitive','Melihat dan mengunduh file sensitif.'),
+  ('private_files.manage','Mengunggah dan melakukan soft delete file privat.'),
+  ('employees.read_self','Melihat profil pegawai milik akun sendiri.'),
+  ('assignments.read_self','Melihat penempatan milik akun sendiri.'),
+  ('contracts.read_self','Melihat kontrak milik akun sendiri.'),
+  ('private_files.read_self','Melihat file privat milik akun sendiri.'),
   ('profile_self.read','Membaca profil akun sendiri.'),
-  ('profile_self.update','Memperbarui kontak profil sendiri.')
-ON CONFLICT (code) DO NOTHING;
+  ('profile_self.update','Memperbarui kontak profil dan password akun sendiri.')
+ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;
+
 INSERT INTO role_permissions(role_id,permission_id)
 SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
-WHERE role.code IN ('superadmin','hrd','leader','employee')
-  AND permission.code IN ('profile_self.read','profile_self.update')
+WHERE role.code IN ('superadmin','hrd')
+  AND permission.code IN (
+    'employees.read','employees.read_sensitive','employees.create','employees.update','employees.deactivate',
+    'assignments.read','assignments.manage','contracts.read','contracts.manage',
+    'discipline.read','discipline.manage','accounts.read','accounts.manage',
+    'employee_import.read','employee_import.manage',
+    'private_files.read','private_files.read_sensitive','private_files.manage',
+    'profile_self.read','profile_self.update'
+  )
 ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions(role_id,permission_id)
+SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
+WHERE role.code='leader'
+  AND permission.code IN (
+    'employees.read','employees.read_sensitive','assignments.read','contracts.read',
+    'discipline.read','private_files.read','private_files.read_sensitive',
+    'profile_self.read','profile_self.update'
+  )
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions(role_id,permission_id)
+SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
+WHERE role.code='employee'
+  AND permission.code IN (
+    'employees.read_self','assignments.read_self','contracts.read_self','private_files.read_self',
+    'profile_self.read','profile_self.update'
+  )
+ON CONFLICT DO NOTHING;
+
+DO $$
+DECLARE
+  superadmin_permission_count integer;
+  hrd_permission_count integer;
+  leader_permission_count integer;
+  employee_permission_count integer;
+BEGIN
+  SELECT COUNT(*) FILTER (WHERE role.code='superadmin'),
+         COUNT(*) FILTER (WHERE role.code='hrd'),
+         COUNT(*) FILTER (WHERE role.code='leader'),
+         COUNT(*) FILTER (WHERE role.code='employee')
+  INTO superadmin_permission_count,hrd_permission_count,
+       leader_permission_count,employee_permission_count
+  FROM role_permissions mapping
+  JOIN roles role ON role.id=mapping.role_id
+  JOIN permissions permission ON permission.id=mapping.permission_id
+  WHERE permission.code IN (
+    'employees.read','employees.read_sensitive','employees.create','employees.update','employees.deactivate',
+    'assignments.read','assignments.manage','contracts.read','contracts.manage',
+    'discipline.read','discipline.manage','accounts.read','accounts.manage',
+    'employee_import.read','employee_import.manage',
+    'private_files.read','private_files.read_sensitive','private_files.manage',
+    'employees.read_self','assignments.read_self','contracts.read_self','private_files.read_self',
+    'profile_self.read','profile_self.update'
+  );
+
+  IF superadmin_permission_count<>20 OR hrd_permission_count<>20
+    OR leader_permission_count<>9 OR employee_permission_count<>6 THEN
+    RAISE EXCEPTION
+      'Seed permission tidak lengkap: superadmin %, hrd %, leader %, employee %',
+      superadmin_permission_count,hrd_permission_count,
+      leader_permission_count,employee_permission_count;
+  END IF;
+END;
+$$;
 COMMIT;
 
 -- CATATAN DEPLOYMENT:

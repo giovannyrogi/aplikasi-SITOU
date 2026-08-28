@@ -14,6 +14,7 @@
     "format:check": "prettier . --check",
     "seed:superadmin": "node scripts/seed-superadmin.mjs",
     "subscriptions:reconcile": "node scripts/reconcile-subscriptions.mjs",
+    "db:check": "node scripts/check-employee-foundation-db.mjs",
     "db:check-employee-foundation": "node scripts/check-employee-foundation-db.mjs",
     "db:migrate-employee-foundation": "node scripts/apply-employee-foundation-migration.mjs",
     "db:migrate-flexible-employee-import": "node scripts/apply-flexible-employee-import-migration.mjs",

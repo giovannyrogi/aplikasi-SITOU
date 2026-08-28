@@ -10,6 +10,9 @@ Folder ini menyimpan perubahan schema secara berurutan untuk database SITOU yang
 
 Jangan menjalankan semua file secara acak atau mengulang migration tanpa pemeriksaan. Sebagian migration mengubah atau menghapus kolom lama dan sengaja berhenti ketika kondisi data tidak aman.
 
+Setelah membuat database kosong atau menyelesaikan upgrade, jalankan `npm run db:check`.
+Database belum boleh dipakai aplikasi jika hasil pemeriksaan menunjukkan `ready: false`.
+
 ## Cara menjalankan migration baru
 
 1. Backup database dan pastikan target adalah database development yang benar.
@@ -24,6 +27,11 @@ npm run db:migrate -- database/migrations/NAMA_FILE.sql
 5. Sinkronkan `sitou_schema_v3.sql` dan `docs/database-schema.md` agar database baru langsung memakai kondisi akhir.
 
 Migration yang telah diterapkan tidak boleh diedit. Koreksi dibuat sebagai migration bernomor berikutnya.
+
+Migration `018` memperbaiki database yang belum memiliki relasi permission
+`accounts.read` dan `accounts.manage` untuk role Superadmin serta HRD. Migration
+ini idempotent dan hanya menyentuh permission modul Akun Organisasi. Terapkan pada
+environment yang mengembalikan HTTP 403 ketika Superadmin atau HRD mengelola akun.
 
 Migration `011` menambahkan version timestamp dan metadata pembatalan logis pada `employment_contracts`. Migration ini memungkinkan koreksi salah input dan pembatalan kontrak tanpa menghapus histori maupun dokumen terkait.
 

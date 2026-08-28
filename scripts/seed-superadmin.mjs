@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import pg from "pg";
 
-dotenv.config({ path: ".env.development", quiet: true });
+dotenv.config({ path: process.env.ENV_FILE || ".env.development", quiet: true });
 
 const DATABASE_NAME = "sitou_db";
 const USERNAME = "superadmin";

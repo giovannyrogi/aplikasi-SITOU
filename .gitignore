@@ -27,6 +27,9 @@
 /uploads/*
 !/uploads/.gitkeep
 /database/*
+!/database/migrations/
+!/database/migrations/*.sql
+!/database/migrations/README.md
 /scripts/*
 /tests/*
 /ecosystem.config.js

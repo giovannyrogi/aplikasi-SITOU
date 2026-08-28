@@ -72,6 +72,14 @@ API master jenis unit menggunakan `GET/POST /api/organization-unit-types`, `GET/
 | `user_organization_roles` | Role user per organisasi atau platform.                                  | `user_id`, `organization_id`, `role_id`, `location_scope_mode`, `active_from`, `active_until`, `created_by_user_id`. |
 | `user_location_scopes`    | Batas data lokasi untuk Admin/Pimpinan; bukan sumber penempatan pegawai. | `user_organization_role_id`, `organization_id`, `location_id`.                                                       |
 
+Schema final menanam seluruh permission modul pegawai, penempatan, kontrak,
+disiplin, akun, import, file privat, dan profil mandiri. Superadmin dan HRD mendapat
+permission pengelolaan; Pimpinan hanya mendapat permission baca yang ditetapkan;
+Pegawai hanya mendapat permission `*_self`. Superadmin memakai use case lintas
+organisasi yang eksplisit, sedangkan HRD tetap dibatasi ke organisasi dari session.
+Jalankan `npm run db:check` setelah setup atau upgrade database untuk memastikan
+seluruh relasi, kolom, constraint, dan mapping permission tersedia.
+
 ## Pegawai dan Profil
 
 | Tabel                         | Fungsi                                                                  | Kolom Kunci                                                                                                                                                                                                                                   |

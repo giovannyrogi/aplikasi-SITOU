@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { accountCreateSchema, accountPasswordSchema } from "../lib/access/schemas.js";
 import {
   employeeProfileMultipartSchema,
@@ -33,6 +34,67 @@ const strongAccount = {
   password: "Test#123",
   confirmPassword: "Test#123",
 };
+
+test("schema final dan migration koreksi memberikan permission akun", () => {
+  const schemaSql = readFileSync(new URL("../sitou_schema_v3.sql", import.meta.url), "utf8");
+  const migrationSql = readFileSync(
+    new URL(
+      "../database/migrations/20260828_018_repair_account_permissions.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  for (const sql of [schemaSql, migrationSql]) {
+    assert.match(sql, /'accounts\.read'/);
+    assert.match(sql, /'accounts\.manage'/);
+    assert.match(
+      sql,
+      /role_row\.code IN \('superadmin', 'hrd'\)|role\.code IN \('superadmin','hrd'\)/,
+    );
+  }
+});
+
+test("schema final memuat permission lengkap sesuai batas setiap role", () => {
+  const schemaSql = readFileSync(new URL("../sitou_schema_v3.sql", import.meta.url), "utf8");
+  const requiredPermissionCodes = [
+    "employees.read",
+    "employees.read_sensitive",
+    "employees.create",
+    "employees.update",
+    "employees.deactivate",
+    "assignments.read",
+    "assignments.manage",
+    "contracts.read",
+    "contracts.manage",
+    "discipline.read",
+    "discipline.manage",
+    "accounts.read",
+    "accounts.manage",
+    "employee_import.read",
+    "employee_import.manage",
+    "private_files.read",
+    "private_files.read_sensitive",
+    "private_files.manage",
+    "employees.read_self",
+    "assignments.read_self",
+    "contracts.read_self",
+    "private_files.read_self",
+    "profile_self.read",
+    "profile_self.update",
+  ];
+
+  for (const permissionCode of requiredPermissionCodes) {
+    assert.equal(schemaSql.includes("('" + permissionCode + "'"), true, permissionCode);
+  }
+
+  const employeeGrant = schemaSql.match(
+    /WHERE role\.code='employee'[\s\S]*?ON CONFLICT DO NOTHING;/,
+  )?.[0];
+  assert.ok(employeeGrant);
+  assert.match(employeeGrant, /'employees\.read_self'/);
+  assert.doesNotMatch(employeeGrant, /'employees\.read',/);
+});
 
 test("tambah akun menolak konfirmasi password yang berbeda", () => {
   const result = accountCreateSchema.safeParse({
