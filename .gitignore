@@ -29,6 +29,7 @@
 /database/*
 /scripts/*
 /tests/*
+/ecosystem.config.js
 
 # debug
 npm-debug.log*
