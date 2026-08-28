@@ -358,8 +358,6 @@ const validEmployeeOnboarding = {
     locationId: 1,
     organizationUnitId: 1,
     effectiveFrom: "2026-08-28",
-    decreeNo: "SK-001",
-    documentFileId: 1,
   },
 };
 
@@ -388,6 +386,13 @@ test("status perkawinan hanya menerima pilihan resmi", () => {
     }).success,
     false,
   );
+});
+
+test("onboarding menerima nomor dan dokumen SK penempatan yang belum tersedia", () => {
+  const result = employeeCreateSchema.safeParse(validEmployeeOnboarding);
+  assert.equal(result.success, true);
+  assert.equal(result.data.assignment.decreeNo, null);
+  assert.equal(result.data.assignment.documentFileId, null);
 });
 
 test("label status perkawinan dari draft lama dinormalkan ke kode resmi", () => {

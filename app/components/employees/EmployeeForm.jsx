@@ -563,11 +563,6 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   /** Menyimpan edit lama atau memfinalisasi draft baru yang telah lengkap. */
   const submit = async (values) => {
     try {
-      if (!editing && !assignmentFile) {
-        reportError("Dokumen SK penempatan wajib diunggah sebelum menyimpan pegawai.");
-        guideToElement("employee-assignment-document");
-        return;
-      }
       await runWithLoadingBackdrop(
         async () => {
           let response;
@@ -1235,15 +1230,11 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 >
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
-                <Form.Item
-                  name={["assignment", "decreeNo"]}
-                  label="Nomor SK"
-                  rules={required("Nomor SK wajib diisi.")}
-                >
+                <Form.Item name={["assignment", "decreeNo"]} label="Nomor SK (opsional)">
                   <Input maxLength={100} />
                 </Form.Item>
                 <Box id="employee-assignment-document">
-                  <Form.Item label="Dokumen SK penempatan" required>
+                  <Form.Item label="Dokumen SK penempatan (opsional)">
                     <PrivatePdfUpload
                       value={assignmentFile}
                       uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
@@ -1262,7 +1253,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                       }
                       onError={reportError}
                       disabled={!draft}
-                      helpText="Unggah SK penempatan awal dalam format PDF, maksimal 10 MB."
+                      helpText="Opsional. Gunakan dokumen PDF maksimal 10 MB."
                     />
                   </Form.Item>
                 </Box>
