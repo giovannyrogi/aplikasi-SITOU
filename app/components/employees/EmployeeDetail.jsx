@@ -17,6 +17,7 @@ import {
   IdcardOutlined,
   KeyOutlined,
   MailOutlined,
+  PlusCircleOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
   SwapOutlined,
@@ -138,6 +139,46 @@ function TabLabel({ icon, children }) {
     <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
       {icon}
       <span>{children}</span>
+    </Box>
+  );
+}
+
+/** Aksi ringkas memakai ikon di desktop dan label lengkap pada layar sentuh kecil. */
+function ResponsiveActionButton({ label, style, ...props }) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        width: { xs: "100%", sm: "auto" },
+        flexShrink: 0,
+        "& .ant-btn": {
+          width: { xs: "100%", sm: 44 },
+          minWidth: { xs: 0, sm: 44 },
+          minHeight: 44,
+          px: { sm: 0 },
+        },
+        "& .ant-btn .anticon": {
+          flex: "0 0 auto",
+          fontSize: 18,
+          lineHeight: 0,
+        },
+        "& .ant-btn .anticon svg": {
+          width: 18,
+          height: 18,
+        },
+        "& .ant-btn .anticon svg path": {
+          stroke: "currentColor",
+          strokeWidth: 14,
+          strokeLinejoin: "round",
+        },
+      }}
+    >
+      <Button {...props} aria-label={label} title={label} style={style}>
+        <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+          {label}
+        </Box>
+      </Button>
     </Box>
   );
 }
@@ -596,27 +637,33 @@ function DisciplineCaseCard({
             },
           }}
         >
-          <Button icon={<EyeOutlined />} onClick={() => onDetail(disciplineCase)}>
-            Lihat detail kasus
-          </Button>
+          <ResponsiveActionButton
+            label="Lihat detail"
+            icon={<EyeOutlined />}
+            onClick={() => onDetail(disciplineCase)}
+          />
           {!readOnly && action?.status === "draft" ? (
-            <Button icon={<EditOutlined />} onClick={() => onEditDraft(disciplineCase)}>
-              Edit draft
-            </Button>
+            <ResponsiveActionButton
+              label="Edit draft"
+              icon={<EditOutlined />}
+              onClick={() => onEditDraft(disciplineCase)}
+            />
           ) : null}
           {!readOnly && action?.status === "active" ? (
-            <Button danger icon={<CloseCircleOutlined />} onClick={() => onRevoke(action)}>
-              Cabut tindakan
-            </Button>
+            <ResponsiveActionButton
+              danger
+              label="Cabut tindakan"
+              icon={<CloseCircleOutlined />}
+              onClick={() => onRevoke(action)}
+            />
           ) : null}
           {!readOnly && !action && disciplineCase.status !== "closed_no_action" ? (
-            <Button
+            <ResponsiveActionButton
               type="primary"
+              label="Tetapkan tindakan"
               icon={<FileTextOutlined />}
               onClick={() => onCreateAction(disciplineCase)}
-            >
-              Tetapkan tindakan
-            </Button>
+            />
           ) : null}
         </Box>
       </Box>
@@ -659,6 +706,7 @@ export default function EmployeeDetail({ employeeId }) {
   const [actionCase, setActionCase] = useState(null);
   const [revokeAction, setRevokeAction] = useState(null);
   const [detailCase, setDetailCase] = useState(null);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [selectedContract, setSelectedContract] = useState(null);
   const [contractToCancel, setContractToCancel] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -881,17 +929,11 @@ export default function EmployeeDetail({ employeeId }) {
               title="Hubungan kerja"
               action={
                 finalEmploymentStatus ? (
-                  <Button
+                  <ResponsiveActionButton
+                    label="Lihat detail"
                     icon={<EyeOutlined />}
-                    aria-label="Lihat detail akhir hubungan kerja"
-                    title="Lihat detail akhir hubungan kerja"
                     onClick={() => setModal("terminationDetail")}
-                    style={{ minHeight: 44 }}
-                  >
-                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-                      Lihat detail
-                    </Box>
-                  </Button>
+                  />
                 ) : null
               }
             >
@@ -939,13 +981,15 @@ export default function EmployeeDetail({ employeeId }) {
             description="Telusuri lokasi, Divisi & Unit, jabatan, serta perubahan penempatan dari waktu ke waktu."
             action={
               canManageEmployee ? (
-                <Button
+                <ResponsiveActionButton
                   type="primary"
+                  label="Penempatan baru"
                   icon={<SwapOutlined />}
-                  onClick={() => setModal("assignment")}
-                >
-                  Penempatan baru
-                </Button>
+                  onClick={() => {
+                    setSelectedAssignment(null);
+                    setModal("assignment");
+                  }}
+                />
               ) : null
             }
           />
@@ -989,36 +1033,74 @@ export default function EmployeeDetail({ employeeId }) {
                         border: `3px solid ${active ? theme.ui.panelAccentBg : theme.ui.panelBorder}`,
                       }}
                     />
-                    <Box sx={{ minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                        <FontStyle fontSize={13.5} fontWeight={700}>
-                          {item.position_name || "Jabatan belum ditentukan"}
-                        </FontStyle>
-                        <CompactInfoChip
-                          label={active ? "Penempatan aktif" : CHANGE_TYPE_LABELS[item.change_type]}
-                          tone={active ? "success" : "info"}
-                        />
-                      </Box>
-                      <FontStyle fontSize={12.5} sx={{ mt: 0.75 }}>
-                        {item.unit_name} · {item.location_name}
-                      </FontStyle>
-                      <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-                        {formatDate(item.effective_from)} sampai{" "}
-                        {formatDate(item.effective_until, "sekarang")}
-                        {item.supervisor_name ? ` · Atasan: ${item.supervisor_name}` : ""}
-                      </FontStyle>
-                      {item.document_file_id ? (
-                        <Button
-                          size="small"
-                          icon={<FileTextOutlined />}
-                          href={`/api/uploads/${item.document_file_id}?organizationId=${organizationId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ marginTop: 8 }}
+                    <Box
+                      sx={{
+                        minWidth: 0,
+                        display: "grid",
+                        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(0, 1fr) auto" },
+                        gap: 2,
+                        pb: index === state.history.assignments.length - 1 ? 0 : 2.5,
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}
                         >
-                          Dokumen SK
-                        </Button>
-                      ) : null}
+                          <FontStyle fontSize={13.5} fontWeight={700}>
+                            {item.position_name || "Jabatan belum ditentukan"}
+                          </FontStyle>
+                          <CompactInfoChip
+                            label={
+                              active ? "Penempatan aktif" : CHANGE_TYPE_LABELS[item.change_type]
+                            }
+                            tone={active ? "success" : "info"}
+                          />
+                        </Box>
+                        <FontStyle fontSize={12.5} sx={{ mt: 0.75 }}>
+                          {item.unit_name} · {item.location_name}
+                        </FontStyle>
+                        <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
+                          {formatDate(item.effective_from)} sampai{" "}
+                          {formatDate(item.effective_until, "sekarang")}
+                          {item.supervisor_name ? ` · Atasan: ${item.supervisor_name}` : ""}
+                        </FontStyle>
+                        <FontStyle fontSize={10.5} sx={{ mt: 1, color: theme.ui.mutedText }}>
+                          Dicatat oleh {item.created_by_name || "pelaku tidak tersedia"} pada{" "}
+                          {formatDateTime(item.created_at)}
+                          {item.updated_audit_at
+                            ? ` · Dikoreksi oleh ${item.updated_by_name || "pelaku tidak tersedia"} pada ${formatDateTime(item.updated_audit_at)}`
+                            : ""}
+                        </FontStyle>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 1,
+                          flexWrap: "wrap",
+                          width: { xs: "100%", sm: "auto" },
+                        }}
+                      >
+                        {item.document_file_id ? (
+                          <ResponsiveActionButton
+                            label="Lihat SK"
+                            icon={<EyeOutlined />}
+                            href={`/api/uploads/${item.document_file_id}?organizationId=${organizationId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          />
+                        ) : null}
+                        {canManageEmployee ? (
+                          <ResponsiveActionButton
+                            label="Edit penempatan"
+                            icon={<EditOutlined />}
+                            onClick={() => {
+                              setSelectedAssignment(item);
+                              setModal("assignmentEdit");
+                            }}
+                          />
+                        ) : null}
+                      </Box>
                     </Box>
                   </Box>
                 );
@@ -1040,16 +1122,15 @@ export default function EmployeeDetail({ employeeId }) {
             description="Lihat hubungan kerja aktif dan riwayat perpanjangan tanpa menimpa kontrak sebelumnya."
             action={
               canManageEmployee ? (
-                <Button
+                <ResponsiveActionButton
                   type="primary"
+                  label="Kontrak baru"
                   icon={<PlusOutlined />}
                   onClick={() => {
                     setSelectedContract(null);
                     setModal("contract");
                   }}
-                >
-                  Kontrak baru
-                </Button>
+                />
               ) : null
             }
           />
@@ -1061,38 +1142,56 @@ export default function EmployeeDetail({ employeeId }) {
                   component="li"
                   key={item.id}
                   sx={{
+                    position: "relative",
                     display: "grid",
                     gridTemplateColumns: {
                       xs: "minmax(0, 1fr)",
-                      md: "170px minmax(0, 1fr) auto",
+                      md: "160px minmax(0, 1fr) auto",
                     },
                     alignItems: "start",
                     gap: { xs: 2, md: 3 },
-                    py: { xs: 2.5, md: 3 },
+                    py: { xs: 2.5, md: 2.75 },
+                    px: { xs: 2, md: 2.5 },
                     borderTop: index === 0 ? "none" : `1px solid ${theme.ui.panelBorderSubtle}`,
+                    borderLeft: `3px solid ${
+                      item.status === "active"
+                        ? theme.status.success.main
+                        : item.status === "cancelled"
+                          ? theme.status.danger.main
+                          : theme.ui.panelBorder
+                    }`,
+                    bgcolor:
+                      item.status === "active" ? theme.status.success.background : "transparent",
+                    transition: "background-color 180ms ease",
+                    "&:hover": { bgcolor: theme.ui.rowHover },
                   }}
                 >
                   <Box sx={{ minWidth: 0 }}>
-                    <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
-                      Periode kontrak
+                    <FontStyle fontSize={10.5} fontWeight={600} sx={{ color: theme.ui.mutedText }}>
+                      PERIODE
                     </FontStyle>
-                    <FontStyle fontSize={12.5} fontWeight={700} sx={{ mt: 0.5 }}>
-                      {formatDate(item.start_date)}
-                    </FontStyle>
-                    <FontStyle fontSize={11.5} sx={{ mt: 0.35, color: theme.ui.mutedText }}>
-                      sampai {formatDate(item.end_date, "tanpa batas akhir")}
-                    </FontStyle>
-                    <Box sx={{ mt: 1.25 }}>
+                    <Box sx={{ mt: 0.65, display: "flex", gap: 0.75, alignItems: "flex-start" }}>
+                      <CalendarOutlined style={{ marginTop: 3, color: theme.ui.mutedText }} />
+                      <Box sx={{ minWidth: 0 }}>
+                        <FontStyle fontSize={12.5} fontWeight={700}>
+                          {formatDate(item.start_date)}
+                        </FontStyle>
+                        <FontStyle fontSize={11.5} sx={{ mt: 0.25, color: theme.ui.mutedText }}>
+                          sampai {formatDate(item.end_date, "tanpa batas akhir")}
+                        </FontStyle>
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                      <FontStyle fontSize={14} fontWeight={700}>
+                        {item.employment_type_name}
+                      </FontStyle>
                       <CompactInfoChip
                         label={CONTRACT_STATUS[item.status]?.[0] || "Status belum dikenali"}
                         tone={CONTRACT_STATUS[item.status]?.[1] || "neutral"}
                       />
                     </Box>
-                  </Box>
-                  <Box sx={{ minWidth: 0 }}>
-                    <FontStyle fontSize={14} fontWeight={700}>
-                      {item.employment_type_name}
-                    </FontStyle>
                     <FontStyle fontSize={12} sx={{ mt: 0.65, color: theme.ui.mutedText }}>
                       Nomor kontrak: {item.contract_no || "Belum dicatat"}
                     </FontStyle>
@@ -1189,46 +1288,39 @@ export default function EmployeeDetail({ employeeId }) {
                   <Box
                     sx={{
                       display: "flex",
-                      flexDirection: { xs: "column", sm: "row", md: "column", xl: "row" },
+                      alignItems: "flex-start",
                       gap: 1,
                       flexWrap: "wrap",
+                      width: { xs: "100%", md: "auto" },
                       justifyContent: { md: "flex-end" },
                       flexShrink: 0,
-                      "& .ant-btn": {
-                        minHeight: 40,
-                        width: { xs: "100%", sm: "auto" },
-                        fontWeight: 600,
-                      },
                     }}
                   >
                     {item.document_file_id ? (
-                      <Button
-                        icon={<FileTextOutlined />}
+                      <ResponsiveActionButton
+                        label="Lihat kontrak"
+                        icon={<EyeOutlined />}
                         href={`/api/uploads/${item.document_file_id}?organizationId=${organizationId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                      >
-                        Dokumen kontrak
-                      </Button>
+                      />
                     ) : null}
                     {canManageEmployee && item.status !== "cancelled" ? (
                       <>
-                        <Button
+                        <ResponsiveActionButton
+                          label="Edit kontrak"
                           icon={<EditOutlined />}
                           onClick={() => {
                             setSelectedContract(item);
                             setModal("contractEdit");
                           }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
+                        />
+                        <ResponsiveActionButton
                           danger
+                          label="Batalkan kontrak"
                           icon={<CloseCircleOutlined />}
                           onClick={() => setContractToCancel(item)}
-                        >
-                          Batalkan
-                        </Button>
+                        />
                       </>
                     ) : null}
                   </Box>
@@ -1394,13 +1486,12 @@ export default function EmployeeDetail({ employeeId }) {
             description="Kasus dicatat untuk pemeriksaan HRD. Sistem tidak menerbitkan sanksi secara otomatis."
             action={
               canManageEmployee ? (
-                <Button
+                <ResponsiveActionButton
                   type="primary"
+                  label="Catat kasus"
                   icon={<PlusOutlined />}
                   onClick={() => setModal("disciplineCase")}
-                >
-                  Catat kasus
-                </Button>
+                />
               ) : null
             }
           />
@@ -1471,17 +1562,18 @@ export default function EmployeeDetail({ employeeId }) {
                 "& .ant-btn": { minHeight: 44, width: { xs: "100%", sm: "auto" } },
               }}
             >
-              <Button icon={<EditOutlined />} onClick={() => setModal("profile")}>
-                Kelola profil lengkap
-              </Button>
-              <Button
+              <ResponsiveActionButton
+                label="Edit profil"
+                icon={<EditOutlined />}
+                onClick={() => setModal("profile")}
+              />
+              <ResponsiveActionButton
                 type="primary"
                 danger
+                label="Akhiri Hubungan kerja"
                 icon={<UserDeleteOutlined />}
                 onClick={() => setModal("termination")}
-              >
-                Akhiri hubungan kerja
-              </Button>
+              />
             </Box>
           ) : null
         }
@@ -1489,11 +1581,16 @@ export default function EmployeeDetail({ employeeId }) {
       <DetailTabs items={tabItems} activeKey={activeTab} onChange={changeTab} />
       {canManageEmployee ? (
         <AssignmentForm
-          open={modal === "assignment"}
+          open={modal === "assignment" || modal === "assignmentEdit"}
           employee={employee}
-          onClose={() => setModal(null)}
+          assignment={modal === "assignmentEdit" ? selectedAssignment : null}
+          onClose={() => {
+            setModal(null);
+            setSelectedAssignment(null);
+          }}
           onSaved={async (message) => {
             setModal(null);
+            setSelectedAssignment(null);
             showNotification(message);
             await load();
           }}

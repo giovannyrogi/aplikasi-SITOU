@@ -621,6 +621,7 @@ CREATE TABLE employee_assignments (
   notes text, -- Alasan/catatan rolling.
   created_by_user_id bigint REFERENCES users(id), -- HRD pencatat.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu record dibuat.
+  updated_at timestamptz NOT NULL DEFAULT now(), -- Versi optimistik untuk koreksi penempatan.
   CONSTRAINT uq_assignments_org_id UNIQUE (organization_id,id),
   CONSTRAINT fk_assignment_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id),
   CONSTRAINT fk_assignment_location FOREIGN KEY (organization_id,location_id) REFERENCES locations(organization_id,id),
@@ -637,6 +638,7 @@ WHERE effective_until IS NULL AND assignment_type='primary';
 CREATE INDEX ix_assignments_employee_history ON employee_assignments(organization_id,employee_id,effective_from DESC);
 CREATE INDEX ix_assignments_current_location ON employee_assignments(organization_id,location_id,employee_id) WHERE effective_until IS NULL AND assignment_type='primary';
 CREATE INDEX ix_assignments_current_unit ON employee_assignments(organization_id,organization_unit_id,employee_id) WHERE effective_until IS NULL AND assignment_type='primary';
+CREATE TRIGGER trg_employee_assignments_updated_at BEFORE UPDATE ON employee_assignments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ============================================================================
 -- 4. SHIFT FLEKSIBEL DAN JADWAL HARIAN

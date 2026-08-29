@@ -13,6 +13,7 @@ import {
 import {
   assignmentSchema,
   contractSchema,
+  employeeAssignmentCorrectionSchema,
   employeeCreateSchema,
   employeeContractCancellationSchema,
   employeeContractCorrectionSchema,
@@ -463,6 +464,45 @@ test("penempatan wajib memiliki nomor dan dokumen SK", () => {
     result.error.issues.map((issue) => issue.path.join(".")),
     ["decreeNo", "documentFileId"],
   );
+});
+
+test("koreksi penempatan memakai versi, dokumen, dan periode yang valid", () => {
+  const valid = employeeAssignmentCorrectionSchema.safeParse({
+    organizationId: 1,
+    locationId: 1,
+    organizationUnitId: 2,
+    assignmentType: "primary",
+    changeType: "correction",
+    effectiveFrom: "2026-01-01",
+    effectiveUntil: "2026-06-30",
+    decreeNo: "SK-001",
+    documentFileId: 10,
+    version: "2026-08-29T00:00:00.000Z",
+  });
+  assert.equal(valid.success, true);
+
+  const invalidPeriod = employeeAssignmentCorrectionSchema.safeParse({
+    ...valid.data,
+    effectiveUntil: "2025-12-31",
+  });
+  assert.equal(invalidPeriod.success, false);
+  assert.equal(
+    invalidPeriod.error.issues.some((issue) => issue.path.join(".") === "effectiveUntil"),
+    true,
+  );
+});
+
+test("migration dan schema awal memuat versi koreksi penempatan", () => {
+  const schemaSql = readFileSync(new URL("../sitou_schema_v3.sql", import.meta.url), "utf8");
+  const migrationSql = readFileSync(
+    new URL(
+      "../database/migrations/20260829_020_employee_assignment_corrections.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(schemaSql, /employee_assignments[\s\S]+updated_at timestamptz NOT NULL DEFAULT now\(\)/);
+  assert.match(migrationSql, /ALTER TABLE employee_assignments[\s\S]+ADD COLUMN updated_at/);
 });
 
 test("checkpoint draft hanya menerima struktur wizard dan version positif", () => {

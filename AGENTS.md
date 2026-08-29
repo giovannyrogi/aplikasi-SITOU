@@ -37,6 +37,8 @@ Route handler tidak boleh berisi query dan aturan bisnis panjang. Gunakan servic
 - Skema referensi: `sitou_schema_v3.sql`.
 - Panduan baca cepat database: `docs/database-schema.md`. Buka dokumen ini lebih dulu untuk memahami tabel, kolom penting, relasi, dan aturan data; buka `sitou_schema_v3.sql` hanya ketika perlu detail constraint, index, view SQL, atau membuat migration.
 - Perubahan database hanya melalui migration baru; jangan mengedit database produksi manual.
+- Setiap migration baru yang mengubah schema wajib pada perubahan yang sama direfleksikan ke `sitou_schema_v3.sql`. File tersebut harus selalu merepresentasikan schema akhir setelah seluruh migration diterapkan dan menjadi sumber bootstrap untuk membuat database SITOU baru dari kondisi kosong.
+- Pembaruan `sitou_schema_v3.sql` tidak menggantikan migration dan tidak boleh dipakai untuk memperbarui database yang sudah berjalan. Database development, staging, dan production yang sudah ada tetap disinkronkan dengan menjalankan migration yang belum tercatat.
 - Istilah domain resmi adalah **organisasi**. UI, pesan API, dokumentasi, komentar, test, dan penamaan abstraksi domain dilarang menyebut organisasi sebagai "tenant" atau "perusahaan". Nilai teknis schema yang sudah menjadi kontrak, seperti `organization_id` dan enum `company`, tetap dipertahankan, tetapi label yang dibaca pengguna wajib memakai "organisasi".
 - Istilah pengguna resmi adalah **Pegawai** dan **NIP (Nomor Induk Pegawai)**. UI, notifikasi, validasi, template import, dokumentasi, dan test dilarang memakai label "Karyawan" atau "Nomor Pegawai"; identifier teknis lama seperti role code `employee`, kolom `employee_no`, dan alias kompatibilitas tidak diubah tanpa migration kontrak khusus.
 - Event absensi mentah bersifat append-only.
@@ -372,6 +374,9 @@ Endpoint awal yang disarankan:
 ## 19. Migration dan transaksi
 
 - Satu migration untuk satu perubahan logis.
+- Setiap perubahan yang menghasilkan migration wajib menyertakan pembaruan `sitou_schema_v3.sql` dan, bila struktur atau aturan data berubah, `docs/database-schema.md` dalam commit yang sama. Migration, snapshot schema, dan dokumentasi tidak boleh dibiarkan berbeda versi.
+- Karena pengembangan dilakukan dari beberapa device dan environment, sebelum mulai bekerja atau menjalankan aplikasi wajib periksa status migration database lokal terhadap migration di repository, lalu jalankan hanya migration yang belum diterapkan. Dilarang mengandalkan asumsi bahwa schema PC, laptop, dan VPS sudah sama.
+- Sebelum migration dianggap selesai, verifikasi dua jalur: upgrade database yang sudah berisi data melalui seluruh migration baru, serta bootstrap database kosong menggunakan `sitou_schema_v3.sql`. Hasil struktur akhirnya harus ekuivalen.
 - Migration harus dapat dijalankan pada database kosong dan database berisi data.
 - Perubahan destruktif memakai pola expand-migrate-contract.
 - Backfill besar berjalan batch dan dapat dilanjutkan.

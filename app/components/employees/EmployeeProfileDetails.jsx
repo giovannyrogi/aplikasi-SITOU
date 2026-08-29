@@ -287,9 +287,12 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
     file?.id ? (
       <Box
         sx={{
+          width: { xs: "100%", sm: "auto" },
           "& .ant-btn": {
-            minHeight: 40,
-            px: 2,
+            width: { xs: "100%", sm: 44 },
+            minWidth: { xs: 0, sm: 44 },
+            minHeight: 44,
+            px: { sm: 0 },
             color: theme.palette.text.primary,
             borderColor: theme.ui.panelBorder,
             bgcolor: theme.palette.background.paper,
@@ -304,6 +307,8 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
       >
         <Button
           icon={<EyeOutlined />}
+          aria-label={`Lihat ${label.toLowerCase()}`}
+          title={`Lihat ${label.toLowerCase()}`}
           onClick={() =>
             onPreview?.({
               imageUrl: `/api/uploads/${file.id}?organizationId=${organizationId}`,
@@ -312,7 +317,9 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
             })
           }
         >
-          Lihat {label.toLowerCase()}
+          <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+            Lihat {label.toLowerCase()}
+          </Box>
         </Button>
       </Box>
     ) : null;
@@ -381,7 +388,7 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
                     </FontStyle>
                   </Box>
                 </Box>
-                <Box sx={{ justifySelf: { sm: "end" } }}>
+                <Box sx={{ width: { xs: "100%", sm: "auto" }, justifySelf: { sm: "end" } }}>
                   {previewAction(item.certificate_file, "Ijazah")}
                 </Box>
               </Box>
@@ -391,7 +398,7 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
           <EducationEmptyState
             icon={<BookOutlined />}
             title="Riwayat pendidikan belum tersedia"
-            description="Tambahkan jenjang pendidikan melalui Kelola profil lengkap."
+            description="Tambahkan jenjang pendidikan melalui Edit profil."
           />
         )}
       </ProfileSection>
@@ -454,7 +461,7 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
           <EducationEmptyState
             icon={<ToolOutlined />}
             title="Keahlian belum tersedia"
-            description="Tambahkan kemampuan dan tingkat penguasaan melalui Kelola profil lengkap."
+            description="Tambahkan kemampuan dan tingkat penguasaan melalui Edit profil."
           />
         )}
       </ProfileSection>
@@ -513,7 +520,7 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
                         : " · Tanpa tanggal kedaluwarsa"}
                     </FontStyle>
                   </Box>
-                  <Box sx={{ justifySelf: { sm: "end" } }}>
+                  <Box sx={{ width: { xs: "100%", sm: "auto" }, justifySelf: { sm: "end" } }}>
                     {previewAction(item.certificate_file, "Sertifikat")}
                   </Box>
                 </Box>
@@ -524,7 +531,7 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
           <EducationEmptyState
             icon={<SafetyCertificateOutlined />}
             title="Sertifikasi belum tersedia"
-            description="Tambahkan kredensial dan bukti sertifikat melalui Kelola profil lengkap."
+            description="Tambahkan kredensial dan bukti sertifikat melalui Edit profil."
           />
         )}
       </ProfileSection>

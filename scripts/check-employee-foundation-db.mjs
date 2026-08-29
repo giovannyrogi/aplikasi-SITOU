@@ -37,6 +37,7 @@ const requiredColumns = [
   ["employment_contracts", "cancelled_at"],
   ["employment_contracts", "cancellation_reason"],
   ["employment_contracts", "cancelled_by_user_id"],
+  ["employee_assignments", "updated_at"],
   ["employee_identifiers", "identifier_label"],
   ["employee_identifiers", "document_file_id"],
   ["users", "credential_version"],

@@ -40,3 +40,5 @@ Migration `012` menghubungkan identitas administratif pegawai dengan file privat
 Migration `014` menambahkan profil platform, view identitas terpusat, dan versi kredensial. Migration `015` mengarsipkan identitas legacy ke `user_identity_legacy_backups`, memverifikasi kelengkapan backup, lalu menghapus kolom identitas dari `users`. Arsip migration bukan sumber identitas aplikasi dan wajib mengikuti kebijakan akses serta retention data pribadi.
 
 Migration `019` mewajibkan NIK 16 digit pada seluruh pegawai, menormalkan dan membatasi status perkawinan ke kode resmi, serta memperbaiki constraint checkpoint wizard agar menerima step Penempatan (`current_step=3`). Migration berhenti dengan pesan preflight bila masih ada pegawai tanpa NIK atau nilai status lama yang belum dapat dipetakan.
+
+Migration `020` menambahkan `updated_at` dan trigger versi pada `employee_assignments`. Kolom ini digunakan untuk koreksi salah input penempatan dengan optimistic concurrency dan audit tanpa menghapus histori.

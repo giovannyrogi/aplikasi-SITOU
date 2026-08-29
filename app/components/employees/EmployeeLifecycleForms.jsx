@@ -40,16 +40,21 @@ function useEmployeeReferences(open, organizationId, onError) {
   return references;
 }
 
-/** Modal rolling membuat record baru dan tidak mengedit penempatan historis. */
-export function AssignmentForm({ open, employee, onClose, onSaved, onError }) {
+/** Modal penempatan membuat periode baru atau mengoreksi salah input dengan audit. */
+export function AssignmentForm({ open, employee, assignment = null, onClose, onSaved, onError }) {
   const [form] = Form.useForm();
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const references = useEmployeeReferences(open, employee?.organization_id, onError);
   const locationId = Form.useWatch("locationId", form);
   const [documentFile, setDocumentFile] = useState(null);
+  const assignmentEffectiveFrom = assignment?.effective_from;
+  const employeeAssignmentEffectiveFrom = employee?.assignment_effective_from;
   const minimumEffectiveDate = useMemo(
-    () => resolveNextLifecycleDate(employee?.assignment_effective_from),
-    [employee?.assignment_effective_from],
+    () =>
+      assignmentEffectiveFrom
+        ? dayjs(assignmentEffectiveFrom).startOf("day")
+        : resolveNextLifecycleDate(employeeAssignmentEffectiveFrom),
+    [assignmentEffectiveFrom, employeeAssignmentEffectiveFrom],
   );
   const units = useMemo(
     () =>
@@ -60,16 +65,35 @@ export function AssignmentForm({ open, employee, onClose, onSaved, onError }) {
   );
   useEffect(() => {
     if (open) {
-      queueMicrotask(() => setDocumentFile(null));
+      queueMicrotask(() =>
+        setDocumentFile(
+          assignment?.document_file_id
+            ? {
+                id: assignment.document_file_id,
+                original_name: assignment.document_name,
+                mime_type: assignment.document_mime_type,
+              }
+            : null,
+        ),
+      );
       form.resetFields();
       form.setFieldsValue({
         organizationId: employee.organization_id,
-        assignmentType: "primary",
-        changeType: "rotation",
-        effectiveFrom: minimumEffectiveDate,
+        locationId: assignment?.location_id,
+        organizationUnitId: assignment?.organization_unit_id,
+        positionId: assignment?.position_id,
+        supervisorEmployeeId: assignment?.supervisor_employee_id,
+        assignmentType: assignment?.assignment_type || "primary",
+        changeType: assignment?.change_type || "rotation",
+        effectiveFrom: assignment?.effective_from
+          ? dayjs(assignment.effective_from)
+          : minimumEffectiveDate,
+        effectiveUntil: assignment?.effective_until ? dayjs(assignment.effective_until) : null,
+        decreeNo: assignment?.decree_no,
+        notes: assignment?.notes,
       });
     }
-  }, [employee, form, minimumEffectiveDate, open]);
+  }, [assignment, employee, form, minimumEffectiveDate, open]);
 
   /** Mengirim tanggal efektif ISO; service menutup assignment lama satu hari sebelumnya. */
   const submit = async (values) => {
@@ -80,20 +104,33 @@ export function AssignmentForm({ open, employee, onClose, onSaved, onError }) {
     try {
       await runWithLoadingBackdrop(
         async () => {
-          const response = await fetch(`/api/employees/${employee.id}/assignments`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...values,
-              effectiveFrom: values.effectiveFrom.format("YYYY-MM-DD"),
-              documentFileId: documentFile?.id || null,
-            }),
-          });
+          const response = await fetch(
+            assignment
+              ? `/api/employees/${employee.id}/assignments/${assignment.id}`
+              : `/api/employees/${employee.id}/assignments`,
+            {
+              method: assignment ? "PATCH" : "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...values,
+                effectiveFrom: values.effectiveFrom.format("YYYY-MM-DD"),
+                ...(assignment
+                  ? {
+                      effectiveUntil: values.effectiveUntil?.format("YYYY-MM-DD") || null,
+                      version: assignment.updated_at,
+                    }
+                  : {}),
+                documentFileId: documentFile?.id || null,
+              }),
+            },
+          );
           const body = await response.json();
           if (!response.ok) throw new Error(body.message);
           await onSaved(body.message);
         },
-        { message: "Menyimpan penempatan baru..." },
+        {
+          message: assignment ? "Menyimpan koreksi penempatan..." : "Menyimpan penempatan baru...",
+        },
       );
     } catch (error) {
       onError(error.message);
@@ -103,15 +140,19 @@ export function AssignmentForm({ open, employee, onClose, onSaved, onError }) {
   return (
     <AppModal
       open={open}
-      title="Penempatan atau mutasi"
-      description="Penempatan aktif lama akan ditutup tanpa menghapus histori."
+      title={assignment ? "Koreksi penempatan" : "Penempatan atau mutasi"}
+      description={
+        assignment
+          ? "Perbaiki salah input penempatan. Setiap koreksi dicatat dalam audit."
+          : "Penempatan aktif lama akan ditutup tanpa menghapus histori."
+      }
       size="lg"
       onClose={onClose}
       footer={
         <>
           <Button onClick={onClose}>Batal</Button>
           <Button type="primary" onClick={() => form.submit()}>
-            Simpan penempatan
+            {assignment ? "Simpan koreksi" : "Simpan penempatan"}
           </Button>
         </>
       }
@@ -127,7 +168,11 @@ export function AssignmentForm({ open, employee, onClose, onSaved, onError }) {
             gap: { sm: "0 16px" },
           }}
         >
-          <Form.Item name="locationId" label="Lokasi baru" rules={[{ required: true }]}>
+          <Form.Item
+            name="locationId"
+            label={assignment ? "Lokasi" : "Lokasi baru"}
+            rules={[{ required: true }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
@@ -171,6 +216,9 @@ export function AssignmentForm({ open, employee, onClose, onSaved, onError }) {
           <Form.Item name="changeType" label="Jenis perubahan" rules={[{ required: true }]}>
             <Select
               options={[
+                ...(assignment?.change_type === "initial"
+                  ? [{ value: "initial", label: "Penempatan awal" }]
+                  : []),
                 { value: "rotation", label: "Rolling" },
                 { value: "transfer", label: "Mutasi" },
                 { value: "promotion", label: "Promosi" },
@@ -183,9 +231,22 @@ export function AssignmentForm({ open, employee, onClose, onSaved, onError }) {
           <Form.Item name="effectiveFrom" label="Tanggal efektif" rules={[{ required: true }]}>
             <DatePicker
               style={{ width: "100%" }}
-              disabledDate={(current) => current.isBefore(minimumEffectiveDate, "day")}
+              disabledDate={
+                assignment ? undefined : (current) => current.isBefore(minimumEffectiveDate, "day")
+              }
             />
           </Form.Item>
+          {assignment?.effective_until ? (
+            <Form.Item name="effectiveUntil" label="Tanggal akhir" rules={[{ required: true }]}>
+              <DatePicker
+                style={{ width: "100%" }}
+                disabledDate={(current) => {
+                  const start = form.getFieldValue("effectiveFrom");
+                  return Boolean(start) && current.isBefore(start, "day");
+                }}
+              />
+            </Form.Item>
+          ) : null}
           <Form.Item name="decreeNo" label="Nomor SK" rules={[{ required: true }]}>
             <Input maxLength={100} />
           </Form.Item>
@@ -205,7 +266,7 @@ export function AssignmentForm({ open, employee, onClose, onSaved, onError }) {
             value={documentFile}
             uploadUrl="/api/uploads"
             removeUrl={
-              documentFile
+              documentFile && documentFile.id !== assignment?.document_file_id
                 ? `/api/uploads/${documentFile.id}?organizationId=${employee.organization_id}`
                 : null
             }
@@ -214,6 +275,7 @@ export function AssignmentForm({ open, employee, onClose, onSaved, onError }) {
             onChange={setDocumentFile}
             onError={onError}
             helpText="SK penempatan, rolling, mutasi, promosi, atau demosi dalam format PDF maksimal 10 MB."
+            showRemove={!assignment || documentFile?.id !== assignment.document_file_id}
           />
         </Form.Item>
         <Form.Item name="notes" label="Catatan">
