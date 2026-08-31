@@ -459,17 +459,15 @@ test("pembatalan kontrak wajib menyimpan alasan yang layak", () => {
   );
 });
 
-test("penempatan wajib memiliki nomor dan dokumen SK", () => {
+test("penempatan baru menerima Nomor SK dan Dokumen SK yang belum tersedia", () => {
   const result = assignmentSchema.safeParse({
     locationId: 1,
     organizationUnitId: 2,
     effectiveFrom: "2026-08-22",
   });
-  assert.equal(result.success, false);
-  assert.deepEqual(
-    result.error.issues.map((issue) => issue.path.join(".")),
-    ["decreeNo", "documentFileId"],
-  );
+  assert.equal(result.success, true);
+  assert.equal(result.data.decreeNo, null);
+  assert.equal(result.data.documentFileId, null);
 });
 
 test("koreksi penempatan menerima Nomor SK dan Dokumen SK kosong", () => {
@@ -615,15 +613,14 @@ test("respons validasi memakai masalah pertama dan mempertahankan seluruh fieldE
       organizationId: 1,
       locationId: 1,
       organizationUnitId: 2,
-      effectiveFrom: "2026-08-31",
+      effectiveFrom: "31-08-2026",
     }),
   });
   const parsed = await readJson(request, employeeAssignmentCreateSchema, "request-validation");
   const body = await parsed.response.json();
 
-  assert.equal(body.message, "Nomor SK wajib diisi.");
-  assert.equal(body.fieldErrors.decreeNo, "Nomor SK wajib diisi.");
-  assert.equal(body.fieldErrors.documentFileId, "Dokumen SK wajib diunggah.");
+  assert.equal(body.message, "Tanggal tidak valid.");
+  assert.equal(body.fieldErrors.effectiveFrom, "Tanggal tidak valid.");
 });
 
 test("client mempertahankan kode, field error, dan pesan validasi yang dapat ditindaklanjuti", async () => {

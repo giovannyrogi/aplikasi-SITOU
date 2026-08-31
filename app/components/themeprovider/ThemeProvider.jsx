@@ -1,5 +1,6 @@
 "use client";
 
+import GlobalStyles from "@mui/material/GlobalStyles";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 export const BRAND_COLORS = Object.freeze({
@@ -55,6 +56,8 @@ export const UI_TOKENS = Object.freeze({
   border: "#D8DEE8",
   borderSubtle: "#E8EBF0",
   rowHover: "#FFF7F7",
+  scrollbarTrack: "rgba(238, 0, 20, 0.10)",
+  scrollbarBorder: "rgba(255, 255, 255, 0.92)",
   panelShadow: "0 8px 24px rgba(17, 24, 39, 0.06)",
 });
 
@@ -154,5 +157,21 @@ export const appTheme = createTheme({
 });
 
 export default function AppThemeProvider({ children }) {
-  return <ThemeProvider theme={appTheme}>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider theme={appTheme}>
+      <GlobalStyles
+        styles={{
+          ":root": {
+            "--sitou-scrollbar-thumb": BRAND_COLORS.primary,
+            "--sitou-scrollbar-thumb-soft": BRAND_COLORS.primarySoft,
+            "--sitou-scrollbar-thumb-hover": BRAND_COLORS.primaryHover,
+            "--sitou-scrollbar-thumb-dark": BRAND_COLORS.primaryDark,
+            "--sitou-scrollbar-track": UI_TOKENS.scrollbarTrack,
+            "--sitou-scrollbar-border": UI_TOKENS.scrollbarBorder,
+          },
+        }}
+      />
+      {children}
+    </ThemeProvider>
+  );
 }

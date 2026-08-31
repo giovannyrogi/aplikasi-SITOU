@@ -49,7 +49,6 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
   const references = useEmployeeReferences(open, employee?.organization_id, onError);
   const locationId = Form.useWatch("locationId", form);
   const [documentFile, setDocumentFile] = useState(null);
-  const [documentError, setDocumentError] = useState("");
   const [removeDocumentOpen, setRemoveDocumentOpen] = useState(false);
   const assignmentEffectiveFrom = assignment?.effective_from;
   const employeeAssignmentEffectiveFrom = employee?.assignment_effective_from;
@@ -71,7 +70,6 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
     if (open) {
       queueMicrotask(() => {
         setRemoveDocumentOpen(false);
-        setDocumentError("");
         setDocumentFile(
           assignment?.document_file_id
             ? {
@@ -103,12 +101,6 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
 
   /** Mengirim tanggal efektif ISO; service menutup assignment lama satu hari sebelumnya. */
   const submit = async (values) => {
-    if (!assignment && !documentFile) {
-      const message = "Dokumen SK penempatan wajib diunggah sebelum data disimpan.";
-      setDocumentError(message);
-      onError(message);
-      return;
-    }
     try {
       await runWithLoadingBackdrop(
         async () => {
@@ -144,9 +136,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
       applyApiFieldErrors(form, requestError, {
         nonFocusableFields: ["documentFileId", "version"],
       });
-      if (requestError.fieldErrors.documentFileId) {
-        setDocumentError(requestError.fieldErrors.documentFileId);
-      }
+
       onError(requestError.message);
     }
   };
@@ -261,11 +251,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
               />
             </Form.Item>
           ) : null}
-          <Form.Item
-            name="decreeNo"
-            label={assignment ? "Nomor SK (opsional)" : "Nomor SK"}
-            rules={assignment ? [] : [{ required: true }]}
-          >
+          <Form.Item name="decreeNo" label="Nomor SK (opsional)">
             <Input maxLength={100} />
           </Form.Item>
           <Form.Item name="assignmentType" label="Jenis penugasan">
@@ -279,12 +265,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
             />
           </Form.Item>
         </Box>
-        <Form.Item
-          label={assignment ? "Dokumen SK penempatan (opsional)" : "Dokumen SK"}
-          required={!assignment}
-          validateStatus={documentError ? "error" : undefined}
-          help={documentError || undefined}
-        >
+        <Form.Item label="Dokumen SK penempatan (opsional)">
           <PrivatePdfUpload
             value={documentFile}
             uploadUrl="/api/uploads"
@@ -295,12 +276,9 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
             }
             fields={{ fileKind: "sk_penempatan", employeeId: employee.id }}
             organizationId={employee.organization_id}
-            onChange={(file) => {
-              setDocumentFile(file);
-              if (file) setDocumentError("");
-            }}
+            onChange={setDocumentFile}
             onError={onError}
-            helpText="SK penempatan, rolling, mutasi, promosi, atau demosi dalam format PDF maksimal 10 MB."
+            helpText="Opsional. SK penempatan, rolling, mutasi, promosi, atau demosi dalam format PDF maksimal 10 MB."
             showRemove={!assignment || documentFile?.id !== assignment.document_file_id}
           />
           {assignment?.document_file_id && documentFile?.id === assignment.document_file_id ? (
