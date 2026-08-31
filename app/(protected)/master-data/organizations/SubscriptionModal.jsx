@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/api/clientError";
+
 import { useCallback, useEffect, useState } from "react";
 import { Button, DatePicker, Form, Input, Space, Table } from "antd";
 import dayjs from "dayjs";
@@ -32,8 +34,7 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
       await runWithLoadingBackdrop(
         async () => {
           const response = await fetch("/api/organizations/" + organization.id + "/subscriptions");
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           setItems(body.data || []);
         },
         { message: "Memuat histori langganan..." },
@@ -106,8 +107,7 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
               }),
             },
           );
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           setAction(null);
           actionForm.resetFields();
           await load();

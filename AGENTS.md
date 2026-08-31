@@ -331,6 +331,8 @@ Gunakan connection pool. Banyak instance/serverless memerlukan pool eksternal se
 
 - Gunakan path langsung `/api/...` tanpa prefix versi. Endpoint autentikasi berada di `/api/auth/...`; endpoint modul berada langsung pada kelompoknya seperti `/api/employees` atau `/api/attendance/...`.
 - Respons error publik memakai kode stabil dan Bahasa Indonesia; jangan bocorkan SQL/stack trace.
+- Pesan error wajib spesifik, dapat ditindaklanjuti, dan menunjuk field atau aturan bisnis yang bermasalah. Respons validasi wajib menyertakan `fieldErrors`; frontend wajib menempelkannya ke field terkait dan dilarang membuang detail tersebut menjadi pesan generik.
+- Error internal tetap memakai pesan aman tanpa SQL/stack trace dan wajib menyertakan `requestId` sebagai ID referensi yang ditampilkan kepada pengguna untuk pencocokan log server. Gunakan helper penanganan error terpusat untuk respons non-JSON, session berakhir, dan kegagalan jaringan.
 - Mutation mendukung request ID dan idempotency pada operasi yang mungkin retry.
 - Gunakan optimistic concurrency atau version check pada form edit penting.
 - Tanggal tanpa waktu memakai ISO `YYYY-MM-DD`; waktu absolut memakai ISO 8601 UTC.

@@ -1,5 +1,7 @@
 "use client";
 
+import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
+
 import { useEffect, useState } from "react";
 import { Button, Form, Input, Radio, Select, Switch } from "antd";
 import { Box } from "@mui/material";
@@ -84,13 +86,13 @@ export default function OrganizationAccountForm({
               }),
             },
           );
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           await onSaved(body.message);
         },
         { message: "Menyimpan akun organisasi..." },
       );
     } catch (error) {
+      applyApiFieldErrors(form, error);
       onError(error.message);
     }
   };
@@ -235,14 +237,14 @@ export function AccountPasswordForm({ open, item, onClose, onSaved, onError }) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ...values, organizationId: item.organization_id }),
           });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           form.resetFields();
           await onSaved(body.message);
         },
         { message: "Memperbarui password..." },
       );
     } catch (error) {
+      applyApiFieldErrors(form, error);
       onError(error.message);
     }
   };

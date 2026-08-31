@@ -1,5 +1,7 @@
 "use client";
 
+import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
+
 import { useEffect, useState } from "react";
 import { Button, DatePicker, Form, Input, Select, Switch } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
@@ -60,8 +62,7 @@ export function DisciplineCaseForm({
               incidentDate: values.incidentDate.format("YYYY-MM-DD"),
             }),
           });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           // Pastikan pembukaan modal berikutnya tidak membawa uraian kasus yang baru disimpan.
           form.resetFields();
           await onSaved(body.message);
@@ -69,6 +70,7 @@ export function DisciplineCaseForm({
         { message: "Membuka kasus disiplin..." },
       );
     } catch (error) {
+      applyApiFieldErrors(form, error);
       onError(error.message);
     }
   };
@@ -229,13 +231,13 @@ export function DisciplinaryActionForm({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           await onSaved(body.message);
         },
         { message: action ? "Menyimpan perubahan tindakan..." : "Menyimpan tindakan disiplin..." },
       );
     } catch (error) {
+      applyApiFieldErrors(form, error);
       onError(error.message);
     }
   };
@@ -420,14 +422,14 @@ export function DisciplinaryActionRevokeForm({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ organizationId, reason: values.reason }),
           });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           form.resetFields();
           await onSaved(body.message);
         },
         { message: "Mencabut tindakan disiplin..." },
       );
     } catch (error) {
+      applyApiFieldErrors(form, error);
       onError(error.message);
     }
   };

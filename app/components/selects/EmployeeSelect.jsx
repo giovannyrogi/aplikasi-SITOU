@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/api/clientError";
+
 import { useEffect, useRef, useState } from "react";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 
@@ -23,8 +25,7 @@ export default function EmployeeSelect({ organizationId, excludeId, onError, ...
       .then(() => active && setState((current) => ({ ...current, loading: true })))
       .then(() => fetch(`/api/employees/options?${params}`, { signal: controller.signal }))
       .then(async (response) => {
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.message);
+        const body = await readApiResponse(response);
         if (active)
           setState({
             loading: false,

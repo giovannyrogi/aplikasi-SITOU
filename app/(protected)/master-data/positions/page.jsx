@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/api/clientError";
+
 import { useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
@@ -44,8 +46,7 @@ export default function PositionsPage() {
       await runWithLoadingBackdrop(
         async () => {
           const response = await fetch(`/api/positions/${confirm.id}`, { method: "DELETE" });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           showNotification(body.message);
           await list.refresh();
         },

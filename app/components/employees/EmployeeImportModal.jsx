@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/api/clientError";
+
 import { useMemo, useState } from "react";
 import { Alert, Button, Collapse, Empty, Steps } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
@@ -76,8 +78,7 @@ export default function EmployeeImportModal({
           form.append("file", file);
           if (organizationId) form.append("organizationId", organizationId);
           const response = await fetch("/api/employees/imports", { method: "POST", body: form });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           setBatch(body.data);
           setStep(2);
         },
@@ -99,8 +100,7 @@ export default function EmployeeImportModal({
           const response = await fetch(`/api/employees/imports/${batch.id}/commit${query}`, {
             method: "POST",
           });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           setBatch(body.data);
           await onCommitted(
             `${body.data.committed_employees} pegawai berhasil diimpor. Foto dan dokumen dapat dilengkapi melalui detail pegawai.`,

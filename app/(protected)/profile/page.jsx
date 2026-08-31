@@ -1,5 +1,7 @@
 "use client";
 
+import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
+
 import { useCallback, useEffect } from "react";
 import { Alert, Button, Form, Input } from "antd";
 import { Box, Divider, useTheme } from "@mui/material";
@@ -38,8 +40,7 @@ export default function ProfilePage() {
       await runWithLoadingBackdrop(
         async () => {
           const response = await fetch("/api/account/profile");
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           const data = body.data;
           profileForm.setFieldsValue({
             identitySource: data.identity_source,
@@ -92,14 +93,14 @@ export default function ProfilePage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           showNotification(body.message);
           await load();
         },
         { message: "Menyimpan profil..." },
       );
     } catch (error) {
+      applyApiFieldErrors(profileForm, error);
       showNotification(error.message, "error");
     }
   };
@@ -113,8 +114,7 @@ export default function ProfilePage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(values),
           });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
         },
         { message: "Mengubah password..." },
       );
@@ -122,6 +122,7 @@ export default function ProfilePage() {
       await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
       router.replace("/login");
     } catch (error) {
+      applyApiFieldErrors(passwordForm, error);
       showNotification(error.message, "error");
     }
   };

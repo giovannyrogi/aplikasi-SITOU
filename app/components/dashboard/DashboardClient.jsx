@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/api/clientError";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@iconify/react";
 import { Alert, DatePicker } from "antd";
@@ -181,8 +183,7 @@ export default function DashboardClient() {
     if (isSuperadmin && organizationId) query.set("organizationId", organizationId);
     fetch(`/api/dashboard/summary?${query}`, { signal: controller.signal })
       .then(async (response) => {
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.message || "Dashboard belum dapat dimuat.");
+        const body = await readApiResponse(response, "Dashboard belum dapat dimuat.");
         return body.data;
       })
       .then((data) => setState({ loading: false, data, error: "" }))

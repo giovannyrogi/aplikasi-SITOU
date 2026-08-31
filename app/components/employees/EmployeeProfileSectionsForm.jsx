@@ -1,5 +1,7 @@
 "use client";
 
+import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
+
 import { useEffect, useRef, useState } from "react";
 import { Button, Checkbox, Collapse, DatePicker, Form, Input, Select } from "antd";
 import { DeleteOutlined, PlusOutlined, WarningOutlined } from "@ant-design/icons";
@@ -591,8 +593,7 @@ export default function EmployeeProfileSectionsForm({
           `/api/employees/${employee.id}/profile?organizationId=${organizationId}`,
           { signal: controller.signal },
         );
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.message);
+        const body = await readApiResponse(response);
         if (active) {
           setActiveSections([]);
           setErrorSections([]);
@@ -719,14 +720,14 @@ export default function EmployeeProfileSectionsForm({
             method: "PATCH",
             body: multipart,
           });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           await onSaved(body.message);
           setRemovedFileIds([]);
         },
         { message: "Menyimpan profil lengkap..." },
       );
     } catch (error) {
+      applyApiFieldErrors(form, error);
       onError(error.message);
     }
   };

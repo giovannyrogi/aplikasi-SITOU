@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/api/clientError";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Checkbox, DatePicker, Form, Input, Select, Steps } from "antd";
 import {
@@ -315,8 +317,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
             `/api/uploads?organizationId=${targetOrganizationId}&employeeId=${item.id}`,
             { signal: controller.signal },
           );
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response);
           setFiles(
             (body.data || []).filter(
               (file) =>
@@ -338,16 +339,14 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
       try {
         const query = `?organizationId=${targetOrganizationId}`;
         let response = await fetch(`/api/employees/drafts${query}`);
-        let body = await response.json();
-        if (!response.ok) throw new Error(body.message);
+        let body = await readApiResponse(response, "Draft pegawai tidak dapat dimuat.");
         if (!body.data) {
           response = await fetch("/api/employees/drafts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ organizationId: targetOrganizationId }),
           });
-          body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          body = await readApiResponse(response, "Draft pegawai tidak dapat dibuat.");
         }
         if (!active) return;
         rememberDraft(body.data);
@@ -473,13 +472,15 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
             payload: values,
           }),
         });
-        const body = await response.json();
-        if (!response.ok) {
-          if (handleApiFieldErrors(body.fieldErrors)) {
+        let body;
+        try {
+          body = await readApiResponse(response, "Draft tidak dapat disimpan.");
+        } catch (error) {
+          if (handleApiFieldErrors(error.fieldErrors)) {
             setDraftStatus("error");
             return false;
           }
-          throw new Error(body.message || "Draft tidak dapat disimpan.");
+          throw error;
         }
         rememberDraft(body.data);
         dirtyRef.current = false;
@@ -581,10 +582,12 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               body: JSON.stringify({ organizationId: targetOrganizationId }),
             });
           }
-          const body = await response.json();
-          if (!response.ok) {
-            if (handleApiFieldErrors(body.fieldErrors)) return;
-            throw new Error(body.message || "Data pegawai tidak dapat disimpan.");
+          let body;
+          try {
+            body = await readApiResponse(response, "Data pegawai tidak dapat disimpan.");
+          } catch (error) {
+            if (handleApiFieldErrors(error.fieldErrors)) return;
+            throw error;
           }
           draftRef.current = null;
           dirtyRef.current = false;
@@ -613,15 +616,13 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
           let response = await fetch(`/api/employees/drafts/${current.id}${query}`, {
             method: "DELETE",
           });
-          let body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          let body = await readApiResponse(response, "Draft tidak dapat dibuang.");
           response = await fetch("/api/employees/drafts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ organizationId: targetOrganizationId }),
           });
-          body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          body = await readApiResponse(response, "Draft baru tidak dapat dibuat.");
           rememberDraft(body.data);
           setStep(0);
           form.resetFields();

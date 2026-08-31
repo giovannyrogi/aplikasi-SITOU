@@ -10,6 +10,7 @@ import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
+import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 import {
   getEmployeeStatusPresentation,
   getTerminationStatusLabel,
@@ -96,10 +97,7 @@ export default function EmployeeTerminationForm({
                 version: employee.updated_at,
               }),
             });
-            const body = await response.json();
-            if (!response.ok)
-              throw new Error(body.message || "Hubungan kerja pegawai gagal diakhiri.");
-            return body;
+            return readApiResponse(response, "Hubungan kerja pegawai gagal diakhiri.");
           } finally {
             await waitForMinimumLoading(startedAt);
           }
@@ -109,6 +107,7 @@ export default function EmployeeTerminationForm({
       setConfirmValues(null);
       onSaved?.(result.message || "Hubungan kerja pegawai berhasil diakhiri.", result.data);
     } catch (error) {
+      applyApiFieldErrors(form, error, { nonFocusableFields: ["version"] });
       onError?.(error.message || "Hubungan kerja pegawai gagal diakhiri.");
     } finally {
       setSubmitting(false);

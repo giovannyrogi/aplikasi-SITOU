@@ -8,6 +8,7 @@ import AppModal from "@/app/components/modals/AppModal";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import PrivatePdfUpload from "@/app/components/forms/PrivatePdfUpload";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
+import { applyApiFieldErrors, normalizeRequestError, readApiResponse } from "@/lib/api/clientError";
 
 /** Memilih tanggal awal aman setelah periode saat ini tanpa memundurkan tanggal ke masa lalu. */
 function resolveNextLifecycleDate(startDate, endDate) {
@@ -48,6 +49,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
   const references = useEmployeeReferences(open, employee?.organization_id, onError);
   const locationId = Form.useWatch("locationId", form);
   const [documentFile, setDocumentFile] = useState(null);
+  const [documentError, setDocumentError] = useState("");
   const [removeDocumentOpen, setRemoveDocumentOpen] = useState(false);
   const assignmentEffectiveFrom = assignment?.effective_from;
   const employeeAssignmentEffectiveFrom = employee?.assignment_effective_from;
@@ -69,6 +71,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
     if (open) {
       queueMicrotask(() => {
         setRemoveDocumentOpen(false);
+        setDocumentError("");
         setDocumentFile(
           assignment?.document_file_id
             ? {
@@ -101,7 +104,9 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
   /** Mengirim tanggal efektif ISO; service menutup assignment lama satu hari sebelumnya. */
   const submit = async (values) => {
     if (!assignment && !documentFile) {
-      onError("Dokumen SK penempatan wajib diunggah sebelum data disimpan.");
+      const message = "Dokumen SK penempatan wajib diunggah sebelum data disimpan.";
+      setDocumentError(message);
+      onError(message);
       return;
     }
     try {
@@ -120,15 +125,14 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
                 ...(assignment
                   ? {
                       effectiveUntil: values.effectiveUntil?.format("YYYY-MM-DD") || null,
-                      version: assignment.updated_at,
+                      version: new Date(assignment.updated_at).toISOString(),
                     }
                   : {}),
                 documentFileId: documentFile?.id || null,
               }),
             },
           );
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response, "Penempatan tidak dapat disimpan.");
           await onSaved(body.message);
         },
         {
@@ -136,7 +140,14 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
         },
       );
     } catch (error) {
-      onError(error.message);
+      const requestError = normalizeRequestError(error, "Penempatan tidak dapat disimpan.");
+      applyApiFieldErrors(form, requestError, {
+        nonFocusableFields: ["documentFileId", "version"],
+      });
+      if (requestError.fieldErrors.documentFileId) {
+        setDocumentError(requestError.fieldErrors.documentFileId);
+      }
+      onError(requestError.message);
     }
   };
 
@@ -271,6 +282,8 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
         <Form.Item
           label={assignment ? "Dokumen SK penempatan (opsional)" : "Dokumen SK"}
           required={!assignment}
+          validateStatus={documentError ? "error" : undefined}
+          help={documentError || undefined}
         >
           <PrivatePdfUpload
             value={documentFile}
@@ -282,7 +295,10 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
             }
             fields={{ fileKind: "sk_penempatan", employeeId: employee.id }}
             organizationId={employee.organization_id}
-            onChange={setDocumentFile}
+            onChange={(file) => {
+              setDocumentFile(file);
+              if (file) setDocumentError("");
+            }}
             onError={onError}
             helpText="SK penempatan, rolling, mutasi, promosi, atau demosi dalam format PDF maksimal 10 MB."
             showRemove={!assignment || documentFile?.id !== assignment.document_file_id}
@@ -373,7 +389,7 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
             startDate: values.startDate.format("YYYY-MM-DD"),
             endDate: values.endDate?.format("YYYY-MM-DD") || null,
             documentFileId: documentFile?.id || null,
-            ...(contract ? { version: contract.updated_at } : {}),
+            ...(contract ? { version: new Date(contract.updated_at).toISOString() } : {}),
           };
           if (contract) delete payload.status;
           const response = await fetch(
@@ -386,14 +402,17 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
               body: JSON.stringify(payload),
             },
           );
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response, "Kontrak tidak dapat disimpan.");
           await onSaved(body.message);
         },
         { message: contract ? "Menyimpan koreksi kontrak..." : "Menyimpan kontrak baru..." },
       );
     } catch (error) {
-      onError(error.message);
+      const requestError = normalizeRequestError(error, "Kontrak tidak dapat disimpan.");
+      applyApiFieldErrors(form, requestError, {
+        nonFocusableFields: ["documentFileId", "version"],
+      });
+      onError(requestError.message);
     }
   };
   return (
@@ -502,18 +521,19 @@ export function ContractCancelForm({ open, employee, contract, onClose, onSaved,
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               organizationId: employee.organization_id,
-              version: contract.updated_at,
+              version: new Date(contract.updated_at).toISOString(),
               reason: values.reason,
             }),
           });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message);
+          const body = await readApiResponse(response, "Kontrak tidak dapat dibatalkan.");
           await onSaved(body.message);
         },
         { message: "Membatalkan kontrak..." },
       );
     } catch (error) {
-      onError(error.message);
+      const requestError = normalizeRequestError(error, "Kontrak tidak dapat dibatalkan.");
+      applyApiFieldErrors(form, requestError, { nonFocusableFields: ["version"] });
+      onError(requestError.message);
     }
   };
 

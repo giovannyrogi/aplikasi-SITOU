@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/api/clientError";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 
@@ -54,8 +56,7 @@ export default function useDataList(endpoint, { requiredFilter } = {}) {
       await runWithLoadingBackdrop(
         async () => {
           const response = await fetch(endpoint + "?" + query, { signal: controller.signal });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.message || "Data tidak dapat dimuat.");
+          const body = await readApiResponse(response, "Data tidak dapat dimuat.");
           if (controller.signal.aborted || activeController.current !== controller) return;
 
           setState({ data: body.data || [], loading: false, error: "" });

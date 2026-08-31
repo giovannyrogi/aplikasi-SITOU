@@ -13,6 +13,7 @@ import {
 import {
   assignmentSchema,
   contractSchema,
+  employeeAssignmentCreateSchema,
   employeeAssignmentCorrectionSchema,
   employeeCreateSchema,
   employeeContractCancellationSchema,
@@ -25,7 +26,12 @@ import {
   normalizeIndonesianNationalId,
   optionalIndonesianNationalIdSchema,
 } from "../lib/validation/indonesianNationalId.js";
-import { validateRequestOrigin } from "../lib/api/routeHelpers.js";
+import { readJson, validateRequestOrigin } from "../lib/api/routeHelpers.js";
+import {
+  ApiRequestError,
+  applyApiFieldErrors,
+  readApiResponse,
+} from "../lib/api/clientError.js";
 
 const strongAccount = {
   organizationId: 1,
@@ -522,6 +528,16 @@ test("migration dan schema awal memuat versi koreksi penempatan", () => {
   assert.match(migrationSql, /ALTER TABLE employee_assignments[\s\S]+ADD COLUMN updated_at/);
 });
 
+test("histori lifecycle tidak mengubah updated_at menjadi teks PostgreSQL", () => {
+  const serviceSource = readFileSync(
+    new URL("../lib/employees/service.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(serviceSource, /assignment\.created_at,assignment\.updated_at/);
+  assert.match(serviceSource, /contract\.created_at,contract\.updated_at/);
+  assert.doesNotMatch(serviceSource, /updated_at::text AS updated_at/);
+});
+
 test("checkpoint draft hanya menerima struktur wizard dan version positif", () => {
   const valid = employeeDraftSaveSchema.safeParse({
     organizationId: 1,
@@ -589,4 +605,98 @@ test("migration dan schema awal mewajibkan periode lokasi unit eksplisit tanpa o
   assert.match(schemaSql, /CONSTRAINT ex_unit_locations_period EXCLUDE USING gist/);
   assert.match(migrationSql, /ALTER COLUMN active_from DROP DEFAULT/);
   assert.match(migrationSql, /ADD CONSTRAINT ex_unit_locations_period EXCLUDE USING gist/);
+});
+
+test("respons validasi memakai masalah pertama dan mempertahankan seluruh fieldErrors", async () => {
+  const request = new Request("http://localhost/api/employees/1/assignments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      organizationId: 1,
+      locationId: 1,
+      organizationUnitId: 2,
+      effectiveFrom: "2026-08-31",
+    }),
+  });
+  const parsed = await readJson(request, employeeAssignmentCreateSchema, "request-validation");
+  const body = await parsed.response.json();
+
+  assert.equal(body.message, "Nomor SK wajib diisi.");
+  assert.equal(body.fieldErrors.decreeNo, "Nomor SK wajib diisi.");
+  assert.equal(body.fieldErrors.documentFileId, "Dokumen SK wajib diunggah.");
+});
+
+test("client mempertahankan kode, field error, dan pesan validasi yang dapat ditindaklanjuti", async () => {
+  const response = Response.json(
+    {
+      success: false,
+      code: "VALIDATION_ERROR",
+      message: "Periksa kembali data yang diisi.",
+      fieldErrors: { effectiveFrom: "Tanggal efektif tidak valid." },
+      requestId: "request-field",
+    },
+    { status: 400 },
+  );
+
+  await assert.rejects(
+    () => readApiResponse(response),
+    (error) => {
+      assert.equal(error instanceof ApiRequestError, true);
+      assert.equal(error.code, "VALIDATION_ERROR");
+      assert.equal(error.message, "Tanggal efektif tidak valid.");
+      assert.equal(error.fieldErrors.effectiveFrom, "Tanggal efektif tidak valid.");
+      return true;
+    },
+  );
+});
+
+test("client menambahkan ID referensi pada error internal tanpa detail teknis", async () => {
+  const response = Response.json(
+    {
+      success: false,
+      code: "INTERNAL_ERROR",
+      message: "Terjadi kesalahan server. Silakan coba kembali.",
+      requestId: "request-server",
+    },
+    { status: 500 },
+  );
+
+  await assert.rejects(
+    () => readApiResponse(response),
+    (error) => {
+      assert.match(error.message, /ID referensi: request-server/);
+      assert.doesNotMatch(error.message, /SELECT|stack|constraint/i);
+      return true;
+    },
+  );
+});
+
+test("fieldErrors ditempelkan ke form dan field pertama diarahkan", async () => {
+  const calls = { fields: null, scrolled: null, focused: null };
+  const form = {
+    setFields(value) {
+      calls.fields = value;
+    },
+    scrollToField(value) {
+      calls.scrolled = value;
+    },
+    focusField(value) {
+      calls.focused = value;
+    },
+  };
+  const error = new ApiRequestError({
+    fieldErrors: {
+      "assignment.effectiveFrom": "Tanggal efektif tidak valid.",
+      documentFileId: "Dokumen SK wajib diunggah.",
+    },
+  });
+
+  assert.equal(
+    applyApiFieldErrors(form, error, { nonFocusableFields: ["documentFileId"] }),
+    true,
+  );
+  await new Promise((resolve) => queueMicrotask(resolve));
+  assert.deepEqual(calls.fields[0].name, ["assignment", "effectiveFrom"]);
+  assert.deepEqual(calls.scrolled, ["assignment", "effectiveFrom"]);
+  assert.deepEqual(calls.focused, ["assignment", "effectiveFrom"]);
 });

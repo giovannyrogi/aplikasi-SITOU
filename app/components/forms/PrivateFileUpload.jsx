@@ -1,5 +1,7 @@
 "use client";
 
+import { readApiResponse } from "@/lib/api/clientError";
+
 import { useEffect, useRef, useState } from "react";
 import FileUploadField from "@/app/components/forms/FileUploadField";
 
@@ -79,8 +81,7 @@ export default function PrivateFileUpload({
       form.append("organizationId", organizationId);
       Object.entries(fields).forEach(([key, fieldValue]) => form.append(key, fieldValue));
       const response = await fetch(uploadUrl, { method: "POST", body: form });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message || "File tidak dapat diunggah.");
+      const body = await readApiResponse(response, "File tidak dapat diunggah.");
       onChange(body.data);
     } catch (error) {
       onError?.(error.message);
@@ -106,8 +107,7 @@ export default function PrivateFileUpload({
     setUploading(true);
     try {
       const response = await fetch(resolvedRemoveUrl, { method: "DELETE" });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message || "File tidak dapat dihapus.");
+      const body = await readApiResponse(response, "File tidak dapat dihapus.");
       onChange?.(null);
       return true;
     } catch (error) {
