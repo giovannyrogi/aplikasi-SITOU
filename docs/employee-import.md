@@ -34,6 +34,11 @@ Sheet opsional yang tidak diperlukan boleh dibiarkan kosong dan tidak menghalang
 
 1. Unduh template organisasi agar sheet `Referensi` berisi master aktif yang boleh digunakan.
 2. Isi sheet `Pegawai`, lalu gunakan NIP yang sama pada sheet terkait.
+   Kolom yang berbentuk pilihan di aplikasi juga memakai dropdown pada Excel, termasuk jenis
+   kelamin, status perkawinan, golongan darah, status pegawai, jenis identitas, hubungan keluarga,
+   platform akun sosial, jenjang pendidikan, tingkat keahlian, status kontrak, serta klasifikasi
+   penempatan. Pilihan master organisasi menampilkan kode dan nama, misalnya
+   `PUSAT - Kantor Pusat`.
 3. Hapus seluruh baris contoh `CONTOH-001`.
 4. Upload workbook dan tunggu validasi; tahap ini belum menulis data pegawai final.
 5. Periksa ringkasan per pegawai dan unduh laporan kesalahan bila diperlukan.
@@ -53,3 +58,20 @@ Server memeriksa signature file, struktur OOXML, jumlah entry, ukuran hasil ekst
 - `POST /api/employees/imports/:id/commit`: commit idempotent per pegawai.
 
 Semua endpoint memerlukan permission import dan isolasi organisasi. File sumber disimpan privat menggunakan UUID. Audit dan log tidak memuat NIK atau payload sensitif.
+
+## Keselarasan Pilihan
+
+- Label dropdown Excel mengikuti Bahasa Indonesia yang tampil pada form aplikasi.
+- Parser menormalisasi label tersebut ke kode stabil API/database. Template lama yang masih
+  memakai kode canonical tetap dapat divalidasi.
+- Status pegawai untuk import baru hanya `Aktif`, `Masa percobaan`, `Cuti`, dan `Ditangguhkan`.
+  Status akhir hubungan kerja tidak tersedia karena wajib dicatat melalui workflow terkonfirmasi.
+- Dropdown `Atasan Langsung` berisi NIP dan nama pegawai aktif organisasi. NIP pegawai baru yang
+  berada dalam workbook yang sama tetap dapat dikenali oleh validasi server bila diisi sebagai kode.
+- Hubungan keluarga memakai pilihan terstruktur. Hubungan pada kontak darurat tetap berupa teks
+  bebas, sama seperti form aplikasi.
+- Kolom tanggal memakai validasi Excel dan format `dd mmm yyyy`; teks bebas yang
+  bukan tanggal ditolak. Untuk menghindari perbedaan regional Excel, pengguna mengetik format ISO
+  `YYYY-MM-DD`, misalnya `1994-02-21`. Nilai tanggal native Excel juga tetap diterima. Template tidak
+  memakai macro atau add-in.
+- Tahun kelulusan hanya menerima angka tahun dari 1900 sampai tahun berjalan.

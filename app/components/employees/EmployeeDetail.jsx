@@ -25,7 +25,7 @@ import {
   UserDeleteOutlined,
   WhatsAppOutlined,
 } from "@ant-design/icons";
-import { Box, Divider, useTheme } from "@mui/material";
+import { alpha, Box, Divider, useTheme } from "@mui/material";
 import { usePathname, useSearchParams } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DetailTabs from "@/app/components/navigation/DetailTabs";
@@ -67,7 +67,15 @@ const CHANGE_TYPE_LABELS = {
   rotation: "Rolling",
   promotion: "Promosi",
   demotion: "Demosi",
+  acting: "Pelaksana tugas",
   correction: "Koreksi",
+};
+
+const ASSIGNMENT_TYPE_LABELS = {
+  primary: "Utama",
+  acting: "Pelaksana tugas",
+  temporary: "Sementara",
+  additional: "Tambahan",
 };
 
 const CONTRACT_STATUS = {
@@ -706,6 +714,7 @@ export default function EmployeeDetail({ employeeId }) {
   const [actionCase, setActionCase] = useState(null);
   const [revokeAction, setRevokeAction] = useState(null);
   const [detailCase, setDetailCase] = useState(null);
+  const [assignmentDetail, setAssignmentDetail] = useState(null);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [selectedContract, setSelectedContract] = useState(null);
   const [contractToCancel, setContractToCancel] = useState(null);
@@ -1056,9 +1065,34 @@ export default function EmployeeDetail({ employeeId }) {
                             tone={active ? "success" : "info"}
                           />
                         </Box>
-                        <FontStyle fontSize={12.5} sx={{ mt: 0.75 }}>
-                          {item.unit_name} · {item.location_name}
-                        </FontStyle>
+                        <Box
+                          sx={{
+                            mt: 0.75,
+                            display: "flex",
+                            alignItems: "center",
+                            columnGap: 1,
+                            rowGap: 0.5,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <FontStyle fontSize={12.5} fontWeight={600}>
+                            {item.unit_name || "Divisi & Unit belum ditentukan"}
+                          </FontStyle>
+                          <Box
+                            component="span"
+                            aria-hidden="true"
+                            sx={{
+                              width: 5,
+                              height: 5,
+                              flex: "0 0 5px",
+                              borderRadius: "50%",
+                              bgcolor: theme.ui.mutedText,
+                            }}
+                          />
+                          <FontStyle fontSize={12.5} fontWeight={600}>
+                            {item.location_name || "Lokasi belum ditentukan"}
+                          </FontStyle>
+                        </Box>
                         <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
                           {formatDate(item.effective_from)} sampai{" "}
                           {formatDate(item.effective_until, "sekarang")}
@@ -1081,16 +1115,12 @@ export default function EmployeeDetail({ employeeId }) {
                           width: { xs: "100%", sm: "auto" },
                         }}
                       >
-                        {item.document_file_id ? (
-                          <ResponsiveActionButton
-                            label="Lihat SK"
-                            icon={<EyeOutlined />}
-                            href={`/api/uploads/${item.document_file_id}?organizationId=${organizationId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          />
-                        ) : null}
-                        {canManageEmployee ? (
+                        <ResponsiveActionButton
+                          label="Lihat penempatan"
+                          icon={<EyeOutlined />}
+                          onClick={() => setAssignmentDetail(item)}
+                        />
+                        {canManageEmployee && active ? (
                           <ResponsiveActionButton
                             label="Edit penempatan"
                             icon={<EditOutlined />}
@@ -1136,8 +1166,8 @@ export default function EmployeeDetail({ employeeId }) {
           />
           <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
           {state.history.contracts.length ? (
-            <Box component="ol" sx={{ display: "grid", m: 0, p: 0, listStyle: "none" }}>
-              {state.history.contracts.map((item, index) => (
+            <Box component="ol" sx={{ display: "grid", gap: 1.5, m: 0, p: 0, listStyle: "none" }}>
+              {state.history.contracts.map((item) => (
                 <Box
                   component="li"
                   key={item.id}
@@ -1146,37 +1176,58 @@ export default function EmployeeDetail({ employeeId }) {
                     display: "grid",
                     gridTemplateColumns: {
                       xs: "minmax(0, 1fr)",
-                      md: "160px minmax(0, 1fr) auto",
+                      md: "190px minmax(0, 1fr) auto",
                     },
                     alignItems: "start",
-                    gap: { xs: 2, md: 3 },
-                    py: { xs: 2.5, md: 2.75 },
-                    px: { xs: 2, md: 2.5 },
-                    borderTop: index === 0 ? "none" : `1px solid ${theme.ui.panelBorderSubtle}`,
-                    borderLeft: `3px solid ${
+                    gap: { xs: 2.25, md: 3.5 },
+                    p: { xs: 2, sm: 2.5, md: 3 },
+                    border: `1px solid ${
+                      item.status === "active"
+                        ? theme.status.success.main
+                        : item.status === "cancelled"
+                          ? theme.status.danger.main
+                          : theme.ui.panelBorderSubtle
+                    }`,
+                    borderLeft: `4px solid ${
                       item.status === "active"
                         ? theme.status.success.main
                         : item.status === "cancelled"
                           ? theme.status.danger.main
                           : theme.ui.panelBorder
                     }`,
+                    borderRadius: "8px",
                     bgcolor:
-                      item.status === "active" ? theme.status.success.background : "transparent",
-                    transition: "background-color 180ms ease",
-                    "&:hover": { bgcolor: theme.ui.rowHover },
+                      item.status === "active"
+                        ? alpha(theme.status.success.main, 0.045)
+                        : item.status === "cancelled"
+                          ? alpha(theme.status.danger.main, 0.035)
+                          : theme.ui.panelBg,
+                    transition: "border-color 180ms ease, box-shadow 180ms ease",
+                    "&:hover": {
+                      borderColor:
+                        item.status === "active"
+                          ? theme.status.success.main
+                          : item.status === "cancelled"
+                            ? theme.status.danger.main
+                            : theme.ui.panelBorder,
+                      boxShadow: theme.ui.panelShadow,
+                    },
                   }}
                 >
                   <Box sx={{ minWidth: 0 }}>
-                    <FontStyle fontSize={10.5} fontWeight={600} sx={{ color: theme.ui.mutedText }}>
+                    <FontStyle fontSize={11.5} fontWeight={700} sx={{ color: theme.ui.mutedText }}>
                       PERIODE
                     </FontStyle>
-                    <Box sx={{ mt: 0.65, display: "flex", gap: 0.75, alignItems: "flex-start" }}>
+                    <Box sx={{ mt: 0.75, display: "flex", gap: 1, alignItems: "flex-start" }}>
                       <CalendarOutlined style={{ marginTop: 3, color: theme.ui.mutedText }} />
                       <Box sx={{ minWidth: 0 }}>
-                        <FontStyle fontSize={12.5} fontWeight={700}>
+                        <FontStyle fontSize={13.5} fontWeight={700}>
                           {formatDate(item.start_date)}
                         </FontStyle>
-                        <FontStyle fontSize={11.5} sx={{ mt: 0.25, color: theme.ui.mutedText }}>
+                        <FontStyle
+                          fontSize={12.5}
+                          sx={{ mt: 0.35, color: theme.ui.mutedText, lineHeight: 1.5 }}
+                        >
                           sampai {formatDate(item.end_date, "tanpa batas akhir")}
                         </FontStyle>
                       </Box>
@@ -1184,21 +1235,29 @@ export default function EmployeeDetail({ employeeId }) {
                   </Box>
                   <Box sx={{ minWidth: 0 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                      <FontStyle fontSize={14} fontWeight={700}>
-                        {item.employment_type_name}
+                      <FontStyle fontSize={15.5} fontWeight={700} sx={{ lineHeight: 1.45 }}>
+                        {item.employment_type_name || "Jenis kepegawaian belum ditentukan"}
                       </FontStyle>
                       <CompactInfoChip
                         label={CONTRACT_STATUS[item.status]?.[0] || "Status belum dikenali"}
                         tone={CONTRACT_STATUS[item.status]?.[1] || "neutral"}
                       />
                     </Box>
-                    <FontStyle fontSize={12} sx={{ mt: 0.65, color: theme.ui.mutedText }}>
-                      Nomor kontrak: {item.contract_no || "Belum dicatat"}
-                    </FontStyle>
+                    <Box sx={{ mt: 0.9, display: "flex", gap: 0.75, alignItems: "center" }}>
+                      <IdcardOutlined style={{ color: theme.ui.mutedText }} />
+                      <FontStyle fontSize={13} fontWeight={600}>
+                        {item.contract_no || "Nomor kontrak belum dicatat"}
+                      </FontStyle>
+                    </Box>
                     {item.notes ? (
                       <FontStyle
-                        fontSize={11.5}
-                        sx={{ mt: 0.75, color: theme.ui.mutedText, whiteSpace: "pre-wrap" }}
+                        fontSize={12.5}
+                        sx={{
+                          mt: 1,
+                          color: theme.ui.mutedText,
+                          lineHeight: 1.6,
+                          whiteSpace: "pre-wrap",
+                        }}
                       >
                         {item.notes}
                       </FontStyle>
@@ -1207,22 +1266,24 @@ export default function EmployeeDetail({ employeeId }) {
                     <Box
                       aria-label="Jejak audit kontrak"
                       sx={{
-                        mt: 1.75,
+                        mt: 2,
+                        pt: 1.75,
+                        borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
                         display: "grid",
                         gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" },
-                        gap: 1,
+                        gap: 1.5,
                       }}
                     >
                       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, minWidth: 0 }}>
                         <UserOutlined style={{ marginTop: 3, color: theme.ui.mutedText }} />
                         <Box sx={{ minWidth: 0 }}>
-                          <FontStyle fontSize={10.5} sx={{ color: theme.ui.mutedText }}>
+                          <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
                             Dicatat oleh
                           </FontStyle>
-                          <FontStyle fontSize={11.5} fontWeight={600} sx={{ mt: 0.2 }}>
+                          <FontStyle fontSize={12.5} fontWeight={600} sx={{ mt: 0.25 }}>
                             {item.created_by_name || "Pelaku tidak tersedia"}
                           </FontStyle>
-                          <FontStyle fontSize={10.5} sx={{ mt: 0.2, color: theme.ui.mutedText }}>
+                          <FontStyle fontSize={11.5} sx={{ mt: 0.25, color: theme.ui.mutedText }}>
                             {formatDateTime(item.created_audit_at || item.created_at)}
                           </FontStyle>
                         </Box>
@@ -1233,13 +1294,13 @@ export default function EmployeeDetail({ employeeId }) {
                         >
                           <EditOutlined style={{ marginTop: 3, color: theme.ui.mutedText }} />
                           <Box sx={{ minWidth: 0 }}>
-                            <FontStyle fontSize={10.5} sx={{ color: theme.ui.mutedText }}>
+                            <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
                               Terakhir dikoreksi oleh
                             </FontStyle>
-                            <FontStyle fontSize={11.5} fontWeight={600} sx={{ mt: 0.2 }}>
+                            <FontStyle fontSize={12.5} fontWeight={600} sx={{ mt: 0.25 }}>
                               {item.updated_by_name || "Pelaku tidak tersedia"}
                             </FontStyle>
-                            <FontStyle fontSize={10.5} sx={{ mt: 0.2, color: theme.ui.mutedText }}>
+                            <FontStyle fontSize={11.5} sx={{ mt: 0.25, color: theme.ui.mutedText }}>
                               {formatDateTime(item.updated_audit_at)}
                             </FontStyle>
                           </Box>
@@ -1255,15 +1316,20 @@ export default function EmployeeDetail({ employeeId }) {
                           bgcolor: theme.status.danger.background,
                           py: 1.25,
                           px: 1.5,
-                          borderRadius: 1,
+                          borderRadius: "6px",
                         }}
                       >
-                        <FontStyle fontSize={11.5} fontWeight={700}>
+                        <FontStyle fontSize={12.5} fontWeight={700}>
                           Pembatalan kontrak
                         </FontStyle>
                         <FontStyle
-                          fontSize={11.5}
-                          sx={{ mt: 0.45, color: theme.ui.mutedText, whiteSpace: "pre-wrap" }}
+                          fontSize={12.5}
+                          sx={{
+                            mt: 0.45,
+                            color: theme.ui.mutedText,
+                            lineHeight: 1.6,
+                            whiteSpace: "pre-wrap",
+                          }}
                         >
                           {item.cancellation_reason}
                         </FontStyle>
@@ -1277,7 +1343,7 @@ export default function EmployeeDetail({ employeeId }) {
                           }}
                         >
                           <ClockCircleOutlined style={{ color: theme.ui.mutedText }} />
-                          <FontStyle fontSize={10.5} sx={{ color: theme.ui.mutedText }}>
+                          <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
                             Dibatalkan oleh {item.cancelled_by_name || "pelaku tidak tersedia"} pada{" "}
                             {formatDateTime(item.cancelled_at)}
                           </FontStyle>
@@ -1745,6 +1811,104 @@ export default function EmployeeDetail({ employeeId }) {
             />
           </SummarySection>
         </Box>
+      </AppModal>
+      <AppModal
+        open={Boolean(assignmentDetail)}
+        title="Detail penempatan"
+        description="Informasi organisasi, periode, dokumen, dan jejak pencatatan penempatan."
+        icon={<EnvironmentOutlined />}
+        size="md"
+        onClose={() => setAssignmentDetail(null)}
+        footer={
+          <Box
+            sx={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 1,
+              flexWrap: "wrap",
+              "& .ant-btn": { minHeight: 40 },
+            }}
+          >
+            {assignmentDetail?.document_file_id ? (
+              <Button
+                icon={<FileTextOutlined />}
+                href={`/api/uploads/${assignmentDetail.document_file_id}?organizationId=${organizationId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Lihat dokumen SK
+              </Button>
+            ) : null}
+            <Button onClick={() => setAssignmentDetail(null)}>Tutup</Button>
+          </Box>
+        }
+      >
+        {assignmentDetail ? (
+          <Box sx={{ display: "grid", gap: 3 }}>
+            <SummarySection icon={<SwapOutlined />} title="Status dan periode">
+              <InfoField
+                label="Status penempatan"
+                valueContent={
+                  <CompactInfoChip
+                    label={assignmentDetail.effective_until ? "Historis" : "Aktif"}
+                    tone={assignmentDetail.effective_until ? "neutral" : "success"}
+                  />
+                }
+              />
+              <InfoField
+                label="Jenis penugasan"
+                value={
+                  ASSIGNMENT_TYPE_LABELS[assignmentDetail.assignment_type] ||
+                  assignmentDetail.assignment_type
+                }
+              />
+              <InfoField
+                label="Jenis perubahan"
+                value={
+                  CHANGE_TYPE_LABELS[assignmentDetail.change_type] || assignmentDetail.change_type
+                }
+              />
+              <InfoField
+                label="Mulai berlaku"
+                value={formatDate(assignmentDetail.effective_from)}
+              />
+              <InfoField
+                label="Berakhir"
+                value={formatDate(assignmentDetail.effective_until, "Masih aktif")}
+              />
+            </SummarySection>
+            <SummarySection icon={<EnvironmentOutlined />} title="Unit kerja">
+              <InfoField label="Lokasi" value={assignmentDetail.location_name} />
+              <InfoField label="Divisi & Unit" value={assignmentDetail.unit_name} />
+              <InfoField label="Jabatan" value={assignmentDetail.position_name} />
+              <InfoField label="Atasan langsung" value={assignmentDetail.supervisor_name} />
+            </SummarySection>
+            <SummarySection icon={<FileTextOutlined />} title="Administrasi dan audit">
+              <InfoField label="Nomor SK" value={assignmentDetail.decree_no} />
+              <InfoField label="Dokumen SK" value={assignmentDetail.document_name} />
+              <InfoField label="Dicatat oleh" value={assignmentDetail.created_by_name} />
+              <InfoField
+                label="Waktu pencatatan"
+                value={formatDateTime(assignmentDetail.created_at)}
+              />
+              {assignmentDetail.updated_audit_at ? (
+                <>
+                  <InfoField label="Dikoreksi oleh" value={assignmentDetail.updated_by_name} />
+                  <InfoField
+                    label="Waktu koreksi"
+                    value={formatDateTime(assignmentDetail.updated_audit_at)}
+                  />
+                </>
+              ) : null}
+              <InfoField
+                label="Catatan"
+                value={assignmentDetail.notes}
+                sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}
+              />
+            </SummarySection>
+          </Box>
+        ) : null}
       </AppModal>
       <DisciplineCaseDetailModal
         open={Boolean(detailCase)}

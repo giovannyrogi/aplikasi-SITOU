@@ -4,6 +4,7 @@ import { readApiResponse } from "@/lib/api/clientError";
 
 import { useEffect, useRef, useState } from "react";
 import FileUploadField from "@/app/components/forms/FileUploadField";
+import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 
 /** Mengunggah satu file privat dan hanya menyimpan metadata ID yang dikembalikan API. */
 export default function PrivateFileUpload({
@@ -24,8 +25,10 @@ export default function PrivateFileUpload({
   showRemove = true,
   onRemoveRequest,
   deferred = false,
+  backdropMessages = null,
 }) {
   const [uploading, setUploading] = useState(false);
+  const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const localPreviewRef = useRef(null);
   // Metadata join dapat tidak lengkap, tetapi ID dari API tetap cukup untuk menampilkan file privat tersimpan.
   const storedValue =
@@ -76,13 +79,18 @@ export default function PrivateFileUpload({
     }
     setUploading(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("organizationId", organizationId);
-      Object.entries(fields).forEach(([key, fieldValue]) => form.append(key, fieldValue));
-      const response = await fetch(uploadUrl, { method: "POST", body: form });
-      const body = await readApiResponse(response, "File tidak dapat diunggah.");
-      onChange(body.data);
+      const processUpload = async () => {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("organizationId", organizationId);
+        Object.entries(fields).forEach(([key, fieldValue]) => form.append(key, fieldValue));
+        const response = await fetch(uploadUrl, { method: "POST", body: form });
+        const body = await readApiResponse(response, "File tidak dapat diunggah.");
+        onChange(body.data);
+      };
+      if (backdropMessages?.upload)
+        await runWithLoadingBackdrop(processUpload, { message: backdropMessages.upload });
+      else await processUpload();
     } catch (error) {
       onError?.(error.message);
     } finally {
@@ -106,10 +114,15 @@ export default function PrivateFileUpload({
     if (!resolvedRemoveUrl) return false;
     setUploading(true);
     try {
-      const response = await fetch(resolvedRemoveUrl, { method: "DELETE" });
-      const body = await readApiResponse(response, "File tidak dapat dihapus.");
-      onChange?.(null);
-      return true;
+      const processRemove = async () => {
+        const response = await fetch(resolvedRemoveUrl, { method: "DELETE" });
+        await readApiResponse(response, "File tidak dapat dihapus.");
+        onChange?.(null);
+        return true;
+      };
+      if (backdropMessages?.remove)
+        return await runWithLoadingBackdrop(processRemove, { message: backdropMessages.remove });
+      return await processRemove();
     } catch (error) {
       onError?.(error.message);
       return false;

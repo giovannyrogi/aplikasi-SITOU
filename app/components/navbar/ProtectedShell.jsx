@@ -92,7 +92,7 @@ export default function ProtectedShell({ user, children }) {
         width: "100%",
         minHeight: "100dvh",
         display: "flex",
-        overflowX: "hidden",
+        overflowX: "clip",
         bgcolor: theme.ui.pageBg,
       }}
     >
@@ -134,7 +134,7 @@ export default function ProtectedShell({ user, children }) {
           minHeight: "100dvh",
           display: "flex",
           flexDirection: "column",
-          overflowX: "hidden",
+          overflowX: "clip",
         }}
       >
         <TopMenu

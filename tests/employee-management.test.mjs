@@ -485,6 +485,31 @@ test("service penempatan melewati validasi dokumen ketika file tidak diunggah", 
     /if \(input\.documentFileId\)\s+await validateLifecycleDocument\(/,
   );
 });
+test("service menolak koreksi penempatan historis dengan kode stabil", () => {
+  const serviceSource = readFileSync(
+    new URL("../lib/employees/service.js", import.meta.url),
+    "utf8",
+  );
+  const correctionSource = serviceSource.slice(
+    serviceSource.indexOf("export async function correctEmployeeAssignment"),
+    serviceSource.indexOf("export async function createEmployeeContract"),
+  );
+
+  assert.match(correctionSource, /if \(current\.effective_until\)/);
+  assert.match(correctionSource, /ASSIGNMENT_HISTORY_READ_ONLY/);
+  assert.match(correctionSource, /Penempatan historis hanya dapat dilihat/);
+});
+
+test("detail pegawai hanya menyediakan edit untuk penempatan aktif", () => {
+  const detailSource = readFileSync(
+    new URL("../app/components/employees/EmployeeDetail.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(detailSource, /label="Lihat penempatan"/);
+  assert.match(detailSource, /canManageEmployee && active/);
+  assert.match(detailSource, /title="Detail penempatan"/);
+});
 test("koreksi penempatan menerima Nomor SK dan Dokumen SK kosong", () => {
   const result = employeeAssignmentCorrectionSchema.safeParse({
     organizationId: 1,

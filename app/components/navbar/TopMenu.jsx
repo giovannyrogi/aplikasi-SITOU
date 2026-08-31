@@ -43,6 +43,7 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
         position: "sticky",
         top: 0,
         zIndex: theme.zIndex.appBar,
+        flexShrink: 0,
         minHeight: 68,
         px: { xs: 1.5, sm: 2.5, lg: 3 },
         display: "flex",

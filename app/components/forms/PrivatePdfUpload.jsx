@@ -17,6 +17,7 @@ export default function PrivatePdfUpload({
   helpText = "PDF maksimal 10 MB.",
   disabled = false,
   showRemove = true,
+  backdropMessages = null,
 }) {
   return (
     <PrivateFileUpload
@@ -35,6 +36,7 @@ export default function PrivatePdfUpload({
       selectedText="Dokumen tersimpan secara privat"
       disabled={disabled}
       showRemove={showRemove}
+      backdropMessages={backdropMessages}
     />
   );
 }

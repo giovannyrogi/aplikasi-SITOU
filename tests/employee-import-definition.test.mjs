@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import {
   EMPLOYEE_IMPORT_SHEET_GUIDANCE,
   EMPLOYEE_IMPORT_SHEETS,
+  IMPORT_ENUMS,
+  IMPORT_OPTION_GROUPS,
+  getImportOptionGroup,
+  isSupportedImportOption,
   normalizeImportEmployeeNo,
   normalizeImportNationalId,
+  normalizeImportOption,
 } from "../lib/employees/importDefinition.js";
 
 test("template import mempunyai seluruh sheet domain dengan nama unik", () => {
@@ -88,4 +93,55 @@ test("NIK wajib pada sheet Pegawai dan domain non-kepegawaian tidak tersedia", (
 test("identitas import dinormalisasi sebelum pemeriksaan duplikat", () => {
   assert.equal(normalizeImportEmployeeNo(" pgw-001 "), "PGW-001");
   assert.equal(normalizeImportNationalId("71 71-0202-0303-0001"), "7171020203030001");
+});
+
+test("seluruh field pilihan template dipetakan sesuai kontrol aplikasi", () => {
+  const expectedDropdowns = {
+    Pegawai: ["gender", "maritalStatus", "bloodType", "employmentStatus"],
+    Identitas: ["identifierType", "isVerified"],
+    Rekening: ["isPrimary"],
+    Keluarga: ["relationship", "isDependent", "isEmergencyContact"],
+    Kontak_Darurat: ["isPrimary"],
+    Akun_Sosial: ["platform"],
+    Pendidikan: ["educationLevel", "isHighest"],
+    Keahlian: ["proficiencyLevel"],
+    Kontrak: ["status"],
+    Penempatan: ["assignmentType", "changeType"],
+  };
+
+  for (const [sheetName, keys] of Object.entries(expectedDropdowns))
+    for (const key of keys)
+      assert.ok(getImportOptionGroup(sheetName, key), `${sheetName}.${key} belum punya pilihan`);
+
+  assert.equal(getImportOptionGroup("Kontak_Darurat", "relationship"), null);
+});
+
+test("label dropdown Excel dinormalisasi ke kode sistem tanpa memutus template lama", () => {
+  assert.equal(normalizeImportOption("gender", "Laki-laki"), "male");
+  assert.equal(normalizeImportOption("maritalStatus", "Belum Menikah"), "single");
+  assert.equal(normalizeImportOption("educationLevel", "Sarjana (S1)"), "S1");
+  assert.equal(normalizeImportOption("assignmentType", "Utama"), "primary");
+  assert.equal(normalizeImportOption("employmentStatus", "active"), "active");
+  assert.equal(normalizeImportOption("employmentStatus", "nilai asing"), "nilai asing");
+});
+
+test("nilai boolean hasil normalisasi diterima oleh validator pilihan", () => {
+  assert.equal(isSupportedImportOption("boolean", true), true);
+  assert.equal(isSupportedImportOption("boolean", false), true);
+  assert.equal(isSupportedImportOption("boolean", "YA"), false);
+  assert.equal(isSupportedImportOption("employmentStatus", "active"), true);
+  assert.equal(isSupportedImportOption("employmentStatus", "Aktif"), false);
+});
+
+test("pilihan import pegawai baru tidak menawarkan status final atau identitas yang tidak ada di form", () => {
+  assert.deepEqual(IMPORT_ENUMS.employmentStatus, ["active", "probation", "leave", "suspended"]);
+  assert.deepEqual(IMPORT_ENUMS.identifierType, [
+    "family_card",
+    "bpjs_health",
+    "bpjs_employment",
+    "tax_npwp",
+  ]);
+  assert.ok(IMPORT_OPTION_GROUPS.educationLevel.some((option) => option.value === "S3"));
+  for (const status of ["terminated", "retired", "deceased"])
+    assert.equal(IMPORT_ENUMS.employmentStatus.includes(status), false);
 });

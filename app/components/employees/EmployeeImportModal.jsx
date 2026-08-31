@@ -147,17 +147,35 @@ export default function EmployeeImportModal({
         disableClose={step === 1 || step === 3}
         footer={footer}
       >
-        <Steps
-          current={step}
-          responsive
-          size="small"
-          items={[
-            { title: "Pilih Excel" },
-            { title: "Validasi" },
-            { title: "Periksa hasil" },
-            { title: "Impor" },
-          ]}
-        />
+        <Box
+          sx={{
+            width: "100%",
+            maxWidth: { xs: 300, sm: "none" },
+            mx: "auto",
+            px: { xs: 0.5, sm: 0 },
+            "& .ant-steps-item": { minWidth: 0 },
+            "& .ant-steps-item-container": { outline: "none" },
+            "& .ant-steps-item-title": {
+              fontSize: { xs: "12px !important", sm: "14px !important" },
+              whiteSpace: "normal",
+              textAlign: "center",
+              lineHeight: "1.35 !important",
+            },
+          }}
+        >
+          <Steps
+            current={step}
+            responsive={false}
+            size="small"
+            titlePlacement={mobile ? "vertical" : "horizontal"}
+            items={[
+              { title: "Pilih Excel" },
+              { title: "Validasi" },
+              { title: "Periksa hasil" },
+              { title: "Impor" },
+            ]}
+          />
+        </Box>
 
         {step === 0 ? (
           <Box sx={{ mt: 3 }}>

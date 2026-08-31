@@ -34,6 +34,10 @@ import {
 
 const required = (message) => [{ required: true, message }];
 const dateValue = (value) => (value ? dayjs(value) : null);
+const WIZARD_FILE_BACKDROP_MESSAGES = Object.freeze({
+  upload: "Mengunggah dokumen pegawai...",
+  remove: "Menghapus dokumen pegawai...",
+});
 
 const FIELD_LABELS = {
   organizationId: "Organisasi",
@@ -311,66 +315,77 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
           province: item.province,
         },
       });
-      void (async () => {
-        try {
-          const response = await fetch(
-            `/api/uploads?organizationId=${targetOrganizationId}&employeeId=${item.id}`,
-            { signal: controller.signal },
-          );
-          const body = await readApiResponse(response);
-          setFiles(
-            (body.data || []).filter(
-              (file) =>
-                file.category === "employee_photo" ||
-                (file.category === "identity" && file.document_type === "ktp"),
-            ),
-          );
-        } catch (error) {
-          if (error.name !== "AbortError")
-            reportError(error.message || "Dokumen pegawai gagal dimuat.");
-        }
-      })();
+      void runWithLoadingBackdrop(
+        async () => {
+          try {
+            const response = await fetch(
+              `/api/uploads?organizationId=${targetOrganizationId}&employeeId=${item.id}`,
+              { signal: controller.signal },
+            );
+            const body = await readApiResponse(response);
+            setFiles(
+              (body.data || []).filter(
+                (file) =>
+                  file.category === "employee_photo" ||
+                  (file.category === "identity" && file.document_type === "ktp"),
+              ),
+            );
+          } catch (error) {
+            if (error.name !== "AbortError")
+              reportError(error.message || "Dokumen pegawai gagal dimuat.");
+          }
+        },
+        { message: "Memuat dokumen pegawai..." },
+      );
       return () => controller.abort();
     }
     if (!targetOrganizationId) return;
     let active = true;
+    const controller = new AbortController();
     queueMicrotask(() => active && setDraftStatus("loading"));
-    (async () => {
-      try {
-        const query = `?organizationId=${targetOrganizationId}`;
-        let response = await fetch(`/api/employees/drafts${query}`);
-        let body = await readApiResponse(response, "Draft pegawai tidak dapat dimuat.");
-        if (!body.data) {
-          response = await fetch("/api/employees/drafts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ organizationId: targetOrganizationId }),
+    void runWithLoadingBackdrop(
+      async () => {
+        try {
+          const query = `?organizationId=${targetOrganizationId}`;
+          let response = await fetch(`/api/employees/drafts${query}`, {
+            signal: controller.signal,
           });
-          body = await readApiResponse(response, "Draft pegawai tidak dapat dibuat.");
+          let body = await readApiResponse(response, "Draft pegawai tidak dapat dimuat.");
+          if (!body.data) {
+            response = await fetch("/api/employees/drafts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ organizationId: targetOrganizationId }),
+              signal: controller.signal,
+            });
+            body = await readApiResponse(response, "Draft pegawai tidak dapat dibuat.");
+          }
+          if (!active) return;
+          rememberDraft(body.data);
+          setStep(body.data.currentStep || 0);
+          form.resetFields();
+          const hydrated = hydrateDraft(body.data.payload || {}, targetOrganizationId);
+          form.setFieldsValue(hydrated);
+          setDomicileSameAsKtp(
+            Boolean(
+              hydrated.contact.ktpAddress &&
+              hydrated.contact.ktpAddress === hydrated.contact.domicileAddress,
+            ),
+          );
+          dirtyRef.current = false;
+          setDraftStatus("saved");
+        } catch (error) {
+          if (active && error.name !== "AbortError") {
+            setDraftStatus("error");
+            reportError(error.message || "Draft pegawai tidak dapat dimuat.");
+          }
         }
-        if (!active) return;
-        rememberDraft(body.data);
-        setStep(body.data.currentStep || 0);
-        form.resetFields();
-        const hydrated = hydrateDraft(body.data.payload || {}, targetOrganizationId);
-        form.setFieldsValue(hydrated);
-        setDomicileSameAsKtp(
-          Boolean(
-            hydrated.contact.ktpAddress &&
-            hydrated.contact.ktpAddress === hydrated.contact.domicileAddress,
-          ),
-        );
-        dirtyRef.current = false;
-        setDraftStatus("saved");
-      } catch (error) {
-        if (active) {
-          setDraftStatus("error");
-          reportError(error.message || "Draft pegawai tidak dapat dimuat.");
-        }
-      }
-    })();
+      },
+      { message: "Memuat draft pegawai..." },
+    );
     return () => {
       active = false;
+      controller.abort();
     };
   }, [
     editing,
@@ -381,6 +396,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
     reportError,
     targetOrganizationId,
     user.organization_id,
+    runWithLoadingBackdrop,
   ]);
 
   /** Referensi form dimuat bersama untuk mencegah waterfall request. */
@@ -388,14 +404,38 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
     const target = selectedOrganizationId || organizationId || user.organization_id;
     if (!open || !target) return;
     let active = true;
-    fetch(`/api/employees/reference-options?organizationId=${target}`)
-      .then((response) => response.json())
-      .then((body) => active && setReferences(body.data || {}))
-      .catch(() => active && reportError("Referensi form pegawai tidak dapat dimuat."));
+    const controller = new AbortController();
+    void runWithLoadingBackdrop(
+      async () => {
+        try {
+          const response = await fetch(
+            `/api/employees/reference-options?organizationId=${target}`,
+            { signal: controller.signal },
+          );
+          const body = await readApiResponse(
+            response,
+            "Referensi form pegawai tidak dapat dimuat.",
+          );
+          if (active) setReferences(body.data || {});
+        } catch (error) {
+          if (active && error.name !== "AbortError")
+            reportError(error.message || "Referensi form pegawai tidak dapat dimuat.");
+        }
+      },
+      { message: "Memuat referensi form pegawai..." },
+    );
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [open, organizationId, reportError, selectedOrganizationId, user.organization_id]);
+  }, [
+    open,
+    organizationId,
+    reportError,
+    runWithLoadingBackdrop,
+    selectedOrganizationId,
+    user.organization_id,
+  ]);
 
   const availableUnits = useMemo(
     () =>
@@ -455,43 +495,48 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   /** Menyimpan snapshot terbaru secara berurutan agar version draft tidak saling mendahului. */
   const saveDraftNow = (stepOverride = step) => {
     if (editing || !draftRef.current) return Promise.resolve(true);
-    saveQueueRef.current = saveQueueRef.current.then(async () => {
-      const current = draftRef.current;
-      if (!current) return false;
-      setDraftStatus("saving");
-      try {
-        const values = serialize(form.getFieldsValue(true));
-        delete values.organizationId;
-        const response = await fetch(`/api/employees/drafts/${current.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            organizationId: targetOrganizationId,
-            currentStep: stepOverride,
-            version: current.version,
-            payload: values,
-          }),
-        });
-        let body;
-        try {
-          body = await readApiResponse(response, "Draft tidak dapat disimpan.");
-        } catch (error) {
-          if (handleApiFieldErrors(error.fieldErrors)) {
+    saveQueueRef.current = saveQueueRef.current.then(() =>
+      runWithLoadingBackdrop(
+        async () => {
+          const current = draftRef.current;
+          if (!current) return false;
+          setDraftStatus("saving");
+          try {
+            const values = serialize(form.getFieldsValue(true));
+            delete values.organizationId;
+            const response = await fetch(`/api/employees/drafts/${current.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                organizationId: targetOrganizationId,
+                currentStep: stepOverride,
+                version: current.version,
+                payload: values,
+              }),
+            });
+            let body;
+            try {
+              body = await readApiResponse(response, "Draft tidak dapat disimpan.");
+            } catch (error) {
+              if (handleApiFieldErrors(error.fieldErrors)) {
+                setDraftStatus("error");
+                return false;
+              }
+              throw error;
+            }
+            rememberDraft(body.data);
+            dirtyRef.current = false;
+            setDraftStatus("saved");
+            return true;
+          } catch (error) {
             setDraftStatus("error");
+            reportError(error.message);
             return false;
           }
-          throw error;
-        }
-        rememberDraft(body.data);
-        dirtyRef.current = false;
-        setDraftStatus("saved");
-        return true;
-      } catch (error) {
-        setDraftStatus("error");
-        reportError(error.message);
-        return false;
-      }
-    });
+        },
+        { message: "Menyimpan draft pegawai..." },
+      ),
+    );
     return saveQueueRef.current;
   };
 
@@ -640,7 +685,8 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
 
   const gridSx = {
     gridTemplateColumns: { xs: "1fr", sm: "repeat(2,minmax(0,1fr))" },
-    gap: { xs: 0, sm: "0 16px" },
+    columnGap: { xs: 0, sm: 2 },
+    rowGap: { xs: 0.75, sm: 1 },
   };
   const draftTone = {
     saving: "info",
@@ -810,458 +856,499 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
             ) : null}
           </>
         ) : null}
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={submit}
-          onFinishFailed={handleValidationFailure}
-          onValuesChange={markDraftDirty}
-          requiredMark
+        <Box
+          sx={{
+            "& .employee-form .ant-form-item:not(.employee-upload-field)": {
+              mb: "14px",
+            },
+            "& .employee-form .ant-form-item-additional": {
+              minHeight: 22,
+              pt: "4px",
+            },
+            "& .employee-form .ant-form-item-explain": {
+              minHeight: 18,
+              fontSize: 12,
+              lineHeight: 1.45,
+            },
+            "& .employee-form .ant-form-item-explain-error": {
+              overflowWrap: "anywhere",
+            },
+          }}
         >
-          <Box sx={{ display: editing || step === 0 ? "block" : "none" }}>
-            <Box sx={{ display: "grid", ...gridSx }}>
-              <OrganizationScopeField disabled />
-              <Form.Item
-                name="employeeNo"
-                label="NIP (Nomor Induk Pegawai)"
-                rules={required("NIP wajib diisi.")}
-              >
-                <Input maxLength={60} />
-              </Form.Item>
-              <Form.Item
-                name="fullName"
-                label="Nama lengkap"
-                rules={required("Nama lengkap wajib diisi.")}
-              >
-                <Input maxLength={200} />
-              </Form.Item>
-              <Form.Item name="preferredName" label="Nama panggilan">
-                <Input maxLength={100} />
-              </Form.Item>
-              <Form.Item
-                name="nationalId"
-                label="NIK"
-                rules={getIndonesianNationalIdFormRules({ required: true })}
-              >
-                <IndonesianNationalIdInput />
-              </Form.Item>
-              <Box
-                sx={{
-                  gridColumn: "1 / -1",
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", sm: "repeat(2,minmax(0,1fr))" },
-                  gap: { xs: 2, sm: 2 },
-                  mb: 2,
-                }}
-              >
-                <Form.Item label="KTP (opsional)" style={{ marginBottom: 0 }}>
-                  <PrivateFileUpload
-                    value={ktpFile}
-                    uploadUrl={
-                      editing ? "/api/uploads" : `/api/employees/drafts/${draft?.id}/files`
-                    }
-                    removeUrl={
-                      ktpFile
-                        ? editing
-                          ? `/api/uploads/${ktpFile.id}${query}`
-                          : `/api/employees/drafts/${draft?.id}/files/${ktpFile.id}${query}`
-                        : null
-                    }
-                    fields={
-                      editing ? { fileKind: "ktp", employeeId: item.id } : { fileKind: "ktp" }
-                    }
-                    organizationId={targetOrganizationId}
-                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                    maxSizeBytes={5 * 1024 * 1024}
-                    emptyTitle="Pilih atau tarik KTP ke area ini"
-                    helpText="Opsional. Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
-                    selectedText={
-                      editing
-                        ? "KTP aktif tersimpan secara privat"
-                        : "KTP tersimpan pada draft privat"
-                    }
-                    onChange={(file) =>
-                      setFiles((current) => [
-                        ...current.filter((value) => value.category !== "identity"),
-                        ...(file ? [file] : []),
-                      ])
-                    }
-                    onError={reportError}
-                    disabled={!editing && !draft}
-                  />
-                </Form.Item>
-                <Form.Item label="Pas foto (opsional)" style={{ marginBottom: 0 }}>
-                  <PrivateFileUpload
-                    value={profilePhotoFile}
-                    uploadUrl={
-                      editing ? "/api/uploads" : `/api/employees/drafts/${draft?.id}/files`
-                    }
-                    removeUrl={
-                      profilePhotoFile
-                        ? editing
-                          ? `/api/uploads/${profilePhotoFile.id}${query}`
-                          : `/api/employees/drafts/${draft?.id}/files/${profilePhotoFile.id}${query}`
-                        : null
-                    }
-                    fields={
-                      editing
-                        ? { fileKind: "pas_foto", employeeId: item.id }
-                        : { fileKind: "pas_foto" }
-                    }
-                    organizationId={targetOrganizationId}
-                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                    maxSizeBytes={5 * 1024 * 1024}
-                    emptyTitle="Pilih atau tarik pas foto ke area ini"
-                    helpText="Opsional. Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
-                    selectedText={
-                      editing
-                        ? "Pas foto aktif tersimpan secara privat"
-                        : "Pas foto tersimpan pada draft privat"
-                    }
-                    onChange={(file) =>
-                      setFiles((current) => [
-                        ...current.filter((value) => value.category !== "employee_photo"),
-                        ...(file ? [file] : []),
-                      ])
-                    }
-                    onError={reportError}
-                    disabled={!editing && !draft}
-                  />
-                </Form.Item>
-              </Box>
-              <Form.Item name="birthPlace" label="Tempat lahir">
-                <Input maxLength={120} />
-              </Form.Item>
-              <Form.Item name="birthDate" label="Tanggal lahir">
-                <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
-              </Form.Item>
-              <Form.Item
-                name="joinedDate"
-                label="Tanggal bergabung"
-                rules={required("Tanggal bergabung wajib diisi.")}
-              >
-                <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
-              </Form.Item>
-              <Form.Item name="gender" label="Jenis kelamin">
-                <Select
-                  allowClear
-                  options={[
-                    { value: "male", label: "Laki-laki" },
-                    { value: "female", label: "Perempuan" },
-                    { value: "undisclosed", label: "Tidak disebutkan" },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item name="religion" label="Agama">
-                <Input maxLength={50} />
-              </Form.Item>
-              <Form.Item name="maritalStatus" label="Status perkawinan">
-                <Select
-                  allowClear
-                  placeholder="Pilih status perkawinan"
-                  options={MARITAL_STATUS_OPTIONS}
-                />
-              </Form.Item>
-              <Form.Item name="bloodType" label="Golongan darah">
-                <Select
-                  allowClear
-                  placeholder="Pilih golongan darah"
-                  options={BLOOD_TYPE_OPTIONS}
-                />
-              </Form.Item>
-              <Form.Item name="nationality" label="Kewarganegaraan">
-                <Input maxLength={60} />
-              </Form.Item>
-              <Form.Item
-                name="employmentStatus"
-                label="Status pegawai"
-                rules={required("Status pegawai wajib dipilih.")}
-              >
-                <Select
-                  options={[
-                    { value: "active", label: "Aktif" },
-                    { value: "probation", label: "Masa percobaan" },
-                    { value: "leave", label: "Cuti" },
-                    { value: "suspended", label: "Ditangguhkan" },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item
-                name={["contact", "personalEmail"]}
-                label="Email pribadi"
-                rules={[{ type: "email", message: "Email tidak valid." }]}
-              >
-                <Input />
-              </Form.Item>
-              <Form.Item
-                name={["contact", "whatsapp"]}
-                label="Nomor WhatsApp"
-                rules={getIndonesianMobileFormRules()}
-                extra="Masukkan nomor setelah +62 tanpa angka 0 di awal."
-              >
-                <IndonesiaPhoneInput aria-label="Nomor WhatsApp" />
-              </Form.Item>
-            </Box>
-            <Form.Item name={["contact", "ktpAddress"]} label="Alamat sesuai KTP">
-              <Input.TextArea
-                rows={2}
-                onChange={(event) => {
-                  if (domicileSameAsKtp)
-                    form.setFieldValue(["contact", "domicileAddress"], event.target.value);
-                }}
-              />
-            </Form.Item>
-            <Box sx={{ mt: -1, mb: 2 }}>
-              <Checkbox
-                checked={domicileSameAsKtp}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  setDomicileSameAsKtp(checked);
-                  if (checked)
-                    form.setFieldValue(
-                      ["contact", "domicileAddress"],
-                      form.getFieldValue(["contact", "ktpAddress"]) || null,
-                    );
-                  markDraftDirty();
-                }}
-              >
-                Alamat domisili sama dengan alamat KTP
-              </Checkbox>
-            </Box>
-            <Form.Item name={["contact", "domicileAddress"]} label="Alamat domisili">
-              <Input.TextArea
-                rows={2}
-                disabled={domicileSameAsKtp}
-                placeholder={
-                  domicileSameAsKtp
-                    ? "Mengikuti alamat sesuai KTP"
-                    : "Masukkan alamat tempat tinggal saat ini"
-                }
-              />
-            </Form.Item>
-          </Box>
-          {!editing ? (
-            <>
-              <Box sx={{ ...gridSx, display: step === 1 ? "grid" : "none" }}>
+          <Form
+            className="employee-form"
+            form={form}
+            layout="vertical"
+            onFinish={submit}
+            onFinishFailed={handleValidationFailure}
+            onValuesChange={markDraftDirty}
+            requiredMark
+          >
+            <Box sx={{ display: editing || step === 0 ? "block" : "none" }}>
+              <Box sx={{ display: "grid", ...gridSx }}>
+                <OrganizationScopeField disabled />
                 <Form.Item
-                  name={["profile", "educations", 0, "educationLevel"]}
-                  label="Jenjang pendidikan"
-                  rules={required("Jenjang pendidikan wajib dipilih.")}
+                  name="employeeNo"
+                  label="NIP (Nomor Induk Pegawai)"
+                  rules={required("NIP wajib diisi.")}
                 >
-                  <Select
-                    showSearch
-                    optionFilterProp="label"
-                    placeholder="Pilih jenjang pendidikan"
-                    options={EDUCATION_LEVEL_OPTIONS}
-                  />
+                  <Input maxLength={60} />
                 </Form.Item>
                 <Form.Item
-                  name={["profile", "educations", 0, "institution"]}
-                  label="Nama institusi pendidikan"
-                  rules={required("Nama institusi pendidikan wajib diisi.")}
+                  name="fullName"
+                  label="Nama lengkap"
+                  rules={required("Nama lengkap wajib diisi.")}
                 >
-                  <Input maxLength={200} placeholder="Contoh: Universitas Sam Ratulangi" />
+                  <Input maxLength={200} />
                 </Form.Item>
-                <Form.Item
-                  name={["profile", "educations", 0, "fieldOfStudy"]}
-                  label="Program studi atau jurusan"
-                >
-                  <Input maxLength={150} placeholder="Contoh: Teknik Informatika" />
-                </Form.Item>
-                <Form.Item
-                  name={["profile", "educations", 0, "graduationYear"]}
-                  label="Tahun kelulusan"
-                >
-                  <DatePicker
-                    picker="year"
-                    format="YYYY"
-                    placeholder="Pilih tahun kelulusan"
-                    disabledDate={(current) => current && current.year() > dayjs().year()}
-                    style={{ width: "100%" }}
-                  />
-                </Form.Item>
-                <Form.Item label="Foto ijazah (opsional)" style={{ gridColumn: "1 / -1" }}>
-                  <PrivateFileUpload
-                    value={educationFile}
-                    uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
-                    removeUrl={
-                      educationFile
-                        ? `/api/employees/drafts/${draft?.id}/files/${educationFile.id}${query}`
-                        : null
-                    }
-                    fields={{ fileKind: "pendidikan" }}
-                    organizationId={targetOrganizationId}
-                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                    maxSizeBytes={5 * 1024 * 1024}
-                    emptyTitle="Pilih atau tarik foto ijazah ke area ini"
-                    helpText="Gunakan JPEG, PNG, atau WebP maksimal 5 MB. Data dapat dilengkapi kembali melalui profil pegawai."
-                    selectedText="Foto ijazah tersimpan pada draft privat"
-                    onChange={(file) =>
-                      setFiles((current) => [
-                        ...current.filter((value) => value.category !== "education"),
-                        ...(file ? [file] : []),
-                      ])
-                    }
-                    onError={reportError}
-                    disabled={!draft}
-                  />
-                </Form.Item>
-              </Box>
-              <Box sx={{ ...gridSx, display: step === 2 ? "grid" : "none" }}>
-                <Form.Item
-                  name={["contract", "employmentTypeId"]}
-                  label="Jenis kepegawaian"
-                  rules={required("Jenis kepegawaian wajib dipilih.")}
-                >
-                  <Select
-                    showSearch
-                    optionFilterProp="label"
-                    onChange={(value) => {
-                      const employmentType = (references.employmentTypes || []).find(
-                        (option) => String(option.id) === String(value),
-                      );
-                      if (!employmentType?.requires_end_date)
-                        form.setFieldValue(["contract", "endDate"], null);
-                    }}
-                    options={(references.employmentTypes || []).map((value) => ({
-                      value: value.id,
-                      label: `${value.code} - ${value.name}`,
-                    }))}
-                  />
-                </Form.Item>
-                <Form.Item name={["contract", "contractNo"]} label="Nomor kontrak (opsional)">
+                <Form.Item name="preferredName" label="Nama panggilan">
                   <Input maxLength={100} />
                 </Form.Item>
                 <Form.Item
-                  name={["contract", "startDate"]}
-                  label="Tanggal mulai"
-                  rules={required("Tanggal mulai wajib diisi.")}
+                  name="nationalId"
+                  label="NIK"
+                  rules={getIndonesianNationalIdFormRules({ required: true })}
                 >
-                  <DatePicker style={{ width: "100%" }} />
+                  <IndonesianNationalIdInput />
                 </Form.Item>
-                {contractRequiresEndDate ? (
+                <Box
+                  sx={{
+                    gridColumn: "1 / -1",
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2,minmax(0,1fr))" },
+                    gap: { xs: 2, sm: 2 },
+                    mb: 2,
+                  }}
+                >
                   <Form.Item
-                    name={["contract", "endDate"]}
-                    label="Tanggal akhir"
-                    rules={required("Tanggal akhir wajib diisi untuk jenis kepegawaian ini.")}
+                    className="employee-upload-field"
+                    label="KTP (opsional)"
+                    style={{ marginBottom: 0 }}
+                  >
+                    <PrivateFileUpload
+                      value={ktpFile}
+                      uploadUrl={
+                        editing ? "/api/uploads" : `/api/employees/drafts/${draft?.id}/files`
+                      }
+                      removeUrl={
+                        ktpFile
+                          ? editing
+                            ? `/api/uploads/${ktpFile.id}${query}`
+                            : `/api/employees/drafts/${draft?.id}/files/${ktpFile.id}${query}`
+                          : null
+                      }
+                      fields={
+                        editing ? { fileKind: "ktp", employeeId: item.id } : { fileKind: "ktp" }
+                      }
+                      organizationId={targetOrganizationId}
+                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                      maxSizeBytes={5 * 1024 * 1024}
+                      emptyTitle="Pilih atau tarik KTP ke area ini"
+                      helpText="Opsional. Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
+                      selectedText={
+                        editing
+                          ? "KTP aktif tersimpan secara privat"
+                          : "KTP tersimpan pada draft privat"
+                      }
+                      onChange={(file) =>
+                        setFiles((current) => [
+                          ...current.filter((value) => value.category !== "identity"),
+                          ...(file ? [file] : []),
+                        ])
+                      }
+                      onError={reportError}
+                      disabled={!editing && !draft}
+                      backdropMessages={WIZARD_FILE_BACKDROP_MESSAGES}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    className="employee-upload-field"
+                    label="Pas foto (opsional)"
+                    style={{ marginBottom: 0 }}
+                  >
+                    <PrivateFileUpload
+                      value={profilePhotoFile}
+                      uploadUrl={
+                        editing ? "/api/uploads" : `/api/employees/drafts/${draft?.id}/files`
+                      }
+                      removeUrl={
+                        profilePhotoFile
+                          ? editing
+                            ? `/api/uploads/${profilePhotoFile.id}${query}`
+                            : `/api/employees/drafts/${draft?.id}/files/${profilePhotoFile.id}${query}`
+                          : null
+                      }
+                      fields={
+                        editing
+                          ? { fileKind: "pas_foto", employeeId: item.id }
+                          : { fileKind: "pas_foto" }
+                      }
+                      organizationId={targetOrganizationId}
+                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                      maxSizeBytes={5 * 1024 * 1024}
+                      emptyTitle="Pilih atau tarik pas foto ke area ini"
+                      helpText="Opsional. Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
+                      selectedText={
+                        editing
+                          ? "Pas foto aktif tersimpan secara privat"
+                          : "Pas foto tersimpan pada draft privat"
+                      }
+                      onChange={(file) =>
+                        setFiles((current) => [
+                          ...current.filter((value) => value.category !== "employee_photo"),
+                          ...(file ? [file] : []),
+                        ])
+                      }
+                      onError={reportError}
+                      disabled={!editing && !draft}
+                      backdropMessages={WIZARD_FILE_BACKDROP_MESSAGES}
+                    />
+                  </Form.Item>
+                </Box>
+                <Form.Item name="birthPlace" label="Tempat lahir">
+                  <Input maxLength={120} />
+                </Form.Item>
+                <Form.Item name="birthDate" label="Tanggal lahir">
+                  <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+                </Form.Item>
+                <Form.Item
+                  name="joinedDate"
+                  label="Tanggal bergabung"
+                  rules={required("Tanggal bergabung wajib diisi.")}
+                >
+                  <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+                </Form.Item>
+                <Form.Item name="gender" label="Jenis kelamin">
+                  <Select
+                    allowClear
+                    options={[
+                      { value: "male", label: "Laki-laki" },
+                      { value: "female", label: "Perempuan" },
+                      { value: "undisclosed", label: "Tidak disebutkan" },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item name="religion" label="Agama">
+                  <Input maxLength={50} />
+                </Form.Item>
+                <Form.Item name="maritalStatus" label="Status perkawinan">
+                  <Select
+                    allowClear
+                    placeholder="Pilih status perkawinan"
+                    options={MARITAL_STATUS_OPTIONS}
+                  />
+                </Form.Item>
+                <Form.Item name="bloodType" label="Golongan darah">
+                  <Select
+                    allowClear
+                    placeholder="Pilih golongan darah"
+                    options={BLOOD_TYPE_OPTIONS}
+                  />
+                </Form.Item>
+                <Form.Item name="nationality" label="Kewarganegaraan">
+                  <Input maxLength={60} />
+                </Form.Item>
+                <Form.Item
+                  name="employmentStatus"
+                  label="Status pegawai"
+                  rules={required("Status pegawai wajib dipilih.")}
+                >
+                  <Select
+                    options={[
+                      { value: "active", label: "Aktif" },
+                      { value: "probation", label: "Masa percobaan" },
+                      { value: "leave", label: "Cuti" },
+                      { value: "suspended", label: "Ditangguhkan" },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item
+                  name={["contact", "personalEmail"]}
+                  label="Email pribadi"
+                  rules={[{ type: "email", message: "Email tidak valid." }]}
+                >
+                  <Input />
+                </Form.Item>
+                <Form.Item
+                  name={["contact", "whatsapp"]}
+                  label="Nomor WhatsApp"
+                  rules={getIndonesianMobileFormRules()}
+                  extra="Masukkan nomor setelah +62 tanpa angka 0 di awal."
+                >
+                  <IndonesiaPhoneInput aria-label="Nomor WhatsApp" />
+                </Form.Item>
+              </Box>
+              <Form.Item name={["contact", "ktpAddress"]} label="Alamat sesuai KTP">
+                <Input.TextArea
+                  rows={2}
+                  onChange={(event) => {
+                    if (domicileSameAsKtp)
+                      form.setFieldValue(["contact", "domicileAddress"], event.target.value);
+                  }}
+                />
+              </Form.Item>
+              <Box sx={{ mt: -1, mb: 2 }}>
+                <Checkbox
+                  checked={domicileSameAsKtp}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setDomicileSameAsKtp(checked);
+                    if (checked)
+                      form.setFieldValue(
+                        ["contact", "domicileAddress"],
+                        form.getFieldValue(["contact", "ktpAddress"]) || null,
+                      );
+                    markDraftDirty();
+                  }}
+                >
+                  Alamat domisili sama dengan alamat KTP
+                </Checkbox>
+              </Box>
+              <Form.Item name={["contact", "domicileAddress"]} label="Alamat domisili">
+                <Input.TextArea
+                  rows={2}
+                  disabled={domicileSameAsKtp}
+                  placeholder={
+                    domicileSameAsKtp
+                      ? "Mengikuti alamat sesuai KTP"
+                      : "Masukkan alamat tempat tinggal saat ini"
+                  }
+                />
+              </Form.Item>
+            </Box>
+            {!editing ? (
+              <>
+                <Box sx={{ ...gridSx, display: step === 1 ? "grid" : "none" }}>
+                  <Form.Item
+                    name={["profile", "educations", 0, "educationLevel"]}
+                    label="Jenjang pendidikan"
+                    rules={required("Jenjang pendidikan wajib dipilih.")}
+                  >
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      placeholder="Pilih jenjang pendidikan"
+                      options={EDUCATION_LEVEL_OPTIONS}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name={["profile", "educations", 0, "institution"]}
+                    label="Nama institusi pendidikan"
+                    rules={required("Nama institusi pendidikan wajib diisi.")}
+                  >
+                    <Input maxLength={200} placeholder="Contoh: Universitas Sam Ratulangi" />
+                  </Form.Item>
+                  <Form.Item
+                    name={["profile", "educations", 0, "fieldOfStudy"]}
+                    label="Program studi atau jurusan"
+                  >
+                    <Input maxLength={150} placeholder="Contoh: Teknik Informatika" />
+                  </Form.Item>
+                  <Form.Item
+                    name={["profile", "educations", 0, "graduationYear"]}
+                    label="Tahun kelulusan"
+                  >
+                    <DatePicker
+                      picker="year"
+                      format="YYYY"
+                      placeholder="Pilih tahun kelulusan"
+                      disabledDate={(current) => current && current.year() > dayjs().year()}
+                      style={{ width: "100%" }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    className="employee-upload-field"
+                    label="Foto ijazah (opsional)"
+                    style={{ gridColumn: "1 / -1" }}
+                  >
+                    <PrivateFileUpload
+                      value={educationFile}
+                      uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
+                      removeUrl={
+                        educationFile
+                          ? `/api/employees/drafts/${draft?.id}/files/${educationFile.id}${query}`
+                          : null
+                      }
+                      fields={{ fileKind: "pendidikan" }}
+                      organizationId={targetOrganizationId}
+                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                      maxSizeBytes={5 * 1024 * 1024}
+                      emptyTitle="Pilih atau tarik foto ijazah ke area ini"
+                      helpText="Gunakan JPEG, PNG, atau WebP maksimal 5 MB. Data dapat dilengkapi kembali melalui profil pegawai."
+                      selectedText="Foto ijazah tersimpan pada draft privat"
+                      onChange={(file) =>
+                        setFiles((current) => [
+                          ...current.filter((value) => value.category !== "education"),
+                          ...(file ? [file] : []),
+                        ])
+                      }
+                      onError={reportError}
+                      disabled={!draft}
+                      backdropMessages={WIZARD_FILE_BACKDROP_MESSAGES}
+                    />
+                  </Form.Item>
+                </Box>
+                <Box sx={{ ...gridSx, display: step === 2 ? "grid" : "none" }}>
+                  <Form.Item
+                    name={["contract", "employmentTypeId"]}
+                    label="Jenis kepegawaian"
+                    rules={required("Jenis kepegawaian wajib dipilih.")}
+                  >
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      onChange={(value) => {
+                        const employmentType = (references.employmentTypes || []).find(
+                          (option) => String(option.id) === String(value),
+                        );
+                        if (!employmentType?.requires_end_date)
+                          form.setFieldValue(["contract", "endDate"], null);
+                      }}
+                      options={(references.employmentTypes || []).map((value) => ({
+                        value: value.id,
+                        label: `${value.code} - ${value.name}`,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item name={["contract", "contractNo"]} label="Nomor kontrak (opsional)">
+                    <Input maxLength={100} />
+                  </Form.Item>
+                  <Form.Item
+                    name={["contract", "startDate"]}
+                    label="Tanggal mulai"
+                    rules={required("Tanggal mulai wajib diisi.")}
                   >
                     <DatePicker style={{ width: "100%" }} />
                   </Form.Item>
-                ) : null}
-                <Box id="employee-contract-document">
-                  <Form.Item label="Dokumen kontrak (opsional)">
-                    <PrivatePdfUpload
-                      value={contractFile}
-                      uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
-                      removeUrl={
-                        contractFile
-                          ? `/api/employees/drafts/${draft?.id}/files/${contractFile.id}${query}`
-                          : null
-                      }
-                      fields={{ fileKind: "kontrak" }}
-                      organizationId={targetOrganizationId}
-                      onChange={(file) =>
-                        setFiles((current) => [
-                          ...current.filter((value) => value.category !== "contract"),
-                          ...(file ? [file] : []),
-                        ])
-                      }
-                      onError={reportError}
-                      disabled={!draft}
-                      helpText="Opsional. Gunakan dokumen PDF maksimal 10 MB."
+                  {contractRequiresEndDate ? (
+                    <Form.Item
+                      name={["contract", "endDate"]}
+                      label="Tanggal akhir"
+                      rules={required("Tanggal akhir wajib diisi untuk jenis kepegawaian ini.")}
+                    >
+                      <DatePicker style={{ width: "100%" }} />
+                    </Form.Item>
+                  ) : null}
+                  <Box id="employee-contract-document">
+                    <Form.Item className="employee-upload-field" label="Dokumen kontrak (opsional)">
+                      <PrivatePdfUpload
+                        value={contractFile}
+                        uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
+                        removeUrl={
+                          contractFile
+                            ? `/api/employees/drafts/${draft?.id}/files/${contractFile.id}${query}`
+                            : null
+                        }
+                        fields={{ fileKind: "kontrak" }}
+                        organizationId={targetOrganizationId}
+                        onChange={(file) =>
+                          setFiles((current) => [
+                            ...current.filter((value) => value.category !== "contract"),
+                            ...(file ? [file] : []),
+                          ])
+                        }
+                        onError={reportError}
+                        disabled={!draft}
+                        helpText="Opsional. Gunakan dokumen PDF maksimal 10 MB."
+                        backdropMessages={WIZARD_FILE_BACKDROP_MESSAGES}
+                      />
+                    </Form.Item>
+                  </Box>
+                </Box>
+                <Box sx={{ ...gridSx, display: step === 3 ? "grid" : "none" }}>
+                  <Form.Item
+                    name={["assignment", "locationId"]}
+                    label="Lokasi"
+                    rules={required("Lokasi wajib dipilih.")}
+                  >
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      options={(references.locations || []).map((value) => ({
+                        value: value.id,
+                        label: `${value.code} - ${value.name}`,
+                      }))}
                     />
                   </Form.Item>
-                </Box>
-              </Box>
-              <Box sx={{ ...gridSx, display: step === 3 ? "grid" : "none" }}>
-                <Form.Item
-                  name={["assignment", "locationId"]}
-                  label="Lokasi"
-                  rules={required("Lokasi wajib dipilih.")}
-                >
-                  <Select
-                    showSearch
-                    optionFilterProp="label"
-                    options={(references.locations || []).map((value) => ({
-                      value: value.id,
-                      label: `${value.code} - ${value.name}`,
-                    }))}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name={["assignment", "organizationUnitId"]}
-                  label="Divisi & Unit"
-                  rules={required("Divisi atau unit wajib dipilih.")}
-                >
-                  <Select
-                    showSearch
-                    optionFilterProp="label"
-                    options={availableUnits.map((value) => ({
-                      value: value.id,
-                      label: value.name,
-                    }))}
-                  />
-                </Form.Item>
-                <Form.Item name={["assignment", "positionId"]} label="Jabatan">
-                  <Select
-                    allowClear
-                    showSearch
-                    optionFilterProp="label"
-                    options={(references.positions || []).map((value) => ({
-                      value: value.id,
-                      label: value.name,
-                    }))}
-                  />
-                </Form.Item>
-                <Form.Item name={["assignment", "supervisorEmployeeId"]} label="Atasan langsung">
-                  <Select
-                    allowClear
-                    showSearch
-                    optionFilterProp="label"
-                    options={(references.employees || []).map((value) => ({
-                      value: value.id,
-                      label: `${value.employee_no} - ${value.full_name}`,
-                    }))}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name={["assignment", "effectiveFrom"]}
-                  label="Tanggal efektif"
-                  rules={required("Tanggal efektif wajib diisi.")}
-                >
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-                <Form.Item name={["assignment", "decreeNo"]} label="Nomor SK (opsional)">
-                  <Input maxLength={100} />
-                </Form.Item>
-                <Box id="employee-assignment-document">
-                  <Form.Item label="Dokumen SK penempatan (opsional)">
-                    <PrivatePdfUpload
-                      value={assignmentFile}
-                      uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
-                      removeUrl={
-                        assignmentFile
-                          ? `/api/employees/drafts/${draft?.id}/files/${assignmentFile.id}${query}`
-                          : null
-                      }
-                      fields={{ fileKind: "sk_penempatan" }}
-                      organizationId={targetOrganizationId}
-                      onChange={(file) =>
-                        setFiles((current) => [
-                          ...current.filter((value) => value.category !== "assignment_decree"),
-                          ...(file ? [file] : []),
-                        ])
-                      }
-                      onError={reportError}
-                      disabled={!draft}
-                      helpText="Opsional. Gunakan dokumen PDF maksimal 10 MB."
+                  <Form.Item
+                    name={["assignment", "organizationUnitId"]}
+                    label="Divisi & Unit"
+                    rules={required("Divisi atau unit wajib dipilih.")}
+                  >
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      options={availableUnits.map((value) => ({
+                        value: value.id,
+                        label: value.name,
+                      }))}
                     />
                   </Form.Item>
+                  <Form.Item name={["assignment", "positionId"]} label="Jabatan">
+                    <Select
+                      allowClear
+                      showSearch
+                      optionFilterProp="label"
+                      options={(references.positions || []).map((value) => ({
+                        value: value.id,
+                        label: value.name,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item name={["assignment", "supervisorEmployeeId"]} label="Atasan langsung">
+                    <Select
+                      allowClear
+                      showSearch
+                      optionFilterProp="label"
+                      options={(references.employees || []).map((value) => ({
+                        value: value.id,
+                        label: `${value.employee_no} - ${value.full_name}`,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name={["assignment", "effectiveFrom"]}
+                    label="Tanggal efektif"
+                    rules={required("Tanggal efektif wajib diisi.")}
+                  >
+                    <DatePicker style={{ width: "100%" }} />
+                  </Form.Item>
+                  <Form.Item name={["assignment", "decreeNo"]} label="Nomor SK (opsional)">
+                    <Input maxLength={100} />
+                  </Form.Item>
+                  <Box id="employee-assignment-document">
+                    <Form.Item
+                      className="employee-upload-field"
+                      label="Dokumen SK penempatan (opsional)"
+                    >
+                      <PrivatePdfUpload
+                        value={assignmentFile}
+                        uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
+                        removeUrl={
+                          assignmentFile
+                            ? `/api/employees/drafts/${draft?.id}/files/${assignmentFile.id}${query}`
+                            : null
+                        }
+                        fields={{ fileKind: "sk_penempatan" }}
+                        organizationId={targetOrganizationId}
+                        onChange={(file) =>
+                          setFiles((current) => [
+                            ...current.filter((value) => value.category !== "assignment_decree"),
+                            ...(file ? [file] : []),
+                          ])
+                        }
+                        onError={reportError}
+                        disabled={!draft}
+                        helpText="Opsional. Gunakan dokumen PDF maksimal 10 MB."
+                        backdropMessages={WIZARD_FILE_BACKDROP_MESSAGES}
+                      />
+                    </Form.Item>
+                  </Box>
                 </Box>
-              </Box>
-            </>
-          ) : null}
-        </Form>
+              </>
+            ) : null}
+          </Form>
+        </Box>
       </AppModal>
       <ConfirmDialog
         open={discardOpen}
