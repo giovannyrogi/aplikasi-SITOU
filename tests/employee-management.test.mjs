@@ -470,6 +470,21 @@ test("penempatan baru menerima Nomor SK dan Dokumen SK yang belum tersedia", () 
   assert.equal(result.data.documentFileId, null);
 });
 
+test("service penempatan melewati validasi dokumen ketika file tidak diunggah", () => {
+  const serviceSource = readFileSync(
+    new URL("../lib/employees/service.js", import.meta.url),
+    "utf8",
+  );
+  const createAssignmentSource = serviceSource.slice(
+    serviceSource.indexOf("export async function createEmployeeAssignment"),
+    serviceSource.indexOf("export async function correctEmployeeAssignment"),
+  );
+
+  assert.match(
+    createAssignmentSource,
+    /if \(input\.documentFileId\)\s+await validateLifecycleDocument\(/,
+  );
+});
 test("koreksi penempatan menerima Nomor SK dan Dokumen SK kosong", () => {
   const result = employeeAssignmentCorrectionSchema.safeParse({
     organizationId: 1,
