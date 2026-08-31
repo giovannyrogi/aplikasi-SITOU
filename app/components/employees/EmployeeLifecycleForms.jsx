@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import PrivatePdfUpload from "@/app/components/forms/PrivatePdfUpload";
+import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 
 /** Memilih tanggal awal aman setelah periode saat ini tanpa memundurkan tanggal ke masa lalu. */
 function resolveNextLifecycleDate(startDate, endDate) {
@@ -47,6 +48,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
   const references = useEmployeeReferences(open, employee?.organization_id, onError);
   const locationId = Form.useWatch("locationId", form);
   const [documentFile, setDocumentFile] = useState(null);
+  const [removeDocumentOpen, setRemoveDocumentOpen] = useState(false);
   const assignmentEffectiveFrom = assignment?.effective_from;
   const employeeAssignmentEffectiveFrom = employee?.assignment_effective_from;
   const minimumEffectiveDate = useMemo(
@@ -65,7 +67,8 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
   );
   useEffect(() => {
     if (open) {
-      queueMicrotask(() =>
+      queueMicrotask(() => {
+        setRemoveDocumentOpen(false);
         setDocumentFile(
           assignment?.document_file_id
             ? {
@@ -74,8 +77,8 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
                 mime_type: assignment.document_mime_type,
               }
             : null,
-        ),
-      );
+        );
+      });
       form.resetFields();
       form.setFieldsValue({
         organizationId: employee.organization_id,
@@ -97,7 +100,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
 
   /** Mengirim tanggal efektif ISO; service menutup assignment lama satu hari sebelumnya. */
   const submit = async (values) => {
-    if (!documentFile) {
+    if (!assignment && !documentFile) {
       onError("Dokumen SK penempatan wajib diunggah sebelum data disimpan.");
       return;
     }
@@ -247,7 +250,11 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
               />
             </Form.Item>
           ) : null}
-          <Form.Item name="decreeNo" label="Nomor SK" rules={[{ required: true }]}>
+          <Form.Item
+            name="decreeNo"
+            label={assignment ? "Nomor SK (opsional)" : "Nomor SK"}
+            rules={assignment ? [] : [{ required: true }]}
+          >
             <Input maxLength={100} />
           </Form.Item>
           <Form.Item name="assignmentType" label="Jenis penugasan">
@@ -261,7 +268,10 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
             />
           </Form.Item>
         </Box>
-        <Form.Item label="Dokumen SK" required>
+        <Form.Item
+          label={assignment ? "Dokumen SK penempatan (opsional)" : "Dokumen SK"}
+          required={!assignment}
+        >
           <PrivatePdfUpload
             value={documentFile}
             uploadUrl="/api/uploads"
@@ -277,11 +287,33 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
             helpText="SK penempatan, rolling, mutasi, promosi, atau demosi dalam format PDF maksimal 10 MB."
             showRemove={!assignment || documentFile?.id !== assignment.document_file_id}
           />
+          {assignment?.document_file_id && documentFile?.id === assignment.document_file_id ? (
+            <Button
+              type="link"
+              danger
+              style={{ paddingInline: 0 }}
+              onClick={() => setRemoveDocumentOpen(true)}
+            >
+              Lepas dokumen dari penempatan
+            </Button>
+          ) : null}
         </Form.Item>
         <Form.Item name="notes" label="Catatan">
           <Input.TextArea rows={3} maxLength={2000} showCount />
         </Form.Item>
       </Form>
+      <ConfirmDialog
+        open={removeDocumentOpen}
+        title="Lepas dokumen SK?"
+        message="Dokumen tidak lagi ditautkan ke penempatan setelah koreksi disimpan. Histori file tetap dipertahankan."
+        confirmText="Lepas dokumen"
+        danger
+        onClose={() => setRemoveDocumentOpen(false)}
+        onConfirm={() => {
+          setDocumentFile(null);
+          setRemoveDocumentOpen(false);
+        }}
+      />
     </AppModal>
   );
 }

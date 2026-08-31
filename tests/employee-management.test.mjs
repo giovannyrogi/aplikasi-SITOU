@@ -466,6 +466,23 @@ test("penempatan wajib memiliki nomor dan dokumen SK", () => {
   );
 });
 
+test("koreksi penempatan menerima Nomor SK dan Dokumen SK kosong", () => {
+  const result = employeeAssignmentCorrectionSchema.safeParse({
+    organizationId: 1,
+    locationId: 1,
+    organizationUnitId: 2,
+    assignmentType: "primary",
+    changeType: "correction",
+    effectiveFrom: "2026-01-01",
+    effectiveUntil: null,
+    decreeNo: "",
+    documentFileId: null,
+    version: "2026-08-29T00:00:00.000Z",
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.decreeNo, null);
+  assert.equal(result.data.documentFileId, null);
+});
 test("koreksi penempatan memakai versi, dokumen, dan periode yang valid", () => {
   const valid = employeeAssignmentCorrectionSchema.safeParse({
     organizationId: 1,
@@ -554,4 +571,22 @@ test("checkpoint draft menerima pendidikan yang belum lengkap pada step Profil",
     },
   });
   assert.equal(result.success, true);
+});
+
+test("migration dan schema awal mewajibkan periode lokasi unit eksplisit tanpa overlap", () => {
+  const schemaSql = readFileSync(new URL("../sitou_schema_v3.sql", import.meta.url), "utf8");
+  const migrationSql = readFileSync(
+    new URL(
+      "../database/migrations/20260831_021_explicit_unit_location_periods.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.doesNotMatch(
+    schemaSql,
+    /organization_unit_locations[\s\S]{0,800}active_from date NOT NULL DEFAULT current_date/,
+  );
+  assert.match(schemaSql, /CONSTRAINT ex_unit_locations_period EXCLUDE USING gist/);
+  assert.match(migrationSql, /ALTER COLUMN active_from DROP DEFAULT/);
+  assert.match(migrationSql, /ADD CONSTRAINT ex_unit_locations_period EXCLUDE USING gist/);
 });

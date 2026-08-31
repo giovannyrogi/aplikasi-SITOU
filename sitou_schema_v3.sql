@@ -177,14 +177,21 @@ CREATE TABLE organization_unit_locations (
   organization_unit_id bigint NOT NULL, -- Divisi/unit yang beroperasi di lokasi.
   location_id bigint NOT NULL, -- Cabang/lokasi tempat unit beroperasi.
   is_primary boolean NOT NULL DEFAULT false, -- Menandai lokasi utama unit.
-  active_from date NOT NULL DEFAULT current_date, -- Awal relasi berlaku.
+  active_from date NOT NULL, -- Awal relasi berlaku dan wajib ditentukan eksplisit.
   active_until date, -- Akhir relasi berlaku.
   PRIMARY KEY (organization_id,organization_unit_id,location_id,active_from),
   CONSTRAINT fk_unit_locations_unit FOREIGN KEY (organization_id,organization_unit_id) REFERENCES organization_units(organization_id,id),
   CONSTRAINT fk_unit_locations_location FOREIGN KEY (organization_id,location_id) REFERENCES locations(organization_id,id),
-  CONSTRAINT ck_unit_locations_dates CHECK (active_until IS NULL OR active_until >= active_from)
+  CONSTRAINT ck_unit_locations_dates CHECK (active_until IS NULL OR active_until >= active_from),
+  CONSTRAINT ex_unit_locations_period EXCLUDE USING gist (
+    organization_id WITH =,
+    organization_unit_id WITH =,
+    location_id WITH =,
+    daterange(active_from,COALESCE(active_until,'infinity'::date),'[]') WITH &&
+  )
 );
-COMMENT ON TABLE organization_unit_locations IS 'Relasi many-to-many agar satu cabang memiliki banyak divisi dan satu divisi dapat hadir di beberapa lokasi.';
+COMMENT ON TABLE organization_unit_locations IS 'Relasi periode many-to-many agar satu unit dapat beroperasi di beberapa lokasi tanpa menimpa histori.';
+COMMENT ON COLUMN organization_unit_locations.active_from IS 'Tanggal efektif eksplisit ketika unit mulai beroperasi pada lokasi; tidak memakai tanggal pencatatan otomatis.';
 
 CREATE TABLE positions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID master jabatan.

@@ -42,7 +42,7 @@ test("schema Divisi dan Unit hanya menerima unitTypeId", () => {
     code: "DIV_SDM",
     name: "Divisi SDM",
     unitTypeId: 9,
-    locationIds: [],
+    locations: [],
     isActive: true,
   });
   assert.equal(result.success, true);
@@ -70,4 +70,49 @@ test("jenis nonaktif hanya dapat dipertahankan pada unit yang sama", () => {
     false,
   );
   assert.equal(canAssignOrganizationUnitType({ isActive: true, typeId: 5 }), true);
+});
+
+test("schema Divisi dan Unit menerima tanggal eksplisit per lokasi", () => {
+  const result = organizationUnitCreateSchema.safeParse({
+    organizationId: 1,
+    parentUnitId: null,
+    code: "DIV_IT",
+    name: "Teknologi & Informatika",
+    unitTypeId: 9,
+    locations: [
+      { locationId: 1, activeFrom: "2020-01-01" },
+      { locationId: 2, activeFrom: "2021-06-01" },
+    ],
+    isActive: true,
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.locations[1].activeFrom, "2021-06-01");
+});
+
+test("schema Divisi dan Unit menolak payload locationIds lama dan lokasi duplikat", () => {
+  assert.equal(
+    organizationUnitCreateSchema.safeParse({
+      organizationId: 1,
+      code: "DIV_LAMA",
+      name: "Payload Lama",
+      unitTypeId: 9,
+      locationIds: [1],
+      isActive: true,
+    }).success,
+    false,
+  );
+  assert.equal(
+    organizationUnitCreateSchema.safeParse({
+      organizationId: 1,
+      code: "DIV_DUPLIKAT",
+      name: "Lokasi Duplikat",
+      unitTypeId: 9,
+      locations: [
+        { locationId: 1, activeFrom: "2020-01-01" },
+        { locationId: 1, activeFrom: "2021-01-01" },
+      ],
+      isActive: true,
+    }).success,
+    false,
+  );
 });

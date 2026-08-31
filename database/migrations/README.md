@@ -42,3 +42,5 @@ Migration `014` menambahkan profil platform, view identitas terpusat, dan versi 
 Migration `019` mewajibkan NIK 16 digit pada seluruh pegawai, menormalkan dan membatasi status perkawinan ke kode resmi, serta memperbaiki constraint checkpoint wizard agar menerima step Penempatan (`current_step=3`). Migration berhenti dengan pesan preflight bila masih ada pegawai tanpa NIK atau nilai status lama yang belum dapat dipetakan.
 
 Migration `020` menambahkan `updated_at` dan trigger versi pada `employee_assignments`. Kolom ini digunakan untuk koreksi salah input penempatan dengan optimistic concurrency dan audit tanpa menghapus histori.
+
+Migration `021` menghapus default tanggal server pada `organization_unit_locations.active_from` dan menambahkan constraint anti-overlap. Aplikasi wajib mengirim tanggal efektif eksplisit untuk setiap lokasi Divisi & Unit.

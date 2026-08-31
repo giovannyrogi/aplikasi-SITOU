@@ -67,6 +67,7 @@ const requiredConstraints = [
   "ck_employees_national_id",
   "ck_employees_marital_status",
   "ck_employee_onboarding_draft_current_step",
+  "ex_unit_locations_period",
 ];
 
 const expectedRolePermissions = {
@@ -154,15 +155,15 @@ try {
     [requiredRelations],
   );
   const columnResult = await client.query(
-    "SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public'",
+    "SELECT table_name,column_name,column_default FROM information_schema.columns WHERE table_schema='public'",
   );
   const employeeNikResult = await client.query(
     "SELECT is_nullable FROM information_schema.columns " +
       "WHERE table_schema='public' AND table_name='employees' AND column_name='national_id'",
   );
   const constraintResult = await client.query(
-    "SELECT constraint_name FROM information_schema.table_constraints " +
-      "WHERE constraint_schema='public' AND constraint_name=ANY($1::text[])",
+    "SELECT conname AS constraint_name FROM pg_constraint " +
+      "WHERE connamespace='public'::regnamespace AND conname=ANY($1::text[])",
     [requiredConstraints],
   );
   const permissionResult = await client.query(
@@ -197,8 +198,15 @@ try {
   const missingConstraints = requiredConstraints.filter(
     (constraint) => !existingConstraints.has(constraint),
   );
-  const invalidColumnDefinitions =
-    employeeNikResult.rows[0]?.is_nullable === "NO" ? [] : ["employees.national_id:NOT_NULL"];
+  const invalidColumnDefinitions = [];
+  if (employeeNikResult.rows[0]?.is_nullable !== "NO")
+    invalidColumnDefinitions.push("employees.national_id:NOT_NULL");
+  const unitLocationActiveFrom = columnResult.rows.find(
+    (row) =>
+      row.table_name === "organization_unit_locations" && row.column_name === "active_from",
+  );
+  if (unitLocationActiveFrom?.column_default != null)
+    invalidColumnDefinitions.push("organization_unit_locations.active_from:NO_DEFAULT");
   const missingPermissions = Object.entries(expectedRolePermissions).flatMap(
     ([roleCode, permissionCodes]) =>
       permissionCodes
