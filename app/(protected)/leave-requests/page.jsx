@@ -63,7 +63,7 @@ export default function LeaveRequestsPage() {
     },
   });
   const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
-  const [references, setReferences] = useState({ organizationUnits: [] });
+  const [references, setReferences] = useState({ locations: [], organizationUnits: [] });
   const [formOpen, setFormOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const [cancel, setCancel] = useState(null);
@@ -89,7 +89,7 @@ export default function LeaveRequestsPage() {
   }, []);
   useEffect(() => {
     if (!organizationId) {
-      Promise.resolve().then(() => setReferences({ organizationUnits: [] }));
+      Promise.resolve().then(() => setReferences({ locations: [], organizationUnits: [] }));
       return;
     }
     const controller = new AbortController();
@@ -98,7 +98,10 @@ export default function LeaveRequestsPage() {
     })
       .then(readApiResponse)
       .then((body) => {
-        setReferences({ organizationUnits: body.data?.organizationUnits || [] });
+        setReferences({
+          locations: body.data?.locations || [],
+          organizationUnits: body.data?.organizationUnits || [],
+        });
       })
       .catch((error) => {
         if (error.name !== "AbortError") showNotification(error.message, "error");
@@ -187,6 +190,7 @@ export default function LeaveRequestsPage() {
           allowClear
           placeholder="Semua lokasi"
           organizationId={organizationId}
+          options={references.locations}
           value={list.filters.locationId}
           onChange={(value) => update("locationId", value)}
         />

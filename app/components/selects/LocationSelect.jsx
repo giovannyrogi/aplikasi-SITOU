@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import AsyncSelect from "../forms/AsyncSelect";
 
-export default function LocationSelect({ organizationId, ...props }) {
+export default function LocationSelect({ organizationId, options: suppliedOptions, ...props }) {
   const [state, setState] = useState({ loading: false, options: [] });
   useEffect(() => {
-    if (!organizationId) return undefined;
+    if (!organizationId || suppliedOptions) return undefined;
     let active = true;
     Promise.resolve()
       .then(() => active && setState((state) => ({ ...state, loading: true })))
@@ -26,13 +26,19 @@ export default function LocationSelect({ organizationId, ...props }) {
     return () => {
       active = false;
     };
-  }, [organizationId]);
+  }, [organizationId, suppliedOptions]);
+  const options = suppliedOptions
+    ? suppliedOptions.map((item) => ({
+        value: item.value || item.id,
+        label: item.label || `${item.code} - ${item.name}`,
+      }))
+    : state.options;
   return (
     <AsyncSelect
       disabled={!organizationId}
       placeholder={organizationId ? "Pilih lokasi" : "Pilih organisasi lebih dahulu"}
-      loading={organizationId ? state.loading : false}
-      options={organizationId ? state.options : []}
+      loading={organizationId && !suppliedOptions ? state.loading : false}
+      options={organizationId ? options : []}
       {...props}
     />
   );

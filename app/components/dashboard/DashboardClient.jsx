@@ -4,7 +4,7 @@ import { readApiResponse } from "@/lib/api/clientError";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@iconify/react";
-import { Alert, DatePicker } from "antd";
+import { DatePicker } from "antd";
 import dayjs from "dayjs";
 import { Box, Button, Paper, useTheme } from "@mui/material";
 import { ROLES } from "@/app/constants/roles";
@@ -403,15 +403,6 @@ export default function DashboardClient() {
             />
             <DashboardActivityList items={state.data?.activities} loading={state.loading} />
           </Box>
-
-          {state.data?.role === ROLES.LEADER ? (
-            <Alert
-              type="info"
-              showIcon
-              title="Dashboard Pimpinan bersifat hanya-baca"
-              description="Data tindakan disiplin berstatus draft tidak disertakan dalam ringkasan ini."
-            />
-          ) : null}
         </>
       )}
     </Box>

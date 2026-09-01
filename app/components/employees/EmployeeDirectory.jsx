@@ -49,12 +49,18 @@ export default function EmployeeDirectory() {
   const [form, setForm] = useState({ open: false, item: null });
   const [terminationEmployee, setTerminationEmployee] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [references, setReferences] = useState({ organizationUnits: [], positions: [] });
+  const [references, setReferences] = useState({
+    locations: [],
+    organizationUnits: [],
+    positions: [],
+  });
   const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
 
   useEffect(() => {
     if (!organizationId) {
-      Promise.resolve().then(() => setReferences({ organizationUnits: [], positions: [] }));
+      Promise.resolve().then(() =>
+        setReferences({ locations: [], organizationUnits: [], positions: [] }),
+      );
       return;
     }
     const controller = new AbortController();
@@ -64,6 +70,7 @@ export default function EmployeeDirectory() {
       .then(readApiResponse)
       .then((body) =>
         setReferences({
+          locations: body.data?.locations || [],
           organizationUnits: body.data?.organizationUnits || [],
           positions: body.data?.positions || [],
         }),
@@ -124,6 +131,7 @@ export default function EmployeeDirectory() {
           allowClear
           placeholder="Semua lokasi"
           organizationId={organizationId}
+          options={references.locations}
           value={list.filters.locationId}
           onChange={(value) => updateFilter("locationId", value)}
         />

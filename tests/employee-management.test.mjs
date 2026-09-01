@@ -506,12 +506,18 @@ test("direktori pegawai memakai section filter operasional", () => {
     new URL("../app/components/employees/EmployeeDirectory.jsx", import.meta.url),
     "utf8",
   );
+  const locationSelect = readFileSync(
+    new URL("../app/components/selects/LocationSelect.jsx", import.meta.url),
+    "utf8",
+  );
   assert.match(source, /<OperationalFilterSection/);
   assert.match(source, /label: "Cari pegawai"/);
   assert.match(source, /label: "Lokasi"/);
   assert.match(source, /label: "Divisi & Unit"/);
   assert.match(source, /label: "Jabatan"/);
   assert.match(source, /label: "Status pegawai"/);
+  assert.match(source, /options=\{references\.locations\}/);
+  assert.match(locationSelect, /if \(!organizationId \|\| suppliedOptions\) return undefined/);
   assert.doesNotMatch(source, /<DataToolbar/);
 });
 test("service menolak koreksi penempatan historis dengan kode stabil", () => {
