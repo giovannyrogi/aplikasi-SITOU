@@ -510,6 +510,10 @@ test("direktori pegawai memakai section filter operasional", () => {
     new URL("../app/components/selects/LocationSelect.jsx", import.meta.url),
     "utf8",
   );
+  const rowActionMenu = readFileSync(
+    new URL("../app/components/actions/RowActionMenu.jsx", import.meta.url),
+    "utf8",
+  );
   assert.match(source, /<OperationalFilterSection/);
   assert.match(source, /label: "Cari pegawai"/);
   assert.match(source, /label: "Lokasi"/);
@@ -518,6 +522,9 @@ test("direktori pegawai memakai section filter operasional", () => {
   assert.match(source, /label: "Status pegawai"/);
   assert.match(source, /options=\{references\.locations\}/);
   assert.match(locationSelect, /if \(!organizationId \|\| suppliedOptions\) return undefined/);
+  assert.match(rowActionMenu, /MenuOutlined/);
+  assert.match(rowActionMenu, /aria-label="Buka menu aksi"/);
+  assert.doesNotMatch(rowActionMenu, /MoreOutlined/);
   assert.doesNotMatch(source, /<DataToolbar/);
 });
 test("service menolak koreksi penempatan historis dengan kode stabil", () => {
