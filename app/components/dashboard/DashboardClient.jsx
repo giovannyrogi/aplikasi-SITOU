@@ -339,13 +339,13 @@ export default function DashboardClient() {
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "repeat(2, minmax(0, 1fr))",
-                lg: "repeat(5, minmax(0, 1fr))",
+                md: "repeat(3, minmax(0, 1fr))",
               },
               gap: { xs: 1.5, md: 2 },
             }}
           >
             {(state.loading
-              ? Array.from({ length: 5 }, (_, index) => ({ key: index }))
+              ? Array.from({ length: 6 }, (_, index) => ({ key: index }))
               : state.data?.metrics || []
             ).map((metric) => (
               <DashboardMetric key={metric.key} metric={metric} loading={state.loading} />

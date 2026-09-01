@@ -134,7 +134,7 @@ test("nilai boolean hasil normalisasi diterima oleh validator pilihan", () => {
 });
 
 test("pilihan import pegawai baru tidak menawarkan status final atau identitas yang tidak ada di form", () => {
-  assert.deepEqual(IMPORT_ENUMS.employmentStatus, ["active", "probation", "leave", "suspended"]);
+  assert.deepEqual(IMPORT_ENUMS.employmentStatus, ["active", "probation", "suspended"]);
   assert.deepEqual(IMPORT_ENUMS.identifierType, [
     "family_card",
     "bpjs_health",

@@ -19,6 +19,7 @@ import {
   employeeContractCancellationSchema,
   employeeContractCorrectionSchema,
   employeeDraftSaveSchema,
+  employeeListFilterSchema,
 } from "../lib/employees/schemas.js";
 import { normalizeMaritalStatus } from "../lib/employees/profileOptions.js";
 import {
@@ -484,6 +485,34 @@ test("service penempatan melewati validasi dokumen ketika file tidak diunggah", 
     createAssignmentSource,
     /if \(input\.documentFileId\)\s+await validateLifecycleDocument\(/,
   );
+});
+
+test("filter daftar pegawai menerima setiap status hubungan kerja resmi", () => {
+  for (const employmentStatus of [
+    "all",
+    "active",
+    "probation",
+    "suspended",
+    "terminated",
+    "retired",
+    "deceased",
+  ])
+    assert.equal(employeeListFilterSchema.safeParse({ employmentStatus }).success, true);
+  assert.equal(employeeListFilterSchema.safeParse({ employmentStatus: "leave" }).success, false);
+});
+
+test("direktori pegawai memakai section filter operasional", () => {
+  const source = readFileSync(
+    new URL("../app/components/employees/EmployeeDirectory.jsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /<OperationalFilterSection/);
+  assert.match(source, /label: "Cari pegawai"/);
+  assert.match(source, /label: "Lokasi"/);
+  assert.match(source, /label: "Divisi & Unit"/);
+  assert.match(source, /label: "Jabatan"/);
+  assert.match(source, /label: "Status pegawai"/);
+  assert.doesNotMatch(source, /<DataToolbar/);
 });
 test("service menolak koreksi penempatan historis dengan kode stabil", () => {
   const serviceSource = readFileSync(

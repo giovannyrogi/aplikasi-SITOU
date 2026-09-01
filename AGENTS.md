@@ -224,6 +224,9 @@ Dashboard dan laporan rutin membaca rekap, bukan menghitung jutaan event setiap 
 - Request tidak boleh menjadi approved jika lampiran wajib belum ada dan valid.
 - Overlap izin, saldo, tanggal kontrak, hari libur, dan status pegawai harus divalidasi server.
 - Keputusan, pembatalan, dan perubahan lampiran diaudit.
+- `employees.employment_status` tidak boleh memakai nilai `leave`; cuti dan izin sementara hanya berasal dari `leave_requests` yang disetujui. Form profil, import, dashboard, dan login wajib mengikuti pemisahan ini.
+- Saldo cuti berasal dari penjumlahan `leave_balance_transactions`. Dilarang menimpa angka saldo langsung atau menghapus transaksi ledger.
+- Pencatatan approved tidak dapat diedit. Koreksi dilakukan melalui pembatalan beralasan yang mengembalikan saldo tepat satu kali, lalu membuat pencatatan baru bila diperlukan.
 
 ## 13. Disiplin berdasarkan Peraturan Perusahaan
 
@@ -409,6 +412,7 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 ## 21. UI/UX
 
 - Seluruh antarmuka Bahasa Indonesia dan dapat dipahami pengguna nonteknis.
+- Label, judul, tombol, bantuan, dan pesan validasi wajib menyebut isi atau tindakan dengan bahasa kerja yang langsung dipahami pengguna, sesuai fungsi kontrolnya. Hindari istilah struktur data atau label abstrak seperti "Nama jenis", "Jenis aktif", dan kode teknis ketika pengguna sebenarnya diminta memberi nama pilihan atau menentukan apakah pilihan tersebut tersedia. Gunakan pola yang konsisten, misalnya "Nama cuti atau izin", "Kelompok", "Kurangi jatah pegawai", dan "Tersedia untuk digunakan". Istilah teknis tetap boleh dipakai pada schema, kode program, dan dokumentasi pengembang, tetapi tidak ditampilkan sebagai beban input pengguna.
 - Locale tanggal dan waktu wajib dipasang terpusat melalui `app/components/approvider/AppProviders.jsx`. Seluruh DatePicker/Calendar AntD memakai locale `id_ID` dan Day.js locale `id`, sedangkan MUI date picker memakai adapter locale `id`; dilarang mengatur nama bulan, hari, placeholder, atau tombol kalender per halaman secara manual.
 - Seluruh field tanggal, bulan, dan tahun pada form wajib memakai date picker dengan mode yang sesuai dari library UI yang sudah terpasang, bukan `Input` teks atau input angka manual. Gunakan date picker standar untuk tanggal, month picker untuk bulan, dan year picker untuk tahun. Nilai form menggunakan objek tanggal adapter dan hanya dinormalisasi ke format kontrak API pada batas request.
 - Sebelum membuat komponen UI baru, periksa `app/components` dan gunakan komponen reusable yang sudah ada untuk fungsi/kebutuhan yang sama. Perluas API komponen yang ada bila masih dalam tanggung jawab yang sama; jangan membuat duplikat hanya karena dipakai pada halaman berbeda.

@@ -17,6 +17,10 @@ const requiredRelations = [
   "employee_import_rows",
   "employee_onboarding_drafts",
   "platform_user_profiles",
+  "leave_types",
+  "leave_requests",
+  "leave_entitlements",
+  "leave_balance_transactions",
   "v_user_identity",
 ];
 
@@ -44,6 +48,10 @@ const requiredColumns = [
   ["disciplinary_actions", "revoked_at"],
   ["disciplinary_actions", "revoked_by_user_id"],
   ["disciplinary_actions", "revocation_reason"],
+  ["leave_types", "updated_at"],
+  ["leave_requests", "cancelled_at"],
+  ["leave_requests", "cancelled_by_user_id"],
+  ["leave_requests", "cancellation_reason"],
 ];
 
 const forbiddenColumns = [
@@ -68,6 +76,10 @@ const requiredConstraints = [
   "ck_employees_marital_status",
   "ck_employee_onboarding_draft_current_step",
   "ex_unit_locations_period",
+  "ck_employees_employment_status",
+  "ck_stored_files_category",
+  "ck_leave_requests_cancellation",
+  "ck_leave_decisions_role",
 ];
 
 const expectedRolePermissions = {
@@ -87,6 +99,11 @@ const expectedRolePermissions = {
     "accounts.manage",
     "employee_import.read",
     "employee_import.manage",
+    "leave_types.read",
+    "leave_types.manage",
+    "leave_requests.read",
+    "leave_requests.manage",
+    "leave_balances.manage",
     "private_files.read",
     "private_files.read_sensitive",
     "private_files.manage",
@@ -109,6 +126,11 @@ const expectedRolePermissions = {
     "accounts.manage",
     "employee_import.read",
     "employee_import.manage",
+    "leave_types.read",
+    "leave_types.manage",
+    "leave_requests.read",
+    "leave_requests.manage",
+    "leave_balances.manage",
     "private_files.read",
     "private_files.read_sensitive",
     "private_files.manage",
@@ -121,6 +143,8 @@ const expectedRolePermissions = {
     "assignments.read",
     "contracts.read",
     "discipline.read",
+    "leave_types.read",
+    "leave_requests.read",
     "private_files.read",
     "private_files.read_sensitive",
     "profile_self.read",
@@ -155,11 +179,14 @@ try {
     [requiredRelations],
   );
   const columnResult = await client.query(
-    "SELECT table_name,column_name,column_default FROM information_schema.columns WHERE table_schema='public'",
+    "SELECT table_name,column_name,column_default,data_type FROM information_schema.columns WHERE table_schema='public'",
   );
   const employeeNikResult = await client.query(
     "SELECT is_nullable FROM information_schema.columns " +
       "WHERE table_schema='public' AND table_name='employees' AND column_name='national_id'",
+  );
+  const legacyLeaveStatusResult = await client.query(
+    "SELECT count(*)::int AS total FROM employees WHERE employment_status='leave'",
   );
   const constraintResult = await client.query(
     "SELECT conname AS constraint_name FROM pg_constraint " +
@@ -201,12 +228,25 @@ try {
   const invalidColumnDefinitions = [];
   if (employeeNikResult.rows[0]?.is_nullable !== "NO")
     invalidColumnDefinitions.push("employees.national_id:NOT_NULL");
+  if (legacyLeaveStatusResult.rows[0]?.total > 0)
+    invalidColumnDefinitions.push("employees.employment_status:NO_LEAVE");
   const unitLocationActiveFrom = columnResult.rows.find(
     (row) =>
       row.table_name === "organization_unit_locations" && row.column_name === "active_from",
   );
   if (unitLocationActiveFrom?.column_default != null)
     invalidColumnDefinitions.push("organization_unit_locations.active_from:NO_DEFAULT");
+  for (const [tableName, columnName] of [
+    ["leave_types", "annual_allowance"],
+    ["leave_requests", "requested_units"],
+    ["leave_balance_transactions", "units"],
+  ]) {
+    const column = columnResult.rows.find(
+      (row) => row.table_name === tableName && row.column_name === columnName,
+    );
+    if (column?.data_type !== "integer")
+      invalidColumnDefinitions.push(`${tableName}.${columnName}:INTEGER`);
+  }
   const missingPermissions = Object.entries(expectedRolePermissions).flatMap(
     ([roleCode, permissionCodes]) =>
       permissionCodes

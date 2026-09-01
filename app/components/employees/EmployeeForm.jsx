@@ -1057,7 +1057,6 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                     options={[
                       { value: "active", label: "Aktif" },
                       { value: "probation", label: "Masa percobaan" },
-                      { value: "leave", label: "Cuti" },
                       { value: "suspended", label: "Ditangguhkan" },
                     ]}
                   />

@@ -10,14 +10,14 @@ Import tidak memproses akun login, foto, dokumen, kasus disiplin, tindakan sanks
 
 ## Sheet Wajib dan Opsional
 
-| Sheet                                       | Status          | Penggunaan                                                                                                                                                          |
-| ------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Pegawai`                                   | Wajib           | Selalu diisi satu baris per pegawai. NIP, nama lengkap, NIK 16 digit, dan status wajib tersedia.                                                                    |
-| `Kontrak`                                   | Wajib bersyarat | Wajib untuk pegawai berstatus aktif, masa percobaan, atau cuti (`active`, `probation`, atau `leave`); dapat memuat histori kontrak yang periodenya tidak bertumpuk. |
-| `Penempatan`                                | Wajib bersyarat | Wajib untuk pegawai berstatus aktif, masa percobaan, atau cuti (`active`, `probation`, atau `leave`); dapat memuat histori rolling, promosi, demosi, atau mutasi.   |
-| `Kontak`, `Identitas`, `Rekening`           | Opsional        | Diisi bila data administratif tersebut tersedia.                                                                                                                    |
-| `Keluarga`, `Kontak_Darurat`, `Akun_Sosial` | Opsional        | Diisi sesuai kebutuhan profil pegawai.                                                                                                                              |
-| `Pendidikan`, `Keahlian`, `Sertifikasi`     | Opsional        | Diisi untuk melengkapi kompetensi dan riwayat pegawai; file sertifikat tetap diunggah manual.                                                                       |
+| Sheet                                       | Status          | Penggunaan                                                                                                                                         |
+| ------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Pegawai`                                   | Wajib           | Selalu diisi satu baris per pegawai. NIP, nama lengkap, NIK 16 digit, dan status wajib tersedia.                                                   |
+| `Kontrak`                                   | Wajib bersyarat | Wajib untuk pegawai berstatus aktif atau masa percobaan (`active` atau `probation`); dapat memuat histori kontrak yang periodenya tidak bertumpuk. |
+| `Penempatan`                                | Wajib bersyarat | Wajib untuk pegawai berstatus aktif atau masa percobaan (`active` atau `probation`); dapat memuat histori rolling, promosi, demosi, atau mutasi.   |
+| `Kontak`, `Identitas`, `Rekening`           | Opsional        | Diisi bila data administratif tersebut tersedia.                                                                                                   |
+| `Keluarga`, `Kontak_Darurat`, `Akun_Sosial` | Opsional        | Diisi sesuai kebutuhan profil pegawai.                                                                                                             |
+| `Pendidikan`, `Keahlian`, `Sertifikasi`     | Opsional        | Diisi untuk melengkapi kompetensi dan riwayat pegawai; file sertifikat tetap diunggah manual.                                                      |
 
 Sheet opsional yang tidak diperlukan boleh dibiarkan kosong dan tidak menghalangi proses import. Seluruh petunjuk workbook dan modal bersumber dari definisi yang sama agar status pengisian tetap konsisten.
 

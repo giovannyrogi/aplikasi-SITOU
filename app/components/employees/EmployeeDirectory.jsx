@@ -1,30 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "antd";
+import { useEffect, useState } from "react";
+import { Button, Input, Select } from "antd";
 import {
   EditOutlined,
   EyeOutlined,
   ImportOutlined,
   PlusOutlined,
+  SearchOutlined,
   UserDeleteOutlined,
 } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import DataToolbar from "@/app/components/filters/DataToolbar";
+import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import Notification from "@/app/components/Notifications/Notification";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
+import LocationSelect from "@/app/components/selects/LocationSelect";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { ROLES } from "@/app/constants/roles";
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
+import { readApiResponse } from "@/lib/api/clientError";
 import EmployeeForm from "./EmployeeForm";
 import EmployeeImportModal from "./EmployeeImportModal";
 import EmployeeTerminationForm from "./EmployeeTerminationForm";
@@ -39,13 +42,150 @@ export default function EmployeeDirectory() {
   const readOnly = user.role_code === ROLES.LEADER;
   const list = useDataList("/api/employees", {
     requiredFilter: isSuperadmin ? "organizationId" : undefined,
+    initialFilters: !isSuperadmin ? { organizationId: String(user.organization_id) } : {},
   });
   const { startNavigationLoading } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
   const [form, setForm] = useState({ open: false, item: null });
   const [terminationEmployee, setTerminationEmployee] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [references, setReferences] = useState({ organizationUnits: [], positions: [] });
   const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
+
+  useEffect(() => {
+    if (!organizationId) {
+      Promise.resolve().then(() => setReferences({ organizationUnits: [], positions: [] }));
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/employees/reference-options?organizationId=${organizationId}`, {
+      signal: controller.signal,
+    })
+      .then(readApiResponse)
+      .then((body) =>
+        setReferences({
+          organizationUnits: body.data?.organizationUnits || [],
+          positions: body.data?.positions || [],
+        }),
+      )
+      .catch((error) => {
+        if (error.name !== "AbortError") showNotification(error.message, "error");
+      });
+    return () => controller.abort();
+  }, [organizationId, showNotification]);
+
+  const updateFilter = (key, value) =>
+    list.updateFilters({ ...list.filters, [key]: value || undefined });
+  const resetFilters = () => {
+    list.setSearch("");
+    list.updateFilters(
+      isSuperadmin ? { organizationId } : { organizationId: String(user.organization_id) },
+    );
+  };
+  const filterItems = [
+    ...(isSuperadmin
+      ? [
+          {
+            key: "organizationId",
+            label: "Organisasi",
+            gridColumn: { xs: "auto", xl: "1 / -1" },
+            control: (
+              <OrganizationSelect
+                autoSelectFirst
+                value={organizationId}
+                onChange={(value) => {
+                  list.setSearch("");
+                  list.updateFilters({ organizationId: value });
+                }}
+              />
+            ),
+          },
+        ]
+      : []),
+    {
+      key: "search",
+      label: "Cari pegawai",
+      control: (
+        <Input
+          allowClear
+          prefix={<SearchOutlined />}
+          placeholder="Nama atau NIP"
+          value={list.search}
+          onChange={(event) => list.setSearch(event.target.value)}
+          aria-label="Cari pegawai berdasarkan nama atau NIP"
+        />
+      ),
+    },
+    {
+      key: "locationId",
+      label: "Lokasi",
+      control: (
+        <LocationSelect
+          allowClear
+          placeholder="Semua lokasi"
+          organizationId={organizationId}
+          value={list.filters.locationId}
+          onChange={(value) => updateFilter("locationId", value)}
+        />
+      ),
+    },
+    {
+      key: "organizationUnitId",
+      label: "Divisi & Unit",
+      control: (
+        <Select
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder="Semua Divisi & Unit"
+          value={list.filters.organizationUnitId}
+          onChange={(value) => updateFilter("organizationUnitId", value)}
+          options={references.organizationUnits.map((item) => ({
+            value: item.id,
+            label: item.name,
+          }))}
+        />
+      ),
+    },
+    {
+      key: "positionId",
+      label: "Jabatan",
+      control: (
+        <Select
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder="Semua jabatan"
+          value={list.filters.positionId}
+          onChange={(value) => updateFilter("positionId", value)}
+          options={references.positions.map((item) => ({
+            value: item.id,
+            label: item.name,
+          }))}
+        />
+      ),
+    },
+    {
+      key: "employmentStatus",
+      label: "Status pegawai",
+      control: (
+        <Select
+          value={list.filters.employmentStatus || "all"}
+          onChange={(value) => updateFilter("employmentStatus", value)}
+          options={[
+            { value: "all", label: "Semua status" },
+            { value: "active", label: "Aktif" },
+            { value: "probation", label: "Masa percobaan" },
+            { value: "suspended", label: "Ditangguhkan" },
+            { value: "terminated", label: "Diberhentikan" },
+            { value: "retired", label: "Pensiun" },
+            { value: "deceased", label: "Meninggal dunia" },
+          ]}
+          style={{ width: "100%" }}
+        />
+      ),
+    },
+  ];
 
   /** Membuka tab detail tertentu dan mempertahankan organisasi pilihan Superadmin. */
   const openDetail = (item, tab = "summary") => {
@@ -198,31 +338,15 @@ export default function EmployeeDirectory() {
           ) : null
         }
       />
+      <OperationalFilterSection
+        title="Filter data pegawai"
+        description="Cari pegawai atau persempit daftar berdasarkan penempatan dan status hubungan kerja."
+        items={filterItems}
+        onReset={resetFilters}
+      />
       <DataPanel
         title="Daftar data pegawai"
-        description="Cari pegawai, periksa status aktif, lalu buka detail untuk melihat histori lengkap."
-        toolbar={
-          <DataToolbar
-            embedded
-            search={list.search}
-            onSearchChange={list.setSearch}
-            status={list.status}
-            onStatusChange={list.setStatus}
-            onRefresh={list.refresh}
-            filters={
-              isSuperadmin ? (
-                <OrganizationSelect
-                  allowClear
-                  autoSelectFirst
-                  value={organizationId}
-                  onChange={(value) =>
-                    list.updateFilters({ ...list.filters, organizationId: value })
-                  }
-                />
-              ) : null
-            }
-          />
-        }
+        description="Hasil mengikuti pencarian dan filter yang dipilih di atas."
       >
         <ResponsiveDataView
           data={list.data}
@@ -236,7 +360,7 @@ export default function EmployeeDirectory() {
           emptyDescription={
             isSuperadmin && !organizationId
               ? "Pilih organisasi untuk menampilkan data pegawai."
-              : "Belum ada data pegawai."
+              : "Tidak ada data pegawai yang sesuai dengan filter yang dipilih."
           }
         />
       </DataPanel>

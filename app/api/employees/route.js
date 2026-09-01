@@ -25,6 +25,7 @@ export async function GET(request) {
       organizationUnitId: url.searchParams.get("organizationUnitId") || null,
       positionId: url.searchParams.get("positionId") || null,
       employmentTypeId: url.searchParams.get("employmentTypeId") || null,
+      employmentStatus: url.searchParams.get("employmentStatus") || "all",
       sanction: url.searchParams.get("sanction") || "all",
     });
     if (!filters.success)

@@ -42,6 +42,10 @@ export const PROTECTED_ROUTES = [
     roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
   },
   {
+    path: "/leave-requests",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
+  },
+  {
     path: "/access",
     roles: [ROLES.SUPERADMIN, ROLES.HRD],
   },

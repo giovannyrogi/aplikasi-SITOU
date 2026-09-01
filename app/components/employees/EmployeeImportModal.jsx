@@ -273,7 +273,7 @@ export default function EmployeeImportModal({
                       {[
                         "Isi sheet Pegawai terlebih dahulu. Satu baris hanya untuk satu pegawai baru.",
                         "Gunakan NIP yang sama pada seluruh sheet yang berkaitan dengan pegawai tersebut.",
-                        "Untuk pegawai berstatus aktif, masa percobaan, atau cuti (active, probation, atau leave), isi minimal satu kontrak yang berlaku dan satu penempatan utama yang berlaku.",
+                        "Untuk pegawai berstatus aktif atau masa percobaan (active atau probation), isi minimal satu kontrak yang berlaku dan satu penempatan utama yang berlaku.",
                         "Ambil kode lokasi, Divisi & Unit, jabatan, dan jenis kepegawaian dari sheet Referensi. Jangan mengetik nama sebagai pengganti kode.",
                         "Gunakan format tanggal YYYY-MM-DD dan gunakan YA atau TIDAK pada kolom pilihan.",
                         "Hapus semua baris CONTOH-001 dari setiap sheet sebelum file diunggah.",

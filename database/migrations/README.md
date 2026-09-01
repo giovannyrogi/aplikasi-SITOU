@@ -44,3 +44,9 @@ Migration `019` mewajibkan NIK 16 digit pada seluruh pegawai, menormalkan dan me
 Migration `020` menambahkan `updated_at` dan trigger versi pada `employee_assignments`. Kolom ini digunakan untuk koreksi salah input penempatan dengan optimistic concurrency dan audit tanpa menghapus histori.
 
 Migration `021` menghapus default tanggal server pada `organization_unit_locations.active_from` dan menambahkan constraint anti-overlap. Aplikasi wajib mengirim tanggal efektif eksplisit untuk setiap lokasi Divisi & Unit.
+
+Migration `022` memisahkan cuti dari `employees.employment_status`, menormalkan status lama menjadi aktif dengan audit, menambahkan permission modul, lifecycle pembatalan, kategori lampiran privat, entitlement tahunan, dan ledger saldo cuti. Jalankan migration ini sebelum membuka menu Cuti & Izin.
+
+Migration `023` mengeraskan kompatibilitas data cuti lama dan mengizinkan keputusan oleh Superadmin berizin tanpa mengubah kewenangan Pimpinan. Migration ini idempotent terhadap constraint keputusan hasil migration `022`.
+
+Migration `024` mengubah jatah tahunan, durasi pencatatan, dan transaksi saldo cuti/izin menjadi bilangan bulat. Migration berhenti bila menemukan data pecahan agar saldo tidak dibulatkan secara diam-diam.

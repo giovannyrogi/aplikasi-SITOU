@@ -89,7 +89,7 @@ CREATE TABLE stored_files (
   mime_type varchar(150) NOT NULL, -- MIME type hasil validasi server.
   size_bytes bigint NOT NULL CHECK (size_bytes >= 0), -- Ukuran file untuk limit dan audit.
   sha256 char(64), -- Hash integritas dan deteksi duplikasi.
-  category varchar(40) NOT NULL CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','contract','assignment_decree','discipline_letter','identity','education','other')), -- Kelompok kegunaan file.
+  category varchar(40) NOT NULL CONSTRAINT ck_stored_files_category CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','leave_attachment','contract','assignment_decree','discipline_letter','identity','education','other')), -- Kelompok kegunaan file.
   is_confidential boolean NOT NULL DEFAULT true, -- Menandai file membutuhkan izin sensitif.
   uploaded_by_user_id bigint, -- User pengunggah; FK ditambahkan setelah tabel users.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu file diregistrasikan.
@@ -316,7 +316,7 @@ CREATE TABLE employees (
   blood_type varchar(3), -- Golongan darah.
   nationality varchar(60) NOT NULL DEFAULT 'Indonesia', -- Kewarganegaraan.
   joined_date date, -- Tanggal pertama bergabung untuk hitung masa kerja.
-  employment_status varchar(30) NOT NULL DEFAULT 'draft' CHECK (employment_status IN ('draft','active','probation','leave','suspended','terminated','retired','deceased')), -- Status pegawai saat ini.
+  employment_status varchar(30) NOT NULL DEFAULT 'draft' CONSTRAINT ck_employees_employment_status CHECK (employment_status IN ('draft','active','probation','suspended','terminated','retired','deceased')), -- Status hubungan kerja; cuti dan izin berasal dari leave_requests.
   termination_date date, -- Tanggal hubungan kerja berakhir.
   termination_reason text, -- Alasan pengakhiran.
   profile_photo_file_id bigint, -- Foto profil privat.
@@ -980,10 +980,14 @@ CREATE TABLE leave_types (
   requires_attachment boolean NOT NULL DEFAULT false, -- Lampiran wajib atau tidak.
   required_attachment_category varchar(40), -- Contoh medical_letter untuk izin sakit.
   uses_balance boolean NOT NULL DEFAULT true, -- Mengurangi saldo atau tidak.
-  annual_allowance numeric(8,2), -- Hak tahunan default.
+  annual_allowance integer, -- Hak tahunan default dalam bilangan bulat.
   is_active boolean NOT NULL DEFAULT true, -- Status master.
+  created_at timestamptz NOT NULL DEFAULT now(), -- Waktu master dibuat.
+  updated_at timestamptz NOT NULL DEFAULT now(), -- Versi optimistic concurrency.
   CONSTRAINT uq_leave_types_code UNIQUE (organization_id,code),
-  CONSTRAINT uq_leave_types_org_id UNIQUE (organization_id,id)
+  CONSTRAINT uq_leave_types_org_id UNIQUE (organization_id,id),
+  CONSTRAINT ck_leave_types_allowance CHECK (annual_allowance IS NULL OR annual_allowance >= 0),
+  CONSTRAINT ck_leave_types_attachment CHECK (NOT requires_attachment OR required_attachment_category IS NOT NULL)
 );
 COMMENT ON TABLE leave_types IS 'Master cuti/izin. Izin sakit dapat mewajibkan surat dokter.';
 
@@ -995,19 +999,26 @@ CREATE TABLE leave_requests (
   leave_type_id bigint NOT NULL, -- Jenis cuti/izin.
   start_at timestamptz NOT NULL, -- Awal izin.
   end_at timestamptz NOT NULL, -- Akhir izin.
-  requested_units numeric(8,2) NOT NULL CHECK (requested_units > 0), -- Durasi hari/jam.
+  requested_units integer NOT NULL CHECK (requested_units > 0), -- Durasi hari/jam dalam bilangan bulat.
   reason text, -- Alasan pengajuan.
   submission_source varchar(20) NOT NULL DEFAULT 'hrd_entry' CHECK (submission_source IN ('hrd_entry','employee_web','employee_mobile','import','api')), -- Kanal input sekarang dan masa depan.
   status varchar(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','submitted','approved','rejected','cancelled')), -- Status proses.
   submitted_at timestamptz, -- Waktu diajukan.
   created_by_user_id bigint NOT NULL REFERENCES users(id), -- HRD saat ini atau pegawai kelak.
+  cancelled_at timestamptz, -- Waktu pembatalan logis.
+  cancelled_by_user_id bigint REFERENCES users(id), -- HRD pembatal.
+  cancellation_reason text, -- Alasan pembatalan wajib dan diaudit.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu record dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu record diubah.
   CONSTRAINT uq_leave_request_no UNIQUE (organization_id,request_no),
   CONSTRAINT uq_leave_requests_org_id UNIQUE (organization_id,id),
   CONSTRAINT fk_leave_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id),
   CONSTRAINT fk_leave_type FOREIGN KEY (organization_id,leave_type_id) REFERENCES leave_types(organization_id,id),
-  CONSTRAINT ck_leave_dates CHECK (end_at >= start_at)
+  CONSTRAINT ck_leave_dates CHECK (end_at >= start_at),
+  CONSTRAINT ck_leave_requests_cancellation CHECK (
+    (status<>'cancelled' AND cancelled_at IS NULL AND cancelled_by_user_id IS NULL AND cancellation_reason IS NULL)
+    OR (status='cancelled' AND cancelled_at IS NOT NULL AND cancelled_by_user_id IS NOT NULL AND char_length(btrim(cancellation_reason))>=10)
+  )
 );
 COMMENT ON TABLE leave_requests IS 'Pengajuan atau input HRD atas cuti/izin; pimpinan tidak menjadi approver.';
 CREATE INDEX ix_leave_pending ON leave_requests(organization_id,status,submitted_at) WHERE status='submitted';
@@ -1031,12 +1042,51 @@ CREATE TABLE leave_decisions (
   leave_request_id bigint NOT NULL UNIQUE, -- Pengajuan yang diputus.
   decision varchar(20) NOT NULL CHECK (decision IN ('approved','rejected')), -- Hasil keputusan HRD.
   decided_by_user_id bigint NOT NULL REFERENCES users(id), -- User HRD pengambil keputusan.
-  decision_role varchar(20) NOT NULL DEFAULT 'hrd' CHECK (decision_role = 'hrd'), -- Guard bahwa approver hanya HRD.
+  decision_role varchar(20) NOT NULL DEFAULT 'hrd' CONSTRAINT ck_leave_decisions_role CHECK (decision_role IN ('hrd','superadmin')), -- Guard bahwa approver hanya HRD atau Superadmin berizin.
   notes text, -- Catatan keputusan.
   decided_at timestamptz NOT NULL DEFAULT now(), -- Waktu keputusan.
   CONSTRAINT fk_leave_decision_request FOREIGN KEY (organization_id,leave_request_id) REFERENCES leave_requests(organization_id,id) ON DELETE CASCADE
 );
 COMMENT ON TABLE leave_decisions IS 'Satu keputusan final oleh HRD; permission backend wajib memverifikasi role aktif.';
+
+CREATE TABLE leave_entitlements (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  employee_id bigint NOT NULL,
+  leave_type_id bigint NOT NULL,
+  period_start date NOT NULL,
+  period_end date NOT NULL,
+  created_by_user_id bigint NOT NULL REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT uq_leave_entitlements_org_id UNIQUE (organization_id,id),
+  CONSTRAINT uq_leave_entitlement_period UNIQUE (organization_id,employee_id,leave_type_id,period_start),
+  CONSTRAINT fk_leave_entitlement_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id),
+  CONSTRAINT fk_leave_entitlement_type FOREIGN KEY (organization_id,leave_type_id) REFERENCES leave_types(organization_id,id),
+  CONSTRAINT ck_leave_entitlement_period CHECK (period_end>=period_start)
+);
+COMMENT ON TABLE leave_entitlements IS 'Periode hak saldo cuti pegawai; nilai saldo berasal dari penjumlahan ledger.';
+
+CREATE TABLE leave_balance_transactions (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  entitlement_id bigint NOT NULL,
+  leave_request_id bigint,
+  transaction_type varchar(20) NOT NULL CHECK (transaction_type IN ('grant','carryover','adjustment','usage','restoration')),
+  units integer NOT NULL CHECK (units<>0),
+  reason text NOT NULL CHECK (char_length(btrim(reason))>=5),
+  created_by_user_id bigint NOT NULL REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT uq_leave_balance_transactions_org_id UNIQUE (organization_id,id),
+  CONSTRAINT fk_leave_balance_entitlement FOREIGN KEY (organization_id,entitlement_id) REFERENCES leave_entitlements(organization_id,id),
+  CONSTRAINT fk_leave_balance_request FOREIGN KEY (organization_id,leave_request_id) REFERENCES leave_requests(organization_id,id),
+  CONSTRAINT ck_leave_balance_direction CHECK ((transaction_type IN ('grant','carryover','restoration') AND units>0) OR transaction_type='adjustment' OR (transaction_type='usage' AND units<0))
+);
+COMMENT ON TABLE leave_balance_transactions IS 'Ledger saldo cuti append-only untuk grant, koreksi, pemakaian, dan pengembalian.';
+CREATE UNIQUE INDEX uq_leave_balance_request_usage ON leave_balance_transactions(organization_id,leave_request_id,transaction_type) WHERE leave_request_id IS NOT NULL AND transaction_type IN ('usage','restoration');
+CREATE INDEX ix_leave_entitlements_employee ON leave_entitlements(organization_id,employee_id,period_start DESC);
+CREATE INDEX ix_leave_balance_entitlement ON leave_balance_transactions(organization_id,entitlement_id,created_at,id);
+CREATE INDEX ix_leave_requests_period ON leave_requests(organization_id,start_at,end_at,status);
 
 -- ============================================================================
 -- 7. PELANGGARAN, INDIKATOR, KASUS, DAN SANKSI RESMI
@@ -1257,7 +1307,7 @@ DECLARE table_name text;
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
     'organizations','organization_subscriptions','organization_branding','locations','organization_unit_types','organization_units','positions',
-    'users','platform_user_profiles','employees','employee_contacts','employment_types','work_shifts','attendance_points','leave_requests'
+    'users','platform_user_profiles','employees','employee_contacts','employment_types','work_shifts','attendance_points','leave_types','leave_requests','leave_entitlements'
   ]
   LOOP
     EXECUTE format(
@@ -1292,6 +1342,11 @@ INSERT INTO permissions(code,description) VALUES
   ('accounts.manage','Membuat, menautkan, dan mengubah akun organisasi.'),
   ('employee_import.read','Melihat batch dan pratinjau import pegawai.'),
   ('employee_import.manage','Mengunggah, memvalidasi, dan commit import pegawai.'),
+  ('leave_types.read','Melihat master jenis cuti dan izin.'),
+  ('leave_types.manage','Membuat dan mengubah master jenis cuti dan izin.'),
+  ('leave_requests.read','Melihat pencatatan, saldo, dan histori cuti atau izin.'),
+  ('leave_requests.manage','Mencatat dan membatalkan cuti atau izin.'),
+  ('leave_balances.manage','Menyesuaikan saldo cuti pegawai.'),
   ('private_files.read','Melihat metadata file privat.'),
   ('private_files.read_sensitive','Melihat dan mengunduh file sensitif.'),
   ('private_files.manage','Mengunggah dan melakukan soft delete file privat.'),
@@ -1311,6 +1366,7 @@ WHERE role.code IN ('superadmin','hrd')
     'assignments.read','assignments.manage','contracts.read','contracts.manage',
     'discipline.read','discipline.manage','accounts.read','accounts.manage',
     'employee_import.read','employee_import.manage',
+    'leave_types.read','leave_types.manage','leave_requests.read','leave_requests.manage','leave_balances.manage',
     'private_files.read','private_files.read_sensitive','private_files.manage',
     'profile_self.read','profile_self.update'
   )
@@ -1321,7 +1377,7 @@ SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
 WHERE role.code='leader'
   AND permission.code IN (
     'employees.read','employees.read_sensitive','assignments.read','contracts.read',
-    'discipline.read','private_files.read','private_files.read_sensitive',
+    'discipline.read','leave_types.read','leave_requests.read','private_files.read','private_files.read_sensitive',
     'profile_self.read','profile_self.update'
   )
 ON CONFLICT DO NOTHING;
@@ -1356,13 +1412,14 @@ BEGIN
     'assignments.read','assignments.manage','contracts.read','contracts.manage',
     'discipline.read','discipline.manage','accounts.read','accounts.manage',
     'employee_import.read','employee_import.manage',
+    'leave_types.read','leave_types.manage','leave_requests.read','leave_requests.manage','leave_balances.manage',
     'private_files.read','private_files.read_sensitive','private_files.manage',
     'employees.read_self','assignments.read_self','contracts.read_self','private_files.read_self',
     'profile_self.read','profile_self.update'
   );
 
-  IF superadmin_permission_count<>20 OR hrd_permission_count<>20
-    OR leader_permission_count<>9 OR employee_permission_count<>6 THEN
+  IF superadmin_permission_count<>25 OR hrd_permission_count<>25
+    OR leader_permission_count<>11 OR employee_permission_count<>6 THEN
     RAISE EXCEPTION
       'Seed permission tidak lengkap: superadmin %, hrd %, leader %, employee %',
       superadmin_permission_count,hrd_permission_count,

@@ -11,6 +11,8 @@ export default function DashboardMetric({ metric, loading }) {
   const tone = theme.status[metric?.tone] || theme.status.info;
   return (
     <Paper
+      component={metric?.href ? "a" : "div"}
+      href={metric?.href || undefined}
       elevation={0}
       sx={{
         position: "relative",
@@ -22,6 +24,13 @@ export default function DashboardMetric({ metric, loading }) {
         borderRadius: "8px",
         bgcolor: theme.ui.dashboardCardBg,
         boxShadow: theme.ui.dashboardCardShadow,
+        color: "inherit",
+        textDecoration: "none",
+        cursor: metric?.href ? "pointer" : "default",
+        transition: "transform 160ms ease, box-shadow 160ms ease",
+        "&:hover": metric?.href
+          ? { transform: "translateY(-2px)", boxShadow: theme.ui.panelShadow }
+          : undefined,
       }}
     >
       {loading ? (

@@ -4,14 +4,15 @@ Periksa katalog dan folder `app/components` sebelum membuat komponen baru. Nama 
 
 ## Layout dan Filter
 
-| Komponen                         | Tujuan                                                                                                                 | Props penting                                                                              |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `layout/PageHeader`              | Paper header operasional dengan breadcrumb, identitas visual, metadata, judul, deskripsi, dan aksi utama.              | `title`, `description`, `action`, `leading`, `metadata`, `breadcrumbs`, `menuList`         |
-| `navigation/AppBreadcrumbs`      | Breadcrumb rekursif yang mengikuti route paling spesifik dari `MenuConfig` dan lifecycle loading navigasi.             | `items`, `menuList`, `fallbackLabel`                                                       |
-| `navigation/DetailTabs`          | Workspace detail dengan tab berikon, active state, konten terpadu, keyboard, dan horizontal scroll mobile.             | `items`, `activeKey`, `onChange`, `ariaLabel`                                              |
-| `filters/DataToolbar`            | Pencarian, filter status, filter tambahan, dan refresh; mode embedded dipakai di dalam `DataPanel`.                    | `search`, `onSearchChange`, `status`, `onStatusChange`, `filters`, `onRefresh`, `embedded` |
-| `navbar/ProtectedShell`          | Shell terproteksi yang menyatukan topbar, sidebar desktop, drawer mobile, subscription, sesi, loading, dan notifikasi. | `user`, `children`                                                                         |
-| `auth/AuthenticatedUserProvider` | Membagikan identitas session terverifikasi kepada halaman client tanpa request tambahan.                               | `user`, `children`; hook `useAuthenticatedUser`                                            |
+| Komponen                           | Tujuan                                                                                                                 | Props penting                                                                              |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `layout/PageHeader`                | Paper header operasional dengan breadcrumb, identitas visual, metadata, judul, deskripsi, dan aksi utama.              | `title`, `description`, `action`, `leading`, `metadata`, `breadcrumbs`, `menuList`         |
+| `navigation/AppBreadcrumbs`        | Breadcrumb rekursif yang mengikuti route paling spesifik dari `MenuConfig` dan lifecycle loading navigasi.             | `items`, `menuList`, `fallbackLabel`                                                       |
+| `navigation/DetailTabs`            | Workspace detail dengan tab berikon, active state, konten terpadu, keyboard, dan horizontal scroll mobile.             | `items`, `activeKey`, `onChange`, `ariaLabel`                                              |
+| `filters/DataToolbar`              | Pencarian, filter status, filter tambahan, dan refresh; mode embedded dipakai di dalam `DataPanel`.                    | `search`, `onSearchChange`, `status`, `onStatusChange`, `filters`, `onRefresh`, `embedded` |
+| `filters/OperationalFilterSection` | Section filter yang selalu terlihat dengan label, grid responsif, dan aksi atur ulang untuk daftar operasional.        | `title`, `description`, `items`, `onReset`                                                 |
+| `navbar/ProtectedShell`            | Shell terproteksi yang menyatukan topbar, sidebar desktop, drawer mobile, subscription, sesi, loading, dan notifikasi. | `user`, `children`                                                                         |
+| `auth/AuthenticatedUserProvider`   | Membagikan identitas session terverifikasi kepada halaman client tanpa request tambahan.                               | `user`, `children`; hook `useAuthenticatedUser`                                            |
 
 ## Data Display
 
@@ -49,6 +50,7 @@ Seluruh tanggal form memakai `DatePicker` dengan locale terpusat; komponen fitur
 | `forms/AsyncSelect`                  | Select async umum dengan loading dan empty state.                                                       | Props AntD `Select`, `loading`, `options`                                                                   |
 | `forms/OrganizationScopeField`       | Pemilih organisasi Superadmin atau organisasi session HRD yang terkunci.                                | `disabled`                                                                                                  |
 | `forms/FileUploadField`              | Dropzone umum untuk Excel, PDF, gambar, dan dokumen; gambar selalu dilihat melalui `ImagePreviewModal`. | `value`, `accept`, `maxSizeBytes`, `onSelect`, `onRemove`, `previewUrl`                                     |
+| `forms/FileUploadListField`          | Adapter koleksi file lokal yang menyusun `FileUploadField` untuk form komposit dengan banyak lampiran.  | `value`, `accept`, `maxSizeBytes`, `maxCount`, `onChange`, `onError`, `fullWidth`                           |
 | `forms/IndonesiaPhoneInput`          | Input nomor seluler Indonesia dengan prefix tetap `+62` dan nilai E.164.                                | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                                    |
 | `forms/IndonesianNationalIdInput`    | Input NIK 16 digit dengan penyaring angka, counter, dan indikator valid.                                | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                                    |
 | `forms/PrivateFileUpload`            | Adapter upload privat umum berbasis file ID untuk gambar dan dokumen, dengan backdrop global opsional.  | `value`, `uploadUrl`, `removeUrl`, `fields`, `accept`, `maxSizeBytes`, `showRemove`, `backdropMessages`     |
@@ -123,3 +125,11 @@ Histori penempatan selalu dapat dibuka melalui modal `Detail penempatan`, termas
 Data sensitif yang panjang memakai pola kartu ringkas dan `AppModal` detail. Kartu hanya membantu pemindaian daftar; uraian lengkap, pembelaan, audit, eskalasi, serta dokumen ditampilkan pada modal. Satu dokumen resmi hanya menyediakan satu aksi unduh yang tetap melewati endpoint berizin.
 
 `TopMenu` memakai tombol Pengaturan tanpa identitas pengguna pada pop-up. Aksi Profil wajib menuju `/profile` melalui lifecycle loading shell; aksi Keluar memakai alur logout terpusat.
+
+# Modul Cuti & Izin
+
+- Halaman operasional memakai `ResponsiveDataView`, filter server-side, dan state filter di URL.
+- `LeaveRequestForm` mencatat keputusan HRD langsung sebagai approved setelah konfirmasi; validasi lokal tidak membuka loading backdrop.
+- `LeaveDetailModal` menjadi tampilan yang sama untuk HRD, Superadmin, dan Pimpinan read-only.
+- Tab pegawai membaca `leave-summary`; saldo berasal dari ledger dan approved record hanya dapat dikoreksi melalui pembatalan beralasan.
+- Lampiran diunggah privat dengan jenis `lampiran_cuti`, dibatasi organisasi/pegawai, dan dibersihkan kembali bila transaksi pencatatan gagal.

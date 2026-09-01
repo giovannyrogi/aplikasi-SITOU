@@ -5,13 +5,13 @@ import { readApiResponse } from "@/lib/api/clientError";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 
-export default function useDataList(endpoint, { requiredFilter } = {}) {
+export default function useDataList(endpoint, { requiredFilter, initialFilters = {} } = {}) {
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const activeController = useRef(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("all");
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState(() => initialFilters);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
   const [state, setState] = useState({ data: [], loading: true, error: "" });
   const enabled = !requiredFilter || Boolean(filters[requiredFilter]);

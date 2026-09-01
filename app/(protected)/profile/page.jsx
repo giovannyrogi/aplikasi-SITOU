@@ -19,7 +19,6 @@ import { getIndonesianMobileFormRules } from "@/lib/validation/indonesianPhone";
 const EMPLOYMENT_STATUS_LABELS = {
   active: "Aktif",
   probation: "Masa percobaan",
-  leave: "Cuti",
   terminated: "Diberhentikan",
   resigned: "Mengundurkan diri",
   retired: "Pensiun",

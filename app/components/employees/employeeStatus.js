@@ -1,7 +1,6 @@
 export const EMPLOYEE_STATUS_PRESENTATION = Object.freeze({
   active: ["Aktif", "success"],
   probation: ["Masa percobaan", "info"],
-  leave: ["Cuti", "warning"],
   suspended: ["Ditangguhkan", "danger"],
   draft: ["Draft", "neutral"],
   terminated: ["Diberhentikan", "danger"],

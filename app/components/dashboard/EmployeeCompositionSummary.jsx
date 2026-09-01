@@ -118,8 +118,8 @@ export default function EmployeeCompositionSummary({ data, loading }) {
             Ringkasan komposisi pegawai
           </FontStyle>
           <FontStyle fontSize={11.5} sx={{ mt: 0.35, color: theme.ui.mutedText, lineHeight: 1.55 }}>
-            Snapshot kondisi pegawai aktif saat ini. Filter tanggal hanya memengaruhi data tren dan
-            aktivitas.
+            Snapshot kondisi hubungan kerja pegawai saat ini. Cuti dan izin ditampilkan sebagai
+            indikator terpisah.
           </FontStyle>
         </Box>
       </Box>
