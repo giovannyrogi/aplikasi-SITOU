@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, IconButton, Menu, MenuItem, Paper, Tooltip, useTheme } from "@mui/material";
+import { Box, Divider, IconButton, Menu, MenuItem, Paper, Tooltip, useTheme } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
@@ -23,11 +23,11 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
     "&:hover": { bgcolor: theme.ui.iconButtonHover },
   };
   const menuItemSx = {
-    minHeight: 46,
-    px: 1.25,
+    minHeight: 44,
+    px: 1,
     py: 0.75,
     gap: 1.25,
-    borderRadius: 2,
+    borderRadius: 0.75,
   };
   const closeAndRun = (action) => {
     setSettingsAnchor(null);
@@ -101,12 +101,12 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
             elevation: 0,
             sx: {
               mt: 1,
-              width: 216,
+              width: 224,
               maxWidth: "calc(100vw - 24px)",
-              p: 0.5,
+              p: 0.75,
               bgcolor: theme.ui.menuPaperBg,
               border: `1px solid ${theme.ui.panelBorder}`,
-              borderRadius: 2.5,
+              borderRadius: 1,
               boxShadow: theme.ui.panelShadow,
             },
           },
@@ -124,8 +124,8 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
           <Box
             component="span"
             sx={{
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               display: "grid",
               placeItems: "center",
               flexShrink: 0,
@@ -134,17 +134,17 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
               bgcolor: theme.ui.iconButtonBg,
             }}
           >
-            <PersonOutlineRoundedIcon sx={{ fontSize: 18 }} />
+            <PersonOutlineRoundedIcon sx={{ fontSize: 20 }} />
           </Box>
           <FontStyle component="span" fontSize={12.5} fontWeight={600}>
             Profil
           </FontStyle>
         </MenuItem>
+        <Divider sx={{ my: 0.75, mx: 0.5, borderColor: theme.ui.panelBorder }} />
         <MenuItem
           onClick={() => closeAndRun(onLogout)}
           sx={{
             ...menuItemSx,
-            mt: 0.25,
             color: theme.status.danger.text,
             "&:hover": { bgcolor: theme.status.danger.background },
           }}
@@ -152,8 +152,8 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
           <Box
             component="span"
             sx={{
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               display: "grid",
               placeItems: "center",
               flexShrink: 0,
@@ -162,7 +162,7 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
               bgcolor: theme.status.danger.background,
             }}
           >
-            <LogoutRoundedIcon sx={{ fontSize: 18 }} />
+            <LogoutRoundedIcon sx={{ fontSize: 20 }} />
           </Box>
           <FontStyle component="span" fontSize={12.5} fontWeight={600}>
             Keluar

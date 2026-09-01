@@ -514,6 +514,10 @@ test("direktori pegawai memakai section filter operasional", () => {
     new URL("../app/components/actions/RowActionMenu.jsx", import.meta.url),
     "utf8",
   );
+  const topMenu = readFileSync(
+    new URL("../app/components/navbar/TopMenu.jsx", import.meta.url),
+    "utf8",
+  );
   assert.match(source, /<OperationalFilterSection/);
   assert.match(source, /label: "Cari pegawai"/);
   assert.match(source, /label: "Lokasi"/);
@@ -524,6 +528,9 @@ test("direktori pegawai memakai section filter operasional", () => {
   assert.match(locationSelect, /if \(!organizationId \|\| suppliedOptions\) return undefined/);
   assert.match(rowActionMenu, /MenuOutlined/);
   assert.match(rowActionMenu, /aria-label="Buka menu aksi"/);
+  assert.match(rowActionMenu, /popupRender/);
+  assert.match(rowActionMenu, /type: "divider"/);
+  assert.match(topMenu, /<Divider/);
   assert.doesNotMatch(rowActionMenu, /MoreOutlined/);
   assert.doesNotMatch(source, /<DataToolbar/);
 });

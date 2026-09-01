@@ -8,7 +8,6 @@ import {
   CircularProgress,
   IconButton,
   InputAdornment,
-  Link,
   TextField,
   useTheme,
 } from "@mui/material";
@@ -348,11 +347,20 @@ export default function LoginPage() {
           }}
         >
           <Box align="center">
-            <FontStyle component="h2" fontSize={25} fontWeight={700} sx={{ lineHeight: 1.25 }}>
+            <FontStyle
+              component="h2"
+              fontSize={25}
+              fontWeight={700}
+              sx={{ lineHeight: 1.3, mb: 1 }}
+            >
               Selamat Datang
             </FontStyle>
 
-            <FontStyle fontSize={13.5} fontWeight={500} sx={{ mb: 3.8, color: theme.ui.mutedText }}>
+            <FontStyle
+              fontSize={13.5}
+              fontWeight={500}
+              sx={{ mb: { xs: 3.6, sm: 4.4 }, color: theme.ui.mutedText, lineHeight: 1.6 }}
+            >
               Masuk ke akun SITOU Anda untuk melanjutkan.
             </FontStyle>
           </Box>
@@ -362,7 +370,7 @@ export default function LoginPage() {
             htmlFor="username"
             fontSize={13}
             fontWeight={700}
-            sx={{ display: "block", mb: 0.8 }}
+            sx={{ display: "block", mb: 1 }}
           >
             Username
           </FontStyle>
@@ -388,7 +396,7 @@ export default function LoginPage() {
               },
             }}
             sx={{
-              mb: 2.1,
+              mb: { xs: 2.4, sm: 2.8 },
               "& .MuiOutlinedInput-root": {
                 height: 40,
                 borderRadius: "18px",
@@ -407,7 +415,7 @@ export default function LoginPage() {
             htmlFor="password"
             fontSize={13}
             fontWeight={700}
-            sx={{ display: "block", mb: 0.8 }}
+            sx={{ display: "block", mb: 1 }}
           >
             Password
           </FontStyle>
@@ -465,24 +473,15 @@ export default function LoginPage() {
             }}
           />
 
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 2,
-              mt: 1.2,
-              mb: 2.1,
-            }}
-          >
-            <Link
-              href="/forgot-password"
-              underline="none"
-              sx={{ color: theme.brand.primary, fontSize: 13, fontWeight: 700 }}
-            >
-              Lupa password?
-            </Link>
-          </Box>
+          {/*
+            Alur reset password belum diaktifkan. Tampilkan kembali tautan ini setelah
+            halaman dan proses verifikasi lupa password tersedia.
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1.2, mb: 2.1 }}>
+              <Link href="/forgot-password" underline="none">
+                Lupa password?
+              </Link>
+            </Box>
+          */}
 
           <Button
             type="submit"
@@ -492,6 +491,7 @@ export default function LoginPage() {
             startIcon={isLoading ? <CircularProgress size={18} color="inherit" /> : null}
             sx={{
               height: 38,
+              mt: { xs: 4.5, sm: 5 },
               borderRadius: "18px",
               bgcolor: theme.brand.primary,
               boxShadow: "none",
