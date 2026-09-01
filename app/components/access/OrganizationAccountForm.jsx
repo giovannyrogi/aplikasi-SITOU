@@ -3,15 +3,17 @@
 import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 
 import { useEffect, useState } from "react";
-import { Button, Form, Input, Radio, Select, Switch } from "antd";
+import { Button, Form, Input, Segmented, Select } from "antd";
 import { Box } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { PASSWORD_FORM_RULES } from "@/app/utils/passwordRules";
+import { ROLES } from "@/app/constants/roles";
 
-/** Form akun mendukung akun akses mandiri dan tautan profil wajib khusus Pegawai. */
+/** Form mengunci pembuatan HRD ke akun Pegawai; Superadmin tetap mengelola role organisasi. */
 export default function OrganizationAccountForm({
   open,
   item,
@@ -28,6 +30,7 @@ export default function OrganizationAccountForm({
   const roleCode = Form.useWatch("roleCode", form);
   const scopeMode = Form.useWatch("locationScopeMode", form);
   const editing = Boolean(item);
+  const isHrd = user.role_code === ROLES.HRD;
 
   useEffect(() => {
     if (!open) return;
@@ -78,10 +81,12 @@ export default function OrganizationAccountForm({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 ...values,
+                roleCode: isHrd ? ROLES.EMPLOYEE : values.roleCode,
                 locationIds:
-                  values.roleCode === "hrd" && values.locationScopeMode === "selected"
+                  !isHrd && values.roleCode === "hrd" && values.locationScopeMode === "selected"
                     ? values.locationIds
                     : [],
+                locationScopeMode: isHrd ? "all" : values.locationScopeMode,
                 ...(editing ? { version: item.updated_at } : {}),
               }),
             },
@@ -100,8 +105,14 @@ export default function OrganizationAccountForm({
   return (
     <AppModal
       open={open}
-      title={editing ? "Edit akun organisasi" : "Tambah akun organisasi"}
-      description="Buat kredensial akses; identitas bersumber dari profil pegawai yang ditautkan."
+      title={
+        editing ? "Edit akun organisasi" : isHrd ? "Tambah akun Pegawai" : "Tambah akun organisasi"
+      }
+      description={
+        isHrd
+          ? "Akun otomatis menggunakan role Pegawai dan wajib ditautkan ke profil pegawai."
+          : "Buat kredensial akses; identitas bersumber dari profil pegawai yang ditautkan."
+      }
       size="lg"
       onClose={onClose}
       footer={
@@ -121,7 +132,24 @@ export default function OrganizationAccountForm({
             gap: { sm: "0 16px" },
           }}
         >
-          <OrganizationScopeField disabled={editing} />
+          <Box sx={{ gridColumn: "1 / -1" }}>
+            <OrganizationScopeField disabled={editing} />
+          </Box>
+          {isHrd ? (
+            <Form.Item name="roleCode" hidden>
+              <Input />
+            </Form.Item>
+          ) : (
+            <Form.Item name="roleCode" label="Role" rules={[{ required: true }]}>
+              <Select
+                options={[
+                  { value: "hrd", label: "HRD" },
+                  { value: "leader", label: "Pimpinan" },
+                  { value: "employee", label: "Pegawai" },
+                ]}
+              />
+            </Form.Item>
+          )}
           <Form.Item
             name="employeeId"
             label={roleCode === "employee" ? "Profil pegawai" : "Profil pegawai (opsional)"}
@@ -150,17 +178,13 @@ export default function OrganizationAccountForm({
               }))}
             />
           </Form.Item>
-          <Form.Item name="username" label="Username" rules={[{ required: true, min: 3 }]}>
+          <Form.Item
+            name="username"
+            label="Username"
+            rules={[{ required: true, min: 3 }]}
+            style={!isHrd ? { gridColumn: "1 / -1" } : undefined}
+          >
             <Input maxLength={80} autoComplete="off" />
-          </Form.Item>
-          <Form.Item name="roleCode" label="Role" rules={[{ required: true }]}>
-            <Select
-              options={[
-                { value: "hrd", label: "HRD" },
-                { value: "leader", label: "Pimpinan" },
-                { value: "employee", label: "Pegawai" },
-              ]}
-            />
           </Form.Item>
           {!editing ? (
             <>
@@ -187,10 +211,11 @@ export default function OrganizationAccountForm({
             </>
           ) : null}
         </Box>
-        {roleCode === "hrd" ? (
+        {!isHrd && roleCode === "hrd" ? (
           <>
             <Form.Item name="locationScopeMode" label="Cakupan lokasi">
-              <Radio.Group
+              <Segmented
+                block
                 options={[
                   { value: "all", label: "Seluruh lokasi" },
                   { value: "selected", label: "Lokasi tertentu" },
@@ -216,9 +241,13 @@ export default function OrganizationAccountForm({
             ) : null}
           </>
         ) : null}
-        <Form.Item name="isActive" label="Status aktif" valuePropName="checked">
-          <Switch />
-        </Form.Item>
+        <FormSettingsGroup sx={{ mt: 1 }}>
+          <FormSettingSwitch
+            name="isActive"
+            title="Akun dapat digunakan untuk masuk"
+            description="Nonaktifkan jika akses akun perlu dihentikan tanpa menghapus data dan riwayatnya."
+          />
+        </FormSettingsGroup>
       </Form>
     </AppModal>
   );

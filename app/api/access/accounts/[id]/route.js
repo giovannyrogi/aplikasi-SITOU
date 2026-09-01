@@ -7,7 +7,7 @@ import {
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
 import { accountUpdateSchema } from "@/lib/access/schemas";
-import { getOrganizationAccount, updateOrganizationAccount } from "@/lib/access/service";
+import { getOrganizationAccountForActor, updateOrganizationAccount } from "@/lib/access/service";
 
 /** Mengambil detail akun berdasarkan organisasi efektif. */
 export async function GET(request, { params }) {
@@ -20,13 +20,13 @@ export async function GET(request, { params }) {
       user,
       new URL(request.url).searchParams.get("organizationId"),
     );
-    return successResponse(await getOrganizationAccount(id, organizationId));
+    return successResponse(await getOrganizationAccountForActor(id, organizationId, user));
   } catch (error) {
     return handleRouteError("access.accounts.detail", error, requestId);
   }
 }
 
-/** Memperbarui akun, role, profil opsional, dan scope lokasi. */
+/** Memperbarui akun; HRD hanya dapat mengubah akun Pegawai pada organisasinya. */
 export async function PATCH(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("accounts.manage");

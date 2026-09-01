@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { extname, relative, resolve } from "node:path";
 import { accountCreateSchema, accountPasswordSchema } from "../lib/access/schemas.js";
+import {
+  canManageOrganizationAccountRole,
+  normalizeAccountInputForActor,
+} from "../lib/access/accountPolicy.mjs";
 import {
   employeeProfileMultipartSchema,
   employeeProfileSectionsSchema,
@@ -33,6 +38,12 @@ import {
   applyApiFieldErrors,
   readApiResponse,
 } from "../lib/api/clientError.js";
+import { selfProfileLinkSchema } from "../lib/account/schemas.js";
+import { canLinkOwnEmployeeProfile } from "../lib/account/profilePolicy.mjs";
+import {
+  DEFAULT_MINIMUM_LOADING_MS,
+  waitForMinimumDuration,
+} from "../lib/ui/minimumDuration.mjs";
 
 const strongAccount = {
   organizationId: 1,
@@ -487,6 +498,67 @@ test("service penempatan melewati validasi dokumen ketika file tidak diunggah", 
   );
 });
 
+test("HRD selalu membuat akun Pegawai tanpa scope role istimewa", () => {
+  assert.deepEqual(
+    normalizeAccountInputForActor(
+      {
+        ...strongAccount,
+        roleCode: "hrd",
+        locationScopeMode: "selected",
+        locationIds: [10, 11],
+      },
+      "hrd",
+    ),
+    {
+      ...strongAccount,
+      roleCode: "employee",
+      locationScopeMode: "all",
+      locationIds: [],
+    },
+  );
+});
+
+test("HRD hanya dapat mengelola akun Pegawai", () => {
+  assert.equal(canManageOrganizationAccountRole("hrd", "employee"), true);
+  assert.equal(canManageOrganizationAccountRole("hrd", "hrd"), false);
+  assert.equal(canManageOrganizationAccountRole("hrd", "leader"), false);
+  assert.equal(canManageOrganizationAccountRole("superadmin", "hrd"), true);
+  assert.equal(canManageOrganizationAccountRole("superadmin", "leader"), true);
+});
+
+test("form dan service akun menerapkan batas pengelolaan HRD", () => {
+  const formSource = readFileSync(
+    new URL("../app/components/access/OrganizationAccountForm.jsx", import.meta.url),
+    "utf8",
+  );
+  const pageSource = readFileSync(
+    new URL("../app/(protected)/access/accounts/page.jsx", import.meta.url),
+    "utf8",
+  );
+  const serviceSource = readFileSync(
+    new URL("../lib/access/service.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(formSource, /isHrd \? ROLES\.EMPLOYEE : values\.roleCode/);
+  assert.match(formSource, /isHrd \? \([\s\S]*name="roleCode" hidden/);
+  assert.match(pageSource, /item\.role_code === ROLES\.EMPLOYEE/);
+  assert.match(serviceSource, /ACCOUNT_ROLE_FORBIDDEN/);
+  assert.match(serviceSource, /EMPLOYEE_PROFILE_REQUIRED/);
+  assert.match(serviceSource, /assertActorCanManageAccount\(actor, before\.role_code\)/);
+  assert.match(serviceSource, /\$5='superadmin' OR role\.code='employee'/);
+  assert.match(serviceSource, /getOrganizationAccountForActor/);
+});
+
+test("role akun default menjadi Pegawai ketika tidak dikirim", () => {
+  const result = accountCreateSchema.safeParse({
+    ...strongAccount,
+    roleCode: undefined,
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.roleCode, "employee");
+});
+
 test("filter daftar pegawai menerima setiap status hubungan kerja resmi", () => {
   for (const employmentStatus of [
     "all",
@@ -787,4 +859,99 @@ test("fieldErrors ditempelkan ke form dan field pertama diarahkan", async () => 
   assert.deepEqual(calls.fields[0].name, ["assignment", "effectiveFrom"]);
   assert.deepEqual(calls.scrolled, ["assignment", "effectiveFrom"]);
   assert.deepEqual(calls.focused, ["assignment", "effectiveFrom"]);
+});
+
+function collectAppSourceFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    return entry.isDirectory() ? collectAppSourceFiles(path) : [path];
+  });
+}
+
+test("form non-pegawai memakai komponen on/off terpusat", () => {
+  const projectRoot = resolve(import.meta.dirname, "..");
+  const appRoot = resolve(projectRoot, "app");
+  const centralComponent = "app/components/forms/FormSettingSwitch.jsx";
+  const violations = [];
+
+  for (const file of collectAppSourceFiles(appRoot)) {
+    if (![".jsx", ".tsx"].includes(extname(file))) continue;
+    const projectPath = relative(projectRoot, file).replaceAll("\\", "/");
+    if (projectPath === centralComponent || projectPath.includes("/components/employees/")) continue;
+    if (/\bSwitch\b/.test(readFileSync(file, "utf8"))) violations.push(projectPath);
+  }
+
+  assert.deepEqual(
+    violations,
+    [],
+    `Gunakan FormSettingSwitch, bukan Switch langsung: ${violations.join(", ")}`,
+  );
+});
+
+test("komponen pusat mempertahankan nilai field lanjutan saat disembunyikan", () => {
+  const source = readFileSync(
+    new URL("../app/components/forms/FormSettingSwitch.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /valuePropName="checked"/);
+  assert.match(source, /Form\.useWatch\(name, form\)/);
+  assert.doesNotMatch(source, /preserve=\{false\}/);
+  assert.match(source, /aria-describedby/);
+});
+
+test("hanya HRD dan Pimpinan dapat mengaitkan akun sendiri ke profil pegawai", () => {
+  assert.equal(canLinkOwnEmployeeProfile("hrd"), true);
+  assert.equal(canLinkOwnEmployeeProfile("leader"), true);
+  assert.equal(canLinkOwnEmployeeProfile("employee"), false);
+  assert.equal(canLinkOwnEmployeeProfile("superadmin"), false);
+});
+
+test("permintaan pengaitan profil hanya menerima ID pegawai yang valid", () => {
+  assert.equal(selfProfileLinkSchema.safeParse({ employeeId: 42 }).success, true);
+  assert.equal(selfProfileLinkSchema.safeParse({ employeeId: 0 }).success, false);
+  assert.equal(
+    selfProfileLinkSchema.safeParse({ employeeId: 42, roleCode: "hrd" }).success,
+    false,
+  );
+});
+
+test("service pengaitan profil membatasi organisasi, cakupan HRD, dan profil tanpa akun", () => {
+  const source = readFileSync(new URL("../lib/account/service.js", import.meta.url), "utf8");
+
+  assert.match(source, /assertCanLinkSelfProfile\(actor\)/);
+  assert.match(source, /employee\.organization_id=\$1/);
+  assert.match(source, /employee\.user_id IS NULL/);
+  assert.match(source, /ensureActorEmployeeAccess\(actor, input\.employeeId/);
+  assert.match(source, /action: "profile_self\.link"/);
+});
+
+test("identitas sidebar memakai nama dan jabatan hanya setelah profil pegawai terhubung", () => {
+  const source = readFileSync(
+    new URL("../app/components/navbar/SidebarContent.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /user\?\.identity_source === "employee"/);
+  assert.match(source, /user\?\.position_name/);
+  assert.match(source, /getInitials\(primaryIdentity\)/);
+});
+
+test("logout dan perubahan password menunggu backdrop minimum dua detik", async () => {
+  assert.equal(DEFAULT_MINIMUM_LOADING_MS, 2000);
+
+  const shellSource = readFileSync(
+    new URL("../app/components/navbar/ProtectedShell.jsx", import.meta.url),
+    "utf8",
+  );
+  const profileSource = readFileSync(
+    new URL("../app/(protected)/profile/page.jsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(shellSource, /Promise\.all\(\[[\s\S]*waitForMinimumDuration\(startedAt\)/);
+  assert.match(profileSource, /Password berhasil diubah\. Mengakhiri sesi/);
+  assert.match(profileSource, /waitForMinimumDuration\(startedAt\)/);
+
+  const startedAt = Date.now() - 50;
+  await waitForMinimumDuration(startedAt, 10);
 });

@@ -173,7 +173,7 @@ export default function OrganizationUnitTypesPage() {
       />
       <DataPanel
         title="Daftar jenis unit organisasi"
-        description="Jenis aktif tersedia pada form Divisi & Unit sesuai urutan tampil."
+        description="Pilihan yang tersedia muncul pada form Divisi & Unit sesuai urutan tampil."
         toolbar={
           <DataToolbar
             embedded

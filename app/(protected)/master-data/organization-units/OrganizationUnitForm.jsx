@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Col, DatePicker, Form, Input, Row, Switch, theme } from "antd";
+import { Button, Col, DatePicker, Form, Input, Row, theme } from "antd";
 import AccountTreeRoundedIcon from "@mui/icons-material/AccountTreeRounded";
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import OrganizationUnitTypeSelect from "@/app/components/selects/OrganizationUnitTypeSelect";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -407,10 +408,14 @@ export default function OrganizationUnitForm({
                 </Form.Item>
               </Col>
             ) : null}
-            <Col xs={24} sm={8}>
-              <Form.Item name="isActive" label="Status aktif" valuePropName="checked">
-                <Switch />
-              </Form.Item>
+            <Col xs={24}>
+              <FormSettingsGroup sx={{ mt: 1 }}>
+                <FormSettingSwitch
+                  name="isActive"
+                  title="Tersedia untuk digunakan pada penempatan"
+                  description="Aktifkan agar Divisi & Unit ini dapat dipilih saat membuat penempatan baru."
+                />
+              </FormSettingsGroup>
             </Col>
           </Row>
         </Form>

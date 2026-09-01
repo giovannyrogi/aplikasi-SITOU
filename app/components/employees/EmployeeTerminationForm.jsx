@@ -16,15 +16,7 @@ import {
   getTerminationStatusLabel,
   TERMINATION_STATUS_OPTIONS,
 } from "./employeeStatus";
-
-const MINIMUM_LOADING_MS = 2000;
-
-/** Menunggu sisa durasi loading visual tanpa menunda dimulainya request backend. */
-function waitForMinimumLoading(startedAt) {
-  return new Promise((resolve) =>
-    setTimeout(resolve, Math.max(0, MINIMUM_LOADING_MS - (Date.now() - startedAt))),
-  );
-}
+import { waitForMinimumDuration } from "@/lib/ui/minimumDuration.mjs";
 
 /** Memformat tanggal kalender menjadi format Indonesia untuk ringkasan konfirmasi. */
 function formatDate(value) {
@@ -99,7 +91,7 @@ export default function EmployeeTerminationForm({
             });
             return readApiResponse(response, "Hubungan kerja pegawai gagal diakhiri.");
           } finally {
-            await waitForMinimumLoading(startedAt);
+            await waitForMinimumDuration(startedAt);
           }
         },
         { message: "Mengakhiri hubungan kerja pegawai..." },

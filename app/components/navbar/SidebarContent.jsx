@@ -36,6 +36,13 @@ const isPathActive = (pathname, path) =>
 
 export default function SidebarContent({ menus, user, pathname, onNavigate, compact = false }) {
   const theme = useTheme();
+  const profileLinked = user?.identity_source === "employee";
+  const primaryIdentity = profileLinked
+    ? user?.display_name || user?.username
+    : user?.username || "Pengguna";
+  const secondaryIdentity = profileLinked
+    ? user?.position_name || "Jabatan belum ditentukan"
+    : ROLE_LABELS[user?.role_code] || user?.role_code || "-";
   const activeParent = menus.find((menu) =>
     menu.submenu?.some((submenu) => isPathActive(pathname, submenu.path)),
   );
@@ -109,11 +116,11 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
             fontWeight: 600,
           }}
         >
-          {getInitials(user?.display_name) || "U"}
+          {getInitials(primaryIdentity) || "U"}
         </Avatar>
         <Box sx={{ minWidth: 0 }}>
-          <FontStyle fontSize={12.5} fontWeight={600} noWrap title={user?.display_name || ""}>
-            {user?.display_name || user?.username || "Pengguna"}
+          <FontStyle fontSize={12.5} fontWeight={600} noWrap title={primaryIdentity || ""}>
+            {primaryIdentity}
           </FontStyle>
           <FontStyle
             fontSize={11}
@@ -121,7 +128,7 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
             noWrap
             sx={{ mt: 0.25, color: theme.palette.primary.main }}
           >
-            {ROLE_LABELS[user?.role_code] || user?.role_code || "-"}
+            {secondaryIdentity}
           </FontStyle>
         </Box>
       </Box>

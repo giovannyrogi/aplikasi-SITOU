@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button, Col, DatePicker, Divider, Form, Input, Row, Select, Switch } from "antd";
+import { Button, Col, DatePicker, Divider, Form, Input, Row, Select } from "antd";
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
@@ -148,7 +149,7 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
                 <OrganizationSelect allowClear excludeIds={item ? [item.id] : []} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={16}>
+            <Col xs={24}>
               <Form.Item name="timezone" label="Zona waktu" rules={[{ required: true }]}>
                 <Select
                   options={[
@@ -157,20 +158,6 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
                     { value: "Asia/Jayapura", label: "WIT - Asia/Jayapura" },
                   ]}
                 />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={8}>
-              <Form.Item
-                name="isActive"
-                label="Akses administratif"
-                valuePropName="checked"
-                extra={
-                  editing
-                    ? "Nonaktif memblokir seluruh akun organisasi meskipun langganan masih berlaku. Gunakan switch ini untuk mengaktifkan kembali organisasi."
-                    : "Organisasi nonaktif belum dapat digunakan setelah dibuat."
-                }
-              >
-                <Switch checkedChildren="Aktif" unCheckedChildren="Nonaktif" />
               </Form.Item>
             </Col>
             {!editing && (
@@ -208,6 +195,19 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
                 </Col>
               </>
             )}
+            <Col xs={24}>
+              <FormSettingsGroup sx={{ mt: 1 }}>
+                <FormSettingSwitch
+                  name="isActive"
+                  title="Akses organisasi diaktifkan"
+                  description={
+                    editing
+                      ? "Nonaktifkan untuk memblokir seluruh akun organisasi meskipun masa aksesnya masih berlaku."
+                      : "Aktifkan agar organisasi dan akun di dalamnya dapat digunakan setelah dibuat."
+                  }
+                />
+              </FormSettingsGroup>
+            </Col>
           </Row>
         </Form>
       </AppModal>

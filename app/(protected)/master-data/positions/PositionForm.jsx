@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button, Col, Form, Input, InputNumber, Row, Switch } from "antd";
+import { Button, Col, Form, Input, InputNumber, Row } from "antd";
 import AppModal from "@/app/components/modals/AppModal";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
@@ -129,15 +130,19 @@ export default function PositionForm({
                 <InputNumber min={1} max={32767} style={{ width: "100%" }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item name="isManagerial" label="Jabatan manajerial" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item name="isActive" label="Status aktif" valuePropName="checked">
-                <Switch />
-              </Form.Item>
+            <Col xs={24}>
+              <FormSettingsGroup sx={{ mt: 1 }}>
+                <FormSettingSwitch
+                  name="isManagerial"
+                  title="Termasuk jabatan manajerial"
+                  description="Aktifkan untuk jabatan yang memiliki tanggung jawab memimpin tim atau unit kerja."
+                />
+                <FormSettingSwitch
+                  name="isActive"
+                  title="Tersedia untuk penempatan pegawai"
+                  description="Aktifkan agar jabatan ini dapat dipilih pada penempatan baru."
+                />
+              </FormSettingsGroup>
             </Col>
           </Row>
         </Form>

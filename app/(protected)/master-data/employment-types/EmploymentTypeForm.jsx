@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button, Col, Form, Input, Row, Switch } from "antd";
+import { Button, Col, Form, Input, Row } from "antd";
 import AppModal from "@/app/components/modals/AppModal";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
@@ -114,20 +115,19 @@ export default function EmploymentTypeForm({
                 <Input placeholder="Contoh: Perjanjian Kerja Waktu Tertentu" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                name="requiresEndDate"
-                label="Wajib memiliki tanggal akhir"
-                valuePropName="checked"
-                extra="Aktifkan untuk kontrak yang harus memiliki tanggal berakhir."
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item name="isActive" label="Status aktif" valuePropName="checked">
-                <Switch />
-              </Form.Item>
+            <Col xs={24}>
+              <FormSettingsGroup sx={{ mt: 1 }}>
+                <FormSettingSwitch
+                  name="requiresEndDate"
+                  title="Kontrak harus memiliki tanggal akhir"
+                  description="Aktifkan untuk hubungan kerja yang wajib memiliki tanggal berakhir."
+                />
+                <FormSettingSwitch
+                  name="isActive"
+                  title="Tersedia saat membuat kontrak"
+                  description="Aktifkan agar jenis kepegawaian ini dapat dipilih pada kontrak baru."
+                />
+              </FormSettingsGroup>
             </Col>
           </Row>
         </Form>

@@ -11,7 +11,7 @@ import {
 import { accountCreateSchema, accountListFilterSchema } from "@/lib/access/schemas";
 import { createOrganizationAccount, listOrganizationAccounts } from "@/lib/access/service";
 
-/** Menampilkan akun HRD, Pimpinan, dan Pegawai pada organisasi efektif. */
+/** Superadmin melihat semua akun organisasi; HRD hanya menerima akun Pegawai. */
 export async function GET(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("accounts.read");
@@ -26,7 +26,12 @@ export async function GET(request) {
     if (!filters.success)
       return errorResponse("VALIDATION_ERROR", "Filter akun tidak valid.", 400, requestId);
     const organizationId = resolvePermissionOrganization(user, filters.data.organizationId);
-    const result = await listOrganizationAccounts({ ...query, ...filters.data, organizationId });
+    const result = await listOrganizationAccounts({
+      ...query,
+      ...filters.data,
+      organizationId,
+      actorRoleCode: user.role_code,
+    });
     return successResponse(result.data, {
       pagination: { page: query.page, pageSize: query.pageSize, total: result.total },
     });
@@ -35,7 +40,7 @@ export async function GET(request) {
   }
 }
 
-/** Membuat akun organisasi; profil hanya wajib untuk role Pegawai. */
+/** Membuat akun organisasi; actor HRD selalu membuat akun Pegawai yang tertaut profil. */
 export async function POST(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("accounts.manage");

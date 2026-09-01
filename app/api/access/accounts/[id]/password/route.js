@@ -9,7 +9,7 @@ import {
 import { accountPasswordSchema } from "@/lib/access/schemas";
 import { resetOrganizationAccountPassword } from "@/lib/access/service";
 
-/** Mereset password akun dengan konfirmasi dan audit tanpa menyimpan nilai polos. */
+/** Mereset password; HRD hanya dapat mereset akun Pegawai pada organisasinya. */
 export async function PATCH(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("accounts.manage");

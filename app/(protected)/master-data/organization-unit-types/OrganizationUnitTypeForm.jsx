@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button, Col, Form, Input, InputNumber, Row, Switch } from "antd";
+import { Button, Col, Form, Input, InputNumber, Row } from "antd";
 import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import AppModal from "@/app/components/modals/AppModal";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
@@ -141,19 +142,16 @@ export default function OrganizationUnitTypeForm({
                 <InputNumber min={0} max={32767} precision={0} style={{ width: "100%" }} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                name="isActive"
-                label="Status aktif"
-                valuePropName="checked"
-                extra={
-                  editing && item.is_active
-                    ? "Gunakan aksi Nonaktifkan pada daftar agar dampaknya dikonfirmasi."
-                    : null
-                }
-              >
-                <Switch disabled={editing && item.is_active} />
-              </Form.Item>
+            <Col xs={24}>
+              <FormSettingsGroup sx={{ mt: 1 }}>
+                <FormSettingSwitch
+                  name="isActive"
+                  title="Tersedia saat membuat Divisi & Unit"
+                  description="Aktifkan agar jenis unit ini dapat dipilih saat membuat struktur organisasi baru."
+                  disabled={editing && item.is_active}
+                  disabledReason="Gunakan aksi Nonaktifkan pada daftar agar dampaknya dapat diperiksa dan dikonfirmasi."
+                />
+              </FormSettingsGroup>
             </Col>
           </Row>
         </Form>

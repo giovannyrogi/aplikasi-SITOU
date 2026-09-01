@@ -13,6 +13,7 @@ import TopMenu from "./TopMenu";
 import SubscriptionBanner from "../subscription/SubscriptionBanner";
 import ExpiredSessionModal from "../modals/ExpiredSessionModal";
 import { AuthenticatedUserProvider } from "../auth/AuthenticatedUserProvider";
+import { waitForMinimumDuration } from "@/lib/ui/minimumDuration.mjs";
 
 export default function ProtectedShell({ user, children }) {
   const theme = useTheme();
@@ -62,11 +63,15 @@ export default function ProtectedShell({ user, children }) {
   };
 
   const logout = async () => {
+    const startedAt = Date.now();
     startNavigationLoading({ message: "Keluar dari SITOU..." });
 
     try {
-      const response = await fetch("/api/auth/logout", { method: "POST" });
-      if (!response.ok) throw new Error("Logout gagal");
+      const [response] = await Promise.all([
+        fetch("/api/auth/logout", { method: "POST" }).catch(() => null),
+        waitForMinimumDuration(startedAt),
+      ]);
+      if (!response?.ok) throw new Error("Logout gagal");
 
       startNavigationLoading({ message: "Membuka halaman login..." });
       router.replace("/login");

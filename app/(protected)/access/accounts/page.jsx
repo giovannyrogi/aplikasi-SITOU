@@ -34,20 +34,24 @@ export default function OrganizationAccountsPage() {
   const [passwordItem, setPasswordItem] = useState(null);
   const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
   const roleTone = { hrd: "info", leader: "warning", employee: "neutral" };
-  const actions = (item) => [
-    {
-      key: "edit",
-      icon: <EditOutlined />,
-      label: "Edit",
-      onClick: () => setForm({ open: true, item }),
-    },
-    {
-      key: "password",
-      icon: <KeyOutlined />,
-      label: "Reset password",
-      onClick: () => setPasswordItem(item),
-    },
-  ];
+  const canManage = (item) => isSuperadmin || item.role_code === ROLES.EMPLOYEE;
+  const actions = (item) =>
+    canManage(item)
+      ? [
+          {
+            key: "edit",
+            icon: <EditOutlined />,
+            label: "Edit",
+            onClick: () => setForm({ open: true, item }),
+          },
+          {
+            key: "password",
+            icon: <KeyOutlined />,
+            label: "Reset password",
+            onClick: () => setPasswordItem(item),
+          },
+        ]
+      : [];
   const columns = [
     {
       title: "Akun",
@@ -109,7 +113,8 @@ export default function OrganizationAccountsPage() {
       title: "Aksi",
       key: "action",
       width: 72,
-      render: (_, item) => <RowActionMenu items={actions(item)} />,
+      render: (_, item) =>
+        canManage(item) ? <RowActionMenu items={actions(item)} /> : <FontStyle>-</FontStyle>,
     },
   ];
   const card = (item) => (
@@ -121,7 +126,7 @@ export default function OrganizationAccountsPage() {
             @{item.username}
           </FontStyle>
         </Box>
-        <RowActionMenu items={actions(item)} />
+        {canManage(item) ? <RowActionMenu items={actions(item)} /> : null}
       </Box>
       <FontStyle fontSize={12} sx={{ mt: 1 }}>
         {item.employee_name || "Belum ditautkan ke pegawai"}
@@ -142,7 +147,11 @@ export default function OrganizationAccountsPage() {
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
         title="Akun Organisasi"
-        description="Kelola akun HRD, Pimpinan, dan Pegawai pada organisasi yang dipilih."
+        description={
+          isSuperadmin
+            ? "Kelola akun HRD, Pimpinan, dan Pegawai pada organisasi yang dipilih."
+            : "Buat dan kelola akun Pegawai yang terhubung dengan profil pegawai."
+        }
         action={
           <Button
             type="primary"
@@ -156,7 +165,11 @@ export default function OrganizationAccountsPage() {
       />
       <DataPanel
         title="Daftar akun organisasi"
-        description="Role Superadmin tidak dapat diberikan melalui menu ini."
+        description={
+          isSuperadmin
+            ? "Role Superadmin tidak dapat diberikan melalui menu ini."
+            : "Daftar hanya menampilkan akun Pegawai yang dapat Anda kelola."
+        }
         toolbar={
           <DataToolbar
             embedded

@@ -1,8 +1,9 @@
 "use client";
 import { useEffect } from "react";
-import { Button, Col, Form, Input, InputNumber, Row, Select, Switch, theme } from "antd";
+import { Button, Col, Form, Input, InputNumber, Row, Select } from "antd";
 import AppModal from "@/app/components/modals/AppModal";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -17,12 +18,9 @@ export default function LeaveTypeForm({
   onError,
 }) {
   const [form] = Form.useForm();
-  const { token } = theme.useToken();
   const closeGuard = useFormModalClose(form, onClose);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const editing = Boolean(item);
-  const usesBalance = Form.useWatch("usesBalance", form);
-  const requiresAttachment = Form.useWatch("requiresAttachment", form);
   const category = Form.useWatch("category", form);
   const unit = Form.useWatch("unit", form);
   useEffect(() => {
@@ -153,119 +151,51 @@ export default function LeaveTypeForm({
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <div
-                style={{
-                  marginTop: 8,
-                  borderTop: `1px solid ${token.colorBorderSecondary}`,
-                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 24,
-                    padding: "18px 0",
-                  }}
+              <FormSettingsGroup sx={{ mt: 1 }}>
+                <FormSettingSwitch
+                  name="usesBalance"
+                  title="Kurangi jatah pegawai"
+                  description="Aktifkan untuk cuti atau izin yang memakai jatah tahunan pegawai, seperti cuti tahunan."
                 >
-                  <div>
-                    <div style={{ fontWeight: 600 }}>Kurangi jatah pegawai</div>
-                    <div style={{ color: token.colorTextSecondary, marginTop: 4 }}>
-                      Aktifkan untuk jenis yang mengurangi jatah pegawai, seperti cuti tahunan.
-                    </div>
-                  </div>
                   <Form.Item
-                    name="usesBalance"
-                    valuePropName="checked"
-                    style={{ marginBottom: 0, flexShrink: 0 }}
+                    name="annualAllowance"
+                    label={`Jatah yang diberikan setiap tahun (${unit === "hour" ? "jam" : "hari"})`}
+                    extra="Jatah awal yang otomatis diberikan kepada setiap pegawai untuk satu tahun kalender."
+                    rules={[{ required: true, message: "Jatah tahunan wajib diisi." }]}
                   >
-                    <Switch aria-label="Kurangi jatah pegawai" />
+                    <InputNumber
+                      min={1}
+                      step={1}
+                      precision={0}
+                      placeholder="Contoh: 12"
+                      style={{ width: "100%" }}
+                    />
                   </Form.Item>
-                </div>
-                {usesBalance && (
-                  <div style={{ paddingBottom: 18, maxWidth: 440 }}>
-                    <Form.Item
-                      name="annualAllowance"
-                      label={`Jatah yang diberikan setiap tahun (${unit === "hour" ? "jam" : "hari"})`}
-                      extra="Saldo awal yang otomatis diberikan kepada setiap pegawai untuk satu tahun kalender."
-                      rules={[{ required: true, message: "Jatah tahunan wajib diisi." }]}
-                    >
-                      <InputNumber
-                        min={1}
-                        step={1}
-                        precision={0}
-                        placeholder="Contoh: 12"
-                        style={{ width: "100%" }}
-                      />
-                    </Form.Item>
-                  </div>
-                )}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 24,
-                    padding: "18px 0",
-                    borderTop: `1px solid ${token.colorBorderSecondary}`,
-                  }}
+                </FormSettingSwitch>
+                <FormSettingSwitch
+                  name="requiresAttachment"
+                  title="Dokumen harus diunggah"
+                  description="Aktifkan jika pencatatan baru hanya boleh disetujui setelah dokumen pendukung dilengkapi."
                 >
-                  <div>
-                    <div style={{ fontWeight: 600 }}>Dokumen harus diunggah</div>
-                    <div style={{ color: token.colorTextSecondary, marginTop: 4 }}>
-                      Pencatatan tidak dapat disetujui sebelum dokumen pendukung diunggah.
-                    </div>
-                  </div>
                   <Form.Item
-                    name="requiresAttachment"
-                    valuePropName="checked"
-                    style={{ marginBottom: 0, flexShrink: 0 }}
+                    name="requiredAttachmentCategory"
+                    label="Dokumen yang harus dilengkapi"
+                    rules={[{ required: true, message: "Pilih dokumen yang diwajibkan." }]}
                   >
-                    <Switch aria-label="Dokumen harus diunggah" />
+                    <Select
+                      options={[
+                        { value: "medical_letter", label: "Surat dokter" },
+                        { value: "leave_attachment", label: "Dokumen pendukung lainnya" },
+                      ]}
+                    />
                   </Form.Item>
-                </div>
-                {requiresAttachment && (
-                  <div style={{ paddingBottom: 18, maxWidth: 440 }}>
-                    <Form.Item
-                      name="requiredAttachmentCategory"
-                      label="Dokumen yang diwajibkan"
-                      rules={[{ required: true, message: "Pilih dokumen yang diwajibkan." }]}
-                    >
-                      <Select
-                        options={[
-                          { value: "medical_letter", label: "Surat dokter" },
-                          { value: "leave_attachment", label: "Dokumen pendukung lainnya" },
-                        ]}
-                      />
-                    </Form.Item>
-                  </div>
-                )}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 24,
-                    padding: "18px 0",
-                    borderTop: `1px solid ${token.colorBorderSecondary}`,
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 600 }}>Tersedia untuk digunakan</div>
-                    <div style={{ color: token.colorTextSecondary, marginTop: 4 }}>
-                      Aktifkan agar pilihan ini muncul saat HRD mencatat cuti atau izin.
-                    </div>
-                  </div>
-                  <Form.Item
-                    name="isActive"
-                    valuePropName="checked"
-                    style={{ marginBottom: 0, flexShrink: 0 }}
-                  >
-                    <Switch aria-label="Tersedia untuk digunakan" />
-                  </Form.Item>
-                </div>
-              </div>
+                </FormSettingSwitch>
+                <FormSettingSwitch
+                  name="isActive"
+                  title="Tersedia untuk digunakan"
+                  description="Aktifkan agar pilihan ini muncul saat HRD mencatat cuti atau izin baru."
+                />
+              </FormSettingsGroup>
             </Col>
           </Row>
         </Form>

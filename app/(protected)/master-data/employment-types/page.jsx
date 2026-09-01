@@ -165,7 +165,7 @@ export default function EmploymentTypesPage() {
       />
       <DataPanel
         title="Daftar jenis kepegawaian"
-        description="Jenis aktif dapat dipilih ketika kontrak pegawai dibuat atau diperpanjang."
+        description="Pilihan yang tersedia dapat digunakan ketika kontrak pegawai dibuat atau diperpanjang."
         toolbar={
           <DataToolbar
             embedded

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Col, DatePicker, Form, Input, InputNumber, Row, Select, Switch } from "antd";
+import { Button, Col, DatePicker, Form, Input, InputNumber, Row, Select } from "antd";
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
@@ -9,6 +9,7 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 
 const TYPES = [
   { value: "head_office", label: "Kantor pusat" },
@@ -181,7 +182,7 @@ export default function LocationForm({
                 <InputNumber style={{ width: "100%" }} min={-180} max={180} precision={7} />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={10}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 name="operationalFrom"
                 label="Mulai beroperasi"
@@ -190,15 +191,19 @@ export default function LocationForm({
                 <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={10}>
+            <Col xs={24} sm={12}>
               <Form.Item name="operationalUntil" label="Akhir operasional (opsional)">
                 <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={4}>
-              <Form.Item name="isActive" label="Status" valuePropName="checked">
-                <Switch />
-              </Form.Item>
+            <Col xs={24}>
+              <FormSettingsGroup sx={{ mt: 1 }}>
+                <FormSettingSwitch
+                  name="isActive"
+                  title="Tersedia untuk penempatan pegawai"
+                  description="Aktifkan agar lokasi ini dapat dipilih untuk penempatan dan kegiatan operasional baru."
+                />
+              </FormSettingsGroup>
             </Col>
           </Row>
         </Form>

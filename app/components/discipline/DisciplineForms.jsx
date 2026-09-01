@@ -3,7 +3,7 @@
 import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 
 import { useEffect, useState } from "react";
-import { Button, DatePicker, Form, Input, Select, Switch } from "antd";
+import { Button, DatePicker, Form, Input, Select } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import dayjs from "dayjs";
@@ -14,6 +14,7 @@ import OrganizationScopeField from "@/app/components/forms/OrganizationScopeFiel
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import FileUploadField from "@/app/components/forms/FileUploadField";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import { ACTION_LABELS } from "./disciplineLabels";
 
 /** Form kasus mencatat pemeriksaan manual tanpa pernah menghasilkan sanksi otomatis. */
@@ -353,39 +354,26 @@ export function DisciplinaryActionForm({
           />
         </Form.Item>
         {supportsDirectEscalation ? (
-          <>
-            <Form.Item
+          <FormSettingsGroup sx={{ mb: 3 }}>
+            <FormSettingSwitch
               name="directEscalation"
-              label={`Langsung menerbitkan ${actionType?.toUpperCase()} tanpa tahapan sebelumnya`}
-              valuePropName="checked"
-              extra="Aktifkan hanya bila keputusan langsung ke tingkat ini dibenarkan oleh tingkat pelanggaran dan proses organisasi."
+              title="Terbitkan langsung tanpa tahapan sebelumnya"
+              description={`Aktifkan hanya jika penerbitan ${actionType?.toUpperCase()} secara langsung sesuai dengan tingkat pelanggaran dan keputusan organisasi.`}
             >
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              noStyle
-              shouldUpdate={(previous, current) =>
-                previous.directEscalation !== current.directEscalation
-              }
-            >
-              {({ getFieldValue }) =>
-                getFieldValue("directEscalation") ? (
-                  <Form.Item
-                    name="escalationReason"
-                    label="Alasan melewati tahapan sebelumnya"
-                    rules={[
-                      {
-                        required: true,
-                        message: "Jelaskan alasan tindakan langsung ke tingkat ini.",
-                      },
-                    ]}
-                  >
-                    <Input.TextArea rows={2} maxLength={3000} />
-                  </Form.Item>
-                ) : null
-              }
-            </Form.Item>
-          </>
+              <Form.Item
+                name="escalationReason"
+                label="Alasan melewati tahapan sebelumnya"
+                rules={[
+                  {
+                    required: true,
+                    message: "Jelaskan alasan tindakan langsung ke tingkat ini.",
+                  },
+                ]}
+              >
+                <Input.TextArea rows={2} maxLength={3000} />
+              </Form.Item>
+            </FormSettingSwitch>
+          </FormSettingsGroup>
         ) : null}
         <Form.Item name="notes" label="Catatan internal">
           <Input.TextArea rows={2} maxLength={3000} />
