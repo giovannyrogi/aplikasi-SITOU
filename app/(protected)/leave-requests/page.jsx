@@ -177,6 +177,7 @@ export default function LeaveRequestsPage() {
           allowClear
           placeholder="Semua pegawai"
           organizationId={organizationId}
+          showEmployeeNumber={false}
           value={list.filters.employeeId}
           onChange={(value) => update("employeeId", value)}
         />
@@ -191,6 +192,7 @@ export default function LeaveRequestsPage() {
           placeholder="Semua lokasi"
           organizationId={organizationId}
           options={references.locations}
+          showCode={false}
           value={list.filters.locationId}
           onChange={(value) => update("locationId", value)}
         />

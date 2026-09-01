@@ -6,7 +6,13 @@ import { useEffect, useRef, useState } from "react";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 
 /** EmployeeSelect memuat pegawai aktif sesuai organisasi dan scope actor dari endpoint berizin. */
-export default function EmployeeSelect({ organizationId, excludeId, onError, ...props }) {
+export default function EmployeeSelect({
+  organizationId,
+  excludeId,
+  onError,
+  showEmployeeNumber = true,
+  ...props
+}) {
   const [state, setState] = useState({ loading: false, options: [] });
   const onErrorRef = useRef(onError);
 
@@ -31,7 +37,9 @@ export default function EmployeeSelect({ organizationId, excludeId, onError, ...
             loading: false,
             options: (body.data || []).map((employee) => ({
               value: employee.id,
-              label: `${employee.employee_no} - ${employee.full_name}`,
+              label: showEmployeeNumber
+                ? `${employee.employee_no} - ${employee.full_name}`
+                : employee.full_name,
               employee,
             })),
           });
@@ -48,7 +56,7 @@ export default function EmployeeSelect({ organizationId, excludeId, onError, ...
       active = false;
       controller.abort();
     };
-  }, [excludeId, organizationId]);
+  }, [excludeId, organizationId, showEmployeeNumber]);
 
   return (
     <AsyncSelect

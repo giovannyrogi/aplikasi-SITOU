@@ -525,7 +525,9 @@ test("direktori pegawai memakai section filter operasional", () => {
   assert.match(source, /label: "Jabatan"/);
   assert.match(source, /label: "Status pegawai"/);
   assert.match(source, /options=\{references\.locations\}/);
+  assert.match(source, /showCode=\{false\}/);
   assert.match(locationSelect, /if \(!organizationId \|\| suppliedOptions\) return undefined/);
+  assert.match(locationSelect, /showCode = true/);
   assert.match(rowActionMenu, /MenuOutlined/);
   assert.match(rowActionMenu, /aria-label="Buka menu aksi"/);
   assert.match(rowActionMenu, /popupRender/);
