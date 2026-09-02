@@ -443,16 +443,18 @@ test("validasi origin tetap menolak origin asing", () => {
   });
   assert.equal(validateRequestOrigin(request, "request-test").status, 403);
 });
-test("koreksi kontrak memakai versi dan tetap mewajibkan dokumen", () => {
+test("koreksi kontrak menerima nomor dan dokumen kontrak kosong", () => {
   const result = employeeContractCorrectionSchema.safeParse({
     organizationId: 1,
     employmentTypeId: 1,
-    contractNo: "PKWT-001",
+    contractNo: "",
     startDate: "2026-08-22",
-    documentFileId: 10,
+    documentFileId: null,
     version: "2026-08-23T00:00:00.000Z",
   });
   assert.equal(result.success, true);
+  assert.equal(result.data.contractNo, null);
+  assert.equal(result.data.documentFileId, null);
 });
 
 test("pembatalan kontrak wajib menyimpan alasan yang layak", () => {
@@ -669,6 +671,97 @@ test("direktori pegawai memakai section filter operasional", () => {
   assert.match(topMenu, /<Divider/);
   assert.doesNotMatch(rowActionMenu, /MoreOutlined/);
   assert.doesNotMatch(source, /<DataToolbar/);
+});
+test("seluruh tabel memakai desain modern reusable dan alignment yang konsisten", () => {
+  const projectRoot = resolve(import.meta.dirname, "..");
+  const appRoot = resolve(projectRoot, "app");
+  const directorySource = readFileSync(
+    new URL("../app/components/employees/EmployeeDirectory.jsx", import.meta.url),
+    "utf8",
+  );
+  const avatarSource = readFileSync(
+    new URL("../app/components/employees/EmployeeAvatar.jsx", import.meta.url),
+    "utf8",
+  );
+  const dataPanelSource = readFileSync(
+    new URL("../app/components/data-display/DataPanel.jsx", import.meta.url),
+    "utf8",
+  );
+  const responsiveViewSource = readFileSync(
+    new URL("../app/components/data-display/ResponsiveDataView.jsx", import.meta.url),
+    "utf8",
+  );
+  const modernTableSource = readFileSync(
+    new URL("../app/components/data-display/ModernTableFrame.jsx", import.meta.url),
+    "utf8",
+  );
+  const subscriptionSource = readFileSync(
+    new URL(
+      "../app/(protected)/master-data/organizations/SubscriptionModal.jsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.ok(directorySource.includes("<EmployeeAvatar employee={item}"));
+  assert.ok(directorySource.includes('dataIndex: "employment_type_name"'));
+  assert.ok(directorySource.includes('title: "Jenis kepegawaian"'));
+  assert.ok(directorySource.includes('tone="neutral"'));
+  assert.ok(directorySource.includes('fixed: "right"'));
+  assert.ok(directorySource.includes("scrollX={isSuperadmin ? 1450 : 1260}"));
+  assert.equal(directorySource.includes("tableSx="), false);
+  assert.equal(directorySource.includes("mobileCardSx="), false);
+  assert.equal(directorySource.includes("CompactInfoChip label={item.employee_no}"), false);
+
+  assert.ok(avatarSource.includes("profile_photo_file_id"));
+  assert.ok(avatarSource.includes("employee?.organization_id"));
+  assert.ok(avatarSource.includes("/api/uploads/"));
+  assert.ok(avatarSource.includes("?organizationId="));
+  assert.ok(avatarSource.includes("ImagePreviewModal"));
+  assert.ok(avatarSource.includes("Perbesar pas foto "));
+  assert.ok(avatarSource.includes("onError={() => setFailed(true)}"));
+  assert.doesNotMatch(avatarSource, /ktp|identity_document|document_file_id/i);
+
+  assert.ok(dataPanelSource.includes("p: 0"));
+  assert.ok(responsiveViewSource.includes("<ModernTableFrame"));
+  assert.ok(responsiveViewSource.includes("mobileCardSx"));
+  assert.ok(responsiveViewSource.includes("scrollX = 900"));
+  assert.ok(modernTableSource.includes("fontSize: 12.5"));
+  assert.ok(modernTableSource.includes("px: { xs: 2, sm: 2.5, lg: 3 }"));
+  assert.ok(subscriptionSource.includes("<ModernTableFrame outlined>"));
+
+  const unframedTables = [];
+  for (const file of collectAppSourceFiles(appRoot)) {
+    if (![".jsx", ".tsx"].includes(extname(file))) continue;
+    const source = readFileSync(file, "utf8");
+    if (source.includes("<Table") && !source.includes("<ModernTableFrame")) {
+      unframedTables.push(relative(projectRoot, file).replaceAll("\\", "/"));
+    }
+  }
+  assert.deepEqual(unframedTables, []);
+});
+
+test("form dan service koreksi kontrak memperlakukan dokumen sebagai opsional", () => {
+  const formSource = readFileSync(
+    new URL("../app/components/employees/EmployeeLifecycleForms.jsx", import.meta.url),
+    "utf8",
+  );
+  const serviceSource = readFileSync(
+    new URL("../lib/employees/service.js", import.meta.url),
+    "utf8",
+  );
+  const correctionSource = serviceSource.slice(
+    serviceSource.indexOf("export async function correctEmployeeContract"),
+    serviceSource.indexOf("export async function cancelEmployeeContract"),
+  );
+
+  assert.ok(formSource.includes("Nomor kontrak (opsional)"));
+  assert.ok(formSource.includes("Dokumen kontrak (opsional)"));
+  assert.ok(formSource.includes("if (!contract && !documentFile)"));
+  assert.match(
+    correctionSource,
+    /if \(input\.documentFileId\)\s+await validateLifecycleDocument\(/,
+  );
 });
 test("label tanggal pegawai membedakan tanggal bergabung, kontrak, dan TMT", () => {
   const employeeForm = readFileSync(

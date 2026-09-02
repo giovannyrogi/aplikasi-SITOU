@@ -360,7 +360,7 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
     }
   }, [contract, employee, form, minimumContractDate, open]);
   const submit = async (values) => {
-    if (!documentFile) {
+    if (!contract && !documentFile) {
       onError("Dokumen kontrak wajib diunggah sebelum data disimpan.");
       return;
     }
@@ -432,7 +432,11 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
             }))}
           />
         </Form.Item>
-        <Form.Item name="contractNo" label="Nomor kontrak" rules={[{ required: true }]}>
+        <Form.Item
+          name="contractNo"
+          label={contract ? "Nomor kontrak (opsional)" : "Nomor kontrak"}
+          rules={contract ? undefined : [{ required: true, message: "Nomor kontrak wajib diisi." }]}
+        >
           <Input maxLength={100} />
         </Form.Item>
         <Box
@@ -467,7 +471,10 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
         <Form.Item name="status" hidden>
           <Input />
         </Form.Item>
-        <Form.Item label="Dokumen kontrak" required>
+        <Form.Item
+          label={contract ? "Dokumen kontrak (opsional)" : "Dokumen kontrak"}
+          required={!contract}
+        >
           <PrivatePdfUpload
             value={documentFile}
             uploadUrl="/api/uploads"
@@ -480,7 +487,11 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
             organizationId={employee.organization_id}
             onChange={setDocumentFile}
             onError={onError}
-            helpText="Kontrak yang telah ditandatangani dalam format PDF maksimal 10 MB."
+            helpText={
+              contract
+                ? "Opsional. Gunakan dokumen kontrak dalam format PDF maksimal 10 MB."
+                : "Kontrak yang telah ditandatangani dalam format PDF maksimal 10 MB."
+            }
             showRemove={!contract || documentFile?.id !== contract.document_file_id}
           />
         </Form.Item>

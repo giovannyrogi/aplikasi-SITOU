@@ -9,6 +9,7 @@ import { Box, useMediaQuery, useTheme } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import FontStyle from "@/app/components/font-style/FontStyle";
+import ModernTableFrame from "@/app/components/data-display/ModernTableFrame";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 
 /** Memformat batas periode langganan untuk tampilan histori. */
@@ -211,14 +212,16 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
               ))}
             </Box>
           ) : (
-            <Table
-              rowKey="id"
-              dataSource={items}
-              columns={columns}
-              loading={loading}
-              pagination={false}
-              scroll={{ x: 800 }}
-            />
+            <ModernTableFrame outlined>
+              <Table
+                rowKey="id"
+                dataSource={items}
+                columns={columns}
+                loading={loading}
+                pagination={false}
+                scroll={{ x: 800 }}
+              />
+            </ModernTableFrame>
           )}
         </Box>
       </AppModal>

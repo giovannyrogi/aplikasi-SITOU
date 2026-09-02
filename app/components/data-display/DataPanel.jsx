@@ -4,7 +4,7 @@ import { Box, Divider, Paper, useTheme } from "@mui/material";
 import FontStyle from "../font-style/FontStyle";
 
 /** Membungkus judul daftar, toolbar, dan data view dalam satu permukaan operasional. */
-export default function DataPanel({ title, description, toolbar, children }) {
+export default function DataPanel({ title, description, toolbar, children, contentSx }) {
   const theme = useTheme();
 
   return (
@@ -43,7 +43,7 @@ export default function DataPanel({ title, description, toolbar, children }) {
       {title || description || toolbar ? (
         <Divider sx={{ borderColor: theme.ui.panelBorderSubtle }} />
       ) : null}
-      <Box sx={{ minWidth: 0, p: { xs: 2, sm: 2.5, lg: 3 } }}>{children}</Box>
+      <Box sx={{ minWidth: 0, p: 0, ...contentSx }}>{children}</Box>
     </Paper>
   );
 }

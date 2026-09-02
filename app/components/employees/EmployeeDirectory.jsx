@@ -11,6 +11,7 @@ import {
   UserDeleteOutlined,
 } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
@@ -19,6 +20,7 @@ import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import Notification from "@/app/components/Notifications/Notification";
+import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import LocationSelect from "@/app/components/selects/LocationSelect";
@@ -28,6 +30,7 @@ import { ROLES } from "@/app/constants/roles";
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import { readApiResponse } from "@/lib/api/clientError";
+import EmployeeAvatar from "./EmployeeAvatar";
 import EmployeeForm from "./EmployeeForm";
 import EmployeeImportModal from "./EmployeeImportModal";
 import EmployeeTerminationForm from "./EmployeeTerminationForm";
@@ -49,6 +52,7 @@ export default function EmployeeDirectory() {
   const [form, setForm] = useState({ open: false, item: null });
   const [terminationEmployee, setTerminationEmployee] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [references, setReferences] = useState({
     locations: [],
     organizationUnits: [],
@@ -250,43 +254,108 @@ export default function EmployeeDirectory() {
       : []),
   ];
 
+  /** Menjaga nilai tabel tetap ringkas tanpa menyembunyikan teks lengkap dari pengguna. */
+  const renderTableText = (value, emptyValue = "-") => {
+    const label = value || emptyValue;
+    return (
+      <FontStyle
+        title={label}
+        fontSize={12}
+        sx={{
+          display: "block",
+          maxWidth: "100%",
+          overflow: "hidden",
+          color: value ? theme.palette.text.primary : theme.ui.mutedText,
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </FontStyle>
+    );
+  };
+
   const columns = [
     {
       title: "Pegawai",
       key: "employee",
+      width: 270,
       render: (_, item) => (
-        <Box sx={{ minWidth: 180 }}>
-          <FontStyle fontSize={12.5} fontWeight={600}>
-            {item.full_name}
-          </FontStyle>
-          <Box sx={{ mt: 0.75, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-            <CompactInfoChip label={item.employee_no} tone="info" />
+        <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, gap: 1.5 }}>
+          <EmployeeAvatar employee={item} onPreview={setPhotoPreview} />
+          <Box sx={{ minWidth: 0 }}>
+            <FontStyle
+              title={item.full_name}
+              fontSize={12.5}
+              fontWeight={700}
+              sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {item.full_name}
+            </FontStyle>
+            <FontStyle
+              title={item.employee_no}
+              fontSize={11.5}
+              sx={{
+                mt: 0.25,
+                overflow: "hidden",
+                color: theme.ui.mutedText,
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {item.employee_no || "-"}
+            </FontStyle>
             {item.active_sanction_count > 0 ? (
-              <CompactInfoChip label={`${item.active_sanction_count} sanksi aktif`} tone="danger" />
+              <Box sx={{ mt: 0.65 }}>
+                <CompactInfoChip
+                  label={item.active_sanction_count + " sanksi aktif"}
+                  tone="danger"
+                />
+              </Box>
             ) : null}
           </Box>
         </Box>
       ),
     },
-    ...(isSuperadmin ? [{ title: "Organisasi", dataIndex: "organization_name", width: 180 }] : []),
+    ...(isSuperadmin
+      ? [
+          {
+            title: "Organisasi",
+            dataIndex: "organization_name",
+            width: 190,
+            render: (value) => renderTableText(value),
+          },
+        ]
+      : []),
     {
       title: "Lokasi",
       dataIndex: "location_name",
-      render: (value) => value || "Belum ditempatkan",
+      width: 190,
+      render: (value) => renderTableText(value, "Belum ditempatkan"),
     },
     {
       title: "Divisi & Unit",
       dataIndex: "unit_name",
-      render: (value) => value || "Belum ditentukan",
+      width: 230,
+      render: (value) => renderTableText(value, "Belum ditentukan"),
     },
     {
       title: "Jabatan",
       dataIndex: "position_name",
-      render: (value) => value || "Belum ditentukan",
+      width: 190,
+      render: (value) => renderTableText(value, "Belum ditentukan"),
+    },
+    {
+      title: "Jenis kepegawaian",
+      dataIndex: "employment_type_name",
+      width: 180,
+      render: (value) => <CompactInfoChip label={value || "-"} tone="neutral" />,
     },
     {
       title: "Status",
       dataIndex: "employment_status",
+      width: 128,
+      align: "center",
       render: (value) => {
         const status = getEmployeeStatusPresentation(value);
         return <CompactInfoChip label={status[0]} tone={status[1]} />;
@@ -295,37 +364,84 @@ export default function EmployeeDirectory() {
     {
       title: "Aksi",
       key: "action",
-      width: 72,
+      width: 76,
+      align: "center",
+      fixed: "right",
       render: (_, item) => <RowActionMenu items={actions(item)} />,
     },
   ];
 
-  /** Card mobile mempertahankan hierarchy informasi tanpa tabel horizontal. */
+  /** Card mobile mempertahankan hierarki informasi tanpa tabel horizontal. */
   const renderCard = (item) => {
     const status = getEmployeeStatusPresentation(item.employment_status);
     return (
       <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-          <Box sx={{ minWidth: 0 }}>
-            <FontStyle fontWeight={700}>{item.full_name}</FontStyle>
-            <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
-              {item.employee_no}
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+          <EmployeeAvatar employee={item} size={46} onPreview={setPhotoPreview} />
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <FontStyle
+              title={item.full_name}
+              fontWeight={700}
+              sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {item.full_name}
+            </FontStyle>
+            <FontStyle
+              title={item.employee_no}
+              fontSize={11.5}
+              sx={{
+                mt: 0.25,
+                overflow: "hidden",
+                color: theme.ui.mutedText,
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {item.employee_no || "-"}
             </FontStyle>
           </Box>
           <RowActionMenu items={actions(item)} />
         </Box>
-        <Box sx={{ mt: 1.5, display: "grid", gap: 0.5 }}>
-          <FontStyle fontSize={12}>{item.location_name || "Belum ditempatkan"}</FontStyle>
-          <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
-            {[item.unit_name, item.position_name].filter(Boolean).join(" · ") ||
-              "Divisi dan jabatan belum ditentukan"}
-          </FontStyle>
-        </Box>
-        <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+
+        <Box sx={{ mt: 1.5, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
           <CompactInfoChip label={status[0]} tone={status[1]} />
+          <CompactInfoChip label={item.employment_type_name || "-"} tone="neutral" />
           {item.active_sanction_count > 0 ? (
-            <CompactInfoChip label={`${item.active_sanction_count} sanksi`} tone="danger" />
+            <CompactInfoChip label={item.active_sanction_count + " sanksi aktif"} tone="danger" />
           ) : null}
+        </Box>
+
+        <Box
+          sx={{
+            mt: 1.5,
+            display: "grid",
+            gap: 0.75,
+            pt: 1.5,
+            borderTop: "1px solid " + theme.ui.panelBorderSubtle,
+          }}
+        >
+          {[
+            ["Lokasi", item.location_name],
+            ["Divisi & Unit", item.unit_name],
+            ["Jabatan", item.position_name],
+          ].map(([label, value]) => (
+            <Box
+              key={label}
+              sx={{ display: "grid", gridTemplateColumns: "112px minmax(0, 1fr)", gap: 1 }}
+            >
+              <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
+                {label}
+              </FontStyle>
+              <FontStyle
+                title={value || "-"}
+                fontSize={11.5}
+                fontWeight={600}
+                sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
+                {value || "-"}
+              </FontStyle>
+            </Box>
+          ))}
         </Box>
       </Box>
     );
@@ -386,6 +502,7 @@ export default function EmployeeDirectory() {
           pagination={list.pagination}
           onPageChange={list.setPage}
           renderCard={renderCard}
+          scrollX={isSuperadmin ? 1450 : 1260}
           emptyDescription={
             isSuperadmin && !organizationId
               ? "Pilih organisasi untuk menampilkan data pegawai."
@@ -426,6 +543,13 @@ export default function EmployeeDirectory() {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
+      <ImagePreviewModal
+        open={Boolean(photoPreview)}
+        onClose={() => setPhotoPreview(null)}
+        imageUrl={photoPreview?.imageUrl}
+        alt={photoPreview?.alt}
+        title={photoPreview?.title}
+      />{" "}
       <Notification {...notification} onClose={closeNotification} />
     </Box>
   );
