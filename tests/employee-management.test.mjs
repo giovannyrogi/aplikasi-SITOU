@@ -595,6 +595,10 @@ test("direktori pegawai memakai section filter operasional", () => {
   assert.match(source, /label: "Lokasi"/);
   assert.match(source, /label: "Divisi & Unit"/);
   assert.match(source, /label: "Jabatan"/);
+  assert.match(source, /label: "Jenis kepegawaian\/kontrak"/);
+  assert.match(source, /employmentTypeId/);
+  assert.match(source, /references\.employmentTypes/);
+  assert.match(source, /wideColumns=\{6\}/);
   assert.match(source, /label: "Status pegawai"/);
   assert.match(source, /options=\{references\.locations\}/);
   assert.doesNotMatch(source, /showCode=/);
@@ -608,6 +612,29 @@ test("direktori pegawai memakai section filter operasional", () => {
   assert.match(topMenu, /<Divider/);
   assert.doesNotMatch(rowActionMenu, /MoreOutlined/);
   assert.doesNotMatch(source, /<DataToolbar/);
+});
+test("label tanggal pegawai membedakan tanggal bergabung, kontrak, dan TMT", () => {
+  const employeeForm = readFileSync(
+    new URL("../app/components/employees/EmployeeForm.jsx", import.meta.url),
+    "utf8",
+  );
+  const lifecycleForms = readFileSync(
+    new URL("../app/components/employees/EmployeeLifecycleForms.jsx", import.meta.url),
+    "utf8",
+  );
+  const employeeDetail = readFileSync(
+    new URL("../app/components/employees/EmployeeDetail.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(employeeForm, /Tanggal bergabung di organisasi/);
+  assert.match(employeeForm, /Tanggal mulai kontrak/);
+  assert.match(employeeForm, /TMT jabatan\/penempatan/);
+  assert.match(lifecycleForms, /Tanggal mulai kontrak/);
+  assert.match(lifecycleForms, /TMT jabatan\/penempatan/);
+  assert.match(employeeDetail, /Tanggal bergabung di organisasi/);
+  assert.match(employeeDetail, /Tanggal mulai kontrak/);
+  assert.match(employeeDetail, /TMT jabatan\/penempatan/);
 });
 test("service menolak koreksi penempatan historis dengan kode stabil", () => {
   const serviceSource = readFileSync(

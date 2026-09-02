@@ -11,6 +11,7 @@ export default function OperationalFilterSection({
   description,
   items = [],
   onReset,
+  wideColumns = 5,
 }) {
   const theme = useTheme();
 
@@ -71,7 +72,7 @@ export default function OperationalFilterSection({
             xs: "minmax(0, 1fr)",
             sm: "repeat(2, minmax(0, 1fr))",
             lg: "repeat(3, minmax(0, 1fr))",
-            xl: "repeat(5, minmax(0, 1fr))",
+            xl: `repeat(${wideColumns}, minmax(0, 1fr))`,
           },
           gap: { xs: 1.5, lg: 2 },
           "& .ant-picker, & .ant-select": { width: "100%", minHeight: 44 },

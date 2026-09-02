@@ -53,13 +53,14 @@ export default function EmployeeDirectory() {
     locations: [],
     organizationUnits: [],
     positions: [],
+    employmentTypes: [],
   });
   const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
 
   useEffect(() => {
     if (!organizationId) {
       Promise.resolve().then(() =>
-        setReferences({ locations: [], organizationUnits: [], positions: [] }),
+        setReferences({ locations: [], organizationUnits: [], positions: [], employmentTypes: [] }),
       );
       return;
     }
@@ -73,6 +74,7 @@ export default function EmployeeDirectory() {
           locations: body.data?.locations || [],
           organizationUnits: body.data?.organizationUnits || [],
           positions: body.data?.positions || [],
+          employmentTypes: body.data?.employmentTypes || [],
         }),
       )
       .catch((error) => {
@@ -167,6 +169,24 @@ export default function EmployeeDirectory() {
           value={list.filters.positionId}
           onChange={(value) => updateFilter("positionId", value)}
           options={references.positions.map((item) => ({
+            value: item.id,
+            label: item.name,
+          }))}
+        />
+      ),
+    },
+    {
+      key: "employmentTypeId",
+      label: "Jenis kepegawaian/kontrak",
+      control: (
+        <Select
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder="Semua jenis"
+          value={list.filters.employmentTypeId}
+          onChange={(value) => updateFilter("employmentTypeId", value)}
+          options={references.employmentTypes.map((item) => ({
             value: item.id,
             label: item.name,
           }))}
@@ -348,9 +368,10 @@ export default function EmployeeDirectory() {
       />
       <OperationalFilterSection
         title="Filter data pegawai"
-        description="Cari pegawai atau persempit daftar berdasarkan penempatan dan status hubungan kerja."
+        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian/kontrak, dan status pegawai."
         items={filterItems}
         onReset={resetFilters}
+        wideColumns={6}
       />
       <DataPanel
         title="Daftar data pegawai"

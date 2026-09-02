@@ -894,7 +894,10 @@ export default function EmployeeDetail({ employeeId }) {
                   />
                   <InfoField label="Golongan darah" value={employee.blood_type} />
                   <InfoField label="Kewarganegaraan" value={employee.nationality} />
-                  <InfoField label="Tanggal bergabung" value={formatDate(employee.joined_date)} />
+                  <InfoField
+                    label="Tanggal bergabung di organisasi"
+                    value={formatDate(employee.joined_date)}
+                  />
                 </Box>
                 <Box
                   sx={{
@@ -987,7 +990,9 @@ export default function EmployeeDetail({ employeeId }) {
                 value={relationshipContract?.contract_no}
               />
               <InfoField
-                label={finalEmploymentStatus ? "Mulai kontrak terakhir" : "Mulai kontrak"}
+                label={
+                  finalEmploymentStatus ? "Tanggal mulai kontrak terakhir" : "Tanggal mulai kontrak"
+                }
                 value={formatDate(relationshipContract?.start_date)}
               />
               <InfoField
@@ -1114,7 +1119,7 @@ export default function EmployeeDetail({ employeeId }) {
                           </FontStyle>
                         </Box>
                         <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-                          {formatDate(item.effective_from)} sampai{" "}
+                          TMT {formatDate(item.effective_from)} sampai{" "}
                           {formatDate(item.effective_until, "sekarang")}
                           {item.supervisor_name ? ` · Atasan: ${item.supervisor_name}` : ""}
                         </FontStyle>
@@ -1236,7 +1241,7 @@ export default function EmployeeDetail({ employeeId }) {
                 >
                   <Box sx={{ minWidth: 0 }}>
                     <FontStyle fontSize={11.5} fontWeight={700} sx={{ color: theme.ui.mutedText }}>
-                      PERIODE
+                      PERIODE KONTRAK
                     </FontStyle>
                     <Box sx={{ mt: 0.75, display: "flex", gap: 1, alignItems: "flex-start" }}>
                       <CalendarOutlined style={{ marginTop: 3, color: theme.ui.mutedText }} />
@@ -2024,7 +2029,10 @@ export default function EmployeeDetail({ employeeId }) {
               value={relationshipContract?.employment_type_name}
             />
             <InfoField label="Nomor kontrak" value={relationshipContract?.contract_no} />
-            <InfoField label="Mulai kontrak" value={formatDate(relationshipContract?.start_date)} />
+            <InfoField
+              label="Tanggal mulai kontrak"
+              value={formatDate(relationshipContract?.start_date)}
+            />
             <InfoField
               label="Akhir kontrak"
               value={formatDate(relationshipContract?.end_date, "Tanpa batas akhir")}
@@ -2090,7 +2098,7 @@ export default function EmployeeDetail({ employeeId }) {
                 }
               />
               <InfoField
-                label="Mulai berlaku"
+                label="TMT jabatan/penempatan"
                 value={formatDate(assignmentDetail.effective_from)}
               />
               <InfoField

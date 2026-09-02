@@ -47,7 +47,7 @@ const FIELD_LABELS = {
   nationalId: "NIK",
   birthPlace: "Tempat lahir",
   birthDate: "Tanggal lahir",
-  joinedDate: "Tanggal bergabung",
+  joinedDate: "Tanggal bergabung di organisasi",
   gender: "Jenis kelamin",
   religion: "Agama",
   maritalStatus: "Status perkawinan",
@@ -70,7 +70,7 @@ const FIELD_LABELS = {
   "assignment.organizationUnitId": "Divisi atau unit",
   "assignment.positionId": "Jabatan",
   "assignment.supervisorEmployeeId": "Atasan langsung",
-  "assignment.effectiveFrom": "Tanggal efektif penempatan",
+  "assignment.effectiveFrom": "TMT jabatan/penempatan",
   "assignment.decreeNo": "Nomor SK",
 };
 
@@ -1013,8 +1013,9 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 </Form.Item>
                 <Form.Item
                   name="joinedDate"
-                  label="Tanggal bergabung"
-                  rules={required("Tanggal bergabung wajib diisi.")}
+                  label="Tanggal bergabung di organisasi"
+                  extra="Tanggal pertama kali pegawai resmi bergabung dengan organisasi."
+                  rules={required("Tanggal bergabung di organisasi wajib diisi.")}
                 >
                   <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
                 </Form.Item>
@@ -1214,8 +1215,9 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                   </Form.Item>
                   <Form.Item
                     name={["contract", "startDate"]}
-                    label="Tanggal mulai"
-                    rules={required("Tanggal mulai wajib diisi.")}
+                    label="Tanggal mulai kontrak"
+                    extra="Tanggal mulai berlakunya jenis kepegawaian atau perjanjian kerja ini."
+                    rules={required("Tanggal mulai kontrak wajib diisi.")}
                   >
                     <DatePicker style={{ width: "100%" }} />
                   </Form.Item>
@@ -1307,8 +1309,9 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                   </Form.Item>
                   <Form.Item
                     name={["assignment", "effectiveFrom"]}
-                    label="Tanggal efektif"
-                    rules={required("Tanggal efektif wajib diisi.")}
+                    label="TMT jabatan/penempatan"
+                    extra="Terhitung mulai tanggal jabatan, unit, lokasi, dan atasan ini berlaku."
+                    rules={required("TMT jabatan/penempatan wajib diisi.")}
                   >
                     <DatePicker style={{ width: "100%" }} />
                   </Form.Item>

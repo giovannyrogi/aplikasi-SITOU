@@ -232,7 +232,12 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
               ]}
             />
           </Form.Item>
-          <Form.Item name="effectiveFrom" label="Tanggal efektif" rules={[{ required: true }]}>
+          <Form.Item
+            name="effectiveFrom"
+            label="TMT jabatan/penempatan"
+            extra="Terhitung mulai tanggal jabatan, unit, lokasi, dan atasan ini berlaku."
+            rules={[{ required: true, message: "TMT jabatan/penempatan wajib diisi." }]}
+          >
             <DatePicker
               style={{ width: "100%" }}
               disabledDate={
@@ -437,7 +442,12 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
             gap: { sm: "0 16px" },
           }}
         >
-          <Form.Item name="startDate" label="Tanggal mulai" rules={[{ required: true }]}>
+          <Form.Item
+            name="startDate"
+            label="Tanggal mulai kontrak"
+            extra="Tanggal mulai berlakunya jenis kepegawaian atau perjanjian kerja ini."
+            rules={[{ required: true, message: "Tanggal mulai kontrak wajib diisi." }]}
+          >
             <DatePicker
               style={{ width: "100%" }}
               disabledDate={
