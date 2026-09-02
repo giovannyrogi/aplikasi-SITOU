@@ -74,7 +74,7 @@ export default function LocationForm({
           setParents(
             (b.data || [])
               .filter((x) => x.id !== item?.id)
-              .map((x) => ({ value: x.id, label: `${x.code} - ${x.name}` })),
+              .map((x) => ({ value: x.id, label: x.name })),
           );
       })
       .finally(() => active && setLoadingParents(false));

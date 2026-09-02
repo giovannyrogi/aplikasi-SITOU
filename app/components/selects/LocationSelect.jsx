@@ -3,12 +3,7 @@
 import { useEffect, useState } from "react";
 import AsyncSelect from "../forms/AsyncSelect";
 
-export default function LocationSelect({
-  organizationId,
-  options: suppliedOptions,
-  showCode = true,
-  ...props
-}) {
+export default function LocationSelect({ organizationId, options: suppliedOptions, ...props }) {
   const [state, setState] = useState({ loading: false, options: [] });
   useEffect(() => {
     if (!organizationId || suppliedOptions) return undefined;
@@ -23,7 +18,7 @@ export default function LocationSelect({
             loading: false,
             options: (body.data || []).map((item) => ({
               value: item.id,
-              label: showCode ? `${item.code} - ${item.name}` : item.name,
+              label: item.name,
             })),
           });
       })
@@ -31,11 +26,11 @@ export default function LocationSelect({
     return () => {
       active = false;
     };
-  }, [organizationId, showCode, suppliedOptions]);
+  }, [organizationId, suppliedOptions]);
   const options = suppliedOptions
     ? suppliedOptions.map((item) => ({
         value: item.value || item.id,
-        label: showCode ? item.label || `${item.code} - ${item.name}` : item.name || item.label,
+        label: item.name || item.label,
       }))
     : state.options;
   return (

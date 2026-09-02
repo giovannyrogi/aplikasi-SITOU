@@ -182,7 +182,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
               optionFilterProp="label"
               options={(references.locations || []).map((value) => ({
                 value: value.id,
-                label: `${value.code} - ${value.name}`,
+                label: value.name,
               }))}
             />
           </Form.Item>
@@ -423,7 +423,7 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
             optionFilterProp="label"
             options={(references.employmentTypes || []).map((value) => ({
               value: value.id,
-              label: `${value.code} - ${value.name}`,
+              label: value.name,
             }))}
           />
         </Form.Item>

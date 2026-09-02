@@ -132,7 +132,6 @@ export default function EmployeeDirectory() {
           placeholder="Semua lokasi"
           organizationId={organizationId}
           options={references.locations}
-          showCode={false}
           value={list.filters.locationId}
           onChange={(value) => updateFilter("locationId", value)}
         />

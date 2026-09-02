@@ -234,7 +234,7 @@ export default function OrganizationAccountForm({
                   optionFilterProp="label"
                   options={options.locations.map((value) => ({
                     value: value.id,
-                    label: `${value.code} - ${value.name}`,
+                    label: value.name,
                   }))}
                 />
               </Form.Item>

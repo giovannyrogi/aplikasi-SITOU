@@ -192,7 +192,6 @@ export default function LeaveRequestsPage() {
           placeholder="Semua lokasi"
           organizationId={organizationId}
           options={references.locations}
-          showCode={false}
           value={list.filters.locationId}
           onChange={(value) => update("locationId", value)}
         />

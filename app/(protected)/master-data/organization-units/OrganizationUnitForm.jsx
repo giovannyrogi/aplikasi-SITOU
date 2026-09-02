@@ -132,7 +132,7 @@ export default function OrganizationUnitForm({
             String(option.id),
             {
               value: option.id,
-              label: `${option.code} - ${option.name}`,
+              label: option.name,
               operationalFrom: option.operational_from,
               operationalUntil: option.operational_until,
             },
@@ -142,7 +142,7 @@ export default function OrganizationUnitForm({
           if (!locationMap.has(String(location.id)))
             locationMap.set(String(location.id), {
               value: location.id,
-              label: `${location.code} - ${location.name}`,
+              label: location.name,
               operationalFrom: null,
               operationalUntil: null,
             });
@@ -151,7 +151,7 @@ export default function OrganizationUnitForm({
           loading: false,
           parents: (parentBody.data || [])
             .filter((option) => String(option.id) !== String(item?.id || ""))
-            .map((option) => ({ value: option.id, label: `${option.code} - ${option.name}` })),
+            .map((option) => ({ value: option.id, label: option.name })),
           locations: [...locationMap.values()],
         });
       })

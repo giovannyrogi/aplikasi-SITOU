@@ -30,7 +30,7 @@ export default function OrganizationSelect({
           loading: false,
           options: (body.data || []).map((item) => ({
             value: item.id,
-            label: `${item.code} - ${item.name}`,
+            label: item.name,
             disabled: !item.is_active || !item.has_access,
           })),
         });

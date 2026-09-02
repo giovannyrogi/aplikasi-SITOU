@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   organizationUnitCreateSchema,
   organizationUnitTypeCreateSchema,
@@ -115,4 +116,19 @@ test("schema Divisi dan Unit menolak payload locationIds lama dan lokasi duplika
     }).success,
     false,
   );
+});
+test("dropdown referensi menampilkan nama tanpa awalan kode", () => {
+  const sources = [
+    "../app/(protected)/master-data/locations/LocationForm.jsx",
+    "../app/(protected)/master-data/organization-units/OrganizationUnitForm.jsx",
+    "../app/components/selects/OrganizationSelect.jsx",
+    "../app/components/selects/LocationSelect.jsx",
+    "../app/components/access/OrganizationAccountForm.jsx",
+    "../app/components/employees/EmployeeForm.jsx",
+    "../app/components/employees/EmployeeLifecycleForms.jsx",
+  ].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
+
+  for (const source of sources) {
+    assert.doesNotMatch(source, /\$\{[^}]*\.code\}\s*-\s*\$\{[^}]*\.name\}/);
+  }
 });

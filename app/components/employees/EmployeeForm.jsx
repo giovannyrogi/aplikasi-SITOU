@@ -1205,7 +1205,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                       }}
                       options={(references.employmentTypes || []).map((value) => ({
                         value: value.id,
-                        label: `${value.code} - ${value.name}`,
+                        label: value.name,
                       }))}
                     />
                   </Form.Item>
@@ -1265,7 +1265,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                       optionFilterProp="label"
                       options={(references.locations || []).map((value) => ({
                         value: value.id,
-                        label: `${value.code} - ${value.name}`,
+                        label: value.name,
                       }))}
                     />
                   </Form.Item>
