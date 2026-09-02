@@ -27,6 +27,7 @@ import {
   employeeListFilterSchema,
 } from "../lib/employees/schemas.js";
 import { normalizeMaritalStatus } from "../lib/employees/profileOptions.js";
+import { calculateEmployeeTenure } from "../lib/employees/tenure.js";
 import {
   isValidIndonesianNationalId,
   normalizeIndonesianNationalId,
@@ -407,7 +408,7 @@ test("status perkawinan hanya menerima pilihan resmi", () => {
   );
 });
 
-test("onboarding menerima nomor dan dokumen SK penempatan yang belum tersedia", () => {
+test("onboarding menerima nomor dan dokumen penempatan yang belum tersedia", () => {
   const result = employeeCreateSchema.safeParse(validEmployeeOnboarding);
   assert.equal(result.success, true);
   assert.equal(result.data.assignment.decreeNo, null);
@@ -471,7 +472,7 @@ test("pembatalan kontrak wajib menyimpan alasan yang layak", () => {
   );
 });
 
-test("penempatan baru menerima Nomor SK dan Dokumen SK yang belum tersedia", () => {
+test("penempatan baru menerima nomor dan dokumen penempatan yang belum tersedia", () => {
   const result = assignmentSchema.safeParse({
     locationId: 1,
     organizationUnitId: 2,
@@ -573,6 +574,62 @@ test("filter daftar pegawai menerima setiap status hubungan kerja resmi", () => 
   assert.equal(employeeListFilterSchema.safeParse({ employmentStatus: "leave" }).success, false);
 });
 
+test("masa kerja aktif dihitung sampai hari ini dengan durasi kalender", () => {
+  const result = calculateEmployeeTenure({
+    joinedDate: "2020-02-29",
+    employmentStatus: "active",
+    today: "2025-02-28",
+  });
+
+  assert.equal(result.valid, true);
+  assert.equal(result.duration, "5 tahun 0 bulan 0 hari");
+  assert.equal(result.throughToday, true);
+});
+
+test("masa kerja final berhenti pada tanggal berakhir hubungan kerja", () => {
+  const result = calculateEmployeeTenure({
+    joinedDate: "2024-01-15",
+    terminationDate: "2025-03-20",
+    employmentStatus: "retired",
+    today: "2026-09-02",
+  });
+
+  assert.equal(result.valid, true);
+  assert.equal(result.duration, "1 tahun 2 bulan 5 hari");
+  assert.equal(result.throughDate, "2025-03-20");
+  assert.equal(result.throughToday, false);
+});
+
+test("masa kerja menangani durasi pendek, tanggal sama, dan tanggal invalid", () => {
+  assert.equal(
+    calculateEmployeeTenure({
+      joinedDate: "2026-08-15",
+      employmentStatus: "probation",
+      today: "2026-09-02",
+    }).duration,
+    "0 tahun 0 bulan 18 hari",
+  );
+  assert.equal(
+    calculateEmployeeTenure({
+      joinedDate: "2026-09-02",
+      employmentStatus: "active",
+      today: "2026-09-02",
+    }).duration,
+    "0 tahun 0 bulan 0 hari",
+  );
+  assert.equal(
+    calculateEmployeeTenure({
+      joinedDate: "2026-09-03",
+      employmentStatus: "active",
+      today: "2026-09-02",
+    }).message,
+    "Data tanggal perlu diperiksa.",
+  );
+  assert.equal(
+    calculateEmployeeTenure({ joinedDate: null, employmentStatus: "active" }).message,
+    "Belum dapat dihitung karena tanggal bergabung belum tersedia.",
+  );
+});
 test("direktori pegawai memakai section filter operasional", () => {
   const source = readFileSync(
     new URL("../app/components/employees/EmployeeDirectory.jsx", import.meta.url),
@@ -628,6 +685,12 @@ test("label tanggal pegawai membedakan tanggal bergabung, kontrak, dan TMT", () 
   );
 
   assert.match(employeeForm, /Tanggal bergabung di organisasi/);
+  assert.ok(
+    employeeForm.indexOf('name="joinedDate"') < employeeForm.indexOf('label="KTP (opsional)"'),
+  );
+  assert.match(employeeForm, /Nomor dokumen penempatan \(opsional\)/);
+  assert.match(employeeForm, /Dokumen penempatan \(opsional\)/);
+  assert.doesNotMatch(employeeForm, /Nomor SK \(opsional\)/);
   assert.match(employeeForm, /Tanggal mulai kontrak/);
   assert.match(employeeForm, /TMT jabatan\/penempatan/);
   assert.match(lifecycleForms, /Tanggal mulai kontrak/);
@@ -661,7 +724,7 @@ test("detail pegawai hanya menyediakan edit untuk penempatan aktif", () => {
   assert.match(detailSource, /canManageEmployee && active/);
   assert.match(detailSource, /title="Detail penempatan"/);
 });
-test("koreksi penempatan menerima Nomor SK dan Dokumen SK kosong", () => {
+test("koreksi penempatan menerima nomor dan dokumen penempatan kosong", () => {
   const result = employeeAssignmentCorrectionSchema.safeParse({
     organizationId: 1,
     locationId: 1,
@@ -875,7 +938,7 @@ test("fieldErrors ditempelkan ke form dan field pertama diarahkan", async () => 
   const error = new ApiRequestError({
     fieldErrors: {
       "assignment.effectiveFrom": "Tanggal efektif tidak valid.",
-      documentFileId: "Dokumen SK wajib diunggah.",
+      documentFileId: "Dokumen penempatan wajib diunggah.",
     },
   });
 

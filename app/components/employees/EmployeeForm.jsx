@@ -71,7 +71,7 @@ const FIELD_LABELS = {
   "assignment.positionId": "Jabatan",
   "assignment.supervisorEmployeeId": "Atasan langsung",
   "assignment.effectiveFrom": "TMT jabatan/penempatan",
-  "assignment.decreeNo": "Nomor SK",
+  "assignment.decreeNo": "Nomor dokumen penempatan",
 };
 
 /** Mengubah path dari API menjadi NamePath AntD dengan indeks array bertipe angka. */
@@ -901,6 +901,14 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 >
                   <Input maxLength={200} />
                 </Form.Item>
+                <Form.Item
+                  name="joinedDate"
+                  label="Tanggal bergabung di organisasi"
+                  extra="Tanggal pertama kali pegawai resmi bergabung dengan organisasi."
+                  rules={required("Tanggal bergabung di organisasi wajib diisi.")}
+                >
+                  <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+                </Form.Item>
                 <Form.Item name="preferredName" label="Nama panggilan">
                   <Input maxLength={100} />
                 </Form.Item>
@@ -1009,14 +1017,6 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                   <Input maxLength={120} />
                 </Form.Item>
                 <Form.Item name="birthDate" label="Tanggal lahir">
-                  <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
-                </Form.Item>
-                <Form.Item
-                  name="joinedDate"
-                  label="Tanggal bergabung di organisasi"
-                  extra="Tanggal pertama kali pegawai resmi bergabung dengan organisasi."
-                  rules={required("Tanggal bergabung di organisasi wajib diisi.")}
-                >
                   <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
                 </Form.Item>
                 <Form.Item name="gender" label="Jenis kelamin">
@@ -1315,13 +1315,16 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                   >
                     <DatePicker style={{ width: "100%" }} />
                   </Form.Item>
-                  <Form.Item name={["assignment", "decreeNo"]} label="Nomor SK (opsional)">
+                  <Form.Item
+                    name={["assignment", "decreeNo"]}
+                    label="Nomor dokumen penempatan (opsional)"
+                  >
                     <Input maxLength={100} />
                   </Form.Item>
                   <Box id="employee-assignment-document">
                     <Form.Item
                       className="employee-upload-field"
-                      label="Dokumen SK penempatan (opsional)"
+                      label="Dokumen penempatan (opsional)"
                     >
                       <PrivatePdfUpload
                         value={assignmentFile}

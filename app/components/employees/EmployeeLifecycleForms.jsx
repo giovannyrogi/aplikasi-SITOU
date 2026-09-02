@@ -256,7 +256,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
               />
             </Form.Item>
           ) : null}
-          <Form.Item name="decreeNo" label="Nomor SK (opsional)">
+          <Form.Item name="decreeNo" label="Nomor dokumen penempatan (opsional)">
             <Input maxLength={100} />
           </Form.Item>
           <Form.Item name="assignmentType" label="Jenis penugasan">
@@ -270,7 +270,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
             />
           </Form.Item>
         </Box>
-        <Form.Item label="Dokumen SK penempatan (opsional)">
+        <Form.Item label="Dokumen penempatan (opsional)">
           <PrivatePdfUpload
             value={documentFile}
             uploadUrl="/api/uploads"
@@ -283,7 +283,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
             organizationId={employee.organization_id}
             onChange={setDocumentFile}
             onError={onError}
-            helpText="Opsional. SK penempatan, rolling, mutasi, promosi, atau demosi dalam format PDF maksimal 10 MB."
+            helpText="Opsional. Gunakan dokumen penempatan, rolling, mutasi, promosi, atau demosi dalam format PDF maksimal 10 MB."
             showRemove={!assignment || documentFile?.id !== assignment.document_file_id}
           />
           {assignment?.document_file_id && documentFile?.id === assignment.document_file_id ? (

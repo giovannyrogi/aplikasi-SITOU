@@ -8,6 +8,7 @@ import {
   getImportOptionGroup,
   isSupportedImportOption,
   normalizeImportEmployeeNo,
+  normalizeImportHeader,
   normalizeImportNationalId,
   normalizeImportOption,
 } from "../lib/employees/importDefinition.js";
@@ -125,6 +126,32 @@ test("label dropdown Excel dinormalisasi ke kode sistem tanpa memutus template l
   assert.equal(normalizeImportOption("employmentStatus", "nilai asing"), "nilai asing");
 });
 
+test("header tanggal bergabung baru tetap menerima template lama", () => {
+  const employeeSheet = EMPLOYEE_IMPORT_SHEETS.find((item) => item.name === "Pegawai");
+  assert.deepEqual(
+    employeeSheet.columns.find(([key]) => key === "joinedDate"),
+    ["joinedDate", "Tanggal Bergabung di Organisasi"],
+  );
+  assert.equal(
+    normalizeImportHeader("Pegawai", "Tanggal Bergabung"),
+    "Tanggal Bergabung di Organisasi",
+  );
+});
+test("header dokumen penempatan baru dan template lama dipetakan ke kontrak yang sama", () => {
+  const assignmentSheet = EMPLOYEE_IMPORT_SHEETS.find((item) => item.name === "Penempatan");
+  assert.deepEqual(
+    assignmentSheet.columns.find(([key]) => key === "decreeNo"),
+    ["decreeNo", "Nomor Dokumen Penempatan"],
+  );
+  assert.equal(
+    normalizeImportHeader("Penempatan", "Nomor SK"),
+    "Nomor Dokumen Penempatan",
+  );
+  assert.equal(
+    normalizeImportHeader("Penempatan", "Nomor Dokumen Penempatan"),
+    "Nomor Dokumen Penempatan",
+  );
+});
 test("nilai boolean hasil normalisasi diterima oleh validator pilihan", () => {
   assert.equal(isSupportedImportOption("boolean", true), true);
   assert.equal(isSupportedImportOption("boolean", false), true);

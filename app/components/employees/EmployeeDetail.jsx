@@ -65,6 +65,7 @@ import {
   formatLeaveUnits,
 } from "@/app/components/leave/leaveLabels";
 import { getEmployeeStatusPresentation, isFinalEmploymentStatus } from "./employeeStatus";
+import { calculateEmployeeTenure } from "@/lib/employees/tenure";
 import {
   ACTION_LABELS,
   ACTION_STATUS,
@@ -801,6 +802,14 @@ export default function EmployeeDetail({ employeeId }) {
   // Enum backend diterjemahkan sebelum tab dibentuk agar Ringkasan selalu memakai status berbahasa Indonesia.
   const status = getEmployeeStatusPresentation(employee.employment_status);
   const finalEmploymentStatus = isFinalEmploymentStatus(employee.employment_status);
+  const tenure = calculateEmployeeTenure({
+    joinedDate: employee.joined_date,
+    terminationDate: employee.termination_date,
+    employmentStatus: employee.employment_status,
+  });
+  const tenureText = tenure.valid
+    ? `${tenure.duration} (${tenure.throughToday ? "sampai hari ini" : `sampai ${formatDate(tenure.throughDate)}`})`
+    : tenure.message;
   const canManageEmployee = !readOnly && !finalEmploymentStatus;
   const canManageLeave =
     canManageEmployee && ["active", "probation"].includes(employee.employment_status);
@@ -894,10 +903,6 @@ export default function EmployeeDetail({ employeeId }) {
                   />
                   <InfoField label="Golongan darah" value={employee.blood_type} />
                   <InfoField label="Kewarganegaraan" value={employee.nationality} />
-                  <InfoField
-                    label="Tanggal bergabung di organisasi"
-                    value={formatDate(employee.joined_date)}
-                  />
                 </Box>
                 <Box
                   sx={{
@@ -969,6 +974,11 @@ export default function EmployeeDetail({ employeeId }) {
                 ) : null
               }
             >
+              <InfoField
+                label="Tanggal bergabung di organisasi"
+                value={formatDate(employee.joined_date)}
+              />
+              <InfoField label="Masa kerja" value={tenureText} />
               {finalEmploymentStatus ? (
                 <>
                   <InfoField
@@ -2113,8 +2123,8 @@ export default function EmployeeDetail({ employeeId }) {
               <InfoField label="Atasan langsung" value={assignmentDetail.supervisor_name} />
             </SummarySection>
             <SummarySection icon={<FileTextOutlined />} title="Administrasi dan audit">
-              <InfoField label="Nomor SK" value={assignmentDetail.decree_no} />
-              <InfoField label="Dokumen SK" value={assignmentDetail.document_name} />
+              <InfoField label="Nomor dokumen penempatan" value={assignmentDetail.decree_no} />
+              <InfoField label="Dokumen penempatan" value={assignmentDetail.document_name} />
               <InfoField label="Dicatat oleh" value={assignmentDetail.created_by_name} />
               <InfoField
                 label="Waktu pencatatan"
