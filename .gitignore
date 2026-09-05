@@ -31,6 +31,7 @@
 !/database/migrations/*.sql
 !/database/migrations/README.md
 /scripts/*
+!/scripts/cleanup-replaced-profile-files.mjs
 /tests/*
 /ecosystem.config.js
 

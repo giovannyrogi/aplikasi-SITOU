@@ -237,12 +237,12 @@ export default function EmployeeDirectory() {
     },
     ...(!readOnly && !isFinalEmploymentStatus(item.employment_status)
       ? [
-          // {
-          //   key: "edit",
-          //   icon: <EditOutlined />,
-          //   label: "Edit data pegawai",
-          //   onClick: () => setForm({ open: true, item }),
-          // },
+          {
+            key: "edit",
+            icon: <EditOutlined />,
+            label: "Edit data pegawai",
+            onClick: () => setForm({ open: true, item }),
+          },
           {
             key: "terminate",
             icon: <UserDeleteOutlined />,

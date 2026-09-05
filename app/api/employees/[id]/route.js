@@ -13,8 +13,19 @@ import {
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
-import { employeeTerminationSchema, employeeUpdateSchema } from "@/lib/employees/schemas";
-import { getEmployee, terminateEmployee, updateEmployee } from "@/lib/employees/service";
+import {
+  employeeTerminationSchema,
+  employeeUpdateMultipartSchema,
+  employeeUpdateSchema,
+} from "@/lib/employees/schemas";
+import {
+  getEmployee,
+  terminateEmployee,
+  updateEmployee,
+  updateEmployeeWithProfileFiles,
+} from "@/lib/employees/service";
+
+const MAX_EMPLOYEE_EDIT_BYTES = 11 * 1024 * 1024;
 
 const resolveId = async (context, requestId) => {
   const parsed = parsePositiveInteger((await context.params).id, "ID pegawai");
@@ -53,20 +64,62 @@ export async function PATCH(request, context) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("employees.update");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const isMultipart = request.headers.get("content-type")?.includes("multipart/form-data");
+  const rejected = validateMutationRequest(request, user.id, requestId, {
+    maxBytes: isMultipart ? MAX_EMPLOYEE_EDIT_BYTES : undefined,
+  });
   if (rejected) return rejected;
   const resolved = await resolveId(context, requestId);
   if (resolved.response) return resolved.response;
-  const parsed = await readJson(request, employeeUpdateSchema, requestId);
+  let parsed;
+  let pendingUploads = [];
+  if (isMultipart) {
+    try {
+      const formData = await request.formData();
+      const payload = JSON.parse(String(formData.get("payload") || ""));
+      const result = employeeUpdateMultipartSchema.safeParse(payload);
+      if (!result.success) {
+        const fieldErrors = Object.fromEntries(
+          result.error.issues.map((issue) => [issue.path.join(".") || "form", issue.message]),
+        );
+        return errorResponse(
+          "VALIDATION_ERROR",
+          "Periksa kembali data yang diisi.",
+          400,
+          requestId,
+          fieldErrors,
+        );
+      }
+      pendingUploads = result.data.uploads.map((upload) => {
+        const file = formData.get(`upload:${upload.token}`);
+        if (!file || typeof file.arrayBuffer !== "function")
+          throw new Error("File perubahan profil tidak lengkap.");
+        return { ...upload, file };
+      });
+      parsed = { data: result.data, response: null };
+    } catch {
+      return errorResponse(
+        "INVALID_MULTIPART",
+        "Data pegawai atau file yang dikirim tidak valid.",
+        400,
+        requestId,
+      );
+    }
+  } else {
+    parsed = await readJson(request, employeeUpdateSchema, requestId);
+  }
   if (parsed.response) return parsed.response;
   try {
     const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);
-    const data = await updateEmployee(
-      resolved.id,
-      { ...parsed.data, organizationId },
-      user,
-      requestId,
-    );
+    const data = isMultipart
+      ? await updateEmployeeWithProfileFiles(
+          resolved.id,
+          { ...parsed.data, organizationId },
+          pendingUploads,
+          user,
+          requestId,
+        )
+      : await updateEmployee(resolved.id, { ...parsed.data, organizationId }, user, requestId);
     return successResponse(data, { code: "EMPLOYEE_UPDATED", message: "Data pegawai diperbarui." });
   } catch (error) {
     return handleRouteError("employees.update", error, requestId);

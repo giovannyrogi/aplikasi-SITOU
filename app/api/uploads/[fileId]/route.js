@@ -107,6 +107,12 @@ export async function DELETE(request, { params }) {
     );
     const file = await getStoredFile(fileId, organizationId);
     await enforceFileScope(user, file);
+    if (["employee_photo", "identity", "education"].includes(file.category))
+      throw new ServiceError(
+        "PROFILE_FILE_COMPOSITE_REQUIRED",
+        "Hapus file profil melalui form data pegawai atau profil lengkap lalu simpan perubahan.",
+        409,
+      );
     await softDeleteStoredFile(fileId, organizationId, user, requestId);
     return successResponse(null, { code: "FILE_DELETED", message: "File berhasil dihapus." });
   } catch (error) {

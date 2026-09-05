@@ -182,6 +182,8 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   const saveQueueRef = useRef(Promise.resolve(true));
   const draftRef = useRef(null);
   const dirtyRef = useRef(false);
+  const initialEditFilesRef = useRef({ ktp: null, profilePhoto: null });
+  const editFilesTouchedRef = useRef(false);
   const onErrorRef = useRef(onError);
   const selectedOrganizationId = Form.useWatch("organizationId", form);
   const selectedLocationId = Form.useWatch(["assignment", "locationId"], form);
@@ -274,19 +276,18 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
       queueMicrotask(() => {
         setStep(0);
         setDraftStatus("saved");
-        setFiles(
-          item.profile_photo_file_id
-            ? [
-                {
-                  id: item.profile_photo_file_id,
-                  category: "employee_photo",
-                  original_name: "Pas foto saat ini",
-                  mime_type: "image/jpeg",
-                  size_bytes: 0,
-                },
-              ]
-            : [],
-        );
+        editFilesTouchedRef.current = false;
+        const profilePhoto = item.profile_photo_file_id
+          ? {
+              id: item.profile_photo_file_id,
+              category: "employee_photo",
+              original_name: "Pas foto saat ini",
+              mime_type: "image/jpeg",
+              size_bytes: 0,
+            }
+          : null;
+        initialEditFilesRef.current = { ktp: null, profilePhoto };
+        setFiles(profilePhoto ? [profilePhoto] : []);
       });
       form.resetFields();
       const sameAddress = Boolean(item.ktp_address && item.ktp_address === item.domicile_address);
@@ -323,13 +324,20 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               { signal: controller.signal },
             );
             const body = await readApiResponse(response);
-            setFiles(
-              (body.data || []).filter(
-                (file) =>
-                  file.category === "employee_photo" ||
-                  (file.category === "identity" && file.document_type === "ktp"),
-              ),
+            const editableFiles = (body.data || []).filter(
+              (file) =>
+                file.category === "employee_photo" ||
+                (file.category === "identity" && file.document_type === "ktp"),
             );
+            initialEditFilesRef.current = {
+              profilePhoto:
+                editableFiles.find((file) => file.category === "employee_photo") || null,
+              ktp:
+                editableFiles.find(
+                  (file) => file.category === "identity" && file.document_type === "ktp",
+                ) || null,
+            };
+            if (!editFilesTouchedRef.current) setFiles(editableFiles);
           } catch (error) {
             if (error.name !== "AbortError")
               reportError(error.message || "Dokumen pegawai gagal dimuat.");
@@ -606,6 +614,40 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
     if (saved) setStep(previous);
   };
 
+  /** Membandingkan slot awal dan state lokal tanpa menyentuh server sebelum tombol Simpan. */
+  const resolveEditFileAction = (initialFile, currentFile) => {
+    if (currentFile?.pending) return "replace";
+    if (initialFile && !currentFile) return "remove";
+    return "keep";
+  };
+
+  /** Menyusun multipart hanya ketika KTP atau pas foto benar-benar berubah. */
+  const buildEditRequest = (values) => {
+    const initialFiles = initialEditFilesRef.current;
+    const fileChanges = {
+      ktp: resolveEditFileAction(initialFiles.ktp, ktpFile),
+      profilePhoto: resolveEditFileAction(initialFiles.profilePhoto, profilePhotoFile),
+    };
+    if (Object.values(fileChanges).every((action) => action === "keep"))
+      return {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(serialize(values)),
+      };
+
+    const multipart = new FormData();
+    const uploads = [];
+    for (const [target, file] of [
+      ["ktp", ktpFile],
+      ["profilePhoto", profilePhotoFile],
+    ]) {
+      if (fileChanges[target] !== "replace") continue;
+      uploads.push({ token: file.uploadToken, target });
+      multipart.append(`upload:${file.uploadToken}`, file.localFile, file.localFile.name);
+    }
+    multipart.append("payload", JSON.stringify({ ...serialize(values), fileChanges, uploads }));
+    return { body: multipart };
+  };
+
   /** Menyimpan edit lama atau memfinalisasi draft baru yang telah lengkap. */
   const submit = async (values) => {
     try {
@@ -615,8 +657,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
           if (editing) {
             response = await fetch(`/api/employees/${item.id}`, {
               method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(serialize(values)),
+              ...buildEditRequest(values),
             });
           } else {
             const saved = await saveDraftNow(3);
@@ -935,34 +976,36 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                   >
                     <PrivateFileUpload
                       value={ktpFile}
-                      uploadUrl={
-                        editing ? "/api/uploads" : `/api/employees/drafts/${draft?.id}/files`
-                      }
+                      deferred={editing}
+                      uploadUrl={editing ? undefined : `/api/employees/drafts/${draft?.id}/files`}
                       removeUrl={
-                        ktpFile
-                          ? editing
-                            ? `/api/uploads/${ktpFile.id}${query}`
-                            : `/api/employees/drafts/${draft?.id}/files/${ktpFile.id}${query}`
+                        ktpFile && !editing
+                          ? `/api/employees/drafts/${draft?.id}/files/${ktpFile.id}${query}`
                           : null
                       }
-                      fields={
-                        editing ? { fileKind: "ktp", employeeId: item.id } : { fileKind: "ktp" }
-                      }
+                      fields={{ fileKind: "ktp" }}
                       organizationId={targetOrganizationId}
                       accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                       maxSizeBytes={5 * 1024 * 1024}
                       emptyTitle="Pilih atau tarik KTP ke area ini"
                       helpText="Opsional. Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
                       selectedText={
-                        editing
-                          ? "KTP aktif tersimpan secara privat"
-                          : "KTP tersimpan pada draft privat"
+                        ktpFile?.pending
+                          ? "KTP siap disimpan bersama data pegawai"
+                          : editing
+                            ? "KTP aktif tersimpan secara privat"
+                            : "KTP tersimpan pada draft privat"
                       }
                       onChange={(file) =>
-                        setFiles((current) => [
-                          ...current.filter((value) => value.category !== "identity"),
-                          ...(file ? [file] : []),
-                        ])
+                        setFiles((current) => {
+                          editFilesTouchedRef.current = editing;
+                          return [
+                            ...current.filter((value) => value.category !== "identity"),
+                            ...(file
+                              ? [{ ...file, category: "identity", document_type: "ktp" }]
+                              : []),
+                          ];
+                        })
                       }
                       onError={reportError}
                       disabled={!editing && !draft}
@@ -976,36 +1019,34 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                   >
                     <PrivateFileUpload
                       value={profilePhotoFile}
-                      uploadUrl={
-                        editing ? "/api/uploads" : `/api/employees/drafts/${draft?.id}/files`
-                      }
+                      deferred={editing}
+                      uploadUrl={editing ? undefined : `/api/employees/drafts/${draft?.id}/files`}
                       removeUrl={
-                        profilePhotoFile
-                          ? editing
-                            ? `/api/uploads/${profilePhotoFile.id}${query}`
-                            : `/api/employees/drafts/${draft?.id}/files/${profilePhotoFile.id}${query}`
+                        profilePhotoFile && !editing
+                          ? `/api/employees/drafts/${draft?.id}/files/${profilePhotoFile.id}${query}`
                           : null
                       }
-                      fields={
-                        editing
-                          ? { fileKind: "pas_foto", employeeId: item.id }
-                          : { fileKind: "pas_foto" }
-                      }
+                      fields={{ fileKind: "pas_foto" }}
                       organizationId={targetOrganizationId}
                       accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                       maxSizeBytes={5 * 1024 * 1024}
                       emptyTitle="Pilih atau tarik pas foto ke area ini"
                       helpText="Opsional. Gunakan JPEG, PNG, atau WebP maksimal 5 MB."
                       selectedText={
-                        editing
-                          ? "Pas foto aktif tersimpan secara privat"
-                          : "Pas foto tersimpan pada draft privat"
+                        profilePhotoFile?.pending
+                          ? "Pas foto siap disimpan bersama data pegawai"
+                          : editing
+                            ? "Pas foto aktif tersimpan secara privat"
+                            : "Pas foto tersimpan pada draft privat"
                       }
                       onChange={(file) =>
-                        setFiles((current) => [
-                          ...current.filter((value) => value.category !== "employee_photo"),
-                          ...(file ? [file] : []),
-                        ])
+                        setFiles((current) => {
+                          editFilesTouchedRef.current = editing;
+                          return [
+                            ...current.filter((value) => value.category !== "employee_photo"),
+                            ...(file ? [{ ...file, category: "employee_photo" }] : []),
+                          ];
+                        })
                       }
                       onError={reportError}
                       disabled={!editing && !draft}

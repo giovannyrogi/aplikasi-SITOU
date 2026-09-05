@@ -54,6 +54,13 @@ export default function PrivateFileUpload({
     [],
   );
 
+  /** Melepas preview ketika parent membatalkan perubahan atau memuat ulang file tersimpan. */
+  useEffect(() => {
+    if (value?.pending || !localPreviewRef.current) return;
+    URL.revokeObjectURL(localPreviewRef.current);
+    localPreviewRef.current = null;
+  }, [value]);
+
   /** Server tetap menjadi pemeriksa akhir MIME; batas klien hanya memberi feedback lebih cepat. */
   const upload = async (file) => {
     if (maxSizeBytes && file.size > maxSizeBytes) {

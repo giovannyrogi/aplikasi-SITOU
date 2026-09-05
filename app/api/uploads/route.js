@@ -7,12 +7,24 @@ import {
   errorResponse,
   getRequestId,
   handleRouteError,
+  ServiceError,
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
 import { listEmployeeFiles, storeEmployeeFile } from "@/lib/files/storage";
 
 const MAX_REQUEST_BYTES = 11 * 1024 * 1024;
+const COMPOSITE_PROFILE_FILE_KINDS = new Set([
+  "pas_foto",
+  "ktp",
+  "kk",
+  "npwp",
+  "bpjs_kesehatan",
+  "bpjs_ketenagakerjaan",
+  "identitas_lain",
+  "pendidikan",
+  "sertifikasi",
+]);
 
 /** Mengembalikan metadata file pegawai; isi file tetap diakses melalui route file ID. */
 export async function GET(request) {
@@ -45,10 +57,17 @@ export async function POST(request) {
     const form = await request.formData();
     const organizationId = resolvePermissionOrganization(user, form.get("organizationId") || null);
     const employeeId = String(form.get("employeeId") || "");
+    const fileKind = String(form.get("fileKind") || "");
+    if (COMPOSITE_PROFILE_FILE_KINDS.has(fileKind))
+      throw new ServiceError(
+        "PROFILE_FILE_COMPOSITE_REQUIRED",
+        "Simpan perubahan file profil melalui form data pegawai atau profil lengkap.",
+        409,
+      );
     await ensureActorEmployeeAccess(user, employeeId, organizationId);
     const data = await storeEmployeeFile({
       file: form.get("file"),
-      fileKind: String(form.get("fileKind") || ""),
+      fileKind,
       employeeId,
       organizationId,
       actor: user,

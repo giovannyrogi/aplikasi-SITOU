@@ -25,6 +25,7 @@ import {
   employeeContractCorrectionSchema,
   employeeDraftSaveSchema,
   employeeListFilterSchema,
+  employeeUpdateMultipartSchema,
 } from "../lib/employees/schemas.js";
 import { normalizeMaritalStatus } from "../lib/employees/profileOptions.js";
 import { calculateEmployeeTenure } from "../lib/employees/tenure.js";
@@ -56,6 +57,16 @@ const strongAccount = {
   isActive: true,
   password: "Test#123",
   confirmPassword: "Test#123",
+};
+
+const validEmployeeUpdate = {
+  organizationId: 1,
+  employeeNo: "PGW-001",
+  fullName: "Pegawai Contoh",
+  nationalId: "7171082102940002",
+  employmentStatus: "active",
+  version: "2026-09-05T00:00:00.000Z",
+  contact: {},
 };
 
 test("schema final dan migration koreksi memberikan permission akun", () => {
@@ -246,6 +257,69 @@ test("upload profil tertunda wajib memiliki token dan target unik", () => {
     ],
   });
   assert.equal(result.success, false);
+});
+
+test("edit pegawai menerima penggantian KTP dan pas foto dalam satu multipart", () => {
+  const result = employeeUpdateMultipartSchema.safeParse({
+    ...validEmployeeUpdate,
+    fileChanges: { ktp: "replace", profilePhoto: "replace" },
+    uploads: [
+      { token: "d9ab55b8-54a8-4b78-9bf2-c71b07ea2965", target: "ktp" },
+      { token: "4bd8efe1-0f5f-45dd-8f73-a15b686643c8", target: "profilePhoto" },
+    ],
+  });
+  assert.equal(result.success, true);
+});
+
+test("edit pegawai menolak aksi ganti tanpa file dan file tanpa aksi ganti", () => {
+  const missingFile = employeeUpdateMultipartSchema.safeParse({
+    ...validEmployeeUpdate,
+    fileChanges: { ktp: "replace", profilePhoto: "keep" },
+  });
+  const unexpectedFile = employeeUpdateMultipartSchema.safeParse({
+    ...validEmployeeUpdate,
+    fileChanges: { ktp: "keep", profilePhoto: "keep" },
+    uploads: [{ token: "d9ab55b8-54a8-4b78-9bf2-c71b07ea2965", target: "ktp" }],
+  });
+  assert.equal(missingFile.success, false);
+  assert.equal(unexpectedFile.success, false);
+});
+
+test("form edit menunda file profil dan menyimpannya bersama PATCH pegawai", () => {
+  const formSource = readFileSync(
+    new URL("../app/components/employees/EmployeeForm.jsx", import.meta.url),
+    "utf8",
+  );
+  const routeSource = readFileSync(
+    new URL("../app/api/employees/[id]/route.js", import.meta.url),
+    "utf8",
+  );
+  const serviceSource = readFileSync(
+    new URL("../lib/employees/service.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(formSource, /deferred=\{editing\}/);
+  assert.match(formSource, /new FormData\(\)/);
+  assert.doesNotMatch(formSource, /editing \? "\/api\/uploads"/);
+  assert.match(routeSource, /employeeUpdateMultipartSchema/);
+  assert.match(routeSource, /updateEmployeeWithProfileFiles/);
+  assert.match(serviceSource, /softDeleteRemovedProfileFiles/);
+  assert.match(serviceSource, /restoreQuarantinedFiles/);
+  assert.match(serviceSource, /purgeQuarantinedFiles/);
+});
+
+test("endpoint upload umum menolak perubahan langsung pada file profil", () => {
+  const uploadRoute = readFileSync(
+    new URL("../app/api/uploads/route.js", import.meta.url),
+    "utf8",
+  );
+  const deleteRoute = readFileSync(
+    new URL("../app/api/uploads/[fileId]/route.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(uploadRoute, /PROFILE_FILE_COMPOSITE_REQUIRED/);
+  assert.match(deleteRoute, /PROFILE_FILE_COMPOSITE_REQUIRED/);
 });
 
 test("identitas lainnya wajib mempunyai nama yang dapat dipahami pengguna", () => {
