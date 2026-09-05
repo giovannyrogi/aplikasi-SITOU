@@ -32,7 +32,12 @@
 !/database/migrations/README.md
 /scripts/*
 !/scripts/cleanup-replaced-profile-files.mjs
+!/scripts/file-cleanup-worker.mjs
+!/scripts/test-storage-maintenance-http.mjs
+!/scripts/test-storage-maintenance-db.mjs
+!/scripts/verify-schema-bootstrap.mjs
 /tests/*
+!/tests/storage-maintenance.test.mjs
 /ecosystem.config.js
 
 # debug

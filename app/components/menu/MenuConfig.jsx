@@ -117,6 +117,22 @@ const MENU_CONFIG = [
       },
     ],
   },
+  {
+    label: "Pemeliharaan Sistem",
+    value: "system-maintenance",
+    icon: <Icon icon="solar:settings-minimalistic-bold-duotone" fontSize="20px" />,
+    roles: [ROLES.SUPERADMIN],
+    submenu: [
+      {
+        label: "Penyimpanan File",
+        value: "storage-maintenance",
+        path: "/system/storage-maintenance",
+        icon: <Icon icon="solar:folder-with-files-bold-duotone" fontSize="20px" />,
+        showIcon: true,
+        roles: [ROLES.SUPERADMIN],
+      },
+    ],
+  },
 ];
 
 export default MENU_CONFIG;

@@ -85,7 +85,7 @@ export default function DisciplineCaseDetailModal({
   const actionStatus = action ? ACTION_STATUS[action.status] || [action.status, "neutral"] : null;
   const isOralWarning = action?.action_type === "oral_warning";
   const fileDescription = [
-    action?.document_original_name,
+    action?.document_file_id ? "Dokumen tindakan disiplin" : null,
     formatFileSize(action?.document_size_bytes),
   ]
     .filter(Boolean)

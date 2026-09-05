@@ -21,6 +21,8 @@ const requiredRelations = [
   "leave_requests",
   "leave_entitlements",
   "leave_balance_transactions",
+  "file_cleanup_runs",
+  "file_cleanup_items",
   "v_user_identity",
 ];
 
@@ -33,6 +35,9 @@ const requiredColumns = [
   ["user_organization_roles", "location_scope_mode"],
   ["stored_files", "employee_id"],
   ["stored_files", "onboarding_draft_id"],
+  ["stored_files", "deleted_by_user_id"],
+  ["stored_files", "deletion_reason_code"],
+  ["stored_files", "content_purged_at"],
   ["employee_import_rows", "sheet_name"],
   ["employee_import_rows", "entity_type"],
   ["employee_import_rows", "entity_ref"],
@@ -107,6 +112,7 @@ const expectedRolePermissions = {
     "private_files.read",
     "private_files.read_sensitive",
     "private_files.manage",
+    "storage_maintenance.manage",
     "profile_self.read",
     "profile_self.update",
   ],

@@ -313,7 +313,7 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
             onPreview?.({
               imageUrl: `/api/uploads/${file.id}?organizationId=${organizationId}`,
               title: label,
-              alt: file.original_name || label,
+              alt: label,
             })
           }
         >

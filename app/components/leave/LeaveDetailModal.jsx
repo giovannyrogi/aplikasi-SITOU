@@ -110,14 +110,14 @@ export default function LeaveDetailModal({ item, onClose }) {
             Lampiran privat
           </FontStyle>
           <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
-            {item.attachments.map((file) => (
+            {item.attachments.map((file, index) => (
               <Button
                 key={file.id}
                 icon={<FileSearchOutlined />}
                 href={`/api/uploads/${file.id}?organizationId=${item.organization_id}`}
                 target="_blank"
               >
-                {file.name}
+                Lihat lampiran {index + 1}
               </Button>
             ))}
           </Box>

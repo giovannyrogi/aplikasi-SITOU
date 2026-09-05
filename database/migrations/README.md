@@ -50,3 +50,5 @@ Migration `022` memisahkan cuti dari `employees.employment_status`, menormalkan 
 Migration `023` mengeraskan kompatibilitas data cuti lama dan mengizinkan keputusan oleh Superadmin berizin tanpa mengubah kewenangan Pimpinan. Migration ini idempotent terhadap constraint keputusan hasil migration `022`.
 
 Migration `024` mengubah jatah tahunan, durasi pencatatan, dan transaksi saldo cuti/izin menjadi bilangan bulat. Migration berhenti bila menemukan data pecahan agar saldo tidak dibulatkan secara diam-diam.
+
+Migration `025` menambahkan metadata penonaktifan dan purge byte pada `stored_files`, antrean `file_cleanup_runs`, hasil per file `file_cleanup_items`, serta permission `storage_maintenance.manage` khusus Superadmin. Jalankan worker terpisah dengan `npm run worker:file-cleanup`; satu organisasi hanya dapat memiliki satu pemeriksaan atau pembersihan aktif.

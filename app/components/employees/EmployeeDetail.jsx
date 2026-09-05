@@ -391,14 +391,6 @@ function VisualIdentity({
           </Box>
         </Box>
       )}
-      {file?.original_name ? (
-        <FontStyle
-          fontSize={10.5}
-          sx={{ mt: 0.75, color: theme.ui.mutedText, overflowWrap: "anywhere" }}
-        >
-          {file.original_name}
-        </FontStyle>
-      ) : null}
     </Box>
   );
 }
@@ -827,6 +819,7 @@ export default function EmployeeDetail({ employeeId }) {
       : null;
   const identifiers = state.profile.identifiers || [];
   const ktpIdentifier = identifiers.find((item) => item.identifier_type === "ktp");
+  const familyCardIdentifier = identifiers.find((item) => item.identifier_type === "family_card");
   const bpjsHealth = identifiers.find((item) => item.identifier_type === "bpjs_health");
   const bpjsEmployment = identifiers.find((item) => item.identifier_type === "bpjs_employment");
 
@@ -911,7 +904,8 @@ export default function EmployeeDetail({ employeeId }) {
                     display: "grid",
                     gridTemplateColumns: {
                       xs: "minmax(0, 1fr)",
-                      sm: "180px minmax(280px, 420px)",
+                      sm: "180px minmax(0, 420px)",
+                      xl: "180px repeat(2, minmax(0, 420px))",
                     },
                     gap: { xs: 3, sm: 3.5 },
                     alignItems: "start",
@@ -937,6 +931,20 @@ export default function EmployeeDetail({ employeeId }) {
                     onPreview={setImagePreview}
                     frameless
                     sx={{ width: "100%", maxWidth: 420, mx: { xs: "auto", sm: 0 } }}
+                  />
+                  <VisualIdentity
+                    title="Foto Kartu Keluarga (KK)"
+                    file={familyCardIdentifier?.document_file}
+                    emptyText="Foto Kartu Keluarga belum diunggah."
+                    organizationId={organizationId}
+                    onPreview={setImagePreview}
+                    frameless
+                    sx={{
+                      width: "100%",
+                      maxWidth: 420,
+                      mx: { xs: "auto", sm: 0 },
+                      gridColumn: { sm: 2, xl: "auto" },
+                    }}
                   />
                 </Box>
               </SummarySection>
@@ -2075,7 +2083,7 @@ export default function EmployeeDetail({ employeeId }) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Lihat dokumen SK
+                Lihat dokumen
               </Button>
             ) : null}
             <Button onClick={() => setAssignmentDetail(null)}>Tutup</Button>
@@ -2124,7 +2132,10 @@ export default function EmployeeDetail({ employeeId }) {
             </SummarySection>
             <SummarySection icon={<FileTextOutlined />} title="Administrasi dan audit">
               <InfoField label="Nomor dokumen penempatan" value={assignmentDetail.decree_no} />
-              <InfoField label="Dokumen penempatan" value={assignmentDetail.document_name} />
+              <InfoField
+                label="Dokumen penempatan"
+                value={assignmentDetail.document_file_id ? "Tersedia" : "Belum diunggah"}
+              />
               <InfoField label="Dicatat oleh" value={assignmentDetail.created_by_name} />
               <InfoField
                 label="Waktu pencatatan"
