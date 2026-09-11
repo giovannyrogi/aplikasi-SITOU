@@ -295,10 +295,20 @@ Lifecycle tindakan disiplin wajib mempertahankan histori: status `draft` masih d
 
 ## 15. Query dan indexing
 
+### Laporan kontrak dan proyeksi pensiun
+
+- Dashboard, daftar laporan, dan ekspor wajib memakai service/filter laporan bersama serta tanggal acuan dari timezone organisasi. Usia pensiun kebijakan tahap awal adalah 58 tahun kalender; 29 Februari menjadi 28 Februari pada tahun nonkabisat. Laporan tidak otomatis mengakhiri hubungan kerja.
+- Default pensiun adalah 12 bulan ke depan dan kontrak 30 hari ke depan, inklusif. Kelompok sudah lewat tidak dibatasi periode masa depan. Tahun ini/rentang sendiri dapat mencakup tanggal lewat dan mendatang; tanggal lahir bermasalah tidak difilter tanggal proyeksi.
+- Hanya pegawai aktif, masa percobaan, atau ditangguhkan yang tidak dihapus logis masuk laporan. Kontrak tanpa tanggal akhir, draft, dibatalkan, terminated, atau histori yang sudah digantikan tidak boleh dianggap tunggakan perpanjangan.
+- Laporan dan ekspor wajib memeriksa permission, organisasi, dan cakupan lokasi yang sama. HRD bercakupan lokasi tidak mendapat akses tambahan pada pegawai tanpa penempatan. Superadmin memilih satu organisasi secara eksplisit.
+- Excel memuat seluruh hasil filter, maksimal 5.000 baris; kelebihan batas harus ditolak tanpa pemotongan diam-diam. NIP/nomor kontrak berupa teks literal, tanpa NIK/dokumen privat; ekspor diaudit dan memakai no-store.
+- Definisi dan prosedur uji terdapat pada `lib/reports/README.md`. Perhitungan adalah data turunan, bukan kolom baru.
+
 Aturan wajib:
 
 - Hindari `SELECT *` pada API.
 - Semua list memakai keyset pagination bila data besar; offset hanya untuk master kecil.
+- Filter **Ditambahkan oleh** pada daftar pegawai wajib berasal dari audit append-only `employee.create`, dibatasi organisasi dan scope lokasi actor. Dilarang menambah kolom pembuat yang dapat ditimpa pada profil pegawai hanya demi kebutuhan filter.
 - Filter organisasi dan rentang tanggal harus berada di query SQL.
 - Hindari N+1; gunakan join/batch query.
 - Dashboard membaca view/rekap dan cache singkat bila tidak harus real-time.

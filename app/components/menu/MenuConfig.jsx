@@ -102,6 +102,30 @@ const MENU_CONFIG = [
     ],
   },
   {
+    label: "Laporan",
+    value: "reports",
+    icon: <Icon icon="solar:chart-2-bold-duotone" fontSize="20px" />,
+    roles: DASHBOARD_ROLES,
+    submenu: [
+      {
+        label: "Kontrak Akan Berakhir",
+        value: "expiring-contracts-report",
+        path: "/reports/expiring-contracts",
+        icon: <Icon icon="clarity:contract-solid" fontSize="20px" />,
+        showIcon: true,
+        roles: DASHBOARD_ROLES,
+      },
+      {
+        label: "Proyeksi Pensiun",
+        value: "retirement-report",
+        path: "/reports/retirements",
+        icon: <Icon icon="fa6-solid:people-group" fontSize="20px" />,
+        showIcon: true,
+        roles: DASHBOARD_ROLES,
+      },
+    ],
+  },
+  {
     label: "Akun & Akses",
     value: "access-module",
     icon: <Icon icon="solar:key-bold-duotone" fontSize="20px" />,

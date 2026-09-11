@@ -1,7 +1,9 @@
 "use client";
 
 import { Box, useMediaQuery, useTheme } from "@mui/material";
-import { Pagination, Skeleton, Table } from "antd";
+import { Pagination, Skeleton } from "antd";
+import Table from "./NumberedTable";
+import { rowNumberOffset } from "./rowNumbers.mjs";
 import EmptyState from "./EmptyState";
 import ErrorState from "./ErrorState";
 import ModernTableFrame from "./ModernTableFrame";
@@ -21,10 +23,12 @@ export default function ResponsiveDataView({
   tableSx,
   mobileCardSx,
   scrollX = 900,
+  rowOffset,
 }) {
   const theme = useTheme();
   const mobile = useMediaQuery("(max-width:767px)");
   const mobileShellSx = { p: { xs: 2, sm: 2.5 } };
+  const offset = rowNumberOffset(pagination, rowOffset);
 
   if (error) {
     return (
@@ -71,7 +75,7 @@ export default function ResponsiveDataView({
     return (
       <Box sx={{ ...mobileShellSx, display: "grid", gap: 2 }}>
         <Box sx={{ display: "grid", gap: 1.5 }}>
-          {data.map((item) => (
+          {data.map((item, index) => (
             <Box
               key={item[rowKey]}
               sx={{
@@ -88,19 +92,24 @@ export default function ResponsiveDataView({
                 ...mobileCardSx,
               }}
             >
+              <Box sx={{ color: "text.secondary", fontSize: 12, mb: 1 }}>
+                No {offset + index + 1}
+              </Box>
               {renderCard(item)}
             </Box>
           ))}
         </Box>
-        <Box sx={{ display: "flex", justifyContent: "center", overflowX: "auto", pb: 0.5 }}>
-          <Pagination
-            simple
-            current={pagination.page}
-            pageSize={pagination.pageSize}
-            total={pagination.total}
-            onChange={onPageChange}
-          />
-        </Box>
+        {pagination && (
+          <Box sx={{ display: "flex", justifyContent: "center", overflowX: "auto", pb: 0.5 }}>
+            <Pagination
+              simple
+              current={pagination.page}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onChange={onPageChange}
+            />
+          </Box>
+        )}
       </Box>
     );
   }
@@ -108,6 +117,7 @@ export default function ResponsiveDataView({
   return (
     <ModernTableFrame sx={tableSx}>
       <Table
+        rowOffset={offset}
         rowKey={rowKey}
         dataSource={data}
         columns={columns}
@@ -115,15 +125,19 @@ export default function ResponsiveDataView({
         size="middle"
         scroll={{ x: scrollX }}
         locale={{ emptyText: <EmptyState description={emptyDescription} /> }}
-        pagination={{
-          current: pagination.page,
-          pageSize: pagination.pageSize,
-          total: pagination.total,
-          showSizeChanger: true,
-          pageSizeOptions: [10, 20, 50],
-          showTotal: (total) => total + " data",
-          onChange: onPageChange,
-        }}
+        pagination={
+          pagination
+            ? {
+                current: pagination.page,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                showSizeChanger: true,
+                pageSizeOptions: [10, 20, 50],
+                showTotal: (total) => total + " data",
+                onChange: onPageChange,
+              }
+            : false
+        }
       />
     </ModernTableFrame>
   );

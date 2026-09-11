@@ -104,6 +104,8 @@ seluruh relasi, kolom, constraint, dan mapping permission tersedia.
 
 Lifecycle akhir hubungan kerja memakai `employees.employment_status` dengan nilai final `terminated`, `retired`, atau `deceased`, disertai `termination_date` dan `termination_reason`. Workflow aplikasi hanya menerima tanggal sejak `joined_date` sampai hari ini, menutup penempatan serta kontrak aktif, menonaktifkan akun tertaut, dan menulis `audit_logs` dalam satu transaksi. Profil, dokumen, disiplin, kontrak, dan penempatan historis tidak dihapus. Setelah status final tersimpan, perubahan profil atau histori operasional melalui form biasa ditolak.
 
+Daftar Data Pegawai dapat difilter menurut **Ditambahkan oleh**. Nilai ini bersumber dari audit append-only `employee.create`, bukan kolom profil yang dapat berubah. Opsi akun dibatasi organisasi serta cakupan lokasi actor. Pegawai lama yang belum memiliki audit pencatatan tetap muncul ketika filter memakai Semua akun; memilih akun hanya menampilkan record yang memiliki audit pencatatan oleh akun tersebut.
+
 Import pegawai memakai workbook `.xlsx` multi-sheet resmi tanpa foto, dokumen, kasus disiplin, atau tindakan sanksi. NIK wajib 16 digit untuk import. Nomor baris unik di dalam sheet melalui `(batch_id,sheet_name,row_number)`. Validasi dikelompokkan berdasarkan `employee_no`, dan commit atomik per pegawai menghasilkan status `committed` atau `partially_committed` tanpa menggagalkan pegawai valid lain. Detail operasional berada di `docs/employee-import.md`.
 
 ## Penyimpanan Privat Pegawai

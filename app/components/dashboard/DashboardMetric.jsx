@@ -70,7 +70,7 @@ export default function DashboardMetric({ metric, loading }) {
             </Box>
           ) : (
             <FontStyle fontSize={10.5} sx={{ mt: 1.2, color: theme.ui.mutedText }}>
-              Data diperbarui dari kondisi operasional terkini.
+              {metric.description || "Data diperbarui dari kondisi operasional terkini."}
             </FontStyle>
           )}
         </>

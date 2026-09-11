@@ -58,13 +58,20 @@ export default function EmployeeDirectory() {
     organizationUnits: [],
     positions: [],
     employmentTypes: [],
+    createdByUsers: [],
   });
   const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
 
   useEffect(() => {
     if (!organizationId) {
       Promise.resolve().then(() =>
-        setReferences({ locations: [], organizationUnits: [], positions: [], employmentTypes: [] }),
+        setReferences({
+          locations: [],
+          organizationUnits: [],
+          positions: [],
+          employmentTypes: [],
+          createdByUsers: [],
+        }),
       );
       return;
     }
@@ -79,6 +86,7 @@ export default function EmployeeDirectory() {
           organizationUnits: body.data?.organizationUnits || [],
           positions: body.data?.positions || [],
           employmentTypes: body.data?.employmentTypes || [],
+          createdByUsers: body.data?.createdByUsers || [],
         }),
       )
       .catch((error) => {
@@ -214,6 +222,21 @@ export default function EmployeeDirectory() {
             { value: "deceased", label: "Meninggal dunia" },
           ]}
           style={{ width: "100%" }}
+        />
+      ),
+    },
+    {
+      key: "createdByUserId",
+      label: "Ditambahkan oleh",
+      control: (
+        <Select
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder="Semua akun"
+          value={list.filters.createdByUserId}
+          onChange={(value) => updateFilter("createdByUserId", value)}
+          options={references.createdByUsers.map((item) => ({ value: item.id, label: item.name }))}
         />
       ),
     },
@@ -484,10 +507,10 @@ export default function EmployeeDirectory() {
       />
       <OperationalFilterSection
         title="Filter data pegawai"
-        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian/kontrak, dan status pegawai."
+        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian/kontrak, status, dan akun pencatat."
         items={filterItems}
         onReset={resetFilters}
-        wideColumns={6}
+        wideColumns={7}
       />
       <DataPanel
         title="Daftar data pegawai"

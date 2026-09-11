@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Checkbox, Pagination, Skeleton, Table, Tabs } from "antd";
+import { Button, Checkbox, Pagination, Skeleton, Tabs } from "antd";
+import Table from "@/app/components/data-display/NumberedTable";
+import { rowNumberOffset } from "@/app/components/data-display/rowNumbers.mjs";
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -241,6 +243,7 @@ function FileItemsView({
             size="middle"
             scroll={{ x: 1080 }}
             pagination={false}
+            rowOffset={rowNumberOffset(pagination)}
             rowSelection={
               allowSelection
                 ? {

@@ -648,6 +648,20 @@ test("filter daftar pegawai menerima setiap status hubungan kerja resmi", () => 
   ])
     assert.equal(employeeListFilterSchema.safeParse({ employmentStatus }).success, true);
   assert.equal(employeeListFilterSchema.safeParse({ employmentStatus: "leave" }).success, false);
+  assert.equal(employeeListFilterSchema.safeParse({ createdByUserId: 12 }).success, true);
+  assert.equal(employeeListFilterSchema.safeParse({ createdByUserId: 0 }).success, false);
+});
+
+test("filter pembuat pegawai memakai audit pencatatan awal dan index pendukung", () => {
+  const serviceSource = readFileSync(new URL("../lib/employees/service.js", import.meta.url), "utf8");
+  const schemaSql = readFileSync(new URL("../sitou_schema_v3.sql", import.meta.url), "utf8");
+  const migrationSql = readFileSync(
+    new URL("../database/migrations/20260911_026_employee_creator_filter_index.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(serviceSource, /creator_audit\.action='employee\.create'/);
+  assert.match(serviceSource, /createdByUsers/);
+  for (const sql of [schemaSql, migrationSql]) assert.match(sql, /ix_audit_employee_create_lookup/);
 });
 
 test("masa kerja aktif dihitung sampai hari ini dengan durasi kalender", () => {

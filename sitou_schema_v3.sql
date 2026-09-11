@@ -1227,6 +1227,8 @@ COMMENT ON TABLE audit_logs IS 'Jejak audit append-only; aplikasi tidak menyedia
 CREATE INDEX ix_audit_tenant_time ON audit_logs(organization_id,occurred_at DESC);
 CREATE INDEX ix_audit_entity ON audit_logs(organization_id,entity_type,entity_id,occurred_at DESC);
 CREATE INDEX ix_audit_actor ON audit_logs(actor_user_id,occurred_at DESC);
+CREATE INDEX ix_audit_employee_create_lookup ON audit_logs(organization_id,entity_id,actor_user_id)
+WHERE entity_type='employee' AND action='employee.create';
 
 CREATE TABLE file_cleanup_runs (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID proses pemeriksaan atau pembersihan.

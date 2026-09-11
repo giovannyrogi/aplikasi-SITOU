@@ -135,3 +135,10 @@ Data sensitif yang panjang memakai pola kartu ringkas dan `AppModal` detail. Kar
 - `LeaveDetailModal` menjadi tampilan yang sama untuk HRD, Superadmin, dan Pimpinan read-only.
 - Tab pegawai membaca `leave-summary`; saldo berasal dari ledger dan approved record hanya dapat dikoreksi melalui pembatalan beralasan.
 - Lampiran diunggah privat dengan jenis `lampiran_cuti`, dibatasi organisasi/pegawai, dan dibersihkan kembali bila transaksi pencatatan gagal.
+# Laporan pegawai
+
+Semua tabel AntD disusun melalui `data-display/NumberedTable.jsx`, yang menambahkan kolom **No** otomatis. `ResponsiveDataView` memakai wrapper ini dan menampilkan nomor yang sama pada card mobile. Nomor memakai `(page - 1) * pageSize + index + 1`; pagination eksternal/cursor memasok `rowOffset` (jumlah baris sebelum halaman). Tanpa pagination dimulai dari 1. Jangan menambahkan kolom No manual pada menu. Offset laporan dihitung server terhadap filter dan cursor yang sama agar tautan halaman tetap konsisten.
+
+`reports/EmployeeReport.jsx` menyatukan filter URL, daftar desktop/card mobile, ringkasan, navigasi detail, dan ekspor untuk Kontrak Akan Berakhir serta Proyeksi Pensiun. Gunakan komponen ini untuk kedua route, bukan membuat salinan form filter.
+
+`ResponsiveDataView` menerima `pagination={false}` untuk daftar dengan kontrol keyset server sendiri; perilaku default menu lain tidak berubah. `DashboardMetric` menerima `metric.description` sebagai penjelasan rentang indikator dan `metric.href` untuk tujuan laporan.

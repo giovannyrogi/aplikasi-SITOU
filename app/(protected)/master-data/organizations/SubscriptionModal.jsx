@@ -3,7 +3,8 @@
 import { readApiResponse } from "@/lib/api/clientError";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, DatePicker, Form, Input, Space, Table } from "antd";
+import { Button, DatePicker, Form, Input, Space } from "antd";
+import Table from "@/app/components/data-display/NumberedTable";
 import dayjs from "dayjs";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
