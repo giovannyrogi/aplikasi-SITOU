@@ -47,6 +47,12 @@ try {
       (8,2,7,1,'C8','2025-01-01','2026-09-11','active'),
       (9,1,1,1,'C9','2024-01-01','2024-12-31','renewed'),
       (10,1,3,1,'C10','2025-01-01','2026-10-01','draft');`);
+  await client.query(`ALTER TABLE employees ADD COLUMN profile_photo_file_id bigint;
+    CREATE TEMP TABLE stored_files(id bigint, organization_id bigint, deleted_at timestamptz);
+    INSERT INTO stored_files VALUES (101,1,NULL),(102,1,now()),(103,2,NULL);
+    UPDATE employees SET profile_photo_file_id=101 WHERE id=1;
+    UPDATE employees SET profile_photo_file_id=102 WHERE id=2;
+    UPDATE employees SET profile_photo_file_id=103 WHERE id=5;`);
   const read = async (kind, input = {}, scope = null, limit = 100, cursor = null) =>
     (
       await client.query(
@@ -67,8 +73,12 @@ try {
     ["1", "5"],
   );
   assert.equal(result.rows[0].days_remaining, 0);
+  assert.equal(result.rows[0].organization_id, "1");
+  assert.equal(result.rows[0].profile_photo_file_id, "101");
+  assert.equal(result.rows[1].profile_photo_file_id, null);
   result = await read("retirements", { group: "overdue" });
   assert.equal(result.rows[0].due_date, "2026-02-28");
+  assert.equal(result.rows[0].profile_photo_file_id, null);
   result = await read("retirements", { group: "invalid" });
   assert.equal(result.total, 2);
   assert.equal((await read("retirements", {}, [])).total, 0);

@@ -15,8 +15,15 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { readApiResponse, normalizeRequestError } from "@/lib/api/clientError";
 import { REPORT_TITLES, changeReportFilters } from "@/lib/reports/policy.mjs";
-import { reportColumns, reportValue } from "@/lib/reports/columns.mjs";
-import { Icon } from "@iconify/react";
+import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
+import {
+  ReportIdentity,
+  ReportPlacement,
+  ReportEmployment,
+  ReportDeadline,
+  reportDate,
+} from "./ReportEmployeeFields";
+import { EyeOutlined } from "@ant-design/icons";
 
 /** Dua laporan memakai interaksi filter, daftar, dan ekspor yang sama. */
 export default function EmployeeReport({ kind }) {
@@ -38,6 +45,7 @@ export default function EmployeeReport({ kind }) {
   const [reload, setReload] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [history, setHistory] = useState([]);
   const query = new URLSearchParams(params.toString());
   if (organizationId) query.set("organizationId", organizationId);
@@ -303,34 +311,51 @@ export default function EmployeeReport({ kind }) {
       `/employees/${row.employee_id}?organizationId=${organizationId}&tab=${retirement ? "summary" : "contracts"}`,
     );
   }
-  const columns = reportColumns(kind).map(([key, label]) => ({
-    key,
-    dataIndex: key,
-    title: label,
-    width: key === "deadline" ? 310 : key === "full_name" || key === "tenure" ? 240 : 190,
-    ellipsis: true,
-    render: (_, row) =>
-      key === "deadline" ? (
-        <CompactInfoChip label={row.deadline} tone={row.days_remaining < 0 ? "danger" : "info"} />
-      ) : (
-        <span title={String(reportValue(row, key))}>{reportValue(row, key)}</span>
-      ),
-  }));
+  const columns = [
+    {
+      key: "employee",
+      title: "Pegawai",
+      width: 230,
+      render: (_, row) => <ReportIdentity row={row} onPreview={setPhotoPreview} />,
+    },
+    {
+      key: "placement",
+      title: "Penempatan",
+      width: 190,
+      render: (_, row) => <ReportPlacement row={row} />,
+    },
+    {
+      key: "employment",
+      title: retirement ? "Usia & masa kerja" : "Kontrak",
+      width: 200,
+      render: (_, row) => <ReportEmployment row={row} retirement={retirement} />,
+    },
+    {
+      key: "deadline",
+      title: retirement ? "Proyeksi pensiun" : "Batas waktu",
+      width: 185,
+      render: (_, row) => <ReportDeadline row={row} retirement={retirement} />,
+    },
+  ];
   columns.push({
     key: "action",
     title: "Aksi",
     fixed: "right",
-    width: 100,
+    width: 70,
     align: "center",
     render: (_, row) => (
-      <Button onClick={() => detail(row)} aria-label={`Lihat detail ${row.full_name}`}>
-        <Icon icon="iconamoon:zoom-in-duotone" width={20} height={20} />
+      <Button
+        title={retirement ? "Lihat pegawai" : "Lihat kontrak"}
+        onClick={() => detail(row)}
+        aria-label={`Lihat detail ${row.full_name}`}
+      >
+        <EyeOutlined style={{ fontSize: 20 }} />
       </Button>
     ),
   });
 
   return (
-    <Box sx={{ display: "grid", gap: 3, minWidth: 0, p: { xs: 2, md: 3 } }}>
+    <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>
       <PageHeader
         title={REPORT_TITLES[kind]}
         description={
@@ -357,31 +382,36 @@ export default function EmployeeReport({ kind }) {
         <DataPanel
           title="Hasil laporan"
           description={
-            report
-              ? `${report.total} ${retirement ? "pegawai" : "kontrak"} • ${report.employeeCount} pegawai unik • Acuan ${report.asOf} • ${report.filters.startDate ? `${report.filters.startDate} s.d. ${report.filters.endDate}` : "Tanpa batas periode"} • Dimuat ${new Date(report.generatedAt).toLocaleString("id-ID")}`
-              : "Memuat hasil laporan…"
-          }
-          toolbar={
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-              {/* <Button
-                onClick={() => {
-                  setHistory([]);
-                  navigate({ ...input, cursor: undefined });
-                  setReload((value) => value + 1);
-                }}
+            report ? (
+              <Box
+                component="span"
+                sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center" }}
               >
-                Muat ulang
-              </Button> */}
-              <Button
-                type="primary"
-                loading={exporting}
-                disabled={pending || !!state.error}
-                onClick={exportExcel}
-              >
-                Unduh Excel
-              </Button>
-            </Box>
+                <CompactInfoChip
+                  label={`${report.total} ${retirement ? "pegawai" : "kontrak"}`}
+                  tone="info"
+                />
+                {!retirement ? (
+                  <CompactInfoChip label={`${report.employeeCount} pegawai unik`} tone="neutral" />
+                ) : null}
+                <span>
+                  {report.filters.startDate
+                    ? `${reportDate(report.filters.startDate)} - ${reportDate(report.filters.endDate)}`
+                    : "Tanpa batas periode"}
+                </span>
+                <span>Acuan {reportDate(report.asOf)}</span>
+                <span>Diperbarui {dayjs(report.generatedAt).format("DD MMM YYYY, HH:mm")}</span>
+              </Box>
+            ) : (
+              "Memuat hasil laporan…"
+            )
           }
+          exportConfig={{
+            enabled: true,
+            onExcel: exportExcel,
+            loading: exporting,
+            disabled: pending || !!state.error,
+          }}
         >
           <ResponsiveDataView
             data={report?.rows || []}
@@ -395,24 +425,25 @@ export default function EmployeeReport({ kind }) {
             }}
             pagination={false}
             rowOffset={report?.rowOffset || 0}
-            scrollX={retirement ? 2500 : 2100}
+            scrollX={920}
             emptyDescription="Tidak ada data yang sesuai filter laporan."
             renderCard={(row) => (
-              <Box sx={{ display: "grid", gap: 1 }}>
-                <Typography fontWeight={700}>{row.full_name}</Typography>
-                <Typography variant="body2">NIP {row.employee_no}</Typography>
-                <CompactInfoChip
-                  label={row.deadline}
-                  tone={row.days_remaining < 0 ? "danger" : "info"}
-                />
-                {reportColumns(kind)
-                  .filter(([key]) => !["full_name", "employee_no", "deadline"].includes(key))
-                  .map(([key, label]) => (
-                    <Typography key={key} variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                      <strong>{label}:</strong> {reportValue(row, key)}
-                    </Typography>
-                  ))}
-                <Button onClick={() => detail(row)}>Lihat detail pegawai</Button>
+              <Box sx={{ display: "grid", gap: 2 }}>
+                <ReportIdentity row={row} onPreview={setPhotoPreview} />
+                <ReportDeadline row={row} retirement={retirement} />
+                <Box
+                  sx={{
+                    display: "grid",
+                    gap: 2,
+                    gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" },
+                  }}
+                >
+                  <ReportPlacement row={row} />
+                  <ReportEmployment row={row} retirement={retirement} />
+                </Box>
+                <Button onClick={() => detail(row)}>
+                  {retirement ? "Lihat pegawai" : "Lihat kontrak"}
+                </Button>
               </Box>
             )}
           />
@@ -454,6 +485,13 @@ export default function EmployeeReport({ kind }) {
           </Box>
         </DataPanel>
       )}
+      <ImagePreviewModal
+        open={Boolean(photoPreview)}
+        onClose={() => setPhotoPreview(null)}
+        imageUrl={photoPreview?.imageUrl}
+        alt={photoPreview?.alt}
+        title={photoPreview?.title}
+      />
     </Box>
   );
 }

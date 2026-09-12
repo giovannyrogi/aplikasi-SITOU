@@ -89,14 +89,26 @@ try {
       );
       const body = await response.json();
       assert.equal(response.status, 200);
-      for (const key of ["upcomingRetirements", "overdueRetirements", "expiringContracts"]) {
-        const metric = body.data.metrics.find((item) => item.key === key);
+      assert.equal(body.data.metrics.length, 6);
+      for (const metric of [
+        body.data.retirementSummary.upcoming,
+        body.data.retirementSummary.overdue,
+        body.data.metrics.find((item) => item.key === "expiringContracts"),
+      ]) {
         assert.ok(metric);
         const url = new URL(metric.href, base);
         url.pathname = `/api${url.pathname}`;
         const result = await fetch(url, { headers: auth });
         assert.equal(result.status, 200);
-        assert.equal((await result.json()).data.total, metric.value);
+        const report = (await result.json()).data;
+        assert.equal(report.total, metric.value);
+        if (metric.rows) {
+          assert.ok(metric.rows.length <= 5);
+          assert.deepEqual(
+            metric.rows.map((row) => row.employee_id),
+            report.rows.slice(0, 5).map((row) => row.employee_id),
+          );
+        }
       }
     }
     console.log(

@@ -26,6 +26,12 @@ Periksa katalog dan folder `app/components` sebelum membuat komponen baru. Nama 
 
 Area daftar operasional wajib memeriksa `DataPanel` sebelum membuat wrapper baru. Hindari paper tambahan untuk toolbar atau tabel di dalam panel; card hanya dipakai sebagai item berulang pada mobile. `CompactInfoChip` menangani metadata sekaligus status agar tidak ada reusable badge kedua dengan fungsi sama. Chip dipakai untuk data yang perlu ditonjolkan, bukan seluruh teks tabel.
 
+Ekspor opsional memakai `DataPanel exportConfig={{ enabled: true, onExcel, loading, disabled }}`.
+Tanpa konfigurasi atau dengan `enabled: false`, tombol tidak tampil. `TableExportMenu` menempatkan
+Export di kanan judul; di bawah 1024px hanya ikon dengan tooltip. Excel memanggil handler modul,
+sedangkan PDF hanya menampilkan pemberitahuan segera hadir. Permission, filter, audit, dan batas
+unduhan tetap ditangani endpoint modul. Saat ini ekspor diaktifkan hanya pada dua laporan.
+
 ## Actions dan Modal
 
 | Komponen                     | Tujuan                                                                                                                                       | Props penting                                                                                                         |
@@ -135,6 +141,7 @@ Data sensitif yang panjang memakai pola kartu ringkas dan `AppModal` detail. Kar
 - `LeaveDetailModal` menjadi tampilan yang sama untuk HRD, Superadmin, dan Pimpinan read-only.
 - Tab pegawai membaca `leave-summary`; saldo berasal dari ledger dan approved record hanya dapat dikoreksi melalui pembatalan beralasan.
 - Lampiran diunggah privat dengan jenis `lampiran_cuti`, dibatasi organisasi/pegawai, dan dibersihkan kembali bila transaksi pencatatan gagal.
+
 # Laporan pegawai
 
 Semua tabel AntD disusun melalui `data-display/NumberedTable.jsx`, yang menambahkan kolom **No** otomatis. `ResponsiveDataView` memakai wrapper ini dan menampilkan nomor yang sama pada card mobile. Nomor memakai `(page - 1) * pageSize + index + 1`; pagination eksternal/cursor memasok `rowOffset` (jumlah baris sebelum halaman). Tanpa pagination dimulai dari 1. Jangan menambahkan kolom No manual pada menu. Offset laporan dihitung server terhadap filter dan cursor yang sama agar tautan halaman tetap konsisten.

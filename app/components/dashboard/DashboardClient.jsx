@@ -21,7 +21,7 @@ import DashboardActivityList from "./DashboardActivityList";
 import DashboardAttentionList from "./DashboardAttentionList";
 import DashboardChart from "./DashboardChart";
 import DashboardMetric from "./DashboardMetric";
-import DonutChart from "./DonutChart";
+import RetirementSummary from "./RetirementSummary";
 import EmployeeCompositionSummary from "./EmployeeCompositionSummary";
 import HorizontalBarChart from "./HorizontalBarChart";
 import StackedBarChart from "./StackedBarChart";
@@ -115,11 +115,7 @@ function buildChartDefinitions(data) {
       Component: StackedBarChart,
     },
     {
-      key: "completeness",
-      title: "Kelengkapan data pegawai",
-      description: "Kondisi profil, kontak, pas foto, dan penempatan aktif.",
-      icon: "solar:clipboard-check-bold-duotone",
-      Component: DonutChart,
+      key: "retirement",
     },
     {
       key: "discipline",
@@ -370,6 +366,14 @@ export default function DashboardClient() {
                 }))
               : charts
             ).map((chart, index) => {
+              if (chart.key === "retirement")
+                return (
+                  <RetirementSummary
+                    key={chart.key}
+                    data={state.data?.retirementSummary}
+                    loading={state.loading}
+                  />
+                );
               const Component = chart.Component;
               const chartData = state.data?.charts?.[chart.key];
               return (

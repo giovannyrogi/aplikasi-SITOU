@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import { EyeOutlined } from "@ant-design/icons";
 import { Box, IconButton, Paper, Skeleton, Tooltip, useTheme } from "@mui/material";
 import { useRouter } from "next/navigation";
 import FontStyle from "@/app/components/font-style/FontStyle";
@@ -18,11 +19,13 @@ export default function DashboardAttentionList({
   const router = useRouter();
   const { startNavigationLoading } = useLoadingBackdrop();
 
-  /** Membuka histori disiplin pegawai dan mempertahankan scope organisasi Superadmin. */
-  const openDiscipline = (item) => {
-    const query = new URLSearchParams({ tab: "discipline" });
+  /** Membuka histori terkait dan mempertahankan scope organisasi Superadmin. */
+  const openEmployeeHistory = (item) => {
+    const query = new URLSearchParams({
+      tab: item.type === "contract" ? "contracts" : "discipline",
+    });
     if (isSuperadmin && organizationId) query.set("organizationId", organizationId);
-    startNavigationLoading({ message: "Membuka histori sanksi pegawai..." });
+    startNavigationLoading();
     router.push(`/employees/${item.id}?${query.toString()}`);
   };
   return (
@@ -102,11 +105,14 @@ export default function DashboardAttentionList({
                 </FontStyle>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-                {item.type === "discipline" ? (
-                  <Tooltip title="Lihat detail sanksi" arrow>
+                {["discipline", "contract"].includes(item.type) ? (
+                  <Tooltip
+                    title={item.type === "contract" ? "Lihat kontrak" : "Lihat detail sanksi"}
+                    arrow
+                  >
                     <IconButton
-                      aria-label={`Lihat detail sanksi ${item.title}`}
-                      onClick={() => openDiscipline(item)}
+                      aria-label={`${item.type === "contract" ? "Lihat kontrak" : "Lihat detail sanksi"} ${item.title}`}
+                      onClick={() => openEmployeeHistory(item)}
                       sx={{
                         width: 44,
                         height: 44,
@@ -119,7 +125,7 @@ export default function DashboardAttentionList({
                         },
                       }}
                     >
-                      <Icon icon="solar:eye-linear" width={20} />
+                      <EyeOutlined style={{ fontSize: 20 }} />
                     </IconButton>
                   </Tooltip>
                 ) : null}

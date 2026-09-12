@@ -18,6 +18,13 @@ GET `/api/reports/retirements` dan `/api/reports/expiring-contracts`, masing-mas
 
 Ekspor mengabaikan halaman/cursor dan memuat semua hasil filter hingga 5.000 baris. Hasil lebih besar ditolak dengan pesan mempersempit filter. Workbook menyertakan organisasi, filter, acuan, dan waktu ekspor; seluruh teks pengguna berupa nilai literal, NIP dan nomor kontrak tidak dikonversi menjadi angka/formula. Tidak ada NIK atau dokumen privat. Respons no-store dan ekspor dicatat pada audit.
 
+Tampilan layar mengelompokkan kolom identitas, penempatan, kontrak/masa kerja, dan batas waktu;
+definisi kolom Excel tetap lengkap. Respons daftar menyertakan organization_id dan
+profile_photo_file_id aktif untuk avatar privat, tanpa object key. Foto tidak masuk Excel.
+Dashboard mempertahankan enam indikator dan menyajikan retirementSummary dengan asOf,
+upcoming, serta overdue; tiap kelompok memuat value, rows (maksimal lima), dan href laporan.
+Kelompok diurutkan tanggal proyeksi naik, sesuai laporan. Panel menggantikan grafik kelengkapan.
+
 ## Verifikasi lokal
 
 - `node --test tests/reports.test.mjs`: tanggal, perpindahan filter, dan workbook.
