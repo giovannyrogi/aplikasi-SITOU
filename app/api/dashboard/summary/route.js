@@ -13,8 +13,6 @@ export async function GET(request) {
     const result = await getDashboardSummary({
       actor: user,
       requestedOrganizationId: url.searchParams.get("organizationId"),
-      requestedStartDate: url.searchParams.get("startDate"),
-      requestedEndDate: url.searchParams.get("endDate"),
     });
     return successResponse(result);
   } catch (error) {

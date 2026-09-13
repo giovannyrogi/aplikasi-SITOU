@@ -35,6 +35,8 @@
 !/scripts/test-reports-db.mjs
 !/scripts/test-reports-http.mjs
 !/scripts/test-reports-ui.mjs
+!/scripts/test-dashboard-http.mjs
+!/scripts/test-mobile-navigation-ui.mjs
 !/scripts/cleanup-replaced-profile-files.mjs
 !/scripts/file-cleanup-worker.mjs
 !/scripts/test-storage-maintenance-http.mjs
@@ -43,6 +45,7 @@
 /tests/*
 !/tests/row-numbers.test.mjs
 !/tests/reports.test.mjs
+!/tests/dashboard-config.test.mjs
 !/tests/storage-maintenance.test.mjs
 /ecosystem.config.js
 

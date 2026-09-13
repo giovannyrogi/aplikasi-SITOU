@@ -4,8 +4,6 @@ import { readApiResponse } from "@/lib/api/clientError";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@iconify/react";
-import { DatePicker } from "antd";
-import dayjs from "dayjs";
 import { Box, Button, Paper, useTheme } from "@mui/material";
 import { ROLES } from "@/app/constants/roles";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
@@ -13,9 +11,7 @@ import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import ErrorState from "@/app/components/data-display/ErrorState";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import PageHeader from "@/app/components/layout/PageHeader";
-import Notification from "@/app/components/Notifications/Notification";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
-import useAppNotification from "@/app/hooks/useAppNotification";
 import AreaTrendChart from "./AreaTrendChart";
 import DashboardActivityList from "./DashboardActivityList";
 import DashboardAttentionList from "./DashboardAttentionList";
@@ -26,19 +22,10 @@ import EmployeeCompositionSummary from "./EmployeeCompositionSummary";
 import HorizontalBarChart from "./HorizontalBarChart";
 import StackedBarChart from "./StackedBarChart";
 
-const { RangePicker } = DatePicker;
-const DEFAULT_RANGE = [dayjs().startOf("year"), dayjs()];
-
 const generatedAtFormatter = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
   timeStyle: "short",
 });
-
-/** Membuat label rentang yang ringkas dan tetap mudah dipahami pengguna. */
-function formatSelectedRange(range) {
-  if (!range?.[0] || !range?.[1]) return "Rentang belum dipilih";
-  return `${range[0].format("DD MMM YYYY")} - ${range[1].format("DD MMM YYYY")}`;
-}
 
 /** Memastikan panel grafik tidak menggambar canvas kosong saat dataset bernilai nol. */
 function hasChartValues(chart) {
@@ -57,7 +44,7 @@ function buildChartDefinitions(data) {
       {
         key: "growth",
         title: "Pertumbuhan organisasi",
-        description: "Perkembangan organisasi aktif dalam periode terpilih.",
+        description: "Perkembangan organisasi aktif dalam 12 bulan terakhir.",
         icon: "solar:chart-2-bold-duotone",
         Component: AreaTrendChart,
       },
@@ -89,7 +76,8 @@ function buildChartDefinitions(data) {
     {
       key: "growth",
       title: "Perkembangan pegawai",
-      description: "Perbandingan pegawai yang mulai bergabung dan keluar pada setiap bulan.",
+      description:
+        "Pegawai bergabung dan keluar per bulan selama 12 bulan terakhir, hingga hari ini.",
       icon: "solar:chart-2-bold-duotone",
       Component: AreaTrendChart,
     },
@@ -99,6 +87,7 @@ function buildChartDefinitions(data) {
       description: "Distribusi pegawai aktif pada lokasi yang dapat dikelola.",
       icon: "solar:map-point-wave-bold-duotone",
       Component: HorizontalBarChart,
+      props: { scrollable: true },
     },
     {
       key: "units",
@@ -106,11 +95,13 @@ function buildChartDefinitions(data) {
       description: "Sebaran pegawai aktif pada struktur organisasi saat ini.",
       icon: "solar:structure-bold-duotone",
       Component: HorizontalBarChart,
+      props: { scrollable: true },
     },
     {
       key: "contracts",
-      title: "Kontrak dalam periode",
-      description: "Kontrak yang berakhir serta riwayat kontrak pada rentang terpilih.",
+      title: "Kontrak berakhir per bulan",
+      description:
+        "Tanggal akhir kontrak selama 12 bulan terakhir hingga hari ini, menurut status saat ini.",
       icon: "solar:document-text-bold-duotone",
       Component: StackedBarChart,
     },
@@ -133,36 +124,14 @@ export default function DashboardClient() {
   const theme = useTheme();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
-  const [dateRange, setDateRange] = useState(DEFAULT_RANGE);
   const [organizationId, setOrganizationId] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [state, setState] = useState({ loading: true, data: null, error: "" });
-  const { notification, showNotification, closeNotification } = useAppNotification();
 
   const loadDashboard = useCallback(() => {
     setState((current) => ({ ...current, loading: true, error: "" }));
     setReloadKey((value) => value + 1);
   }, []);
-
-  /** Menampilkan feedback loading sejak pengguna mengganti rentang pemantauan. */
-  const changeDateRange = useCallback(
-    (value) => {
-      if (!value?.[0] || !value?.[1]) return;
-      const [start, end] = value;
-      if (end.isBefore(start, "day")) {
-        showNotification("Tanggal akhir tidak boleh lebih awal dari tanggal awal.", "error");
-        return;
-      }
-      const maximumEnd = start.add(24, "month").subtract(1, "day");
-      if (end.isAfter(maximumEnd, "day")) {
-        showNotification("Rentang tanggal dashboard maksimal 24 bulan.", "warning");
-        return;
-      }
-      setState((current) => ({ ...current, loading: true, error: "" }));
-      setDateRange(value);
-    },
-    [showNotification],
-  );
 
   /** Mengganti scope organisasi Superadmin sebelum data baru diminta ke server. */
   const changeOrganization = useCallback((value) => {
@@ -172,10 +141,7 @@ export default function DashboardClient() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const query = new URLSearchParams({
-      startDate: dateRange[0].format("YYYY-MM-DD"),
-      endDate: dateRange[1].format("YYYY-MM-DD"),
-    });
+    const query = new URLSearchParams();
     if (isSuperadmin && organizationId) query.set("organizationId", organizationId);
     fetch(`/api/dashboard/summary?${query}`, { signal: controller.signal })
       .then(async (response) => {
@@ -189,7 +155,7 @@ export default function DashboardClient() {
         }
       });
     return () => controller.abort();
-  }, [dateRange, isSuperadmin, organizationId, reloadKey]);
+  }, [isSuperadmin, organizationId, reloadKey]);
 
   const charts = useMemo(() => buildChartDefinitions(state.data), [state.data]);
   const attentionCount = state.data?.attentionItems?.length || 0;
@@ -203,18 +169,12 @@ export default function DashboardClient() {
 
   return (
     <Box sx={{ minWidth: 0, display: "grid", gap: { xs: 2, md: 3 } }}>
-      <Notification
-        open={notification.open}
-        message={notification.message}
-        severity={notification.severity}
-        onClose={closeNotification}
-      />
       <PageHeader
         title="Dashboard monitoring"
         description={pageDescription}
         metadata={
           <>
-            <CompactInfoChip label={`Periode ${formatSelectedRange(dateRange)}`} tone="info" />
+            <CompactInfoChip label="Kondisi operasional saat ini" tone="info" />
             {state.data?.generatedAt ? (
               <CompactInfoChip
                 label={`Diperbarui ${generatedAtFormatter.format(new Date(state.data.generatedAt))}`}
@@ -224,36 +184,29 @@ export default function DashboardClient() {
           </>
         }
         action={
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: isSuperadmin ? "minmax(230px, 1fr) minmax(280px, 1.2fr)" : "minmax(280px, 1fr)",
-              },
-              gap: 1,
-              minWidth: { md: isSuperadmin ? 530 : 280 },
-            }}
-          >
-            {isSuperadmin ? (
-              <OrganizationSelect
-                allowClear
-                value={organizationId}
-                onChange={changeOrganization}
-                placeholder="Semua organisasi"
-                style={{ width: "100%", minHeight: 44 }}
-              />
-            ) : null}
-            <RangePicker
-              aria-label="Rentang tanggal dashboard"
-              value={dateRange}
-              onChange={changeDateRange}
-              allowClear={false}
-              format="DD MMM YYYY"
-              placeholder={["Tanggal awal", "Tanggal akhir"]}
-              style={{ width: "100%", minHeight: 44 }}
-            />
-          </Box>
+          isSuperadmin ? (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "minmax(230px, 1fr)",
+                },
+                gap: 1,
+                minWidth: { md: 280 },
+              }}
+            >
+              {isSuperadmin ? (
+                <OrganizationSelect
+                  allowClear
+                  value={organizationId}
+                  onChange={changeOrganization}
+                  placeholder="Semua organisasi"
+                  style={{ width: "100%", minHeight: 44 }}
+                />
+              ) : null}
+            </Box>
+          ) : null
         }
       />
 
@@ -304,7 +257,9 @@ export default function DashboardClient() {
               </Box>
               <Box sx={{ minWidth: 0 }}>
                 <FontStyle component="h2" fontSize={15} fontWeight={700}>
-                  {attentionCount ? `${attentionCount} hal perlu ditinjau` : "Operasional stabil"}
+                  {attentionCount
+                    ? `${attentionCount} prioritas ditampilkan`
+                    : "Operasional stabil"}
                 </FontStyle>
                 <FontStyle
                   fontSize={11.5}
@@ -366,6 +321,20 @@ export default function DashboardClient() {
                 }))
               : charts
             ).map((chart, index) => {
+              if (chart.key === "discipline")
+                return (
+                  <DashboardAttentionList
+                    key={chart.key}
+                    title="Kasus disiplin terbaru"
+                    description="Maksimal lima kasus terbaru dengan tindakan resmi, tanpa draft."
+                    emptyMessage="Belum ada kasus dengan tindakan resmi."
+                    showPriority={false}
+                    items={state.data?.recentDiscipline}
+                    loading={state.loading}
+                    organizationId={organizationId}
+                    isSuperadmin={isSuperadmin}
+                  />
+                );
               if (chart.key === "retirement")
                 return (
                   <RetirementSummary

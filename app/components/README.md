@@ -26,6 +26,8 @@ Periksa katalog dan folder `app/components` sebelum membuat komponen baru. Nama 
 
 Area daftar operasional wajib memeriksa `DataPanel` sebelum membuat wrapper baru. Hindari paper tambahan untuk toolbar atau tabel di dalam panel; card hanya dipakai sebagai item berulang pada mobile. `CompactInfoChip` menangani metadata sekaligus status agar tidak ada reusable badge kedua dengan fungsi sama. Chip dipakai untuk data yang perlu ditonjolkan, bukan seluruh teks tabel.
 
+`OperationalFilterSection` membatasi `wideColumns` maksimal 4: desktop >=1200px empat kolom, 900-1199px tiga, 600-899px dua, dan mobile satu. Field tambahan masuk baris berikutnya.
+
 Ekspor opsional memakai `DataPanel exportConfig={{ enabled: true, onExcel, loading, disabled }}`.
 Laporan memakai `ReportCardFields` untuk baris label-nilai berdivider dan `ReportRemaining` untuk chip tenggat bersama dashboard. Padding halaman/panel/kartu mengikuti shell, `DataPanel`, dan `ResponsiveDataView`, tanpa padding halaman tambahan.
 Tanpa konfigurasi atau dengan `enabled: false`, tombol tidak tampil. `TableExportMenu` menempatkan
@@ -149,4 +151,4 @@ Semua tabel AntD disusun melalui `data-display/NumberedTable.jsx`, yang menambah
 
 `reports/EmployeeReport.jsx` menyatukan filter URL, daftar desktop/card mobile, ringkasan, navigasi detail, dan ekspor untuk Kontrak Akan Berakhir serta Proyeksi Pensiun. Gunakan komponen ini untuk kedua route, bukan membuat salinan form filter.
 
-`ResponsiveDataView` menerima `pagination={false}` untuk daftar dengan kontrol keyset server sendiri; perilaku default menu lain tidak berubah. `DashboardMetric` menerima `metric.description` sebagai penjelasan rentang indikator dan `metric.href` untuk tujuan laporan.
+`ResponsiveDataView` menerima `pagination={false}` untuk daftar dengan kontrol keyset server sendiri; perilaku default menu lain tidak berubah. `DashboardMetric` menerima `metric.description` sebagai penjelasan indikator, tidak dapat diklik, dan memakai hover seragam dengan dukungan reduced motion. Dashboard tidak memiliki filter tanggal global; tren memakai 12 bulan kalender hingga hari ini. `DashboardAttentionList` juga menerima `title`, `description`, `emptyMessage`, dan `showPriority` untuk daftar lima kasus resmi terbaru. Tombol detail pada daftar tetap dapat digunakan.

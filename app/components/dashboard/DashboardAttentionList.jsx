@@ -14,6 +14,10 @@ export default function DashboardAttentionList({
   loading,
   organizationId,
   isSuperadmin,
+  title = "Perlu ditinjau",
+  description = "Maksimal lima prioritas yang membutuhkan tindak lanjut.",
+  emptyMessage = "Tidak ada prioritas mendesak saat ini.",
+  showPriority = true,
 }) {
   const theme = useTheme();
   const router = useRouter();
@@ -44,11 +48,11 @@ export default function DashboardAttentionList({
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Icon icon="solar:bell-bing-bold-duotone" width={22} color={theme.status.warning.main} />
         <FontStyle component="h2" fontSize={15} fontWeight={700}>
-          Perlu ditinjau
+          {title}
         </FontStyle>
       </Box>
       <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-        Prioritas yang membutuhkan pemeriksaan atau tindak lanjut.
+        {description}
       </FontStyle>
       <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, mt: 2 }}>
         {loading ? (
@@ -62,7 +66,7 @@ export default function DashboardAttentionList({
           items.map((item) => (
             <Box
               component="li"
-              key={`${item.type}-${item.id}`}
+              key={`${item.type}-${item.caseId || item.id}`}
               sx={{
                 py: 1.4,
                 borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
@@ -86,16 +90,18 @@ export default function DashboardAttentionList({
                   <FontStyle fontSize={12.5} fontWeight={600} sx={{ overflowWrap: "anywhere" }}>
                     {item.title}
                   </FontStyle>
-                  <CompactInfoChip
-                    label={
-                      item.priority === 1
-                        ? "Mendesak"
-                        : item.priority === 2
-                          ? "Perhatian"
-                          : "Tinjau"
-                    }
-                    tone={item.priority === 1 ? "danger" : "warning"}
-                  />
+                  {showPriority ? (
+                    <CompactInfoChip
+                      label={
+                        item.priority === 1
+                          ? "Mendesak"
+                          : item.priority === 2
+                            ? "Perhatian"
+                            : "Tinjau"
+                      }
+                      tone={item.priority === 1 ? "danger" : "warning"}
+                    />
+                  ) : null}
                 </Box>
                 <FontStyle
                   fontSize={10.8}
@@ -135,7 +141,7 @@ export default function DashboardAttentionList({
         ) : (
           <Box component="li" sx={{ py: 4, textAlign: "center" }}>
             <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
-              Tidak ada prioritas mendesak saat ini.
+              {emptyMessage}
             </FontStyle>
           </Box>
         )}

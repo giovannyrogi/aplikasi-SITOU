@@ -8,6 +8,7 @@ import {
   formatSubscriptionStatus,
   normalizeDashboardPeriod,
   normalizeDashboardRange,
+  getDashboardTrendRange,
 } from "../lib/dashboard/config.mjs";
 
 test("periode dashboard hanya menerima pilihan yang disediakan", () => {
@@ -46,7 +47,7 @@ test("ringkasan pegawai mempertahankan kategori kosong dan menormalkan nilai", (
   assert.deepEqual(summary.gender.series[0].data, [3, 0, 0, 2]);
   assert.deepEqual(summary.status.series[0].data, [0, 1, 0]);
   assert.deepEqual(summary.tenure.series[0].data, [0, 0, 4, 0]);
-  assert.deepEqual(summary.employmentType.categories, ["PKWTT", "Belum ditentukan"]);
+  assert.deepEqual(summary.employmentType.categories, ["PKWTT", "Tanpa kontrak aktif"]);
 });
 
 test("rentang dashboard menerima batas 24 bulan dan menolak rentang lebih panjang", () => {
@@ -57,9 +58,17 @@ test("rentang dashboard menerima batas 24 bulan dan menolak rentang lebih panjan
   assert.throws(() => normalizeDashboardRange("2024-01-01", "2026-01-01"), /maksimal 24 bulan/);
 });
 
-test("rentang default dashboard dimulai 1 Januari sampai hari ini", () => {
-  assert.deepEqual(normalizeDashboardRange(null, null, new Date("2026-08-28T12:00:00.000Z")), {
-    startDate: "2026-01-01",
+test("tren dashboard memakai dua belas bulan kalender hingga hari ini", () => {
+  assert.deepEqual(getDashboardTrendRange("Asia/Makassar", new Date("2026-08-28T12:00:00.000Z")), {
+    startDate: "2025-09-01",
     endDate: "2026-08-28",
+  });
+  assert.deepEqual(getDashboardTrendRange("Asia/Makassar", new Date("2025-12-31T17:00:00Z")), {
+    startDate: "2025-02-01",
+    endDate: "2026-01-01",
+  });
+  assert.deepEqual(getDashboardTrendRange("UTC", new Date("2024-02-29T12:00:00Z")), {
+    startDate: "2023-03-01",
+    endDate: "2024-02-29",
   });
 });

@@ -25,6 +25,7 @@ export async function GET(request) {
       organizationUnitId: url.searchParams.get("organizationUnitId") || null,
       positionId: url.searchParams.get("positionId") || null,
       employmentTypeId: url.searchParams.get("employmentTypeId") || null,
+      completeness: url.searchParams.get("completeness") || "all",
       createdByUserId: url.searchParams.get("createdByUserId") || null,
       employmentStatus: url.searchParams.get("employmentStatus") || "all",
       sanction: url.searchParams.get("sanction") || "all",

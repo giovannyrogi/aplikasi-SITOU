@@ -142,7 +142,22 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
         Navigasi
       </FontStyle>
 
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 0.25 }}>
+      <Box
+        component="nav"
+        aria-label="Navigasi utama"
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          pr: 0.25,
+          ...(compact
+            ? {
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": { display: "none", width: 0, height: 0 },
+              }
+            : {}),
+        }}
+      >
         <List disablePadding>
           {menus.map((menu) => {
             const active = menu.submenu

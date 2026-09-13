@@ -254,9 +254,26 @@ try {
             "incompleteEmployees",
             "activeDiscipline",
             "onLeave",
-          ].map((key) => ({ key, label: key, value: 1, tone: "info" })),
-          charts: {},
+          ].map((key) => ({ key, label: key, value: 1, tone: "info", href: "/employees" })),
+          charts: Object.fromEntries(
+            ["locations", "units"].map((key) => [
+              key,
+              {
+                categories: Array.from({ length: 20 }, (_, i) => `Kategori pengujian ${i + 1}`),
+                series: [{ name: "Pegawai", data: Array.from({ length: 20 }, (_, i) => 20 - i) }],
+              },
+            ]),
+          ),
           activities: [],
+          recentDiscipline: [
+            {
+              type: "discipline",
+              id: "1",
+              caseId: "2",
+              title: "Pegawai Uji Disiplin",
+              description: "Pelanggaran ringan - 01 Sep 2026",
+            },
+          ],
           attentionItems: [
             {
               type: "contract",
@@ -298,10 +315,44 @@ try {
   await page.goto(base + "/dashboard");
   await page.getByText("Pegawai Uji Pensiun 1", { exact: true }).waitFor();
   assert.equal(await page.locator('section[aria-label="Indikator utama"] > *').count(), 6);
+  assert.equal(await page.getByLabel("Rentang tanggal dashboard").count(), 0);
+  const metrics = page.locator('section[aria-label="Indikator utama"]');
+  assert.equal(await metrics.locator("a, button, [role=button]").count(), 0);
+  for (const card of await metrics.locator(":scope > *").all()) {
+    await card.hover();
+    await page.waitForTimeout(250);
+    assert.notEqual(await card.evaluate((el) => getComputedStyle(el).transform), "none");
+    const before = page.url();
+    await card.click();
+    assert.equal(page.url(), before);
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await metrics.locator(":scope > *").first().hover();
+  assert.equal(
+    await metrics
+      .locator(":scope > *")
+      .first()
+      .evaluate((el) => getComputedStyle(el).transform),
+    "none",
+  );
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.getByRole("heading", { name: "Kasus disiplin terbaru" }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Export", exact: true }).count(), 0);
   for (const width of [320, 375, 768, 1024, 1366, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.waitForTimeout(200);
+    const chartRegions = page.getByRole("region", { name: "Grafik batang yang dapat digulir" });
+    assert.equal(await chartRegions.count(), 2);
+    for (const chartRegion of await chartRegions.all()) {
+      assert.equal(await chartRegion.evaluate((el) => getComputedStyle(el).scrollbarWidth), "none");
+      await chartRegion.focus();
+      await page.keyboard.press("End");
+      await page.waitForTimeout(250);
+      assert.ok(await chartRegion.evaluate((el) => el.scrollTop > 0));
+      await chartRegion.evaluate((el) => {
+        el.scrollTop = 0;
+      });
+    }
     const region = page.getByRole("region", { name: "Daftar prioritas pensiun", exact: true });
     assert.equal(await region.evaluate((el) => getComputedStyle(el).scrollbarWidth), "none");
     await region.focus();

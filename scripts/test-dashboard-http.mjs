@@ -1,5 +1,7 @@
 import dotenv from "dotenv";
 import pg from "pg";
+import assert from "node:assert/strict";
+import { getDashboardTrendRange } from "../lib/dashboard/config.mjs";
 import { createSessionToken, SESSION_COOKIE_NAME } from "../lib/auth/session.js";
 
 dotenv.config({ path: ".env.development", quiet: true });
@@ -39,14 +41,20 @@ async function verifyDashboard(path, user, expectedScope) {
     throw new Error(`${user.role_code}: kontrak respons dashboard tidak lengkap.`);
   }
   if (expectedScope === "organization") {
-    const expectedCharts = [
-      "growth",
-      "locations",
-      "units",
-      "contracts",
-      "completeness",
-      "discipline",
-    ];
+    const expectedCharts = ["growth", "locations", "units", "contracts", "completeness"];
+    assert.equal(data.metrics.length, 6);
+    assert.equal(data.charts.contracts.categories.length, 12);
+    assert.ok(Array.isArray(data.recentDiscipline));
+    assert.ok(data.recentDiscipline.length <= 5);
+    for (const item of data.recentDiscipline) {
+      const official = await pool.query(
+        `SELECT 1 FROM discipline_cases c
+        JOIN disciplinary_actions a ON a.organization_id=c.organization_id AND a.discipline_case_id=c.id
+        WHERE c.organization_id=$1 AND c.id=$2 AND c.employee_id=$3 AND a.status<>'draft'`,
+        [data.organization.id, item.caseId, item.id],
+      );
+      assert.ok(official.rowCount > 0);
+    }
     const missingChart = expectedCharts.find((key) => !data.charts[key]);
     if (missingChart) {
       throw new Error(`${user.role_code}: grafik ${missingChart} tidak tersedia.`);
@@ -60,6 +68,9 @@ async function verifyDashboard(path, user, expectedScope) {
       throw new Error(`${user.role_code}: seri Perkembangan pegawai tidak sesuai.`);
     }
   }
+  assert.equal(data.charts.growth.categories.length, 12);
+  assert.ok(data.attentionItems.length <= 5);
+  assert.ok(data.activities.length <= 5);
   console.log(`OK ${user.role_code} (${data.scope}): ${data.metrics.length} metrik.`);
 }
 
@@ -80,6 +91,14 @@ async function findActor(roleCode) {
 }
 
 async function run() {
+  assert.deepEqual(getDashboardTrendRange("Asia/Makassar", new Date("2025-12-31T17:00:00Z")), {
+    startDate: "2025-02-01",
+    endDate: "2026-01-01",
+  });
+  assert.deepEqual(getDashboardTrendRange("UTC", new Date("2024-02-29T12:00:00Z")), {
+    startDate: "2023-03-01",
+    endDate: "2024-02-29",
+  });
   try {
     const [superadmin, hrd, leader, organization] = await Promise.all([
       findActor("superadmin"),

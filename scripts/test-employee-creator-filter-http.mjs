@@ -58,6 +58,79 @@ try {
     { headers },
   );
   assert.equal(invalid.status, 400);
+  const missingResponse = await fetch(
+    `${baseUrl}/api/employees?employmentTypeId=without_active_contract&pageSize=100`,
+    { headers },
+  );
+  assert.equal(missingResponse.status, 200);
+  const missing = await missingResponse.json();
+  for (const employee of missing.data) {
+    assert.equal(String(employee.organization_id), String(actor.organization_id));
+    assert.ok(["active", "probation", "suspended"].includes(employee.employment_status));
+    const active = await pool.query(
+      `SELECT count(*)::int AS total FROM employment_contracts
+      WHERE organization_id=$1 AND employee_id=$2 AND status='active' AND start_date<=current_date
+      AND (end_date IS NULL OR end_date>=current_date)`,
+      [actor.organization_id, employee.id],
+    );
+    assert.equal(active.rows[0].total, 0);
+  }
+  const dashboardResponse = await fetch(`${baseUrl}/api/dashboard/summary`, { headers });
+  assert.equal(dashboardResponse.status, 200);
+  const dashboard = await dashboardResponse.json();
+  const incompleteResponse = await fetch(`${baseUrl}/api/employees?completeness=incomplete`, {
+    headers,
+  });
+  assert.equal(incompleteResponse.status, 200);
+  const incomplete = await incompleteResponse.json();
+  assert.equal(
+    incomplete.pagination.total,
+    dashboard.data.metrics.find((item) => item.key === "incompleteProfiles").value,
+  );
+  const completeResponse = await fetch(`${baseUrl}/api/employees?completeness=complete`, {
+    headers,
+  });
+  assert.equal(completeResponse.status, 200);
+  const complete = await completeResponse.json();
+  const allResponse = await fetch(`${baseUrl}/api/employees`, { headers });
+  const all = await allResponse.json();
+  assert.equal(incomplete.pagination.total + complete.pagination.total, all.pagination.total);
+  assert.equal(
+    (await fetch(`${baseUrl}/api/employees?completeness=invalid`, { headers })).status,
+    400,
+  );
+  const findChart = (value) =>
+    value && typeof value === "object"
+      ? value.employmentType || Object.values(value).map(findChart).find(Boolean)
+      : null;
+  const chart = findChart(dashboard.data);
+  assert.ok(chart);
+  const index = chart.categories.indexOf("Tanpa kontrak aktif");
+  assert.equal(missing.pagination.total, index < 0 ? 0 : chart.series[0].data[index]);
+  const invalidType = await fetch(`${baseUrl}/api/employees?employmentTypeId=invalid`, { headers });
+  assert.equal(invalidType.status, 400);
+  const otherOrg = await pool.query("SELECT id FROM organizations WHERE id<>$1 LIMIT 1", [
+    actor.organization_id,
+  ]);
+  if (otherOrg.rows.length) {
+    assert.equal(
+      (
+        await fetch(
+          `${baseUrl}/api/employees?completeness=incomplete&organizationId=${otherOrg.rows[0].id}`,
+          { headers },
+        )
+      ).status,
+      403,
+    );
+    const cross = await fetch(
+      `${baseUrl}/api/employees?employmentTypeId=without_active_contract&organizationId=${otherOrg.rows[0].id}`,
+      { headers },
+    );
+    assert.equal(cross.status, 403);
+  }
+  console.log(
+    "PASS tanpa kontrak aktif: jumlah sesuai dashboard, status, kontrak berlaku, validasi, dan isolasi organisasi.",
+  );
   console.log("PASS filter akun pencatat pegawai: opsi, daftar, dan validasi API.");
 } finally {
   await pool.end();

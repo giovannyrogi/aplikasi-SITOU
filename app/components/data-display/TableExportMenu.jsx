@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Dropdown, Tooltip } from "antd";
-import { ExportOutlined, FileExcelOutlined, FilePdfOutlined } from "@ant-design/icons";
+import { DownloadOutlined, FileExcelOutlined, FilePdfOutlined } from "@ant-design/icons";
 import { useMediaQuery } from "@mui/material";
 import Notification from "../Notifications/Notification";
 
@@ -25,7 +25,7 @@ export default function TableExportMenu({ enabled = false, onExcel, loading, dis
         <Tooltip title={compact ? "Export" : undefined}>
           <Button
             type="primary"
-            icon={<ExportOutlined />}
+            icon={<DownloadOutlined style={{ fontSize: 20 }} />}
             aria-label="Export"
             loading={loading}
             disabled={disabled || loading}

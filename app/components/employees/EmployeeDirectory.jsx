@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Input, Select } from "antd";
+import { Alert, Button, Input, Select } from "antd";
 import {
   EditOutlined,
   EyeOutlined,
@@ -189,19 +189,23 @@ export default function EmployeeDirectory() {
     },
     {
       key: "employmentTypeId",
-      label: "Jenis kepegawaian/kontrak",
+      label: "Jenis Kepegawaian",
       control: (
         <Select
           allowClear
           showSearch
           optionFilterProp="label"
           placeholder="Semua jenis"
+          aria-label="Jenis Kepegawaian"
           value={list.filters.employmentTypeId}
           onChange={(value) => updateFilter("employmentTypeId", value)}
-          options={references.employmentTypes.map((item) => ({
-            value: item.id,
-            label: item.name,
-          }))}
+          options={[
+            { value: "without_active_contract", label: "Tanpa kontrak aktif" },
+            ...references.employmentTypes.map((item) => ({
+              value: item.id,
+              label: item.name,
+            })),
+          ]}
         />
       ),
     },
@@ -222,6 +226,22 @@ export default function EmployeeDirectory() {
             { value: "deceased", label: "Meninggal dunia" },
           ]}
           style={{ width: "100%" }}
+        />
+      ),
+    },
+    {
+      key: "completeness",
+      label: "Kelengkapan data",
+      control: (
+        <Select
+          aria-label="Kelengkapan data"
+          value={list.filters.completeness || "all"}
+          onChange={(value) => updateFilter("completeness", value)}
+          options={[
+            { value: "all", label: "Semua kelengkapan" },
+            { value: "incomplete", label: "Belum lengkap" },
+            { value: "complete", label: "Lengkap" },
+          ]}
         />
       ),
     },
@@ -507,11 +527,27 @@ export default function EmployeeDirectory() {
       />
       <OperationalFilterSection
         title="Filter data pegawai"
-        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian/kontrak, status, dan akun pencatat."
+        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian, status, kelengkapan data, dan akun pencatat."
         items={filterItems}
         onReset={resetFilters}
-        wideColumns={7}
+        wideColumns={4}
       />
+      {list.filters.completeness === "incomplete" ? (
+        <Alert
+          type="info"
+          showIcon
+          title="Data pegawai belum lengkap"
+          description={
+            <Box sx={{ textAlign: "justify", overflowWrap: "anywhere", lineHeight: 1.7 }}>
+              <Box component="p" sx={{ m: 0 }}>
+                Daftar di bawah menampilkan pegawai yang belum memiliki satu atau lebih data
+                berikut: NIK, pas foto, data kontak, atau penempatan utama yang berlaku saat ini.
+                Buka detail pegawai untuk memeriksa data yang perlu dilengkapi.
+              </Box>
+            </Box>
+          }
+        />
+      ) : null}
       <DataPanel
         title="Daftar data pegawai"
         description="Hasil mengikuti pencarian dan filter yang dipilih di atas."
