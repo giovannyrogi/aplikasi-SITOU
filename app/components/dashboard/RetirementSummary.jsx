@@ -64,7 +64,8 @@ export default function RetirementSummary({ data, loading }) {
                 maxHeight: 520,
                 overflowY: "auto",
                 pr: 0.5,
-                scrollbarGutter: "stable",
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": { display: "none", width: 0, height: 0 },
                 "&:focus-visible": {
                   outline: "2px solid",
                   outlineColor: "primary.main",

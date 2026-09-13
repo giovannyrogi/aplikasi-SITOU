@@ -33,56 +33,8 @@ export function ReportField({ label, children }) {
   );
 }
 
-export function ReportPlacement({ row }) {
-  return (
-    <Box sx={{ display: "grid", gap: 1 }}>
-      <ReportField label="Lokasi">{row.location_name || "Belum ditempatkan"}</ReportField>
-      <ReportField label="Divisi & Unit">{row.unit_name || "Belum ditentukan"}</ReportField>
-      <ReportField label="Jabatan">{row.position_name || "Belum ditentukan"}</ReportField>
-    </Box>
-  );
-}
-
-export function ReportEmployment({ row, retirement }) {
-  return (
-    <Box sx={{ display: "grid", gap: 1 }}>
-      <Box>
-        <CompactInfoChip
-          label={row.employment_type_name || "Jenis belum ditentukan"}
-          tone="neutral"
-        />
-      </Box>
-      {retirement ? (
-        <>
-          <ReportField label="Usia">
-            {row.age == null ? "Tanggal lahir perlu diperiksa" : row.age + " tahun"}
-          </ReportField>
-          <ReportField label="Tanggal lahir">{reportDate(row.birth_date)}</ReportField>
-          <ReportField label="Masa kerja">{row.tenure || "Belum tersedia"}</ReportField>
-          <ReportField label="Bergabung">{reportDate(row.joined_date)}</ReportField>
-        </>
-      ) : (
-        <>
-          <ReportField label="Nomor kontrak">{row.contract_no || "Belum tercatat"}</ReportField>
-          <ReportField label="Mulai kontrak">{reportDate(row.start_date)}</ReportField>
-          <Box>
-            <CompactInfoChip
-              label={row.successor_start_date ? "Lanjutan tercatat" : "Lanjutan belum tercatat"}
-              tone={row.successor_start_date ? "success" : "warning"}
-            />
-          </Box>
-          {row.successor_start_date ? (
-            <ReportField label="Mulai kontrak lanjutan">
-              {reportDate(row.successor_start_date)}
-            </ReportField>
-          ) : null}
-        </>
-      )}
-    </Box>
-  );
-}
-
-export function ReportDeadline({ row, retirement }) {
+/** Chip tenggat bersama untuk tabel, kartu, dan ringkasan dashboard. */
+export function ReportRemaining({ row }) {
   const valid = row.days_remaining != null && row.due_date;
   const tone = !valid
     ? "warning"
@@ -92,15 +44,42 @@ export function ReportDeadline({ row, retirement }) {
         ? "warning"
         : "info";
   return (
+    <CompactInfoChip label={valid ? row.deadline : "Tanggal lahir perlu diperiksa"} tone={tone} />
+  );
+}
+
+/** Baris label-nilai mobile mengikuti kepadatan daftar pegawai. */
+export function ReportCardFields({ fields }) {
+  return (
+    <Box
+      sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: "divider", display: "grid", gap: 0.75 }}
+    >
+      {fields.map(([label, value]) => (
+        <Box
+          key={label}
+          sx={{ display: "grid", gridTemplateColumns: "minmax(80px, 38%) minmax(0, 1fr)", gap: 1 }}
+        >
+          <Typography sx={{ fontSize: 11.5, color: "text.secondary" }}>{label}</Typography>
+          <Typography
+            component="div"
+            sx={{ fontSize: 11.5, fontWeight: 600, overflowWrap: "anywhere" }}
+          >
+            {value}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+export function ReportDeadline({ row, retirement }) {
+  return (
     <Box sx={{ display: "grid", gap: 1 }}>
       <ReportField label={retirement ? "Proyeksi pensiun" : "Akhir kontrak"}>
         {reportDate(row.due_date)}
       </ReportField>
       <Box>
-        <CompactInfoChip
-          label={valid ? row.deadline : "Tanggal lahir perlu diperiksa"}
-          tone={tone}
-        />
+        <ReportRemaining row={row} />
       </Box>
     </Box>
   );

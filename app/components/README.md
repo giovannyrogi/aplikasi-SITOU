@@ -27,6 +27,7 @@ Periksa katalog dan folder `app/components` sebelum membuat komponen baru. Nama 
 Area daftar operasional wajib memeriksa `DataPanel` sebelum membuat wrapper baru. Hindari paper tambahan untuk toolbar atau tabel di dalam panel; card hanya dipakai sebagai item berulang pada mobile. `CompactInfoChip` menangani metadata sekaligus status agar tidak ada reusable badge kedua dengan fungsi sama. Chip dipakai untuk data yang perlu ditonjolkan, bukan seluruh teks tabel.
 
 Ekspor opsional memakai `DataPanel exportConfig={{ enabled: true, onExcel, loading, disabled }}`.
+Laporan memakai `ReportCardFields` untuk baris label-nilai berdivider dan `ReportRemaining` untuk chip tenggat bersama dashboard. Padding halaman/panel/kartu mengikuti shell, `DataPanel`, dan `ResponsiveDataView`, tanpa padding halaman tambahan.
 Tanpa konfigurasi atau dengan `enabled: false`, tombol tidak tampil. `TableExportMenu` menempatkan
 Export di kanan judul; di bawah 1024px hanya ikon dengan tooltip. Excel memanggil handler modul,
 sedangkan PDF hanya menampilkan pemberitahuan segera hadir. Permission, filter, audit, dan batas

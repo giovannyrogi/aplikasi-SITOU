@@ -18,8 +18,11 @@ GET `/api/reports/retirements` dan `/api/reports/expiring-contracts`, masing-mas
 
 Ekspor mengabaikan halaman/cursor dan memuat semua hasil filter hingga 5.000 baris. Hasil lebih besar ditolak dengan pesan mempersempit filter. Workbook menyertakan organisasi, filter, acuan, dan waktu ekspor; seluruh teks pengguna berupa nilai literal, NIP dan nomor kontrak tidak dikonversi menjadi angka/formula. Tidak ada NIK atau dokumen privat. Respons no-store dan ekspor dicatat pada audit.
 
-Tampilan layar mengelompokkan kolom identitas, penempatan, kontrak/masa kerja, dan batas waktu;
-definisi kolom Excel tetap lengkap. Respons daftar menyertakan organization_id dan
+Tampilan layar memakai kolom terpisah dengan identitas foto/nama/NIP, mengikuti Data Pegawai.
+Kartu mobile memakai divider dan baris label-nilai; informasi sekunder tersedia melalui detail.
+Rentang sendiri yang belum lengkap/valid tidak mengirim request, ekspor, atau menampilkan hasil lama.
+Periode berada setelah pencarian. Padding berasal dari shell dan komponen bersama, tanpa wrapper tambahan.
+Definisi kolom Excel tetap lengkap. Respons daftar menyertakan organization_id dan
 profile_photo_file_id aktif untuk avatar privat, tanpa object key. Foto tidak masuk Excel.
 Dashboard mempertahankan enam indikator dan menyajikan retirementSummary dengan asOf,
 upcoming, serta overdue; tiap kelompok memuat value, rows (maksimal lima), dan href laporan.

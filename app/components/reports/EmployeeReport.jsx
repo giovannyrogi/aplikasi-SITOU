@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Box, Typography } from "@mui/material";
-import { Alert, Button, DatePicker, Input, Select } from "antd";
+import { Alert, Button, DatePicker, Input, Select, Tooltip } from "antd";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
@@ -14,13 +14,17 @@ import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { readApiResponse, normalizeRequestError } from "@/lib/api/clientError";
-import { REPORT_TITLES, changeReportFilters } from "@/lib/reports/policy.mjs";
+import {
+  REPORT_TITLES,
+  DEFAULT_REPORT_PAGE_SIZE,
+  changeReportFilters,
+  validDate,
+} from "@/lib/reports/policy.mjs";
 import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import {
   ReportIdentity,
-  ReportPlacement,
-  ReportEmployment,
-  ReportDeadline,
+  ReportRemaining,
+  ReportCardFields,
   reportDate,
 } from "./ReportEmployeeFields";
 import { EyeOutlined } from "@ant-design/icons";
@@ -50,6 +54,17 @@ export default function EmployeeReport({ kind }) {
   const query = new URLSearchParams(params.toString());
   if (organizationId) query.set("organizationId", organizationId);
   const queryString = query.toString();
+  const dateErrors = {};
+  if (period === "custom") {
+    if (input.startDate && !validDate(input.startDate))
+      dateErrors.startDate = "Tanggal awal tidak valid.";
+    if (input.endDate && !validDate(input.endDate))
+      dateErrors.endDate = "Tanggal akhir tidak valid.";
+    if (validDate(input.startDate) && validDate(input.endDate) && input.startDate > input.endDate)
+      dateErrors.endDate = "Tanggal akhir tidak boleh sebelum tanggal awal.";
+  }
+  const waitingForDates = period === "custom" && (!input.startDate || !input.endDate);
+  const dateBlocked = waitingForDates || Object.keys(dateErrors).length > 0;
 
   /** URL menjadi sumber filter agar navigasi kembali dan bookmark tetap konsisten. */
   function navigate(values) {
@@ -91,7 +106,7 @@ export default function EmployeeReport({ kind }) {
   }, [organizationId, reload]);
 
   useEffect(() => {
-    if (!organizationId) return;
+    if (!organizationId || dateBlocked) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
       setState((current) => ({ ...current, loading: true, error: null }));
@@ -114,11 +129,12 @@ export default function EmployeeReport({ kind }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [kind, queryString, organizationId, reload]);
+  }, [kind, queryString, organizationId, reload, dateBlocked]);
 
-  const report = state.query === queryString ? state.data : null;
-  const pending = state.loading || state.query !== queryString;
-  const fieldErrors = state.error?.fieldErrors || {};
+  const report = !dateBlocked && state.query === queryString ? state.data : null;
+  const pending = !dateBlocked && (state.loading || state.query !== queryString);
+  const currentError = !dateBlocked && state.query === queryString ? state.error : null;
+  const fieldErrors = { ...currentError?.fieldErrors, ...dateErrors };
   const select = (key, options, placeholder) => (
     <Select
       aria-label={placeholder}
@@ -232,7 +248,9 @@ export default function EmployeeReport({ kind }) {
                 aria-label="Rentang tanggal laporan"
                 status={fieldErrors.startDate || fieldErrors.endDate ? "error" : undefined}
                 value={
-                  input.startDate && input.endDate
+                  validDate(input.startDate) &&
+                  validDate(input.endDate) &&
+                  input.startDate <= input.endDate
                     ? [dayjs(input.startDate), dayjs(input.endDate)]
                     : null
                 }
@@ -255,7 +273,7 @@ export default function EmployeeReport({ kind }) {
       ? [
           {
             key: "successor",
-            label: "Kontrak lanjutan",
+            label: "Kontrak berikutnya",
             control: select(
               "successor",
               [
@@ -263,7 +281,7 @@ export default function EmployeeReport({ kind }) {
                 { value: "yes", label: "Sudah tercatat" },
                 { value: "no", label: "Belum tercatat" },
               ],
-              "Semua kontrak lanjutan",
+              "Semua kontrak berikutnya",
             ),
           },
         ]
@@ -273,17 +291,31 @@ export default function EmployeeReport({ kind }) {
     control: (
       <>
         {item.control}
-        {fieldErrors[item.key] && (
+        {(fieldErrors[item.key] || (item.key === "startDate" && fieldErrors.endDate)) && (
           <Typography role="alert" color="error" variant="caption">
-            {fieldErrors[item.key]}
+            {fieldErrors[item.key] || fieldErrors.endDate}
           </Typography>
         )}
       </>
     ),
   }));
+  const filterOrder = [
+    "organizationId",
+    "search",
+    "period",
+    "startDate",
+    "locationId",
+    "organizationUnitId",
+    "positionId",
+    "employmentTypeId",
+    "group",
+    "successor",
+  ];
+  items.sort((a, b) => filterOrder.indexOf(a.key) - filterOrder.indexOf(b.key));
 
   /** Unduhan mengambil seluruh hasil filter; cursor halaman tidak dikirim. */
   async function exportExcel() {
+    if (dateBlocked || pending || currentError) return;
     setExporting(true);
     setExportError("");
     try {
@@ -311,6 +343,32 @@ export default function EmployeeReport({ kind }) {
       `/employees/${row.employee_id}?organizationId=${organizationId}&tab=${retirement ? "summary" : "contracts"}`,
     );
   }
+  const detailAction = (row) => (
+    <Tooltip title={retirement ? "Lihat pegawai" : "Lihat kontrak"}>
+      <Button
+        aria-label={`Lihat detail ${row.full_name}`}
+        icon={<EyeOutlined style={{ fontSize: 20 }} />}
+        onClick={() => detail(row)}
+        style={{ width: 44, height: 44, flexShrink: 0 }}
+      />
+    </Tooltip>
+  );
+  const successorChip = (row) => (
+    <Tooltip
+      title={
+        row.successor_start_date
+          ? "Kontrak berikutnya sudah tercatat di sistem. Ini bukan perpanjangan otomatis."
+          : "Kontrak berikutnya belum tercatat di sistem. HRD perlu meninjau kelanjutannya."
+      }
+    >
+      <span tabIndex={0}>
+        <CompactInfoChip
+          label={row.successor_start_date ? "Sudah tercatat" : "Belum tercatat"}
+          tone={row.successor_start_date ? "success" : "warning"}
+        />
+      </span>
+    </Tooltip>
+  );
   const columns = [
     {
       key: "employee",
@@ -319,23 +377,69 @@ export default function EmployeeReport({ kind }) {
       render: (_, row) => <ReportIdentity row={row} onPreview={setPhotoPreview} />,
     },
     {
-      key: "placement",
-      title: "Penempatan",
+      key: "location",
+      title: "Lokasi",
+      width: 170,
+      render: (_, row) => row.location_name || "Belum ditempatkan",
+    },
+    {
+      key: "unit",
+      title: "Divisi & Unit",
       width: 190,
-      render: (_, row) => <ReportPlacement row={row} />,
+      render: (_, row) => row.unit_name || "Belum ditentukan",
+    },
+    {
+      key: "position",
+      title: "Jabatan",
+      width: 160,
+      render: (_, row) => row.position_name || "Belum ditentukan",
     },
     {
       key: "employment",
-      title: retirement ? "Usia & masa kerja" : "Kontrak",
-      width: 200,
-      render: (_, row) => <ReportEmployment row={row} retirement={retirement} />,
+      title: "Jenis kepegawaian",
+      width: 150,
+      render: (_, row) => (
+        <CompactInfoChip label={row.employment_type_name || "Belum ditentukan"} tone="neutral" />
+      ),
+    },
+    ...(retirement
+      ? [
+          {
+            key: "birthDate",
+            title: "Tanggal lahir",
+            width: 150,
+            render: (_, row) => reportDate(row.birth_date),
+          },
+          {
+            key: "age",
+            title: "Usia",
+            width: 100,
+            render: (_, row) => (row.age == null ? "Perlu diperiksa" : `${row.age} tahun`),
+          },
+        ]
+      : []),
+    {
+      key: "date",
+      title: retirement ? "Proyeksi pensiun" : "Tanggal akhir",
+      width: 150,
+      render: (_, row) => reportDate(row.due_date),
     },
     {
-      key: "deadline",
-      title: retirement ? "Proyeksi pensiun" : "Batas waktu",
-      width: 185,
-      render: (_, row) => <ReportDeadline row={row} retirement={retirement} />,
+      key: "remaining",
+      title: "Sisa waktu",
+      width: 165,
+      render: (_, row) => <ReportRemaining row={row} />,
     },
+    ...(!retirement
+      ? [
+          {
+            key: "successor",
+            title: "Kontrak berikutnya",
+            width: 150,
+            render: (_, row) => successorChip(row),
+          },
+        ]
+      : []),
   ];
   columns.push({
     key: "action",
@@ -343,15 +447,7 @@ export default function EmployeeReport({ kind }) {
     fixed: "right",
     width: 70,
     align: "center",
-    render: (_, row) => (
-      <Button
-        title={retirement ? "Lihat pegawai" : "Lihat kontrak"}
-        onClick={() => detail(row)}
-        aria-label={`Lihat detail ${row.full_name}`}
-      >
-        <EyeOutlined style={{ fontSize: 20 }} />
-      </Button>
-    ),
+    render: (_, row) => detailAction(row),
   });
 
   return (
@@ -361,7 +457,7 @@ export default function EmployeeReport({ kind }) {
         description={
           retirement
             ? "Proyeksi usia pensiun 58 tahun untuk persiapan regenerasi. Status pegawai tetap dikelola melalui proses HRD."
-            : "Pantau akhir kontrak dan kesiapan kontrak lanjutan pegawai."
+            : "Pantau tanggal akhir kontrak dan apakah kontrak berikutnya sudah tercatat di sistem."
         }
       />
       <OperationalFilterSection
@@ -402,6 +498,8 @@ export default function EmployeeReport({ kind }) {
                 <span>Acuan {reportDate(report.asOf)}</span>
                 <span>Diperbarui {dayjs(report.generatedAt).format("DD MMM YYYY, HH:mm")}</span>
               </Box>
+            ) : dateBlocked ? (
+              "Lengkapi rentang tanggal pada filter laporan."
             ) : (
               "Memuat hasil laporan…"
             )
@@ -410,43 +508,78 @@ export default function EmployeeReport({ kind }) {
             enabled: true,
             onExcel: exportExcel,
             loading: exporting,
-            disabled: pending || !!state.error,
+            disabled: dateBlocked || pending || !!currentError,
           }}
         >
-          <ResponsiveDataView
-            data={report?.rows || []}
-            columns={columns}
-            loading={pending && !state.error}
-            error={state.error?.message}
-            onRetry={() => {
-              navigate({ ...input, cursor: undefined });
-              setHistory([]);
-              setReload((value) => value + 1);
-            }}
-            pagination={false}
-            rowOffset={report?.rowOffset || 0}
-            scrollX={920}
-            emptyDescription="Tidak ada data yang sesuai filter laporan."
-            renderCard={(row) => (
-              <Box sx={{ display: "grid", gap: 2 }}>
-                <ReportIdentity row={row} onPreview={setPhotoPreview} />
-                <ReportDeadline row={row} retirement={retirement} />
-                <Box
-                  sx={{
-                    display: "grid",
-                    gap: 2,
-                    gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" },
-                  }}
-                >
-                  <ReportPlacement row={row} />
-                  <ReportEmployment row={row} retirement={retirement} />
+          {dateBlocked ? (
+            <Box
+              role="status"
+              sx={{ p: { xs: 2, sm: 2.5, lg: 3 }, color: "text.secondary", fontSize: 13 }}
+            >
+              {Object.keys(dateErrors).length
+                ? "Periksa kembali rentang tanggal pada filter laporan."
+                : "Pilih tanggal awal dan akhir untuk menampilkan laporan."}
+            </Box>
+          ) : (
+            <ResponsiveDataView
+              data={report?.rows || []}
+              columns={columns}
+              loading={pending && !currentError}
+              error={currentError?.message}
+              onRetry={() => {
+                navigate({ ...input, cursor: undefined });
+                setHistory([]);
+                setReload((value) => value + 1);
+              }}
+              pagination={false}
+              rowOffset={report?.rowOffset || 0}
+              scrollX={1450}
+              emptyDescription="Tidak ada data yang sesuai filter laporan."
+              renderCard={(row) => (
+                <Box>
+                  <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <ReportIdentity row={row} onPreview={setPhotoPreview} />
+                    </Box>
+                    {detailAction(row)}
+                  </Box>
+                  <Box sx={{ mt: 1.5, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                    <CompactInfoChip
+                      label={row.employment_type_name || "Belum ditentukan"}
+                      tone="neutral"
+                    />
+                    <ReportRemaining row={row} />
+                  </Box>
+                  <ReportCardFields
+                    fields={[
+                      ["Lokasi", row.location_name || "Belum ditempatkan"],
+                      ["Divisi & Unit", row.unit_name || "Belum ditentukan"],
+                      ["Jabatan", row.position_name || "Belum ditentukan"],
+                    ]}
+                  />
+                  <ReportCardFields
+                    fields={
+                      retirement
+                        ? [
+                            ["Tanggal lahir", reportDate(row.birth_date)],
+                            [
+                              "Usia",
+                              row.age == null
+                                ? "Tanggal lahir perlu diperiksa"
+                                : `${row.age} tahun`,
+                            ],
+                            ["Proyeksi pensiun", reportDate(row.due_date)],
+                          ]
+                        : [
+                            ["Tanggal akhir", reportDate(row.due_date)],
+                            ["Kontrak berikutnya", successorChip(row)],
+                          ]
+                    }
+                  />
                 </Box>
-                <Button onClick={() => detail(row)}>
-                  {retirement ? "Lihat pegawai" : "Lihat kontrak"}
-                </Button>
-              </Box>
-            )}
-          />
+              )}
+            />
+          )}
           <Box
             sx={{
               display: "flex",
@@ -458,7 +591,7 @@ export default function EmployeeReport({ kind }) {
             }}
           >
             <Button
-              disabled={pending || !input.cursor}
+              disabled={dateBlocked || pending || !input.cursor}
               onClick={() => {
                 const previous = history.at(-1);
                 setHistory(history.slice(0, -1));
@@ -468,7 +601,7 @@ export default function EmployeeReport({ kind }) {
               Sebelumnya
             </Button>
             <Button
-              disabled={pending || !report?.nextCursor || !!state.error}
+              disabled={dateBlocked || pending || !report?.nextCursor || !!currentError}
               onClick={() => {
                 setHistory([...history, input.cursor]);
                 navigate({ ...input, cursor: report.nextCursor });
@@ -478,7 +611,8 @@ export default function EmployeeReport({ kind }) {
             </Button>
             <Select
               aria-label="Jumlah baris per halaman"
-              value={Number(input.pageSize || 20)}
+              disabled={dateBlocked}
+              value={Number(input.pageSize || DEFAULT_REPORT_PAGE_SIZE)}
               onChange={(value) => change("pageSize", value)}
               options={[10, 20, 50].map((value) => ({ value, label: `${value} / halaman` }))}
             />

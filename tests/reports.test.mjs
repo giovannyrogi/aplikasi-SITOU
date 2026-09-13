@@ -19,6 +19,11 @@ test("pensiun memakai kalender 58 tahun dan akhir bulan kabisat", () => {
 });
 test("default, tahun ini, periode lampau dan rentang invalid", () => {
   const today = "2026-09-11";
+  for (const kind of ["retirements", "expiring-contracts"]) {
+    assert.equal(normalizeReportFilters(kind, {}, today).pageSize, 10);
+    assert.equal(normalizeReportFilters(kind, { pageSize: 20 }, today).pageSize, 20);
+    assert.equal(normalizeReportFilters(kind, { pageSize: 50 }, today).pageSize, 50);
+  }
   assert.equal(normalizeReportFilters("retirements", {}, today).endDate, "2027-09-11");
   assert.equal(normalizeReportFilters("expiring-contracts", {}, today).endDate, "2026-10-11");
   assert.equal(

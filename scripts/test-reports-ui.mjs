@@ -39,6 +39,7 @@ try {
   const page = await context.newPage();
   const errors = [];
   let exportRequests = 0;
+  let reportRequests = 0;
   let photoFails = false;
   await page.route("**/api/uploads/990001?*", (route) =>
     route.fulfill(
@@ -68,6 +69,7 @@ try {
       return;
     }
     const retirement = url.pathname.endsWith("retirements");
+    reportRequests++;
     await route.fulfill({
       json: {
         success: true,
@@ -112,6 +114,22 @@ try {
     });
   });
   await mkdir(".next/report-qa", { recursive: true });
+  const referencePage = await context.newPage();
+  await referencePage.goto(base + "/employees");
+  await referencePage.getByRole("heading", { name: "Daftar data pegawai", exact: true }).waitFor();
+  const spacing = (p, title) =>
+    p.getByRole("heading", { name: title, exact: true }).evaluate((heading) => {
+      const panel = heading.closest("section");
+      const box = panel.getBoundingClientRect();
+      const main = getComputedStyle(document.querySelector("main"));
+      const header = getComputedStyle(heading.parentElement.parentElement);
+      return {
+        left: box.left,
+        width: box.width,
+        padding: main.padding,
+        headerPadding: header.padding,
+      };
+    });
   for (const kind of ["retirements", "expiring-contracts"]) {
     await page.goto(`${base}/reports/${kind}`);
     await page
@@ -119,11 +137,17 @@ try {
       .waitFor();
     for (const width of [320, 375, 768, 1024, 1366, 1920]) {
       await page.setViewportSize({ width, height: 1000 });
+      await referencePage.setViewportSize({ width, height: 1000 });
       await page.waitForTimeout(200);
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth > window.innerWidth + 1,
       );
       assert.equal(overflow, false, `${kind}: halaman overflow pada ${width}px`);
+      assert.deepEqual(
+        await spacing(page, "Hasil laporan"),
+        await spacing(referencePage, "Daftar data pegawai"),
+        `Padding ${kind} harus sama dengan Data Pegawai pada ${width}px`,
+      );
       const exportButton = page.getByRole("button", { name: "Export", exact: true });
       assert.equal((await exportButton.innerText()).trim(), width < 1024 ? "" : "Export");
       await page.screenshot({ path: `.next/report-qa/${kind}-${width}.png`, fullPage: true });
@@ -138,6 +162,38 @@ try {
     await page.getByRole("menuitem", { name: "Unduh Excel" }).click();
     await download;
     assert.equal(exportRequests, beforePdf + 1);
+    await page.getByRole("combobox", { name: "Periode laporan", exact: true }).click();
+    await page.getByText("Rentang tanggal sendiri", { exact: true }).last().click();
+    await page
+      .getByText("Pilih tanggal awal dan akhir untuk menampilkan laporan.", { exact: true })
+      .waitFor();
+    const blockedRequests = reportRequests;
+    await page.waitForTimeout(600);
+    assert.equal(reportRequests, blockedRequests);
+    assert.equal(
+      await page.getByRole("button", { name: "Export", exact: true }).isDisabled(),
+      true,
+    );
+    for (const suffix of [
+      "",
+      "&startDate=2026-09-01",
+      "&startDate=2026-02-31&endDate=2026-09-30",
+      "&startDate=2026-10-01&endDate=2026-09-01",
+    ]) {
+      await page.goto(`${base}/reports/${kind}?period=custom${suffix}`);
+      await page
+        .getByRole("status")
+        .filter({ hasText: /tanggal/ })
+        .waitFor();
+      await page.waitForTimeout(600);
+      assert.equal(reportRequests, blockedRequests);
+      assert.equal(await page.getByText("Terjadi kendala", { exact: true }).count(), 0);
+    }
+    await page.goto(
+      `${base}/reports/${kind}?period=custom&startDate=2026-09-01&endDate=2026-09-30`,
+    );
+    await page.getByRole("button", { name: /^Perbesar pas foto/ }).waitFor();
+    assert.ok(reportRequests > blockedRequests);
     const photoButton = page.getByRole("button", { name: /^Perbesar pas foto/ });
     await photoButton.focus();
     await page.keyboard.press("Enter");
@@ -170,6 +226,7 @@ try {
       `PASS UI ${kind}: 320–1920px, data panjang, filter sudah lewat, reset, tanpa overflow halaman.`,
     );
   }
+  await referencePage.close();
   const syntheticRow = {
     id: "1",
     employee_id: "1",
@@ -245,6 +302,15 @@ try {
   for (const width of [320, 375, 768, 1024, 1366, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.waitForTimeout(200);
+    const region = page.getByRole("region", { name: "Daftar prioritas pensiun", exact: true });
+    assert.equal(await region.evaluate((el) => getComputedStyle(el).scrollbarWidth), "none");
+    await region.focus();
+    await page.keyboard.press("End");
+    await page.waitForTimeout(200);
+    assert.ok(await region.evaluate((el) => el.scrollTop > 0));
+    await region.evaluate((el) => {
+      el.scrollTop = 0;
+    });
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
       false,
