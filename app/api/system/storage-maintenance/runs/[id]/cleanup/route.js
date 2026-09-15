@@ -28,7 +28,7 @@ export async function POST(request, context) {
     return successResponse(data, {
       status: 202,
       code: "STORAGE_CLEANUP_QUEUED",
-      message: "Pembersihan file masuk antrean.",
+      message: "Penghapusan file masuk antrean.",
     });
   } catch (error) {
     return handleRouteError("storage-maintenance.cleanup", error, requestId);

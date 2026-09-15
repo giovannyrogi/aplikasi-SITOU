@@ -27,14 +27,14 @@ import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import useAppNotification from "@/app/hooks/useAppNotification";
 
 const statusLabels = {
-  eligible: "Aman dibersihkan",
+  eligible: "Siap dihapus",
   selected: "Sudah dipilih",
-  needs_review: "Perlu ditinjau",
-  already_absent: "Byte sudah tidak ada",
+  needs_review: "Perlu diperiksa",
+  already_absent: "File fisik sudah dihapus",
   queued: "Menunggu proses",
   running: "Sedang diproses",
   processing: "Sedang diproses",
-  cleaned: "Berhasil dibersihkan",
+  cleaned: "File berhasil dihapus",
   skipped: "Dilewati",
   failed: "Gagal",
   pending_retry: "Menunggu percobaan ulang",
@@ -194,7 +194,7 @@ function FileItemsView({
     },
     { title: "Ukuran", dataIndex: "size_bytes", width: 110, render: formatBytes },
     {
-      title: "Dinonaktifkan",
+      title: "Dilepas dari data",
       key: "deleted",
       width: 220,
       render: (_, item) => (
@@ -210,7 +210,7 @@ function FileItemsView({
       ),
     },
     {
-      title: "Hasil pemeriksaan",
+      title: "Status file",
       key: "inspection",
       width: 280,
       render: (_, item) => (
@@ -282,7 +282,7 @@ function FileItemsView({
             indeterminate={pageSelected > 0 && !allPageSelected}
             onChange={(event) => togglePage(event.target.checked)}
           >
-            Pilih kandidat pada halaman ini
+            Pilih file siap dihapus pada halaman ini
           </Checkbox>
         </Box>
       ) : null}
@@ -323,7 +323,7 @@ function FileItemsView({
                 </FontStyle>
               ) : null}
               <FontStyle fontSize={10.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-                Dinonaktifkan {formatDateTime(item.deleted_at)} · {item.deletion_reason_label}
+                Dilepas dari data {formatDateTime(item.deleted_at)} · {item.deletion_reason_label}
               </FontStyle>
             </Box>
           </Box>
@@ -370,7 +370,7 @@ export default function StorageMaintenancePage() {
     [runs],
   );
   const hasActiveRun = Number(summary?.active_run_count || 0) > 0;
-  const activeRunLabel = activeRun?.run_type === "cleanup" ? "Pembersihan" : "Pemeriksaan";
+  const activeRunLabel = activeRun?.run_type === "cleanup" ? "Penghapusan file" : "Pemeriksaan";
 
   const refreshOverview = useCallback(async () => {
     if (!organizationId) return;
@@ -523,7 +523,7 @@ export default function StorageMaintenancePage() {
       render: (_, run) => (
         <Box>
           <FontStyle fontWeight={650}>
-            {run.run_type === "scan" ? "Pemeriksaan file" : "Pembersihan file"}
+            {run.run_type === "scan" ? "Pemeriksaan file" : "Penghapusan file"}
           </FontStyle>
           <FontStyle fontSize={10.5} sx={{ mt: 0.35, color: theme.ui.mutedText }}>
             #{run.id} · diminta oleh {run.requested_by_name || "Superadmin"}
@@ -547,7 +547,7 @@ export default function StorageMaintenancePage() {
       render: (_, run) =>
         run.run_type === "scan"
           ? `${run.candidate_items} aman · ${run.issue_items} perlu ditinjau`
-          : `${run.cleaned_items} dibersihkan · ${run.skipped_items} dilewati · ${run.failed_items} gagal`,
+          : `${run.cleaned_items} dihapus · ${run.skipped_items} dilewati · ${run.failed_items} gagal`,
     },
     {
       title: "Ukuran",
@@ -583,7 +583,7 @@ export default function StorageMaintenancePage() {
   const tabItems = [
     {
       key: "candidate",
-      label: `Aman dibersihkan${summary ? ` (${summary.candidate_items})` : ""}`,
+      label: `Siap dihapus${summary ? ` (${summary.candidate_items})` : ""}`,
       children: (
         <FileItemsView
           data={itemState.data}
@@ -598,7 +598,7 @@ export default function StorageMaintenancePage() {
     },
     {
       key: "issue",
-      label: `Perlu ditinjau${summary ? ` (${summary.issue_items})` : ""}`,
+      label: `Perlu diperiksa${summary ? ` (${summary.issue_items})` : ""}`,
       children: (
         <FileItemsView
           data={itemState.data}
@@ -630,7 +630,7 @@ export default function StorageMaintenancePage() {
         </Box>
       ) : (
         <Box sx={{ p: 3 }}>
-          <EmptyState description="Belum ada riwayat pemeriksaan atau pembersihan." />
+          <EmptyState description="Belum ada riwayat pemeriksaan atau penghapusan file." />
         </Box>
       ),
     },
@@ -640,7 +640,7 @@ export default function StorageMaintenancePage() {
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
         title="Penyimpanan File"
-        description="Periksa dan bersihkan byte file profil yang tidak lagi digunakan tanpa menghapus metadata maupun histori audit."
+        description="Temukan file fisik yang tidak lagi digunakan, lalu hapus dengan aman tanpa menghilangkan catatan riwayatnya."
       />
 
       <Paper
@@ -751,28 +751,28 @@ export default function StorageMaintenancePage() {
           >
             <Metric
               icon={<CheckCircleOutlined />}
-              label="Kandidat aman"
+              label="File siap dihapus"
               value={summary?.candidate_items ?? 0}
-              helper="Tanpa referensi aktif"
+              helper="Tidak digunakan oleh data aktif"
               tone="success"
             />
             <Metric
               icon={<DeleteOutlined />}
-              label="Ruang dapat dibebaskan"
+              label="Penyimpanan dapat dikosongkan"
               value={formatBytes(summary?.candidate_bytes)}
               helper="Berdasarkan pemeriksaan terakhir"
               tone="info"
             />
             <Metric
               icon={<WarningOutlined />}
-              label="Perlu ditinjau"
+              label="Perlu diperiksa"
               value={summary?.issue_items ?? 0}
               helper="Tidak akan dihapus otomatis"
               tone="warning"
             />
             <Metric
               icon={<HistoryOutlined />}
-              label="Pembersihan terakhir"
+              label="Penghapusan terakhir"
               value={summary?.latest_cleanup_at ? `${summary.cleaned_items} file` : "Belum ada"}
               helper={formatDateTime(summary?.latest_cleanup_at)}
               tone="info"
@@ -784,7 +784,7 @@ export default function StorageMaintenancePage() {
             description={
               summary?.latest_scan_at
                 ? `Pemeriksaan terakhir ${formatDateTime(summary.latest_scan_at)}.`
-                : "Jalankan pemeriksaan untuk menemukan kandidat yang aman dibersihkan."
+                : "Jalankan pemeriksaan untuk menemukan file tidak terpakai yang siap dihapus."
             }
             toolbar={
               activeTab === "candidate" ? (
@@ -800,7 +800,7 @@ export default function StorageMaintenancePage() {
                   <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
                     {selection.length
                       ? `${selection.length} file dipilih · ${formatBytes(selectedBytes)}`
-                      : "Pilih file yang akan diproses. Worker akan memeriksa ulang sebelum menghapus byte."}
+                      : "Pilih file fisik yang akan dihapus. Sistem akan memastikan ulang bahwa file tidak sedang digunakan."}
                   </FontStyle>
                   <Button
                     danger
@@ -808,7 +808,7 @@ export default function StorageMaintenancePage() {
                     disabled={!selection.length || hasActiveRun}
                     onClick={() => setConfirmOpen(true)}
                   >
-                    Bersihkan file terpilih
+                    Hapus file terpilih
                   </Button>
                 </Box>
               ) : null
@@ -829,8 +829,8 @@ export default function StorageMaintenancePage() {
 
       <AppModal
         open={confirmOpen}
-        title="Hapus byte file secara permanen?"
-        description="Metadata dan riwayat proses tetap disimpan. Byte file yang berhasil dibersihkan tidak dapat dipulihkan dari SITOU."
+        title="Hapus file fisik secara permanen?"
+        description="Catatan file dan riwayat proses tetap tersimpan di database. Isi file yang dihapus tidak dapat dipulihkan dari SITOU."
         icon={<SafetyCertificateOutlined />}
         size="sm"
         disableClose={submitting}
@@ -857,7 +857,7 @@ export default function StorageMaintenancePage() {
               disabled={!confirmationAccepted}
               onClick={requestCleanup}
             >
-              Proses pembersihan
+              Hapus file
             </Button>
           </>
         }
@@ -888,7 +888,8 @@ export default function StorageMaintenancePage() {
             checked={confirmationAccepted}
             onChange={(event) => setConfirmationAccepted(event.target.checked)}
           >
-            Saya memahami bahwa byte file yang lolos pemeriksaan akan dihapus permanen.
+            Saya memahami bahwa isi file yang lolos pemeriksaan akan dihapus permanen, sedangkan
+            catatan riwayatnya tetap disimpan.
           </Checkbox>
         </Box>
       </AppModal>
