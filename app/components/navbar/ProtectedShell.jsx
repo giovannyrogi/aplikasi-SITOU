@@ -56,6 +56,13 @@ export default function ProtectedShell({ user, children }) {
 
   const navigate = (path) => {
     if (!path || path === pathname) return;
+    // Form dapat menahan navigasi sidebar sampai perubahan belum tersimpan dikonfirmasi.
+    if (
+      !window.dispatchEvent(
+        new CustomEvent("sitou:before-navigate", { cancelable: true, detail: { path } }),
+      )
+    )
+      return;
 
     setDrawerOpen(false);
     startNavigationLoading({ message: "Membuka halaman..." });

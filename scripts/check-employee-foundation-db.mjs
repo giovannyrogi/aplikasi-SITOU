@@ -11,6 +11,7 @@ if (missingEnvironment.length) {
 }
 
 const requiredRelations = [
+  "organization_retirement_policies",
   "organization_subscriptions",
   "organization_unit_types",
   "employee_import_batches",

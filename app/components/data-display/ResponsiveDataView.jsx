@@ -27,7 +27,12 @@ export default function ResponsiveDataView({
 }) {
   const theme = useTheme();
   const mobile = useMediaQuery("(max-width:767px)");
-  const mobileShellSx = { p: { xs: 2, sm: 2.5 } };
+  const mobileShellSx = {
+    p: { xs: 2, sm: 2.5 },
+    minWidth: 0,
+    maxWidth: "100%",
+    gridTemplateColumns: "minmax(0, 1fr)",
+  };
   const offset = rowNumberOffset(pagination, rowOffset);
 
   if (error) {
@@ -74,11 +79,23 @@ export default function ResponsiveDataView({
       );
     return (
       <Box sx={{ ...mobileShellSx, display: "grid", gap: 2 }}>
-        <Box sx={{ display: "grid", gap: 1.5 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", minWidth: 0, gap: 1.5 }}>
           {data.map((item, index) => (
             <Box
               key={item[rowKey]}
+              data-responsive-card
               sx={{
+                minWidth: 0,
+                maxWidth: "100%",
+                overflowWrap: "anywhere",
+                "& .MuiBox-root": { minWidth: 0 },
+                "& .MuiChip-root": { height: "auto", minHeight: 24 },
+                "& .MuiChip-label": {
+                  whiteSpace: "normal",
+                  overflowWrap: "anywhere",
+                  lineHeight: 1.4,
+                  py: 0.5,
+                },
                 bgcolor: theme.ui.panelBg,
                 border: "1px solid " + theme.ui.panelBorderSubtle,
                 borderRadius: 2.5,

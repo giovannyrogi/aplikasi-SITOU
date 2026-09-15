@@ -53,7 +53,7 @@ try {
     UPDATE employees SET profile_photo_file_id=101 WHERE id=1;
     UPDATE employees SET profile_photo_file_id=102 WHERE id=2;
     UPDATE employees SET profile_photo_file_id=103 WHERE id=5;`);
-  const read = async (kind, input = {}, scope = null, limit = 100, cursor = null) =>
+  const read = async (kind, input = {}, scope = null, limit = 100, cursor = null, age = 58) =>
     (
       await client.query(
         buildReportQuery(
@@ -64,10 +64,13 @@ try {
           "2026-09-11",
           limit,
           cursor,
+          age,
         ),
       )
     ).rows[0];
   let result = await read("retirements");
+  const laterPolicy = await read("retirements", {}, null, 100, null, 60);
+  assert.equal(laterPolicy.total, 0, "Usia 60 tahun menggeser proyeksi, tanpa fallback ke 58");
   assert.deepEqual(
     result.rows.map((r) => r.employee_id),
     ["1", "5"],
@@ -105,6 +108,8 @@ try {
     null,
     "2026-09-11",
     20,
+    null,
+    58,
   );
   await client.query({ text: `EXPLAIN (ANALYZE, BUFFERS) ${plan.text}`, values: plan.values });
   // Volume sintetis: total tidak dipotong ketika halaman/ekspor dibatasi.

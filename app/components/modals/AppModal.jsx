@@ -54,6 +54,10 @@ export default function AppModal({
     >
       <Box
         component={component}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={resolvedDescription ? descriptionId : undefined}
         onSubmit={onSubmit}
         sx={{
           width: { xs: "100%", sm: Math.min(width || SIZE_WIDTH[size] || SIZE_WIDTH.md, 1200) },

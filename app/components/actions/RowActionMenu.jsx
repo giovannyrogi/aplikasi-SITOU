@@ -66,7 +66,7 @@ export default function RowActionMenu({ items }) {
         aria-label="Buka menu aksi"
         aria-haspopup="menu"
         title="Menu aksi"
-        style={{ width: 36, height: 36, padding: 0 }}
+        style={{ width: 44, height: 44, flexShrink: 0, padding: 0 }}
       />
     </Dropdown>
   );

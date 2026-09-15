@@ -46,6 +46,7 @@ export default function CompactInfoChip({ label, status, tone, color, icon, sx }
     <Chip
       size="small"
       label={label || statusConfig?.label || "-"}
+      title={typeof label === "string" ? label : statusConfig?.label}
       icon={icon || statusConfig?.icon}
       sx={{
         height: 24,

@@ -23,7 +23,11 @@ export default function RetirementSummary({ data, loading }) {
   return (
     <DataPanel
       title="Proyeksi pensiun"
-      description="Usia acuan 58 tahun; hubungan kerja masih berjalan."
+      description={
+        group?.retirementAge
+          ? `Usia acuan ${group.retirementAge} tahun; hubungan kerja masih berjalan.`
+          : "Kebijakan usia pensiun belum diatur."
+      }
     >
       <Box sx={{ p: { xs: 2, sm: 2.5 }, display: "grid", gap: 2 }}>
         <Box
@@ -45,7 +49,7 @@ export default function RetirementSummary({ data, loading }) {
           <>
             <Box>
               <Typography sx={{ fontSize: 26, fontWeight: 700 }}>
-                {group?.value || 0}{" "}
+                {group?.value ?? "—"}{" "}
                 <Box component="span" sx={{ fontSize: 13, fontWeight: 400 }}>
                   pegawai
                 </Box>

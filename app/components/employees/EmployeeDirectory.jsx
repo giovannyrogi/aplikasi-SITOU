@@ -425,7 +425,7 @@ export default function EmployeeDirectory() {
             <FontStyle
               title={item.full_name}
               fontWeight={700}
-              sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              sx={{ overflowWrap: "anywhere", whiteSpace: "normal" }}
             >
               {item.full_name}
             </FontStyle>
@@ -434,10 +434,9 @@ export default function EmployeeDirectory() {
               fontSize={11.5}
               sx={{
                 mt: 0.25,
-                overflow: "hidden",
                 color: theme.ui.mutedText,
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                overflowWrap: "anywhere",
+                whiteSpace: "normal",
               }}
             >
               {item.employee_no || "-"}
@@ -458,6 +457,7 @@ export default function EmployeeDirectory() {
           sx={{
             mt: 1.5,
             display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr)",
             gap: 0.75,
             pt: 1.5,
             borderTop: "1px solid " + theme.ui.panelBorderSubtle,
@@ -470,7 +470,11 @@ export default function EmployeeDirectory() {
           ].map(([label, value]) => (
             <Box
               key={label}
-              sx={{ display: "grid", gridTemplateColumns: "112px minmax(0, 1fr)", gap: 1 }}
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "minmax(64px, 35%) minmax(0, 1fr)",
+                gap: 1,
+              }}
             >
               <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
                 {label}
@@ -479,7 +483,7 @@ export default function EmployeeDirectory() {
                 title={value || "-"}
                 fontSize={11.5}
                 fontWeight={600}
-                sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                sx={{ overflowWrap: "anywhere", whiteSpace: "normal" }}
               >
                 {value || "-"}
               </FontStyle>

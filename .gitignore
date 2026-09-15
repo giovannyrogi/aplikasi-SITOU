@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/artifacts/retirement-policy/
 
 # next.js
 /.next/
@@ -42,11 +43,14 @@
 !/scripts/test-storage-maintenance-http.mjs
 !/scripts/test-storage-maintenance-db.mjs
 !/scripts/verify-schema-bootstrap.mjs
+!/scripts/test-retirement-policy-db.mjs
+!/scripts/test-retirement-policy-ui.mjs
 /tests/*
 !/tests/row-numbers.test.mjs
 !/tests/reports.test.mjs
 !/tests/dashboard-config.test.mjs
 !/tests/storage-maintenance.test.mjs
+!/tests/retirement-policy.test.mjs
 /ecosystem.config.js
 
 # debug

@@ -43,9 +43,32 @@ try {
         JOIN role_permissions mapping ON mapping.permission_id=permission.id
         JOIN roles role ON role.id=mapping.role_id
         WHERE permission.code='storage_maintenance.manage' AND role.code='superadmin'
-      ) AS has_permission`,
+      ) AS has_permission,
+      to_regclass('public.organization_retirement_policies') IS NOT NULL AS has_retirement_policy,
+      EXISTS(SELECT 1 FROM permissions p JOIN role_permissions rp ON rp.permission_id=p.id JOIN roles r ON r.id=rp.role_id WHERE p.code='retirement_policy.manage' AND r.code='hrd') AS has_retirement_manage`,
   );
   const checks = result.rows[0];
+  // Bandingkan struktur kebijakan hasil upgrade lokal dengan bootstrap kosong.
+  const upgraded = new pg.Client({ ...connection, database: process.env.PGDATABASE });
+  try {
+    await upgraded.connect();
+    const signatureSql = `SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='public.organization_retirement_policies'::regclass ORDER BY conname`;
+    const [fresh, existing] = await Promise.all([
+      bootstrap.query(signatureSql),
+      upgraded.query(signatureSql),
+    ]);
+    checks.retirement_constraints_match_upgrade =
+      JSON.stringify(fresh.rows) === JSON.stringify(existing.rows);
+    const columnsSql = `SELECT column_name,data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='organization_retirement_policies' ORDER BY ordinal_position`;
+    const [freshColumns, existingColumns] = await Promise.all([
+      bootstrap.query(columnsSql),
+      upgraded.query(columnsSql),
+    ]);
+    checks.retirement_columns_match_upgrade =
+      JSON.stringify(freshColumns.rows) === JSON.stringify(existingColumns.rows);
+  } finally {
+    await upgraded.end();
+  }
   if (Object.values(checks).some((value) => value !== true))
     throw new Error(`Bootstrap tidak lengkap: ${JSON.stringify(checks)}`);
   console.log(JSON.stringify({ ready: true, checks }, null, 2));

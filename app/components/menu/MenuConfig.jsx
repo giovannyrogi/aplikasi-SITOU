@@ -142,6 +142,22 @@ const MENU_CONFIG = [
     ],
   },
   {
+    label: "Pengaturan Organisasi",
+    value: "organization-settings",
+    icon: <Icon icon="solar:settings-bold-duotone" fontSize="20px" />,
+    roles: DASHBOARD_ROLES,
+    submenu: [
+      {
+        label: "Kebijakan Pensiun",
+        value: "retirement-policy",
+        path: "/organization-settings/retirement",
+        icon: <Icon icon="solar:calendar-date-bold-duotone" fontSize="20px" />,
+        showIcon: true,
+        roles: DASHBOARD_ROLES,
+      },
+    ],
+  },
+  {
     label: "Pemeliharaan Sistem",
     value: "system-maintenance",
     icon: <Icon icon="solar:settings-minimalistic-bold-duotone" fontSize="20px" />,

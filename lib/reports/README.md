@@ -1,11 +1,11 @@
 # Laporan operasional
 
-Kontrak dan pensiun menggunakan tanggal acuan organisasi dan perhitungan bersama pada `policy.mjs`, `query.mjs`, dan `service.js`. Dashboard, API daftar, serta Excel memakai service yang sama. Tidak ada migration struktur database untuk fitur ini.
+Kontrak dan pensiun menggunakan tanggal acuan organisasi dan perhitungan bersama pada `policy.mjs`, `query.mjs`, dan `service.js`. Dashboard, API daftar, serta Excel memakai service yang sama. Usia pensiun berasal dari `organization_retirement_policies` (migration 027), diatur melalui Pengaturan Organisasi → Kebijakan Pensiun. Organisasi lama diinisialisasi 58 tahun; organisasi baru wajib mengisi kebijakan. Batas input teknis 18–100 tahun, dengan alasan, version check, dan audit. Perubahan langsung memperbarui proyeksi saat ini, tanpa mengubah keputusan pensiun historis. Cursor dan cache terikat versi kebijakan.
 
 ## Akses dan penggunaan
 
 - Menu Laporan → Kontrak Akan Berakhir: default hari ini sampai 30 hari mendatang, inklusif. Satu baris adalah satu kontrak; ringkasan juga menghitung pegawai unik.
-- Menu Laporan → Proyeksi Pensiun: default hari ini sampai tanggal yang sama 12 bulan mendatang. Ulang tahun ke-58 adalah tanggal proyeksi, bukan keputusan pensiun otomatis. Kelahiran 29 Februari dijepit ke 28 Februari jika diperlukan.
+- Menu Laporan → Proyeksi Pensiun: default hari ini sampai tanggal yang sama 12 bulan mendatang. Ulang tahun sesuai usia pensiun organisasi adalah tanggal proyeksi, bukan keputusan pensiun otomatis. Kelahiran 29 Februari dijepit ke 28 Februari jika diperlukan.
 - Tahun ini berarti 1 Januari–31 Desember. Kelompok sudah lewat secara default tidak membatasi tanggal awal. Kelompok tanggal lahir perlu diperiksa mengabaikan periode proyeksi.
 - Filter tersimpan pada URL. Kartu dashboard menyertakan periode dan kelompok yang dihitung agar tautan membukakan hasil setara. Indikator ini memakai periode sendiri, terpisah dari rentang statistik dashboard lainnya.
 - Pegawai aktif/probation/suspended yang tidak dihapus logis termasuk; status final dan draft dikecualikan. Proyeksi tidak mengubah status pegawai.

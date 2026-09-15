@@ -12,6 +12,12 @@ Dokumen ini adalah peta cepat database SITOU. Gunakan dokumen ini sebelum membuk
 
 ## Organisasi, File, Branding, Struktur
 
+### Kebijakan pensiun per organisasi
+
+`organization_retirement_policies` menyimpan satu usia pensiun saat ini per `organization_id`, `version`, `updated_at`, `updated_by_user_id`, dan `change_reason`. Migration 027 memberi organisasi lama usia awal 58 tahun; organisasi baru tidak mendapat asumsi usia otomatis. Pengaturan berada di Pengaturan Organisasi → Kebijakan Pensiun. Usia berupa bilangan bulat 18–100 (batas teknis input), disimpan dengan optimistic concurrency dan audit append-only `retirement_policy.update`. HRD/Superadmin memerlukan `retirement_policy.manage`; Pimpinan hanya `retirement_policy.read`.
+
+Kebijakan baru langsung menjadi acuan proyeksi seluruh pegawai yang hubungan kerjanya berjalan. Dashboard, laporan, dan Excel membaca usia yang sama. Riwayat keputusan pensiun dan status final pegawai tidak berubah. Kebijakan belum diatur menghasilkan informasi khusus, bukan jumlah nol. Versi kebijakan mengikat cursor laporan dan cache dashboard.
+
 ### Alur onboarding dan masa akses
 
 1. Superadmin membuat identitas `organizations` dan periode pertama `organization_subscriptions` dalam satu transaksi.

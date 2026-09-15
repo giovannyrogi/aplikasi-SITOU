@@ -454,9 +454,21 @@ export default function EmployeeReport({ kind }) {
     <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>
       <PageHeader
         title={REPORT_TITLES[kind]}
+        action={
+          retirement && organizationId && ["hrd", "superadmin"].includes(user.role_code) ? (
+            <Button
+              onClick={() => {
+                startNavigationLoading();
+                router.push(`/organization-settings/retirement?organizationId=${organizationId}`);
+              }}
+            >
+              Atur kebijakan pensiun
+            </Button>
+          ) : null
+        }
         description={
           retirement
-            ? "Proyeksi usia pensiun 58 tahun untuk persiapan regenerasi. Status pegawai tetap dikelola melalui proses HRD."
+            ? `Proyeksi ${state.data?.organization?.retirement_age ? `usia pensiun ${state.data.organization.retirement_age} tahun` : "pensiun sesuai kebijakan organisasi"} untuk persiapan regenerasi. Status pegawai tetap dikelola melalui proses HRD.`
             : "Pantau tanggal akhir kontrak dan apakah kontrak berikutnya sudah tercatat di sistem."
         }
       />

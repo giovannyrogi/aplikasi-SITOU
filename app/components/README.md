@@ -152,3 +152,10 @@ Semua tabel AntD disusun melalui `data-display/NumberedTable.jsx`, yang menambah
 `reports/EmployeeReport.jsx` menyatukan filter URL, daftar desktop/card mobile, ringkasan, navigasi detail, dan ekspor untuk Kontrak Akan Berakhir serta Proyeksi Pensiun. Gunakan komponen ini untuk kedua route, bukan membuat salinan form filter.
 
 `ResponsiveDataView` menerima `pagination={false}` untuk daftar dengan kontrol keyset server sendiri; perilaku default menu lain tidak berubah. `DashboardMetric` menerima `metric.description` sebagai penjelasan indikator, tidak dapat diklik, dan memakai hover seragam dengan dukungan reduced motion. Dashboard tidak memiliki filter tanggal global; tren memakai 12 bulan kalender hingga hari ini. `DashboardAttentionList` juga menerima `title`, `description`, `emptyMessage`, dan `showPriority` untuk daftar lima kasus resmi terbaru. Tombol detail pada daftar tetap dapat digunakan.
+# Pengaturan organisasi
+
+`AppModal` menyediakan `role=dialog`, `aria-modal`, dan hubungan judul/deskripsi pada panel konten agar konfirmasi dapat dikenali pembaca layar.
+
+`organization-settings/RetirementPolicy` menampilkan usia berlaku, dasar perhitungan, audit terakhir, dan akses laporan. Tombol Ubah/Tetapkan membuka `RetirementPolicyEditor` berbasis AppModal. Form memakai schema bersama, snapshot versi, alasan dan konfirmasi, mempertahankan isian saat gagal, serta meminta konfirmasi sebelum membuang isian. Organisasi dipertahankan di URL; Pimpinan hanya membaca. Tidak ada perubahan status pegawai otomatis.
+
+`ResponsiveDataView` membatasi track grid mobile dengan `minmax(0, 1fr)` dan membolehkan Box dalam kartu menyusut. Nama/NIP dan metadata pegawai membungkus teks panjang; tombol RowActionMenu tetap 44px dan tidak menyusut. Jangan mengganti perbaikan ukuran dengan overflow hidden yang memotong isi. Tes browser `scripts/test-retirement-policy-ui.mjs` memeriksa batas elemen kartu, bukan hanya lebar dokumen, menggunakan data sintetis panjang pada tujuh menu.
