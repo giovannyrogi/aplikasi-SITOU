@@ -37,6 +37,7 @@
 !/scripts/test-reports-http.mjs
 !/scripts/test-reports-ui.mjs
 !/scripts/test-dashboard-http.mjs
+!/scripts/test-dashboard-birthdays-db.mjs
 !/scripts/test-mobile-navigation-ui.mjs
 !/scripts/cleanup-replaced-profile-files.mjs
 !/scripts/file-cleanup-worker.mjs
@@ -45,12 +46,16 @@
 !/scripts/verify-schema-bootstrap.mjs
 !/scripts/test-retirement-policy-db.mjs
 !/scripts/test-retirement-policy-ui.mjs
+!/scripts/test-disciplinary-report-db.mjs
+!/scripts/expire-disciplinary-actions.mjs
 /tests/*
 !/tests/row-numbers.test.mjs
 !/tests/reports.test.mjs
 !/tests/dashboard-config.test.mjs
 !/tests/storage-maintenance.test.mjs
 !/tests/retirement-policy.test.mjs
+!/tests/disciplinary-report.test.mjs
+!/tests/disciplinary-action-types.test.mjs
 /ecosystem.config.js
 
 # debug

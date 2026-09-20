@@ -31,4 +31,5 @@ export const ACTION_STATUS = {
   expired: ["Berakhir", "neutral"],
   revoked: ["Dicabut", "warning"],
   appealed: ["Dalam banding", "info"],
+  superseded: ["Digantikan", "neutral"],
 };

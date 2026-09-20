@@ -15,7 +15,6 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import FileUploadField from "@/app/components/forms/FileUploadField";
 import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
-import { ACTION_LABELS } from "./disciplineLabels";
 
 /** Form kasus mencatat pemeriksaan manual tanpa pernah menghasilkan sanksi otomatis. */
 export function DisciplineCaseForm({
@@ -148,22 +147,50 @@ export function DisciplinaryActionForm({
   const [form] = Form.useForm();
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const [file, setFile] = useState(null);
-  const actionType = Form.useWatch("actionType", form);
+  const [actionTypes, setActionTypes] = useState([]);
+  const actionTypeId = Form.useWatch("actionTypeId", form);
   const actionStatus = Form.useWatch("status", form);
-  const isSp = ["sp1", "sp2", "sp3"].includes(actionType);
-  const supportsDirectEscalation = ["sp2", "sp3"].includes(actionType);
+  const effectiveFrom = Form.useWatch("effectiveFrom", form);
+  const selectedActionType = actionTypes.find(
+    (item) => String(item.id) === String(actionTypeId),
+  );
+  const supportsDirectEscalation = Boolean(
+    selectedActionType?.allows_direct_escalation ?? action?.allows_direct_escalation,
+  );
   const requiresWrittenDocument =
-    actionType && actionType !== "oral_warning" && actionStatus === "active";
+    Boolean(selectedActionType?.requires_document ?? action?.requires_document_snapshot) &&
+    actionStatus === "active";
+  const effectiveUntil = (() => {
+    if (!effectiveFrom || !selectedActionType || selectedActionType.duration_mode === "indefinite")
+      return null;
+    return effectiveFrom.add(
+      selectedActionType.duration_value,
+      selectedActionType.duration_unit === "day" ? "day" : "month",
+    );
+  })();
+  useEffect(() => {
+    if (!open || !disciplineCase.organization_id) return;
+    const controller = new AbortController();
+    fetch(
+      `/api/discipline/action-types?options=true&activeOnly=false&organizationId=${disciplineCase.organization_id}`,
+      { signal: controller.signal },
+    )
+      .then(readApiResponse)
+      .then((body) => setActionTypes(body.data || []))
+      .catch((error) => {
+        if (error.name !== "AbortError") onError(error.message);
+      });
+    return () => controller.abort();
+  }, [disciplineCase.organization_id, onError, open]);
   useEffect(() => {
     if (open) {
       form.resetFields();
       form.setFieldsValue({
         organizationId: disciplineCase.organization_id,
-        actionType: action?.action_type || "oral_warning",
+        actionTypeId: action?.action_type_id || null,
         letterNo: action?.letter_no || null,
         issuedDate: action?.issued_date ? dayjs(action.issued_date) : dayjs(),
         effectiveFrom: action?.effective_from ? dayjs(action.effective_from) : dayjs(),
-        effectiveUntil: action?.effective_until ? dayjs(action.effective_until) : null,
         status: action?.status || "draft",
         directEscalation: Boolean(action?.direct_escalation),
         escalationReason: action?.escalation_reason || null,
@@ -184,6 +211,11 @@ export function DisciplinaryActionForm({
     }
   }, [action, disciplineCase, form, open]);
 
+  useEffect(() => {
+    if (!open || action || actionTypeId || !actionTypes.length) return;
+    form.setFieldValue("actionTypeId", actionTypes[0].id);
+  }, [action, actionTypeId, actionTypes, form, open]);
+
   /** Nilai eskalasi lama dibersihkan ketika jenis tindakan tidak lagi mendukung lompatan SP. */
   useEffect(() => {
     if (!supportsDirectEscalation) {
@@ -192,8 +224,11 @@ export function DisciplinaryActionForm({
   }, [form, supportsDirectEscalation]);
   const submit = async (values) => {
     try {
+      const submittedType = actionTypes.find(
+        (item) => String(item.id) === String(values.actionTypeId),
+      );
       const submittedRequiresDocument =
-        values.actionType !== "oral_warning" && values.status === "active";
+        Boolean(submittedType?.requires_document) && values.status === "active";
       if (submittedRequiresDocument && !values.letterNo?.trim()) {
         throw new Error("Nomor surat wajib diisi untuk tindakan tertulis ini.");
       }
@@ -208,7 +243,7 @@ export function DisciplinaryActionForm({
             upload.append("file", file);
             upload.append(
               "fileKind",
-              `sanksi_${values.actionType === "sp1" || values.actionType === "sp2" || values.actionType === "sp3" ? values.actionType : "lainnya"}`,
+              submittedType?.upload_file_kind || "sanksi_lainnya",
             );
             upload.append("employeeId", disciplineCase.employee_id);
             upload.append("organizationId", disciplineCase.organization_id);
@@ -221,7 +256,6 @@ export function DisciplinaryActionForm({
             ...values,
             issuedDate: values.issuedDate.format("YYYY-MM-DD"),
             effectiveFrom: values.effectiveFrom.format("YYYY-MM-DD"),
-            effectiveUntil: values.effectiveUntil?.format("YYYY-MM-DD") || null,
             documentFileId,
           };
           const endpoint = action
@@ -262,30 +296,27 @@ export function DisciplinaryActionForm({
         <Form.Item name="organizationId" hidden>
           <Input />
         </Form.Item>
-        <Form.Item name="actionType" label="Jenis tindakan" rules={[{ required: true }]}>
+        <Form.Item name="actionTypeId" label="Jenis tindakan" rules={[{ required: true }]}>
           <Select
-            options={[
-              { value: "oral_warning", label: "Teguran lisan" },
-              { value: "sp1", label: "SP1" },
-              { value: "sp2", label: "SP2" },
-              { value: "sp3", label: "SP3" },
-              { value: "suspension", label: "Skorsing" },
-              { value: "demotion", label: "Demosi" },
-              { value: "other", label: "Tindakan lain" },
-            ]}
+            loading={!actionTypes.length}
+            options={actionTypes.map((item) => ({
+              value: item.id,
+              label: item.is_active ? item.name : `${item.name} (Nonaktif)`,
+              disabled: !item.is_active,
+            }))}
           />
         </Form.Item>
         <Form.Item
           name="letterNo"
           label={
-            actionType === "oral_warning"
-              ? "Nomor surat (tidak diperlukan untuk teguran lisan)"
-              : "Nomor surat tindakan"
+            selectedActionType?.requires_document
+              ? "Nomor surat tindakan"
+              : "Nomor surat (opsional)"
           }
           extra={
-            actionType === "oral_warning"
-              ? "Kosongkan bila keputusan hanya berupa teguran lisan."
-              : "Masukkan nomor yang sama dengan PDF surat resmi."
+            selectedActionType?.requires_document
+              ? "Masukkan nomor yang sama dengan PDF surat resmi."
+              : "Jenis tindakan ini tidak mewajibkan surat resmi."
           }
           rules={
             requiresWrittenDocument
@@ -301,19 +332,21 @@ export function DisciplinaryActionForm({
         <Form.Item name="effectiveFrom" label="Mulai berlaku" rules={[{ required: true }]}>
           <DatePicker style={{ width: "100%" }} />
         </Form.Item>
-        {isSp ? (
-          <Form.Item label="Masa berlaku SP">
-            <Input disabled value="Otomatis 3 bulan sejak tanggal terbit" />
-          </Form.Item>
-        ) : (
-          <Form.Item
-            name="effectiveUntil"
-            label="Tanggal berakhir tindakan (opsional)"
-            extra="Isi hanya jika tindakan memiliki batas waktu, misalnya masa skorsing. Kosongkan jika tidak memiliki tanggal akhir."
-          >
-            <DatePicker style={{ width: "100%" }} />
-          </Form.Item>
-        )}
+        <Form.Item
+          label="Berakhir pada"
+          extra="Dihitung otomatis dari tanggal mulai dan Pengaturan Sanksi organisasi."
+        >
+          <Input
+            disabled
+            value={
+              selectedActionType?.duration_mode === "indefinite"
+                ? "Tidak memiliki tanggal akhir"
+                : effectiveUntil
+                  ? effectiveUntil.format("DD MMMM YYYY")
+                  : "Pilih jenis tindakan dan tanggal mulai"
+            }
+          />
+        </Form.Item>
         <Form.Item
           name="status"
           label="Status"
@@ -358,7 +391,7 @@ export function DisciplinaryActionForm({
             <FormSettingSwitch
               name="directEscalation"
               title="Terbitkan langsung tanpa tahapan sebelumnya"
-              description={`Aktifkan hanya jika penerbitan ${actionType?.toUpperCase()} secara langsung sesuai dengan tingkat pelanggaran dan keputusan organisasi.`}
+              description={`Aktifkan hanya jika penerbitan ${selectedActionType?.name || "tindakan ini"} secara langsung sesuai dengan tingkat pelanggaran dan keputusan organisasi.`}
             >
               <Form.Item
                 name="escalationReason"
@@ -461,10 +494,7 @@ export function DisciplinaryActionRevokeForm({
             Tindakan yang akan dicabut
           </FontStyle>
           <Box sx={{ mt: 1, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-            <CompactInfoChip
-              label={ACTION_LABELS[action.action_type] || action.action_type}
-              tone="danger"
-            />
+            <CompactInfoChip label={action.action_name_snapshot} tone="danger" />
             {action.letter_no ? <CompactInfoChip label={action.letter_no} tone="neutral" /> : null}
           </Box>
           <FontStyle fontSize={11.5} sx={{ mt: 1, color: theme.ui.mutedText }}>

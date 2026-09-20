@@ -54,6 +54,18 @@ export const PROTECTED_ROUTES = [
     roles: [ROLES.SUPERADMIN, ROLES.HRD],
   },
   {
+    path: "/organization-settings/disciplinary-actions",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD],
+  },
+  {
+    path: "/organization-settings/leave-types",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD],
+  },
+  {
+    path: "/organization-settings",
+    roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
+  },
+  {
     path: "/system/storage-maintenance",
     roles: [ROLES.SUPERADMIN],
   },

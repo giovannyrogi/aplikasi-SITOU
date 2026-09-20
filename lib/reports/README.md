@@ -2,6 +2,10 @@
 
 Kontrak dan pensiun menggunakan tanggal acuan organisasi dan perhitungan bersama pada `policy.mjs`, `query.mjs`, dan `service.js`. Dashboard, API daftar, serta Excel memakai service yang sama. Usia pensiun berasal dari `organization_retirement_policies` (migration 027), diatur melalui Pengaturan Organisasi → Kebijakan Pensiun. Organisasi lama diinisialisasi 58 tahun; organisasi baru wajib mengisi kebijakan. Batas input teknis 18–100 tahun, dengan alasan, version check, dan audit. Perubahan langsung memperbarui proyeksi saat ini, tanpa mengubah keputusan pensiun historis. Cursor dan cache terikat versi kebijakan.
 
+Laporan Sanksi Pegawai memakai policy, query, service, dan workbook khusus karena satu baris
+mewakili pegawai, sedangkan filter diterapkan pada tindakan disiplin resmi. Tindakan cocok terbaru
+ditampilkan sebagai ringkasan dan histori lengkap dimuat terpisah saat modal dibuka.
+
 ## Akses dan penggunaan
 
 - Menu Laporan → Kontrak Akan Berakhir: default hari ini sampai 30 hari mendatang, inklusif. Satu baris adalah satu kontrak; ringkasan juga menghitung pegawai unik.
@@ -11,10 +15,18 @@ Kontrak dan pensiun menggunakan tanggal acuan organisasi dan perhitungan bersama
 - Pegawai aktif/probation/suspended yang tidak dihapus logis termasuk; status final dan draft dikecualikan. Proyeksi tidak mengubah status pegawai.
 - Kontrak resmi dengan akhir terbatas termasuk, kecuali dibatalkan/terminated atau histori sudah digantikan. Kontrak renewed yang masih berlaku dan memiliki lanjutan terjadwal tetap ditampilkan; draft bukan bukti perpanjangan selesai.
 - Superadmin memilih satu organisasi. HRD mengikuti organisasi dan cakupan lokasi; Pimpinan membaca organisasi sendiri. Pegawai ditolak. Kontrak memerlukan employees.read dan contracts.read, pensiun employees.read.
+- Menu Laporan → Sanksi Pegawai mengecualikan draft untuk seluruh role. Pegawai final tetap dapat
+  tampil selama profil tidak dihapus logis; HRD dengan scope terpilih tetap memerlukan penempatan
+  utama aktif di lokasi yang diizinkan.
 
 ## API dan ekspor
 
 GET `/api/reports/retirements` dan `/api/reports/expiring-contracts`, masing-masing mempunyai `/export`. Filter: organizationId, search, locationId, organizationUnitId, positionId, employmentTypeId, group, period, startDate, endDate, successor. Pagination menggunakan cursor opaque yang terikat filter, organisasi, scope, serta tanggal acuan. Ukuran halaman maksimum 50.
+
+GET `/api/reports/disciplinary-actions` dan `/export` menerima organizationId, search, locationId,
+organizationUnitId, positionId, employmentStatus, severity, actionTypeId, actionStatus, startDate,
+endDate, pageSize, dan cursor. Endpoint memerlukan employees.read serta discipline.read. Excel tidak
+memuat uraian kasus, pembelaan, alasan internal, ID file, atau URL dokumen.
 
 Ekspor mengabaikan halaman/cursor dan memuat semua hasil filter hingga 5.000 baris. Hasil lebih besar ditolak dengan pesan mempersempit filter. Workbook menyertakan organisasi, filter, acuan, dan waktu ekspor; seluruh teks pengguna berupa nilai literal, NIP dan nomor kontrak tidak dikonversi menjadi angka/formula. Tidak ada NIK atau dokumen privat. Respons no-store dan ekspor dicatat pada audit.
 

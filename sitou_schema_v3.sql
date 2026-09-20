@@ -1158,17 +1158,58 @@ COMMENT ON TABLE discipline_cases IS 'Pemeriksaan HRD yang memisahkan indikator 
 CREATE INDEX ix_cases_employee_history ON discipline_cases(organization_id,employee_id,incident_date DESC);
 CREATE INDEX ix_cases_open ON discipline_cases(organization_id,status,opened_at DESC) WHERE status IN ('open','investigating');
 
+CREATE TABLE disciplinary_action_types (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  system_key varchar(30), -- Identitas internal bawaan; tidak ditampilkan di UI.
+  name varchar(100) NOT NULL,
+  duration_mode varchar(15) NOT NULL DEFAULT 'fixed' CHECK (duration_mode IN ('fixed','indefinite')),
+  duration_value integer,
+  duration_unit varchar(10),
+  requires_document boolean NOT NULL DEFAULT true,
+  is_active boolean NOT NULL DEFAULT true,
+  created_by_user_id bigint REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT uq_disciplinary_action_types_org_id UNIQUE (organization_id,id),
+  CONSTRAINT ck_disciplinary_action_type_duration CHECK (
+    (duration_mode='indefinite' AND duration_value IS NULL AND duration_unit IS NULL)
+    OR (duration_mode='fixed' AND duration_value BETWEEN 1 AND 36500 AND duration_unit IN ('day','month'))
+  )
+);
+CREATE UNIQUE INDEX uq_disciplinary_action_type_system_key ON disciplinary_action_types(organization_id,system_key) WHERE system_key IS NOT NULL;
+CREATE UNIQUE INDEX uq_disciplinary_action_type_name ON disciplinary_action_types(organization_id,lower(name));
+CREATE INDEX ix_disciplinary_action_types_options ON disciplinary_action_types(organization_id,is_active,name,id);
+COMMENT ON TABLE disciplinary_action_types IS 'Pilihan dan kebijakan tindakan disiplin per organisasi. Jenis yang pernah dipakai dinonaktifkan, bukan dihapus.';
+
+INSERT INTO disciplinary_action_types
+  (organization_id,system_key,name,duration_mode,duration_value,duration_unit,requires_document,is_active)
+SELECT organization.id,seed.system_key,seed.name,seed.duration_mode,seed.duration_value,
+  seed.duration_unit,seed.requires_document,true
+FROM organizations organization CROSS JOIN (VALUES
+  ('oral_warning','Teguran Lisan','fixed',3,'month',false),
+  ('sp1','SP1','fixed',3,'month',true),
+  ('sp2','SP2','fixed',3,'month',true),
+  ('sp3','SP3','fixed',3,'month',true),
+  ('suspension','Skorsing','fixed',1,'month',true),
+  ('demotion','Demosi','indefinite',NULL::integer,NULL::varchar,true)
+) AS seed(system_key,name,duration_mode,duration_value,duration_unit,requires_document);
+
 CREATE TABLE disciplinary_actions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID tindakan/sanksi resmi.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   discipline_case_id bigint NOT NULL, -- Kasus yang mendasari tindakan.
   employee_id bigint NOT NULL, -- Pegawai penerima tindakan untuk query histori cepat.
-  action_type varchar(30) NOT NULL CHECK (action_type IN ('oral_warning','sp1','sp2','sp3','suspension','salary_delay','promotion_delay','demotion','fine','termination','other')), -- Jenis tindakan sesuai Pasal 55-58.
-  letter_no varchar(100), -- Nomor surat; NULL hanya dapat diterima untuk teguran lisan.
+  action_type_id bigint NOT NULL,
+  action_name_snapshot varchar(100) NOT NULL,
+  duration_value_snapshot integer,
+  duration_unit_snapshot varchar(10),
+  requires_document_snapshot boolean NOT NULL,
+  letter_no varchar(100),
   issued_date date NOT NULL, -- Tanggal diterbitkan.
   effective_from date NOT NULL, -- Awal berlaku.
-  effective_until date, -- Akhir berlaku; SP1-SP3 harus 3 bulan sesuai peraturan.
-  status varchar(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','expired','revoked','appealed')), -- Status tindakan.
+  effective_until date,
+  status varchar(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','expired','revoked','appealed','superseded')),
   direct_escalation boolean NOT NULL DEFAULT false, -- SP2/SP3 langsung pada kasus sedang/berat.
   escalation_reason text, -- Alasan wajib untuk lompatan tahapan.
   document_file_id bigint, -- Surat resmi privat; wajib oleh aplikasi untuk tindakan tertulis.
@@ -1181,19 +1222,28 @@ CREATE TABLE disciplinary_actions (
   CONSTRAINT uq_disciplinary_action_case UNIQUE (organization_id,discipline_case_id), -- Satu tindakan resmi per kasus.
   CONSTRAINT fk_action_case FOREIGN KEY (organization_id,discipline_case_id) REFERENCES discipline_cases(organization_id,id),
   CONSTRAINT fk_action_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id),
+  CONSTRAINT fk_disciplinary_action_type FOREIGN KEY (organization_id,action_type_id) REFERENCES disciplinary_action_types(organization_id,id),
   CONSTRAINT fk_action_document FOREIGN KEY (organization_id,document_file_id) REFERENCES stored_files(organization_id,id),
   CONSTRAINT ck_action_dates CHECK (effective_until IS NULL OR effective_until >= effective_from),
-  CONSTRAINT ck_action_letter CHECK (action_type='oral_warning' OR status='draft' OR (letter_no IS NOT NULL AND document_file_id IS NOT NULL)),
+  CONSTRAINT ck_action_letter CHECK (status='draft' OR NOT requires_document_snapshot OR (letter_no IS NOT NULL AND document_file_id IS NOT NULL)),
+  CONSTRAINT ck_action_duration_snapshot CHECK (
+    (duration_value_snapshot IS NULL AND duration_unit_snapshot IS NULL)
+    OR (duration_value_snapshot BETWEEN 1 AND 36500 AND duration_unit_snapshot IN ('day','month'))
+  ),
   CONSTRAINT ck_action_escalation CHECK (NOT direct_escalation OR escalation_reason IS NOT NULL),
   CONSTRAINT ck_disciplinary_action_revocation CHECK (
     (status='revoked' AND revoked_at IS NOT NULL AND revoked_by_user_id IS NOT NULL AND length(btrim(revocation_reason)) >= 10)
     OR (status<>'revoked' AND revoked_at IS NULL AND revoked_by_user_id IS NULL AND revocation_reason IS NULL)
-  ),
-  CONSTRAINT ck_sp_validity CHECK (action_type NOT IN ('sp1','sp2','sp3') OR effective_until = (issued_date + interval '3 months')::date)
+  )
 );
-COMMENT ON TABLE disciplinary_actions IS 'Tindakan resmi HRD. SP1/SP2/SP3 berlaku tepat 3 bulan; histori tidak ditimpa.';
+COMMENT ON TABLE disciplinary_actions IS 'Tindakan resmi HRD dengan snapshot kebijakan saat diterbitkan; histori tidak ditimpa.';
 CREATE INDEX ix_actions_employee_history ON disciplinary_actions(organization_id,employee_id,issued_date DESC);
 CREATE INDEX ix_actions_active ON disciplinary_actions(organization_id,status,effective_until,employee_id) WHERE status='active';
+CREATE INDEX ix_actions_official_report
+  ON disciplinary_actions(organization_id,issued_date DESC,employee_id,id DESC)
+  INCLUDE (discipline_case_id,action_type_id,action_name_snapshot,status,effective_from,effective_until)
+  WHERE status<>'draft';
+COMMENT ON INDEX ix_actions_official_report IS 'Pemindaian laporan tindakan resmi per organisasi dan tanggal; draft sengaja dikecualikan.';
 
 -- Seed aturan berdasarkan Pasal 56-58. Rekomendasi tetap harus ditinjau HRD.
 INSERT INTO discipline_rules(organization_id,code,name,severity,metric_type,threshold_value,window_days,legal_reference,recommended_action)
@@ -1374,7 +1424,7 @@ DECLARE table_name text;
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
     'organizations','organization_subscriptions','organization_branding','locations','organization_unit_types','organization_units','positions',
-    'users','platform_user_profiles','employees','employee_contacts','employment_types','work_shifts','attendance_points','leave_types','leave_requests','leave_entitlements'
+    'users','platform_user_profiles','employees','employee_contacts','employment_types','work_shifts','attendance_points','leave_types','leave_requests','leave_entitlements','disciplinary_action_types'
   ]
   LOOP
     EXECUTE format(
@@ -1405,6 +1455,8 @@ INSERT INTO permissions(code,description) VALUES
   ('contracts.manage','Membuat dan memperbarui siklus kontrak kerja.'),
   ('discipline.read','Melihat kasus dan histori sanksi.'),
   ('discipline.manage','Membuka kasus dan menerbitkan tindakan disiplin.'),
+  ('discipline_settings.read','Melihat pengaturan sanksi organisasi.'),
+  ('discipline_settings.manage','Mengubah pengaturan sanksi organisasi.'),
   ('accounts.read','Melihat akun organisasi.'),
   ('accounts.manage','Membuat, menautkan, dan mengubah akun organisasi.'),
   ('employee_import.read','Melihat batch dan pratinjau import pegawai.'),
@@ -1432,7 +1484,7 @@ WHERE role.code IN ('superadmin','hrd')
   AND permission.code IN (
     'employees.read','employees.read_sensitive','employees.create','employees.update','employees.deactivate',
     'assignments.read','assignments.manage','contracts.read','contracts.manage',
-    'discipline.read','discipline.manage','accounts.read','accounts.manage',
+    'discipline.read','discipline.manage','discipline_settings.read','discipline_settings.manage','accounts.read','accounts.manage',
     'employee_import.read','employee_import.manage',
     'leave_types.read','leave_types.manage','leave_requests.read','leave_requests.manage','leave_balances.manage',
     'private_files.read','private_files.read_sensitive','private_files.manage',
@@ -1483,7 +1535,7 @@ BEGIN
   WHERE permission.code IN (
     'employees.read','employees.read_sensitive','employees.create','employees.update','employees.deactivate',
     'assignments.read','assignments.manage','contracts.read','contracts.manage',
-    'discipline.read','discipline.manage','accounts.read','accounts.manage',
+    'discipline.read','discipline.manage','discipline_settings.read','discipline_settings.manage','accounts.read','accounts.manage',
     'employee_import.read','employee_import.manage',
     'leave_types.read','leave_types.manage','leave_requests.read','leave_requests.manage','leave_balances.manage',
     'private_files.read','private_files.read_sensitive','private_files.manage',
@@ -1492,7 +1544,7 @@ BEGIN
     'profile_self.read','profile_self.update'
   );
 
-  IF superadmin_permission_count<>26 OR hrd_permission_count<>25
+  IF superadmin_permission_count<>28 OR hrd_permission_count<>27
     OR leader_permission_count<>11 OR employee_permission_count<>6 THEN
     RAISE EXCEPTION
       'Seed permission tidak lengkap: superadmin %, hrd %, leader %, employee %',

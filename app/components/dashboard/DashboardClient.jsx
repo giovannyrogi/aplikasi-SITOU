@@ -21,6 +21,7 @@ import RetirementSummary from "./RetirementSummary";
 import EmployeeCompositionSummary from "./EmployeeCompositionSummary";
 import HorizontalBarChart from "./HorizontalBarChart";
 import StackedBarChart from "./StackedBarChart";
+import BirthdaySpotlight from "./BirthdaySpotlight";
 
 const generatedAtFormatter = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
@@ -302,6 +303,10 @@ export default function DashboardClient() {
               <DashboardMetric key={metric.key} metric={metric} loading={state.loading} />
             ))}
           </Box>
+
+          {!isSuperadmin || organizationId ? (
+            <BirthdaySpotlight data={state.data?.birthdaySummary} loading={state.loading} />
+          ) : null}
 
           <EmployeeCompositionSummary data={state.data?.employeeSummary} loading={state.loading} />
 

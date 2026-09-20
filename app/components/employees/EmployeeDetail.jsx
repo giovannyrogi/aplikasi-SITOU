@@ -67,7 +67,6 @@ import {
 import { getEmployeeStatusPresentation, isFinalEmploymentStatus } from "./employeeStatus";
 import { calculateEmployeeTenure } from "@/lib/employees/tenure";
 import {
-  ACTION_LABELS,
   ACTION_STATUS,
   CASE_STATUS,
   SEVERITY,
@@ -540,10 +539,7 @@ function DisciplineCaseCard({
                   Tindakan disiplin
                 </FontStyle>
                 <Box sx={{ mt: 0.75, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-                  <CompactInfoChip
-                    label={ACTION_LABELS[action.action_type] || action.action_type}
-                    tone="danger"
-                  />
+                  <CompactInfoChip label={action.action_name_snapshot} tone="danger" />
                   <CompactInfoChip label={actionStatus[0]} tone={actionStatus[1]} />
                 </Box>
               </Box>

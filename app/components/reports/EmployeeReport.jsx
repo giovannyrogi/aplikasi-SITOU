@@ -490,31 +490,9 @@ export default function EmployeeReport({ kind }) {
         <DataPanel
           title="Hasil laporan"
           description={
-            report ? (
-              <Box
-                component="span"
-                sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center" }}
-              >
-                <CompactInfoChip
-                  label={`${report.total} ${retirement ? "pegawai" : "kontrak"}`}
-                  tone="info"
-                />
-                {!retirement ? (
-                  <CompactInfoChip label={`${report.employeeCount} pegawai unik`} tone="neutral" />
-                ) : null}
-                <span>
-                  {report.filters.startDate
-                    ? `${reportDate(report.filters.startDate)} - ${reportDate(report.filters.endDate)}`
-                    : "Tanpa batas periode"}
-                </span>
-                <span>Acuan {reportDate(report.asOf)}</span>
-                <span>Diperbarui {dayjs(report.generatedAt).format("DD MMM YYYY, HH:mm")}</span>
-              </Box>
-            ) : dateBlocked ? (
-              "Lengkapi rentang tanggal pada filter laporan."
-            ) : (
-              "Memuat hasil laporan…"
-            )
+            retirement
+              ? "Daftar pegawai berdasarkan proyeksi usia pensiun sesuai filter."
+              : "Daftar kontrak pegawai yang akan atau telah berakhir sesuai filter."
           }
           exportConfig={{
             enabled: true,

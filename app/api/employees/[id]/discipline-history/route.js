@@ -11,14 +11,18 @@ export async function GET(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("discipline.read");
   if (response) return response;
+  const employeePermission = await requirePermission("employees.read");
+  if (employeePermission.response) return employeePermission.response;
   try {
     const { id } = await params;
-    const organizationId = resolvePermissionOrganization(
-      user,
-      new URL(request.url).searchParams.get("organizationId"),
-    );
+    const searchParams = new URL(request.url).searchParams;
+    const organizationId = resolvePermissionOrganization(user, searchParams.get("organizationId"));
     await ensureActorEmployeeAccess(user, id, organizationId);
-    return successResponse(await getEmployeeDisciplineHistory(id, organizationId, user));
+    return successResponse(
+      await getEmployeeDisciplineHistory(id, organizationId, user, {
+        officialOnly: searchParams.get("officialOnly") === "1",
+      }),
+    );
   } catch (error) {
     return handleRouteError("employees.discipline-history", error, requestId);
   }

@@ -144,18 +144,16 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
 
       <Box
         component="nav"
+        className="hide-scrollbar"
         aria-label="Navigasi utama"
         sx={{
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
           pr: 0.25,
-          ...(compact
-            ? {
-                scrollbarWidth: "none",
-                "&::-webkit-scrollbar": { display: "none", width: 0, height: 0 },
-              }
-            : {}),
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          "&::-webkit-scrollbar": { display: "none", width: 0, height: 0 },
         }}
       >
         <List disablePadding>

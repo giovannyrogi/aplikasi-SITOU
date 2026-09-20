@@ -45,6 +45,26 @@ async function verifyDashboard(path, user, expectedScope) {
     assert.equal(data.metrics.length, 6);
     assert.equal(data.charts.contracts.categories.length, 12);
     assert.ok(Array.isArray(data.recentDiscipline));
+    assert.ok(data.birthdaySummary);
+    assert.equal(data.birthdaySummary.windowDays, 30);
+    assert.equal(
+      data.birthdaySummary.todayCount + data.birthdaySummary.upcomingCount,
+      data.birthdaySummary.items.length,
+    );
+    assert.equal(JSON.stringify(data.birthdaySummary).includes("birth_date"), false);
+    assert.equal(JSON.stringify(data.birthdaySummary).includes("birthDate"), false);
+    assert.equal(JSON.stringify(data.birthdaySummary).includes("age"), false);
+    for (const [index, item] of data.birthdaySummary.items.entries()) {
+      assert.ok(item.daysUntil >= 0 && item.daysUntil <= 30);
+      if (index) assert.ok(data.birthdaySummary.items[index - 1].daysUntil <= item.daysUntil);
+      const eligible = await pool.query(
+        `SELECT 1 FROM employees
+         WHERE organization_id=$1 AND id=$2 AND deleted_at IS NULL
+           AND employment_status IN ('active','probation') AND birth_date IS NOT NULL`,
+        [data.organization.id, item.employeeId],
+      );
+      assert.ok(eligible.rowCount > 0);
+    }
     assert.ok(data.recentDiscipline.length <= 5);
     for (const item of data.recentDiscipline) {
       const official = await pool.query(
@@ -68,6 +88,7 @@ async function verifyDashboard(path, user, expectedScope) {
       throw new Error(`${user.role_code}: seri Perkembangan pegawai tidak sesuai.`);
     }
   }
+  if (expectedScope === "platform") assert.equal(data.birthdaySummary, undefined);
   assert.equal(data.charts.growth.categories.length, 12);
   assert.ok(data.attentionItems.length <= 5);
   assert.ok(data.activities.length <= 5);

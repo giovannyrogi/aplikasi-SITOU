@@ -6,7 +6,7 @@ import { Box, Divider, useTheme } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import FontStyle from "@/app/components/font-style/FontStyle";
-import { ACTION_LABELS, ACTION_STATUS, CASE_STATUS, SEVERITY } from "./disciplineLabels";
+import { ACTION_STATUS, CASE_STATUS, SEVERITY } from "./disciplineLabels";
 
 /** Memformat tanggal kalender tanpa pergeseran timezone. */
 function formatDate(value, fallback = "Belum ditentukan") {
@@ -83,7 +83,7 @@ export default function DisciplineCaseDetailModal({
   const caseStatus = CASE_STATUS[disciplineCase.status] || [disciplineCase.status, "neutral"];
   const severity = SEVERITY[disciplineCase.severity] || [disciplineCase.severity, "neutral"];
   const actionStatus = action ? ACTION_STATUS[action.status] || [action.status, "neutral"] : null;
-  const isOralWarning = action?.action_type === "oral_warning";
+  const requiresDocument = action?.requires_document_snapshot;
   const fileDescription = [
     action?.document_file_id ? "Dokumen tindakan disiplin" : null,
     formatFileSize(action?.document_size_bytes),
@@ -143,7 +143,7 @@ export default function DisciplineCaseDetailModal({
             <Box sx={{ display: "grid", gap: 2.5 }}>
               <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                 <CompactInfoChip
-                  label={ACTION_LABELS[action.action_type] || action.action_type}
+                  label={action.action_name_snapshot}
                   tone="danger"
                 />
                 <CompactInfoChip label={actionStatus[0]} tone={actionStatus[1]} />
@@ -159,15 +159,15 @@ export default function DisciplineCaseDetailModal({
                 }}
               >
                 <DetailValue label="Nomor surat">
-                  {isOralWarning
-                    ? "Tidak diperlukan untuk teguran lisan"
+                  {!requiresDocument
+                    ? "Tidak diwajibkan"
                     : action.letter_no || "Belum dicatat"}
                 </DetailValue>
                 <DetailValue label="Diterbitkan oleh">{action.issued_by_name}</DetailValue>
                 <DetailValue label="Tanggal terbit">{formatDate(action.issued_date)}</DetailValue>
                 <DetailValue label="Mulai berlaku">{formatDate(action.effective_from)}</DetailValue>
                 <DetailValue label="Akhir berlaku">
-                  {formatDate(action.effective_until, "Selesai sesuai keputusan")}
+                  {formatDate(action.effective_until, "Tanpa batas waktu")}
                 </DetailValue>
                 <DetailValue label="Waktu dicatat">{formatDateTime(action.created_at)}</DetailValue>
               </Box>
@@ -273,8 +273,8 @@ export default function DisciplineCaseDetailModal({
                 </Box>
               ) : (
                 <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
-                  {isOralWarning
-                    ? "Teguran lisan tidak memerlukan nomor atau dokumen surat."
+                  {!requiresDocument
+                    ? "Jenis tindakan ini tidak mewajibkan nomor atau dokumen surat."
                     : "Dokumen surat belum tersedia."}
                 </FontStyle>
               )}

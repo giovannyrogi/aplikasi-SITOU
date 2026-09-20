@@ -171,7 +171,21 @@ Jatah tahunan, durasi pencatatan, dan seluruh transaksi saldo cuti/izin mengguna
 | `discipline_rules`      | Aturan pembentuk indikator.                                                                                                                                                                                                      | `code`, `name`, `severity`, `metric_type`, `threshold_value`, `window_days`, `legal_reference`, `recommended_action`, `is_active`.                                                                                                      |
 | `discipline_indicators` | Sinyal otomatis untuk ditinjau HRD.                                                                                                                                                                                              | `employee_id`, `rule_id`, periode, `measured_value`, `status`, `evidence`, `reviewed_by_user_id`, `reviewed_at`.                                                                                                                        |
 | `discipline_cases`      | Pemeriksaan kasus oleh HRD.                                                                                                                                                                                                      | `case_no`, `employee_id`, `indicator_id`, `severity`, `incident_date`, `description`, `employee_explanation`, `status`, `opened_by_user_id`, `closed_at`.                                                                               |
-| `disciplinary_actions`  | Tindakan/sanksi resmi, satu tindakan per kasus. Draft dapat diedit dan hanya terlihat oleh HRD/Superadmin; Pimpinan hanya menerima tindakan yang sudah resmi. Tindakan aktif hanya dicabut secara logis agar histori tetap utuh. | `discipline_case_id`, `employee_id`, `action_type`, `letter_no`, tanggal berlaku, `status`, `direct_escalation`, `escalation_reason`, `document_file_id`, `issued_by_user_id`, `revoked_at`, `revoked_by_user_id`, `revocation_reason`. |
+| `disciplinary_action_types` | Master pilihan sanksi per organisasi. Superadmin membuat jenis; HRD mengatur aktif, durasi, dan kewajiban surat. Jenis yang sudah dipakai tidak dihapus. | `name`, `duration_mode`, `duration_value`, `duration_unit`, `requires_document`, `is_active`, `updated_at`; `system_key` hanya identitas internal jenis bawaan. |
+| `disciplinary_actions`  | Tindakan/sanksi resmi, satu tindakan per kasus. Menyimpan snapshot nama, durasi, dan kewajiban surat agar perubahan master tidak berlaku surut. | `discipline_case_id`, `employee_id`, `action_type_id`, snapshot kebijakan, `letter_no`, tanggal berlaku, `status`, `direct_escalation`, `document_file_id`, metadata penerbitan dan pencabutan. |
+
+Setiap organisasi memiliki enam jenis bawaan: Teguran Lisan, SP1, SP2, SP3, Skorsing,
+dan Demosi. Form penerbitan hanya memilih jenis aktif dan tanggal mulai; server menghitung tanggal
+akhir dari kebijakan organisasi. Saat tindakan resmi baru diterbitkan, tindakan aktif sebelumnya
+menjadi `superseded`. Tindakan melewati tanggal akhir dibaca sebagai `expired` walaupun worker
+`npm run disciplinary-actions:expire` belum berjalan; worker menyelaraskan status tersimpan dan audit.
+Perubahan master hanya memengaruhi penerbitan berikutnya.
+
+Laporan **Sanksi Pegawai** membaca `disciplinary_actions` resmi (`status <> 'draft'`) dan
+menghasilkan satu baris per pegawai berdasarkan tindakan terbaru yang cocok dengan filter. Query
+organisasi lintas pegawai didukung `ix_actions_official_report`; histori per pegawai tetap memakai
+`ix_actions_employee_history`. Laporan dan ekspor menerapkan permission `discipline.read`, batas
+organisasi, serta cakupan lokasi yang sama dan tidak pernah mengubah status tindakan.
 
 ## Audit, Outbox, dan View
 

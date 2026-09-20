@@ -17,6 +17,17 @@ const menus = [
       },
     ],
   },
+  {
+    label: "Pengaturan Organisasi",
+    value: "organization-settings",
+    submenu: [
+      {
+        label: "Aturan Cuti & Izin",
+        value: "leave-settings",
+        path: "/organization-settings/leave-types",
+      },
+    ],
+  },
 ];
 
 test("route menu utama menghasilkan satu breadcrumb", () => {
@@ -48,6 +59,14 @@ test("menu jenis unit menghasilkan breadcrumb Data Master yang tepat", () => {
   assert.deepEqual(
     result.map((item) => item.label),
     ["Data Master", "Jenis Unit Organisasi"],
+  );
+});
+
+test("aturan cuti dan izin menghasilkan breadcrumb Pengaturan Organisasi", () => {
+  const result = resolveMenuBreadcrumbs(menus, "/organization-settings/leave-types");
+  assert.deepEqual(
+    result.map((item) => item.label),
+    ["Pengaturan Organisasi", "Aturan Cuti & Izin"],
   );
 });
 

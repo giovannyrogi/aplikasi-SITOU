@@ -361,10 +361,9 @@ test("profil menolak platform akun sosial duplikat tanpa membedakan kapitalisasi
   );
 });
 
-test("tindakan tertulis aktif wajib memiliki nomor dan file", () => {
+test("payload tindakan wajib memilih ID master sanksi organisasi", () => {
   const result = disciplinaryActionCreateSchema.safeParse({
     organizationId: 1,
-    actionType: "sp1",
     issuedDate: "2026-08-22",
     effectiveFrom: "2026-08-22",
     status: "active",
@@ -376,7 +375,7 @@ test("tindakan tertulis aktif wajib memiliki nomor dan file", () => {
 test("SP berstatus draft boleh disimpan sebelum nomor dan file surat lengkap", () => {
   const result = disciplinaryActionCreateSchema.safeParse({
     organizationId: 1,
-    actionType: "sp1",
+    actionTypeId: 2,
     issuedDate: "2026-08-22",
     effectiveFrom: "2026-08-22",
     status: "draft",
@@ -399,10 +398,10 @@ test("pencabutan tindakan wajib memiliki alasan yang layak", () => {
   );
 });
 
-test("teguran lisan aktif tidak mewajibkan nomor dan file surat", () => {
+test("payload tindakan aktif tanpa surat diterima untuk divalidasi terhadap master di service", () => {
   const result = disciplinaryActionCreateSchema.safeParse({
     organizationId: 1,
-    actionType: "oral_warning",
+    actionTypeId: 1,
     issuedDate: "2026-08-22",
     effectiveFrom: "2026-08-22",
     status: "active",
@@ -414,7 +413,7 @@ test("teguran lisan aktif tidak mewajibkan nomor dan file surat", () => {
 test("SP2 langsung wajib memiliki alasan eskalasi", () => {
   const result = disciplinaryActionCreateSchema.safeParse({
     organizationId: 1,
-    actionType: "sp2",
+    actionTypeId: 3,
     issuedDate: "2026-08-22",
     effectiveFrom: "2026-08-22",
     status: "draft",
@@ -1207,6 +1206,19 @@ test("identitas sidebar memakai nama dan jabatan hanya setelah profil pegawai te
   assert.match(source, /user\?\.identity_source === "employee"/);
   assert.match(source, /user\?\.position_name/);
   assert.match(source, /getInitials\(primaryIdentity\)/);
+});
+
+test("sidebar tetap dapat digulir tanpa menampilkan scrollbar", () => {
+  const sidebarSource = readFileSync(
+    new URL("../app/components/navbar/SidebarContent.jsx", import.meta.url),
+    "utf8",
+  );
+  const globalStyles = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+
+  assert.match(sidebarSource, /className="hide-scrollbar"/);
+  assert.match(sidebarSource, /overflowY: "auto"/);
+  assert.match(sidebarSource, /scrollbarWidth: "none"/);
+  assert.match(globalStyles, /\.hide-scrollbar::?-webkit-scrollbar[\s\S]*display: none/);
 });
 
 test("logout dan perubahan password menunggu backdrop minimum dua detik", async () => {

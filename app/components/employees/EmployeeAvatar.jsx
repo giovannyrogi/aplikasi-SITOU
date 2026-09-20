@@ -77,8 +77,18 @@ function EmployeePhoto({ photoUrl, name, size, onPreview }) {
           component="img"
           src={photoUrl}
           alt={"Pas foto " + name}
+          width={size}
+          height={size}
+          decoding="async"
+          draggable={false}
           onError={() => setFailed(true)}
-          sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+          sx={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            imageRendering: "auto",
+            transform: "translateZ(0)",
+          }}
         />
       </Avatar>
     </Box>

@@ -67,14 +67,6 @@ const MENU_CONFIG = [
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
-      {
-        label: "Aturan Cuti & Izin",
-        value: "master-leave-types",
-        path: "/master-data/leave-types",
-        icon: <Icon icon="solar:calendar-minimalistic-bold-duotone" fontSize="20px" />,
-        showIcon: true,
-        roles: [ROLES.SUPERADMIN, ROLES.HRD],
-      },
     ],
   },
   {
@@ -123,6 +115,14 @@ const MENU_CONFIG = [
         showIcon: true,
         roles: DASHBOARD_ROLES,
       },
+      {
+        label: "Sanksi Pegawai",
+        value: "disciplinary-actions-report",
+        path: "/reports/disciplinary-actions",
+        icon: <Icon icon="solar:shield-warning-bold-duotone" fontSize="20px" />,
+        showIcon: true,
+        roles: DASHBOARD_ROLES,
+      },
     ],
   },
   {
@@ -147,6 +147,22 @@ const MENU_CONFIG = [
     icon: <Icon icon="solar:settings-bold-duotone" fontSize="20px" />,
     roles: DASHBOARD_ROLES,
     submenu: [
+      {
+        label: "Aturan Cuti & Izin",
+        value: "leave-settings",
+        path: "/organization-settings/leave-types",
+        icon: <Icon icon="solar:calendar-minimalistic-bold-duotone" fontSize="20px" />,
+        showIcon: true,
+        roles: [ROLES.SUPERADMIN, ROLES.HRD],
+      },
+      {
+        label: "Pengaturan Sanksi",
+        value: "disciplinary-action-settings",
+        path: "/organization-settings/disciplinary-actions",
+        icon: <Icon icon="solar:shield-warning-bold-duotone" fontSize="20px" />,
+        showIcon: true,
+        roles: [ROLES.SUPERADMIN, ROLES.HRD],
+      },
       {
         label: "Kebijakan Pensiun",
         value: "retirement-policy",

@@ -45,7 +45,16 @@ try {
         WHERE permission.code='storage_maintenance.manage' AND role.code='superadmin'
       ) AS has_permission,
       to_regclass('public.organization_retirement_policies') IS NOT NULL AS has_retirement_policy,
-      EXISTS(SELECT 1 FROM permissions p JOIN role_permissions rp ON rp.permission_id=p.id JOIN roles r ON r.id=rp.role_id WHERE p.code='retirement_policy.manage' AND r.code='hrd') AS has_retirement_manage`,
+      EXISTS(SELECT 1 FROM permissions p JOIN role_permissions rp ON rp.permission_id=p.id JOIN roles r ON r.id=rp.role_id WHERE p.code='retirement_policy.manage' AND r.code='hrd') AS has_retirement_manage,
+      to_regclass('public.disciplinary_action_types') IS NOT NULL AS has_disciplinary_action_types,
+      (SELECT count(*)=5 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='disciplinary_actions'
+          AND column_name IN ('action_type_id','action_name_snapshot','duration_value_snapshot',
+            'duration_unit_snapshot','requires_document_snapshot')) AS has_disciplinary_action_snapshots,
+      (SELECT count(DISTINCT r.code)=2 FROM permissions p
+        JOIN role_permissions rp ON rp.permission_id=p.id JOIN roles r ON r.id=rp.role_id
+        WHERE p.code='discipline_settings.manage' AND r.code IN ('superadmin','hrd'))
+        AS has_discipline_settings_manage`,
   );
   const checks = result.rows[0];
   // Bandingkan struktur kebijakan hasil upgrade lokal dengan bootstrap kosong.
@@ -66,6 +75,25 @@ try {
     ]);
     checks.retirement_columns_match_upgrade =
       JSON.stringify(freshColumns.rows) === JSON.stringify(existingColumns.rows);
+
+    for (const table of ["disciplinary_action_types", "disciplinary_actions"]) {
+      const constraintSql = `SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='public.${table}'::regclass ORDER BY conname`;
+      const [freshConstraints, existingConstraints] = await Promise.all([
+        bootstrap.query(constraintSql),
+        upgraded.query(constraintSql),
+      ]);
+      checks[`${table}_constraints_match_upgrade`] =
+        JSON.stringify(freshConstraints.rows) === JSON.stringify(existingConstraints.rows);
+      // Migration dapat menambahkan kolom snapshot di akhir tabel, sedangkan bootstrap
+      // menempatkannya dekat kolom jenis. Urutan fisik tidak mengubah kontrak schema.
+      const tableColumnsSql = `SELECT column_name,data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='${table}' ORDER BY column_name`;
+      const [freshTableColumns, existingTableColumns] = await Promise.all([
+        bootstrap.query(tableColumnsSql),
+        upgraded.query(tableColumnsSql),
+      ]);
+      checks[`${table}_columns_match_upgrade`] =
+        JSON.stringify(freshTableColumns.rows) === JSON.stringify(existingTableColumns.rows);
+    }
   } finally {
     await upgraded.end();
   }

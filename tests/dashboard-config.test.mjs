@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
+  buildBirthdaySummary,
   buildEmployeeSummary,
   DASHBOARD_PERIODS,
   formatDisciplineSeverity,
@@ -48,6 +50,67 @@ test("ringkasan pegawai mempertahankan kategori kosong dan menormalkan nilai", (
   assert.deepEqual(summary.status.series[0].data, [0, 1, 0]);
   assert.deepEqual(summary.tenure.series[0].data, [0, 0, 4, 0]);
   assert.deepEqual(summary.employmentType.categories, ["PKWTT", "Tanpa kontrak aktif"]);
+});
+
+test("ringkasan ulang tahun hanya mengirim data perayaan tanpa tahun lahir", () => {
+  const summary = buildBirthdaySummary(
+    [
+      {
+        employee_id: "11",
+        organization_id: "3",
+        full_name: "Pegawai Hari Ini",
+        preferred_name: "Hari",
+        profile_photo_file_id: "91",
+        position_name: "Staf",
+        location_name: "Kantor Pusat",
+        celebration_date: "2026-09-20",
+        days_until: "0",
+        birth_date: "1990-09-20",
+      },
+      {
+        employee_id: "12",
+        organization_id: "3",
+        full_name: "Pegawai Mendatang",
+        celebration_date: "2026-10-20",
+        days_until: "30",
+      },
+    ],
+    "2026-09-20",
+  );
+
+  assert.equal(summary.todayCount, 1);
+  assert.equal(summary.upcomingCount, 1);
+  assert.equal(summary.windowDays, 30);
+  assert.equal(summary.items[1].daysUntil, 30);
+  assert.equal(Object.hasOwn(summary.items[0], "birth_date"), false);
+  assert.equal(JSON.stringify(summary).includes("1990"), false);
+});
+
+test("query dan panel ulang tahun menjaga scope, rentang, aksesibilitas, dan autoplay", () => {
+  const service = readFileSync(
+    new URL("../lib/dashboard/birthdayQuery.mjs", import.meta.url),
+    "utf8",
+  );
+  const client = readFileSync(
+    new URL("../app/components/dashboard/BirthdaySpotlight.jsx", import.meta.url),
+    "utf8",
+  );
+  const dashboard = readFileSync(
+    new URL("../app/components/dashboard/DashboardClient.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(service, /generate_series\(\$2::date,\$2::date\+30/);
+  assert.match(service, /employee\.employment_status IN \('active','probation'\)/);
+  assert.match(service, /scoped_assignment\.location_id=ANY\(\$3::bigint\[\]\)/);
+  assert.match(service, /SELECT day::date,2,29/);
+  assert.doesNotMatch(service, /birthdaySummary[\s\S]{0,500}birth_date/);
+  assert.match(client, /prefers-reduced-motion: reduce/);
+  assert.match(client, /5000/);
+  assert.match(client, /visibilitychange/);
+  assert.match(client, /Ulang tahun hari ini/);
+  assert.match(client, /Akan datang dalam 30 hari/);
+  assert.match(dashboard, /!isSuperadmin \|\| organizationId/);
 });
 
 test("rentang dashboard menerima batas 24 bulan dan menolak rentang lebih panjang", () => {
