@@ -1197,13 +1197,14 @@ test("service pengaitan profil membatasi organisasi, cakupan HRD, dan profil tan
   assert.match(source, /action: "profile_self\.link"/);
 });
 
-test("identitas sidebar memakai nama dan jabatan hanya setelah profil pegawai terhubung", () => {
+test("identitas sidebar memakai nama panggilan dan jabatan setelah profil pegawai terhubung", () => {
   const source = readFileSync(
     new URL("../app/components/navbar/SidebarContent.jsx", import.meta.url),
     "utf8",
   );
 
   assert.match(source, /user\?\.identity_source === "employee"/);
+  assert.match(source, /user\?\.preferred_name \|\| user\?\.username/);
   assert.match(source, /user\?\.position_name/);
   assert.match(source, /getInitials\(primaryIdentity\)/);
 });

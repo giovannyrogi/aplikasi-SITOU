@@ -38,7 +38,7 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
   const theme = useTheme();
   const profileLinked = user?.identity_source === "employee";
   const primaryIdentity = profileLinked
-    ? user?.display_name || user?.username
+    ? user?.preferred_name || user?.username
     : user?.username || "Pengguna";
   const secondaryIdentity = profileLinked
     ? user?.position_name || "Jabatan belum ditentukan"
