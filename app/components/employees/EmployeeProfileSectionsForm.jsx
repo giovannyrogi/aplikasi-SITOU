@@ -17,6 +17,7 @@ import PrivateFileUpload from "@/app/components/forms/PrivateFileUpload";
 import { getIndonesianMobileFormRules } from "@/lib/validation/indonesianPhone";
 import { getIndonesianNationalIdFormRules } from "@/lib/validation/indonesianNationalId";
 import { EDUCATION_LEVEL_OPTIONS } from "@/lib/employees/profileOptions";
+import { DEPENDENT_RELATIONSHIP_OPTIONS } from "@/lib/employees/dependentRelationships";
 
 /** Mengubah tanggal API menjadi nilai Day.js yang diterima DatePicker AntD. */
 function toDatePickerValue(value) {
@@ -910,15 +911,7 @@ export default function EmployeeProfileSectionsForm({
           {(field) => (
             <Box sx={twoColumns}>
               <Form.Item name={[field.name, "relationship"]} label="Hubungan">
-                <Select
-                  options={[
-                    { value: "spouse", label: "Pasangan" },
-                    { value: "child", label: "Anak" },
-                    { value: "parent", label: "Orang tua" },
-                    { value: "sibling", label: "Saudara" },
-                    { value: "other", label: "Lainnya" },
-                  ]}
-                />
+                <Select options={DEPENDENT_RELATIONSHIP_OPTIONS} />
               </Form.Item>
               <Form.Item
                 name={[field.name, "fullName"]}

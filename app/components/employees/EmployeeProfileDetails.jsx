@@ -15,14 +15,7 @@ import {
 import { Box, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
-
-const RELATIONSHIP_LABELS = {
-  spouse: "Pasangan",
-  child: "Anak",
-  parent: "Orang tua",
-  sibling: "Saudara",
-  other: "Lainnya",
-};
+import { formatDependentRelationship } from "@/lib/employees/dependentRelationships";
 
 /** Tanggal profil memakai locale Indonesia dan tetap aman untuk nilai kosong. */
 function formatProfileDate(value) {
@@ -134,7 +127,7 @@ export function EmployeeRelatedSummary({ profile, embedded = false }) {
             key: item.id,
             title: item.full_name,
             description: [
-              RELATIONSHIP_LABELS[item.relationship] || item.relationship,
+              formatDependentRelationship(item.relationship),
               item.birth_date ? `Lahir ${formatProfileDate(item.birth_date)}` : null,
               item.phone,
               item.is_dependent ? "Tanggungan" : null,

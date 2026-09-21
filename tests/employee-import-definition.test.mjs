@@ -12,6 +12,30 @@ import {
   normalizeImportNationalId,
   normalizeImportOption,
 } from "../lib/employees/importDefinition.js";
+import {
+  DEPENDENT_RELATIONSHIP_LABELS,
+  DEPENDENT_RELATIONSHIP_OPTIONS,
+  DEPENDENT_RELATIONSHIP_VALUES,
+  formatDependentRelationship,
+  getLegacyDependentRelationshipMessage,
+} from "../lib/employees/dependentRelationships.js";
+import { employeeProfileSectionsSchema } from "../lib/employees/profileSchemas.js";
+
+const EXPECTED_DEPENDENT_RELATIONSHIPS = [
+  ["wife", "Istri"],
+  ["husband", "Suami"],
+  ["child", "Anak"],
+  ["father", "Ayah"],
+  ["mother", "Ibu"],
+  ["sibling", "Saudara kandung"],
+  ["father_in_law", "Ayah mertua"],
+  ["mother_in_law", "Ibu mertua"],
+  ["grandfather", "Kakek"],
+  ["grandmother", "Nenek"],
+  ["grandchild", "Cucu"],
+  ["guardian", "Wali"],
+  ["other", "Lainnya"],
+];
 
 test("template import mempunyai seluruh sheet domain dengan nama unik", () => {
   const names = EMPLOYEE_IMPORT_SHEETS.map((sheet) => sheet.name);
@@ -171,4 +195,59 @@ test("pilihan import pegawai baru tidak menawarkan status final atau identitas y
   assert.ok(IMPORT_OPTION_GROUPS.educationLevel.some((option) => option.value === "S3"));
   for (const status of ["terminated", "retired", "deceased"])
     assert.equal(IMPORT_ENUMS.employmentStatus.includes(status), false);
+});
+
+test("hubungan keluarga mempunyai 13 kode dan label eksplisit dari satu sumber", () => {
+  assert.deepEqual(
+    DEPENDENT_RELATIONSHIP_OPTIONS.map(({ value, label }) => [value, label]),
+    EXPECTED_DEPENDENT_RELATIONSHIPS,
+  );
+  assert.deepEqual(
+    DEPENDENT_RELATIONSHIP_VALUES,
+    EXPECTED_DEPENDENT_RELATIONSHIPS.map(([value]) => value),
+  );
+  assert.equal(IMPORT_OPTION_GROUPS.dependentRelationship, DEPENDENT_RELATIONSHIP_OPTIONS);
+  assert.equal(formatDependentRelationship("grandfather"), "Kakek");
+  assert.equal(formatDependentRelationship("grandmother"), "Nenek");
+  for (const relationship of ["spouse", "parent", "grandparent"])
+    assert.equal(Object.hasOwn(DEPENDENT_RELATIONSHIP_LABELS, relationship), false);
+});
+
+test("schema profil menerima hubungan baru dan menolak hubungan ambigu lama", () => {
+  for (const relationship of DEPENDENT_RELATIONSHIP_VALUES)
+    assert.equal(
+      employeeProfileSectionsSchema.safeParse({
+        dependents: [{ relationship, fullName: "Anggota Keluarga" }],
+      }).success,
+      true,
+      relationship,
+    );
+
+  for (const relationship of ["spouse", "parent", "grandparent"])
+    assert.equal(
+      employeeProfileSectionsSchema.safeParse({
+        dependents: [{ relationship, fullName: "Anggota Keluarga" }],
+      }).success,
+      false,
+      relationship,
+    );
+});
+
+test("import menormalisasi label baru dan menjelaskan koreksi nilai lama", () => {
+  assert.equal(normalizeImportOption("dependentRelationship", "Istri"), "wife");
+  assert.equal(normalizeImportOption("dependentRelationship", "Nenek"), "grandmother");
+  assert.equal(isSupportedImportOption("dependentRelationship", "wife"), true);
+  assert.equal(isSupportedImportOption("dependentRelationship", "spouse"), false);
+  assert.equal(
+    getLegacyDependentRelationshipMessage("PASANGAN"),
+    "Hubungan Pasangan sudah tidak digunakan. Pilih Istri atau Suami.",
+  );
+  assert.equal(
+    getLegacyDependentRelationshipMessage("Orang tua"),
+    "Hubungan Orang tua sudah tidak digunakan. Pilih Ayah atau Ibu.",
+  );
+  assert.equal(
+    getLegacyDependentRelationshipMessage("grandparent"),
+    "Pilih Kakek atau Nenek sebagai hubungan keluarga.",
+  );
 });

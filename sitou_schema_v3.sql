@@ -401,7 +401,7 @@ CREATE TABLE employee_dependents (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID anggota keluarga/tanggungan.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   employee_id bigint NOT NULL, -- Pegawai terkait.
-  relationship varchar(30) NOT NULL CHECK (relationship IN ('spouse','child','parent','sibling','other')), -- Hubungan keluarga.
+  relationship varchar(30) NOT NULL CONSTRAINT employee_dependents_relationship_check CHECK (relationship IN ('wife','husband','child','father','mother','sibling','father_in_law','mother_in_law','grandfather','grandmother','grandchild','guardian','other')), -- Hubungan keluarga eksplisit.
   full_name varchar(200) NOT NULL, -- Nama anggota keluarga.
   birth_date date, -- Tanggal lahir.
   national_id varchar(30), -- NIK anggota keluarga; data sensitif.
@@ -412,7 +412,8 @@ CREATE TABLE employee_dependents (
   CONSTRAINT fk_dependents_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE,
   CONSTRAINT ck_employee_dependents_phone_e164 CHECK (phone IS NULL OR phone ~ '^\+628[1-9][0-9]{7,10}$')
 );
-COMMENT ON TABLE employee_dependents IS 'Pasangan, anak, tanggungan, dan kontak darurat disimpan per individu.';
+COMMENT ON COLUMN employee_dependents.relationship IS 'Hubungan keluarga canonical: istri, suami, anak, ayah, ibu, saudara kandung, mertua, kakek, nenek, cucu, wali, atau lainnya.';
+COMMENT ON TABLE employee_dependents IS 'Anggota keluarga, tanggungan, dan kontak darurat terkait disimpan per individu.';
 CREATE INDEX ix_dependents_employee ON employee_dependents(organization_id,employee_id,relationship);
 
 CREATE TABLE employee_emergency_contacts (

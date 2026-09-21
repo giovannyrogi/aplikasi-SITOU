@@ -55,11 +55,14 @@ Migration `025` menambahkan metadata penonaktifan dan purge byte pada `stored_fi
 
 Migration `026` menambahkan partial index audit untuk filter **Ditambahkan oleh** pada Daftar Data Pegawai. Filter memakai audit `employee.create` agar pencatat awal tidak dapat berubah ketika profil pegawai diedit.
 
+Migration `030` mengganti hubungan keluarga ambigu dengan kode eksplisit untuk Istri, Suami, Ayah, Ibu, Kakek, Nenek, dan hubungan lain. Data `spouse` dikonversi memakai bukti kontak darurat lebih dahulu lalu gender pegawai; data `parent` dikonversi dari kode hari lahir NIK. Migration berhenti dan rollback bila menemukan bukti konflik atau data yang tidak dapat dipetakan. Jalankan migration ini sebelum deploy aplikasi yang memakai pilihan hubungan baru.
+
 Migration `029` mengganti enum tindakan disiplin dengan master sanksi per organisasi, melakukan
 backfill snapshot kebijakan pada seluruh tindakan lama, menambah status `superseded`, dan menambah
 permission Pengaturan Sanksi. Terapkan migration ini sebelum membuka menu Pengaturan Organisasi →
 Pengaturan Sanksi. Jadwalkan `npm run disciplinary-actions:expire` minimal sekali sehari; query tetap
 memeriksa tanggal akhir sehingga keterlambatan worker tidak membuat tindakan kedaluwarsa dihitung aktif.
+
 # Kebijakan pensiun organisasi — 027
 
 Jalankan `npm run db:migrate -- database/migrations/20260914_027_organization_retirement_policy.sql` pada database yang sudah berjalan sebelum deploy aplikasi. Migration menambah pengaturan per organisasi dan permission baca/kelola, serta backfill usia 58 tahun untuk organisasi lama. Database baru memakai snapshot `sitou_schema_v3.sql`. Perubahan usia berikutnya hanya melalui Pengaturan Organisasi → Kebijakan Pensiun, dengan alasan dan audit.
