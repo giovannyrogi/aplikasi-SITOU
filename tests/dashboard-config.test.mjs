@@ -65,6 +65,7 @@ test("ringkasan ulang tahun hanya mengirim data perayaan tanpa tahun lahir", () 
         location_name: "Kantor Pusat",
         celebration_date: "2026-09-20",
         days_until: "0",
+        age_turning: "36",
         birth_date: "1990-09-20",
       },
       {
@@ -73,6 +74,7 @@ test("ringkasan ulang tahun hanya mengirim data perayaan tanpa tahun lahir", () 
         full_name: "Pegawai Mendatang",
         celebration_date: "2026-10-20",
         days_until: "30",
+        age_turning: "29",
       },
     ],
     "2026-09-20",
@@ -82,6 +84,8 @@ test("ringkasan ulang tahun hanya mengirim data perayaan tanpa tahun lahir", () 
   assert.equal(summary.upcomingCount, 1);
   assert.equal(summary.windowDays, 30);
   assert.equal(summary.items[1].daysUntil, 30);
+  assert.equal(summary.items[0].ageTurning, 36);
+  assert.equal(summary.items[1].ageTurning, 29);
   assert.equal(Object.hasOwn(summary.items[0], "birth_date"), false);
   assert.equal(JSON.stringify(summary).includes("1990"), false);
 });
@@ -104,12 +108,14 @@ test("query dan panel ulang tahun menjaga scope, rentang, aksesibilitas, dan aut
   assert.match(service, /employee\.employment_status IN \('active','probation'\)/);
   assert.match(service, /scoped_assignment\.location_id=ANY\(\$3::bigint\[\]\)/);
   assert.match(service, /SELECT day::date,2,29/);
+  assert.match(service, /AS age_turning/);
   assert.doesNotMatch(service, /birthdaySummary[\s\S]{0,500}birth_date/);
   assert.match(client, /prefers-reduced-motion: reduce/);
   assert.match(client, /5000/);
   assert.match(client, /visibilitychange/);
   assert.match(client, /Ulang tahun hari ini/);
   assert.match(client, /Akan datang dalam 30 hari/);
+  assert.match(client, /Genap \$\{value\} tahun/);
   assert.match(dashboard, /!isSuperadmin \|\| organizationId/);
 });
 

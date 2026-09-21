@@ -47,6 +47,10 @@ function formatBirthdayDate(value) {
   return birthdayDateFormatter.format(new Date(`${value}T00:00:00.000Z`));
 }
 
+function formatBirthdayAge(value) {
+  return Number.isInteger(value) && value >= 0 ? `Genap ${value} tahun` : "Usia belum tersedia";
+}
+
 function CountdownBadge({ daysUntil }) {
   const theme = useTheme();
   const today = daysUntil === 0;
@@ -74,7 +78,7 @@ function CountdownBadge({ daysUntil }) {
   );
 }
 
-function MetaItem({ icon: IconComponent, children, strong = false }) {
+function MetaItem({ icon: IconComponent, children, strong = false, textSx }) {
   const theme = useTheme();
 
   return (
@@ -87,15 +91,26 @@ function MetaItem({ icon: IconComponent, children, strong = false }) {
         minHeight: 18,
       }}
     >
-      <IconComponent
+      <Box
+        component="span"
         aria-hidden="true"
         sx={{
-          display: "block",
+          width: 18,
+          height: 18,
+          display: "grid",
+          placeItems: "center",
           flexShrink: 0,
-          fontSize: 16,
-          color: strong ? theme.palette.primary.main : "#7B8493",
+          lineHeight: 0,
         }}
-      />
+      >
+        <IconComponent
+          sx={{
+            display: "block",
+            fontSize: 16,
+            color: strong ? theme.palette.primary.main : "#7B8493",
+          }}
+        />
+      </Box>
       <FontStyle
         component="span"
         fontSize={11.5}
@@ -104,9 +119,10 @@ function MetaItem({ icon: IconComponent, children, strong = false }) {
         sx={{
           display: "inline-flex",
           alignItems: "center",
-          minHeight: 18,
-          lineHeight: "18px",
+          height: 18,
+          lineHeight: 1,
           color: strong ? theme.palette.primary.dark : theme.palette.text.secondary,
+          ...textSx,
         }}
       >
         {children}
@@ -246,6 +262,9 @@ function BirthdayListGroup({ title, description, items, onPreview, onOpenEmploye
                   </MetaItem>
                   <MetaItem icon={PlaceOutlinedIcon}>
                     {item.locationName || "Belum ditempatkan"}
+                  </MetaItem>
+                  <MetaItem icon={CakeRoundedIcon} textSx={{ transform: "translateY(2px)" }} strong>
+                    {formatBirthdayAge(item.ageTurning)}
                   </MetaItem>
                 </Box>
                 <Box
@@ -530,6 +549,9 @@ export default function BirthdaySpotlight({ data, loading }) {
                   <MetaItem icon={CalendarMonthRoundedIcon} strong>
                     {formatBirthdayDate(current.celebrationDate)}
                   </MetaItem>
+                  <MetaItem icon={CakeRoundedIcon} textSx={{ transform: "translateY(1px)" }} strong>
+                    {formatBirthdayAge(current.ageTurning)}
+                  </MetaItem>
                 </Box>
               </Box>
             </Box>
@@ -623,7 +645,7 @@ export default function BirthdaySpotlight({ data, loading }) {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Daftar ulang tahun pegawai"
-        description={`Menampilkan ulang tahun hari ini dan ${data?.windowDays || 30} hari ke depan. Tahun lahir disembunyikan.`}
+        description={`Menampilkan ulang tahun hari ini dan ${data?.windowDays || 30} hari ke depan beserta usia yang dicapai.`}
         icon={<CakeRoundedIcon sx={{ fontSize: 23 }} />}
         size="lg"
         contentSx={{

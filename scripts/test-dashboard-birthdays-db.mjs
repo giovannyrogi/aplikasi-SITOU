@@ -15,12 +15,12 @@ const client = new pg.Client({
 try {
   await client.connect();
   const result = await client.query(`
-    WITH scenarios(name,as_of,birth_month,birth_day) AS (VALUES
-      ('today','2026-09-20'::date,9,20),
-      ('day_30','2026-09-20'::date,10,20),
-      ('day_31','2026-09-20'::date,10,21),
-      ('cross_year','2026-12-20'::date,1,5),
-      ('feb_29_non_leap','2026-02-20'::date,2,29)
+    WITH scenarios(name,as_of,birth_date) AS (VALUES
+      ('today','2026-09-20'::date,'1990-09-20'::date),
+      ('day_30','2026-09-20'::date,'1997-10-20'::date),
+      ('day_31','2026-09-20'::date,'1998-10-21'::date),
+      ('cross_year','2026-12-20'::date,'2000-01-05'::date),
+      ('feb_29_non_leap','2026-02-20'::date,'2000-02-29'::date)
     ), calendar AS (
       SELECT scenario.name,scenario.as_of,day::date AS celebration_date,
         extract(month FROM day)::int AS birth_month,
@@ -40,16 +40,20 @@ try {
       WHERE extract(month FROM day)=2 AND extract(day FROM day)=28
         AND extract(day FROM (date_trunc('month',day)+interval '1 month - 1 day'))=28
     )
-    SELECT scenario.name,calendar.celebration_date::text,calendar.days_until
+    SELECT scenario.name,calendar.celebration_date::text,calendar.days_until,
+      (extract(year FROM calendar.celebration_date)::int
+        - extract(year FROM scenario.birth_date)::int) AS age_turning
     FROM scenarios scenario
     LEFT JOIN calendar ON calendar.name=scenario.name
-      AND calendar.birth_month=scenario.birth_month
-      AND calendar.birth_day=scenario.birth_day
+      AND calendar.birth_month=extract(month FROM scenario.birth_date)::int
+      AND calendar.birth_day=extract(day FROM scenario.birth_date)::int
     ORDER BY scenario.name
   `);
   const values = Object.fromEntries(result.rows.map((row) => [row.name, row]));
   if (values.today.days_until !== 0 || values.today.celebration_date !== "2026-09-20")
     throw new Error("Ulang tahun hari ini tidak dihitung dengan benar.");
+  if (values.today.age_turning !== 36)
+    throw new Error("Usia pada hari ulang tahun tidak dihitung dengan benar.");
   if (values.day_30.days_until !== 30 || values.day_30.celebration_date !== "2026-10-20")
     throw new Error("Batas inklusif hari ke-30 tidak dihitung dengan benar.");
   if (values.day_31.days_until !== null || values.day_31.celebration_date !== null)
@@ -58,7 +62,8 @@ try {
     throw new Error("Ulang tahun lintas tahun tidak dihitung dengan benar.");
   if (
     values.feb_29_non_leap.days_until !== 8 ||
-    values.feb_29_non_leap.celebration_date !== "2026-02-28"
+    values.feb_29_non_leap.celebration_date !== "2026-02-28" ||
+    values.feb_29_non_leap.age_turning !== 26
   )
     throw new Error("Ulang tahun 29 Februari pada tahun nonkabisat tidak dihitung benar.");
   const organization = await client.query(
