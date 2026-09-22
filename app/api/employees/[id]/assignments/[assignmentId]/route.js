@@ -4,7 +4,7 @@ import {
   errorResponse,
   getRequestId,
   handleRouteError,
-  readJson,
+  readMultipartJson,
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
@@ -27,11 +27,11 @@ export async function PATCH(request, context) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("assignments.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = validateMutationRequest(request, user.id, requestId, { maxBytes: 11 * 1024 * 1024 });
   if (rejected) return rejected;
   const ids = await resolveRouteIds(context, requestId);
   if (ids.response) return ids.response;
-  const parsed = await readJson(request, employeeAssignmentCorrectionSchema, requestId);
+  const parsed = await readMultipartJson(request, employeeAssignmentCorrectionSchema, requestId);
   if (parsed.response) return parsed.response;
   try {
     const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);
@@ -42,6 +42,7 @@ export async function PATCH(request, context) {
       parsed.data,
       user,
       requestId,
+      parsed.file,
     );
     return successResponse(data.assignments, {
       code: "ASSIGNMENT_CORRECTED",

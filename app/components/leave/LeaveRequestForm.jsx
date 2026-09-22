@@ -61,34 +61,26 @@ export default function LeaveRequestForm({
   const submit = async () => {
     setConfirm(false);
     const values = form.getFieldsValue(true);
-    const uploaded = [];
     try {
       await runWithLoadingBackdrop(
         async () => {
-          for (const entry of files) {
-            const data = new FormData();
-            data.append("file", entry.localFile);
-            data.append("organizationId", organizationId);
-            data.append("employeeId", values.employeeId);
-            data.append("fileKind", "lampiran_cuti");
-            const response = await fetch("/api/uploads", { method: "POST", body: data });
-            const body = await readApiResponse(response, "Lampiran tidak dapat diunggah.");
-            uploaded.push(body.data.id);
-          }
+          const payload = {
+            organizationId,
+            employeeId: values.employeeId,
+            leaveTypeId: values.leaveTypeId,
+            startDate: values.period[0].format("YYYY-MM-DD"),
+            endDate: values.period[1].format("YYYY-MM-DD"),
+            requestedUnits: values.requestedUnits,
+            reason: values.reason,
+            decisionNotes: values.decisionNotes || null,
+            attachmentFileIds: [],
+          };
+          const formData = new FormData();
+          formData.append("payload", JSON.stringify(payload));
+          for (const entry of files) formData.append("files", entry.localFile);
           const response = await fetch("/api/leave-requests", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              organizationId,
-              employeeId: values.employeeId,
-              leaveTypeId: values.leaveTypeId,
-              startDate: values.period[0].format("YYYY-MM-DD"),
-              endDate: values.period[1].format("YYYY-MM-DD"),
-              requestedUnits: values.requestedUnits,
-              reason: values.reason,
-              decisionNotes: values.decisionNotes || null,
-              attachmentFileIds: uploaded,
-            }),
+            body: formData,
           });
           const body = await readApiResponse(response);
           await onSaved(body.message);
@@ -96,10 +88,6 @@ export default function LeaveRequestForm({
         { message: "Mencatat dan menyetujui cuti atau izin..." },
       );
     } catch (error) {
-      for (const id of uploaded)
-        await fetch(`/api/uploads/${id}?organizationId=${organizationId}`, {
-          method: "DELETE",
-        }).catch(() => {});
       if (error.fieldErrors)
         form.setFields(
           Object.entries(error.fieldErrors).map(([name, message]) => ({

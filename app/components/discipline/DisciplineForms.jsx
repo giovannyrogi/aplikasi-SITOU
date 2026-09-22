@@ -135,7 +135,7 @@ export function DisciplineCaseForm({
   );
 }
 
-/** Form tindakan mengunggah surat privat lebih dahulu lalu menyimpan fileId pada sanksi. */
+/** Form tindakan mengirim data dan PDF bersama tombol simpan. */
 export function DisciplinaryActionForm({
   open,
   disciplineCase,
@@ -237,34 +237,21 @@ export function DisciplinaryActionForm({
       }
       await runWithLoadingBackdrop(
         async () => {
-          let documentFileId = file?.id || null;
-          if (file instanceof File) {
-            const upload = new FormData();
-            upload.append("file", file);
-            upload.append(
-              "fileKind",
-              submittedType?.upload_file_kind || "sanksi_lainnya",
-            );
-            upload.append("employeeId", disciplineCase.employee_id);
-            upload.append("organizationId", disciplineCase.organization_id);
-            const uploadResponse = await fetch("/api/uploads", { method: "POST", body: upload });
-            const uploadBody = await uploadResponse.json();
-            if (!uploadResponse.ok) throw new Error(uploadBody.message);
-            documentFileId = uploadBody.data.id;
-          }
           const payload = {
             ...values,
             issuedDate: values.issuedDate.format("YYYY-MM-DD"),
             effectiveFrom: values.effectiveFrom.format("YYYY-MM-DD"),
-            documentFileId,
+            documentFileId: file?.id || null,
           };
           const endpoint = action
             ? `/api/discipline/actions/${action.id}`
             : `/api/discipline/cases/${disciplineCase.id}/actions`;
+          const formData = new FormData();
+          formData.append("payload", JSON.stringify(payload));
+          if (file instanceof File) formData.append("file", file);
           const response = await fetch(endpoint, {
             method: action ? "PATCH" : "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: formData,
           });
           const body = await readApiResponse(response);
           await onSaved(body.message);

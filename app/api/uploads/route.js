@@ -14,7 +14,7 @@ import {
 import { listEmployeeFiles, storeEmployeeFile } from "@/lib/files/storage";
 
 const MAX_REQUEST_BYTES = 11 * 1024 * 1024;
-const COMPOSITE_PROFILE_FILE_KINDS = new Set([
+const COMPOSITE_FILE_KINDS = new Set([
   "pas_foto",
   "ktp",
   "kk",
@@ -24,6 +24,14 @@ const COMPOSITE_PROFILE_FILE_KINDS = new Set([
   "identitas_lain",
   "pendidikan",
   "sertifikasi",
+  "kontrak",
+  "sk_penempatan",
+  "lampiran_cuti",
+  "sanksi_sp1",
+  "sanksi_sp2",
+  "sanksi_sp3",
+  "sanksi_lainnya",
+  "employee_import",
 ]);
 
 /** Mengembalikan metadata file pegawai; isi file tetap diakses melalui route file ID. */
@@ -58,10 +66,10 @@ export async function POST(request) {
     const organizationId = resolvePermissionOrganization(user, form.get("organizationId") || null);
     const employeeId = String(form.get("employeeId") || "");
     const fileKind = String(form.get("fileKind") || "");
-    if (COMPOSITE_PROFILE_FILE_KINDS.has(fileKind))
+    if (COMPOSITE_FILE_KINDS.has(fileKind))
       throw new ServiceError(
         "PROFILE_FILE_COMPOSITE_REQUIRED",
-        "Simpan perubahan file profil melalui form data pegawai atau profil lengkap.",
+        "Simpan file bersama formulir utama agar data dan file diproses dalam satu transaksi.",
         409,
       );
     await ensureActorEmployeeAccess(user, employeeId, organizationId);

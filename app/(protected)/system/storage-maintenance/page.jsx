@@ -133,7 +133,7 @@ function FileIdentity({ item }) {
         {item.original_name || "Nama file tidak tersedia"}
       </FontStyle>
       <FontStyle fontSize={11} sx={{ mt: 0.4, color: theme.ui.mutedText }}>
-        {item.organization_name} · {item.employee_name || "Tidak terkait langsung ke profil"}
+        {item.organization_name} · {item.employee_name || item.relationship_label}
         {item.employee_no_masked !== "-" ? ` · NIP ${item.employee_no_masked}` : ""}
       </FontStyle>
     </Box>

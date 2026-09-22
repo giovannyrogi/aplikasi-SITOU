@@ -983,7 +983,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                           ? `/api/employees/drafts/${draft?.id}/files/${ktpFile.id}${query}`
                           : null
                       }
-                      fields={{ fileKind: "ktp" }}
+                      fields={{ fileKind: "ktp", draftSlot: "ktp" }}
                       organizationId={targetOrganizationId}
                       accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                       maxSizeBytes={5 * 1024 * 1024}
@@ -1026,7 +1026,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                           ? `/api/employees/drafts/${draft?.id}/files/${profilePhotoFile.id}${query}`
                           : null
                       }
-                      fields={{ fileKind: "pas_foto" }}
+                      fields={{ fileKind: "pas_foto", draftSlot: "profile_photo" }}
                       organizationId={targetOrganizationId}
                       accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                       maxSizeBytes={5 * 1024 * 1024}
@@ -1210,7 +1210,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                           ? `/api/employees/drafts/${draft?.id}/files/${educationFile.id}${query}`
                           : null
                       }
-                      fields={{ fileKind: "pendidikan" }}
+                      fields={{ fileKind: "pendidikan", draftSlot: "education:0" }}
                       organizationId={targetOrganizationId}
                       accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                       maxSizeBytes={5 * 1024 * 1024}
@@ -1281,7 +1281,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                             ? `/api/employees/drafts/${draft?.id}/files/${contractFile.id}${query}`
                             : null
                         }
-                        fields={{ fileKind: "kontrak" }}
+                        fields={{ fileKind: "kontrak", draftSlot: "contract" }}
                         organizationId={targetOrganizationId}
                         onChange={(file) =>
                           setFiles((current) => [
@@ -1375,7 +1375,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                             ? `/api/employees/drafts/${draft?.id}/files/${assignmentFile.id}${query}`
                             : null
                         }
-                        fields={{ fileKind: "sk_penempatan" }}
+                        fields={{ fileKind: "sk_penempatan", draftSlot: "assignment_decree" }}
                         organizationId={targetOrganizationId}
                         onChange={(file) =>
                           setFiles((current) => [

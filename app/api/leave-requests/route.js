@@ -5,6 +5,7 @@ import {
   handleRouteError,
   parseListQuery,
   readJson,
+  readMultipartJson,
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
@@ -57,13 +58,21 @@ export async function POST(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("leave_requests.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = validateMutationRequest(request, user.id, requestId, { maxBytes: 51 * 1024 * 1024 });
   if (rejected) return rejected;
-  const parsed = await readJson(request, leaveRequestCreateSchema, requestId);
+  const parsed = await readMultipartJson(request, leaveRequestCreateSchema, requestId, { fileField: "files" });
   if (parsed.response) return parsed.response;
   try {
     const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);
-    const data = await createLeaveRequest({ ...parsed.data, organizationId }, user, requestId);
+    const attachmentFiles = parsed.form
+      .getAll("files")
+      .filter((file) => file && typeof file.arrayBuffer === "function" && file.size > 0);
+    const data = await createLeaveRequest(
+      { ...parsed.data, organizationId },
+      user,
+      requestId,
+      attachmentFiles,
+    );
     return successResponse(data, {
       status: 201,
       code: "LEAVE_REQUEST_APPROVED",

@@ -2,7 +2,7 @@ import { requirePermission, resolvePermissionOrganization } from "@/lib/auth/per
 import {
   getRequestId,
   handleRouteError,
-  readJson,
+  readMultipartJson,
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
@@ -14,9 +14,9 @@ export async function PATCH(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("discipline.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = validateMutationRequest(request, user.id, requestId, { maxBytes: 11 * 1024 * 1024 });
   if (rejected) return rejected;
-  const parsed = await readJson(request, disciplinaryActionUpdateSchema, requestId);
+  const parsed = await readMultipartJson(request, disciplinaryActionUpdateSchema, requestId);
   if (parsed.response) return parsed.response;
   try {
     const { id } = await params;
@@ -26,6 +26,7 @@ export async function PATCH(request, { params }) {
       { ...parsed.data, organizationId },
       user,
       requestId,
+      parsed.file,
     );
     return successResponse(data, {
       code: "DISCIPLINARY_ACTION_UPDATED",

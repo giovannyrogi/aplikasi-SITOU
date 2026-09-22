@@ -104,25 +104,25 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
     try {
       await runWithLoadingBackdrop(
         async () => {
+          const payload = {
+            ...values,
+            effectiveFrom: values.effectiveFrom.format("YYYY-MM-DD"),
+            ...(assignment
+              ? {
+                  effectiveUntil: values.effectiveUntil?.format("YYYY-MM-DD") || null,
+                  version: new Date(assignment.updated_at).toISOString(),
+                }
+              : {}),
+            documentFileId: documentFile?.id || null,
+          };
+          const formData = new FormData();
+          formData.append("payload", JSON.stringify(payload));
+          if (documentFile?.localFile) formData.append("file", documentFile.localFile);
           const response = await fetch(
             assignment
               ? `/api/employees/${employee.id}/assignments/${assignment.id}`
               : `/api/employees/${employee.id}/assignments`,
-            {
-              method: assignment ? "PATCH" : "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...values,
-                effectiveFrom: values.effectiveFrom.format("YYYY-MM-DD"),
-                ...(assignment
-                  ? {
-                      effectiveUntil: values.effectiveUntil?.format("YYYY-MM-DD") || null,
-                      version: new Date(assignment.updated_at).toISOString(),
-                    }
-                  : {}),
-                documentFileId: documentFile?.id || null,
-              }),
-            },
+            { method: assignment ? "PATCH" : "POST", body: formData },
           );
           const body = await readApiResponse(response, "Penempatan tidak dapat disimpan.");
           await onSaved(body.message);
@@ -273,12 +273,7 @@ export function AssignmentForm({ open, employee, assignment = null, onClose, onS
         <Form.Item label="Dokumen penempatan (opsional)">
           <PrivatePdfUpload
             value={documentFile}
-            uploadUrl="/api/uploads"
-            removeUrl={
-              documentFile && documentFile.id !== assignment?.document_file_id
-                ? `/api/uploads/${documentFile.id}?organizationId=${employee.organization_id}`
-                : null
-            }
+            deferred
             fields={{ fileKind: "sk_penempatan", employeeId: employee.id }}
             organizationId={employee.organization_id}
             onChange={setDocumentFile}
@@ -375,15 +370,14 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
             ...(contract ? { version: new Date(contract.updated_at).toISOString() } : {}),
           };
           if (contract) delete payload.status;
+          const formData = new FormData();
+          formData.append("payload", JSON.stringify(payload));
+          if (documentFile?.localFile) formData.append("file", documentFile.localFile);
           const response = await fetch(
             contract
               ? `/api/employees/${employee.id}/contracts/${contract.id}`
               : `/api/employees/${employee.id}/contracts`,
-            {
-              method: contract ? "PATCH" : "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            },
+            { method: contract ? "PATCH" : "POST", body: formData },
           );
           const body = await readApiResponse(response, "Kontrak tidak dapat disimpan.");
           await onSaved(body.message);
@@ -477,12 +471,7 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
         >
           <PrivatePdfUpload
             value={documentFile}
-            uploadUrl="/api/uploads"
-            removeUrl={
-              documentFile && documentFile.id !== contract?.document_file_id
-                ? `/api/uploads/${documentFile.id}?organizationId=${employee.organization_id}`
-                : null
-            }
+            deferred
             fields={{ fileKind: "kontrak", employeeId: employee.id }}
             organizationId={employee.organization_id}
             onChange={setDocumentFile}

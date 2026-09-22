@@ -66,3 +66,5 @@ memeriksa tanggal akhir sehingga keterlambatan worker tidak membuat tindakan ked
 # Kebijakan pensiun organisasi — 027
 
 Jalankan `npm run db:migrate -- database/migrations/20260914_027_organization_retirement_policy.sql` pada database yang sudah berjalan sebelum deploy aplikasi. Migration menambah pengaturan per organisasi dan permission baca/kelola, serta backfill usia 58 tahun untuk organisasi lama. Database baru memakai snapshot `sitou_schema_v3.sql`. Perubahan usia berikutnya hanya melalui Pengaturan Organisasi → Kebijakan Pensiun, dengan alasan dan audit.
+
+Migration `031` memusatkan lifecycle file dengan status `draft|active|deleted|purged`, slot draft unik, versi dokumen kontrak/penempatan, dan dukungan scanner untuk byte tanpa metadata. Jalankan setelah memastikan backup database/direktori upload dan `UPLOAD_ROOT` aplikasi-worker sama. Rekonsiliasi awal wajib mode laporan; jangan aktifkan cleanup bila masih ada metadata aktif dengan byte hilang. Terapkan dengan `npm run db:migrate -- database/migrations/20260921_031_centralized_file_lifecycle.sql` sebelum deploy endpoint multipart baru.

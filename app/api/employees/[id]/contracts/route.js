@@ -4,7 +4,7 @@ import {
   errorResponse,
   getRequestId,
   handleRouteError,
-  readJson,
+  readMultipartJson,
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
@@ -35,11 +35,11 @@ export async function POST(request, context) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("contracts.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = validateMutationRequest(request, user.id, requestId, { maxBytes: 11 * 1024 * 1024 });
   if (rejected) return rejected;
   const id = parsePositiveInteger((await context.params).id, "ID pegawai");
   if (id.error) return errorResponse("INVALID_ID", id.error, 400, requestId);
-  const parsed = await readJson(request, employeeContractCreateSchema, requestId);
+  const parsed = await readMultipartJson(request, employeeContractCreateSchema, requestId);
   if (parsed.response) return parsed.response;
   try {
     const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);
@@ -49,6 +49,7 @@ export async function POST(request, context) {
       parsed.data,
       user,
       requestId,
+      parsed.file,
     );
     return successResponse(data.contracts, {
       status: 201,

@@ -83,13 +83,15 @@ CREATE TABLE stored_files (
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Pemilik file dan batas organisasi.
   employee_id bigint, -- Pegawai pemilik file bila file merupakan dokumen kepegawaian.
   onboarding_draft_id bigint, -- Draft onboarding pemilik file sebelum pegawai difinalisasi.
+  lifecycle_status varchar(20) NOT NULL DEFAULT 'active', -- draft, active, deleted, atau purged.
+  draft_slot varchar(100), -- Slot stabil file pada draft onboarding.
   storage_provider varchar(30) NOT NULL DEFAULT 'local_private' CHECK (storage_provider IN ('local_private','s3','r2','azure_blob','other')), -- Backend penyimpanan.
   object_key text NOT NULL, -- Kunci relatif privat; bukan URL publik atau path absolut.
   original_name text NOT NULL, -- Nama file saat diunggah pengguna.
   mime_type varchar(150) NOT NULL, -- MIME type hasil validasi server.
   size_bytes bigint NOT NULL CHECK (size_bytes >= 0), -- Ukuran file untuk limit dan audit.
   sha256 char(64), -- Hash integritas dan deteksi duplikasi.
-  category varchar(40) NOT NULL CONSTRAINT ck_stored_files_category CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','leave_attachment','contract','assignment_decree','discipline_letter','identity','education','other')), -- Kelompok kegunaan file.
+  category varchar(40) NOT NULL CONSTRAINT ck_stored_files_category CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','leave_attachment','contract','assignment_decree','discipline_letter','identity','education','employee_import_source','other')), -- Kelompok kegunaan file.
   is_confidential boolean NOT NULL DEFAULT true, -- Menandai file membutuhkan izin sensitif.
   uploaded_by_user_id bigint, -- User pengunggah; FK ditambahkan setelah tabel users.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu file diregistrasikan.
@@ -248,7 +250,16 @@ ALTER TABLE stored_files
 ALTER TABLE stored_files
   ADD COLUMN deleted_by_user_id bigint REFERENCES users(id),
   ADD COLUMN deletion_reason_code varchar(40),
-  ADD COLUMN content_purged_at timestamptz;
+  ADD COLUMN content_purged_at timestamptz,
+  ADD CONSTRAINT ck_stored_files_lifecycle_status
+    CHECK (lifecycle_status IN ('draft','active','deleted','purged')),
+  ADD CONSTRAINT ck_stored_files_lifecycle_consistency CHECK (
+    (lifecycle_status='draft' AND onboarding_draft_id IS NOT NULL
+      AND draft_slot IS NOT NULL AND deleted_at IS NULL AND content_purged_at IS NULL)
+    OR (lifecycle_status='active' AND deleted_at IS NULL AND content_purged_at IS NULL)
+    OR (lifecycle_status='deleted' AND deleted_at IS NOT NULL AND content_purged_at IS NULL)
+    OR (lifecycle_status='purged' AND deleted_at IS NOT NULL AND content_purged_at IS NOT NULL)
+  );
 
 CREATE TABLE roles (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID role.
@@ -615,7 +626,12 @@ CREATE INDEX ix_employee_onboarding_drafts_expiry ON employee_onboarding_drafts(
 CREATE TRIGGER trg_employee_onboarding_drafts_updated_at BEFORE UPDATE ON employee_onboarding_drafts FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 ALTER TABLE stored_files ADD CONSTRAINT fk_stored_file_onboarding_draft FOREIGN KEY (organization_id,onboarding_draft_id) REFERENCES employee_onboarding_drafts(organization_id,id);
 CREATE INDEX ix_stored_files_onboarding_draft ON stored_files(organization_id,onboarding_draft_id,category,created_at DESC) WHERE onboarding_draft_id IS NOT NULL AND deleted_at IS NULL;
-CREATE UNIQUE INDEX uq_draft_current_document ON stored_files(onboarding_draft_id,category) WHERE onboarding_draft_id IS NOT NULL AND deleted_at IS NULL AND category IN ('contract','assignment_decree');
+CREATE UNIQUE INDEX uq_stored_files_active_draft_slot
+  ON stored_files(organization_id,onboarding_draft_id,draft_slot)
+  WHERE lifecycle_status='draft';
+CREATE INDEX ix_stored_files_lifecycle_cleanup
+  ON stored_files(organization_id,lifecycle_status,deleted_at,id)
+  WHERE lifecycle_status IN ('deleted','purged');
 
 CREATE TABLE employee_assignments (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID periode penempatan/rolling.
@@ -644,6 +660,40 @@ CREATE TABLE employee_assignments (
   CONSTRAINT fk_assignment_file FOREIGN KEY (organization_id,document_file_id) REFERENCES stored_files(organization_id,id),
   CONSTRAINT ck_assignment_dates CHECK (effective_until IS NULL OR effective_until >= effective_from)
 );
+CREATE TABLE employment_contract_document_versions (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL,
+  employment_contract_id bigint NOT NULL,
+  file_id bigint NOT NULL,
+  version_no integer NOT NULL CHECK (version_no>0),
+  is_current boolean NOT NULL DEFAULT true,
+  correction_reason text,
+  created_by_user_id bigint REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT uq_contract_document_version UNIQUE (organization_id,employment_contract_id,version_no),
+  CONSTRAINT fk_contract_document_version_contract FOREIGN KEY (organization_id,employment_contract_id) REFERENCES employment_contracts(organization_id,id),
+  CONSTRAINT fk_contract_document_version_file FOREIGN KEY (organization_id,file_id) REFERENCES stored_files(organization_id,id)
+);
+CREATE UNIQUE INDEX uq_contract_document_current
+  ON employment_contract_document_versions(organization_id,employment_contract_id) WHERE is_current;
+
+CREATE TABLE employee_assignment_document_versions (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL,
+  employee_assignment_id bigint NOT NULL,
+  file_id bigint NOT NULL,
+  version_no integer NOT NULL CHECK (version_no>0),
+  is_current boolean NOT NULL DEFAULT true,
+  correction_reason text,
+  created_by_user_id bigint REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT uq_assignment_document_version UNIQUE (organization_id,employee_assignment_id,version_no),
+  CONSTRAINT fk_assignment_document_version_assignment FOREIGN KEY (organization_id,employee_assignment_id) REFERENCES employee_assignments(organization_id,id),
+  CONSTRAINT fk_assignment_document_version_file FOREIGN KEY (organization_id,file_id) REFERENCES stored_files(organization_id,id)
+);
+CREATE UNIQUE INDEX uq_assignment_document_current
+  ON employee_assignment_document_versions(organization_id,employee_assignment_id) WHERE is_current;
+
 COMMENT ON TABLE employee_assignments IS 'Sumber histori lokasi, divisi, jabatan, atasan, mutasi, dan rolling pegawai.';
 -- Satu pegawai hanya boleh mempunyai satu penempatan utama yang masih aktif.
 CREATE UNIQUE INDEX uq_current_primary_assignment ON employee_assignments(employee_id)
@@ -1317,7 +1367,8 @@ CREATE TABLE file_cleanup_items (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   organization_id bigint NOT NULL,
   run_id bigint NOT NULL,
-  stored_file_id bigint NOT NULL,
+  stored_file_id bigint,
+  object_key varchar(1000), -- Hanya untuk rekonsiliasi server; tidak dikirim ke browser.
   item_kind varchar(20) NOT NULL CHECK (item_kind IN ('candidate','issue')),
   status varchar(30) NOT NULL CHECK (status IN ('eligible','selected','needs_review','already_absent','queued','processing','cleaned','skipped','failed','pending_retry')),
   reason_code varchar(80) NOT NULL,
@@ -1330,14 +1381,21 @@ CREATE TABLE file_cleanup_items (
   last_error_code varchar(80),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT uq_file_cleanup_item UNIQUE (run_id,stored_file_id),
+  CONSTRAINT ck_file_cleanup_item_target CHECK (
+    (stored_file_id IS NOT NULL AND object_key IS NULL)
+    OR (stored_file_id IS NULL AND object_key IS NOT NULL)
+  ),
   CONSTRAINT fk_file_cleanup_item_run FOREIGN KEY (organization_id,run_id) REFERENCES file_cleanup_runs(organization_id,id) ON DELETE CASCADE,
   CONSTRAINT fk_file_cleanup_item_file FOREIGN KEY (organization_id,stored_file_id) REFERENCES stored_files(organization_id,id)
 );
 COMMENT ON TABLE file_cleanup_items IS 'Hasil per file tanpa menghapus metadata stored_files atau jejak audit.';
+CREATE UNIQUE INDEX uq_file_cleanup_item_stored_file
+  ON file_cleanup_items(run_id,stored_file_id) WHERE stored_file_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_file_cleanup_item_object_key
+  ON file_cleanup_items(run_id,object_key) WHERE object_key IS NOT NULL;
 CREATE INDEX ix_file_cleanup_items_run_status ON file_cleanup_items(run_id,status,id);
 CREATE INDEX ix_stored_files_cleanup_candidates ON stored_files(organization_id,deleted_at,id)
-WHERE deleted_at IS NOT NULL AND content_purged_at IS NULL AND category IN ('employee_photo','identity','education');
+WHERE lifecycle_status='deleted' AND content_purged_at IS NULL;
 CREATE TRIGGER trg_file_cleanup_runs_updated_at BEFORE UPDATE ON file_cleanup_runs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_file_cleanup_items_updated_at BEFORE UPDATE ON file_cleanup_items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 

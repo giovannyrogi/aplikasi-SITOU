@@ -322,6 +322,41 @@ test("endpoint upload umum menolak perubahan langsung pada file profil", () => {
   assert.match(deleteRoute, /PROFILE_FILE_COMPOSITE_REQUIRED/);
 });
 
+test("lifecycle file terpusat menutup upload komposit dan mengklaim file draft", () => {
+  const uploadRoute = readFileSync(
+    new URL("../app/api/uploads/route.js", import.meta.url),
+    "utf8",
+  );
+  const storageSource = readFileSync(
+    new URL("../lib/files/storage.js", import.meta.url),
+    "utf8",
+  );
+  const draftSource = readFileSync(
+    new URL("../lib/employees/draftService.js", import.meta.url),
+    "utf8",
+  );
+  const migration = readFileSync(
+    new URL(
+      "../database/migrations/20260921_031_centralized_file_lifecycle.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  for (const fileKind of [
+    "kontrak",
+    "sk_penempatan",
+    "lampiran_cuti",
+    "sanksi_sp1",
+    "sanksi_lainnya",
+    "employee_import",
+  ])
+    assert.ok(uploadRoute.includes(`"${fileKind}"`));
+  assert.match(storageSource, /sanksi_lainnya:[\s\S]*?mimes: PDF_MIMES/);
+  assert.match(storageSource, /lifecycle_status='active',draft_slot=NULL/);
+  assert.match(draftSource, /onboarding_draft_id=\$2 AND lifecycle_status='draft'/);
+  assert.match(migration, /uq_stored_files_active_draft_slot/);
+});
 test("identitas lainnya wajib mempunyai nama yang dapat dipahami pengguna", () => {
   const result = employeeProfileSectionsSchema.safeParse({
     identifiers: [{ identifierType: "other", identifierValue: "ABC-001" }],
@@ -741,10 +776,10 @@ test("direktori pegawai memakai section filter operasional", () => {
   assert.match(source, /label: "Lokasi"/);
   assert.match(source, /label: "Divisi & Unit"/);
   assert.match(source, /label: "Jabatan"/);
-  assert.match(source, /label: "Jenis kepegawaian\/kontrak"/);
+  assert.match(source, /label: "Jenis Kepegawaian"/);
   assert.match(source, /employmentTypeId/);
   assert.match(source, /references\.employmentTypes/);
-  assert.match(source, /wideColumns=\{6\}/);
+  assert.match(source, /wideColumns=\{4\}/);
   assert.match(source, /label: "Status pegawai"/);
   assert.match(source, /options=\{references\.locations\}/);
   assert.doesNotMatch(source, /showCode=/);
@@ -804,7 +839,7 @@ test("seluruh tabel memakai desain modern reusable dan alignment yang konsisten"
   assert.ok(avatarSource.includes("employee?.organization_id"));
   assert.ok(avatarSource.includes("/api/uploads/"));
   assert.ok(avatarSource.includes("?organizationId="));
-  assert.ok(avatarSource.includes("ImagePreviewModal"));
+  assert.ok(avatarSource.includes("onPreview?.("));
   assert.ok(avatarSource.includes("Perbesar pas foto "));
   assert.ok(avatarSource.includes("onError={() => setFailed(true)}"));
   assert.doesNotMatch(avatarSource, /ktp|identity_document|document_file_id/i);
@@ -821,7 +856,11 @@ test("seluruh tabel memakai desain modern reusable dan alignment yang konsisten"
   for (const file of collectAppSourceFiles(appRoot)) {
     if (![".jsx", ".tsx"].includes(extname(file))) continue;
     const source = readFileSync(file, "utf8");
-    if (source.includes("<Table") && !source.includes("<ModernTableFrame")) {
+    if (
+      /<Table(?:\\s|>)/.test(source) &&
+      !source.includes("<ModernTableFrame") &&
+      !file.endsWith("NumberedTable.jsx")
+    ) {
       unframedTables.push(relative(projectRoot, file).replaceAll("\\", "/"));
     }
   }

@@ -28,6 +28,7 @@ export async function POST(request, { params }) {
     const data = await storeEmployeeDraftFile({
       file: form.get("file"),
       fileKind: String(form.get("fileKind") || ""),
+      draftSlot: String(form.get("draftSlot") || "") || undefined,
       draftId: id.value,
       organizationId,
       actor: user,
