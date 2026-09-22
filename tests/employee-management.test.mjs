@@ -305,8 +305,8 @@ test("form edit menunda file profil dan menyimpannya bersama PATCH pegawai", () 
   assert.match(routeSource, /employeeUpdateMultipartSchema/);
   assert.match(routeSource, /updateEmployeeWithProfileFiles/);
   assert.match(serviceSource, /softDeleteRemovedProfileFiles/);
-  assert.match(serviceSource, /restoreQuarantinedFiles/);
-  assert.match(serviceSource, /purgeQuarantinedFiles/);
+  assert.match(serviceSource, /restoreStagedStoredFiles/);
+  assert.match(serviceSource, /purgeStagedStoredFiles/);
 });
 
 test("endpoint upload umum menolak perubahan langsung pada file profil", () => {
@@ -329,6 +329,14 @@ test("lifecycle file terpusat menutup upload komposit dan mengklaim file draft",
   );
   const storageSource = readFileSync(
     new URL("../lib/files/storage.js", import.meta.url),
+    "utf8",
+  );
+  const profileServiceSource = readFileSync(
+    new URL("../lib/employees/profileService.js", import.meta.url),
+    "utf8",
+  );
+  const employeeServiceSource = readFileSync(
+    new URL("../lib/employees/service.js", import.meta.url),
     "utf8",
   );
   const draftSource = readFileSync(
@@ -354,6 +362,8 @@ test("lifecycle file terpusat menutup upload komposit dan mengklaim file draft",
     assert.ok(uploadRoute.includes(`"${fileKind}"`));
   assert.match(storageSource, /sanksi_lainnya:[\s\S]*?mimes: PDF_MIMES/);
   assert.match(storageSource, /lifecycle_status='active',draft_slot=NULL/);
+  assert.match(profileServiceSource, /import \{[\s\S]*?purgeStagedStoredFiles,[\s\S]*?restoreStagedStoredFiles,[\s\S]*?stageStoredFilesForDeletion,[\s\S]*?\} from "@\/lib\/files\/storage"/);
+  assert.match(employeeServiceSource, /import \{[\s\S]*?purgeStagedStoredFiles,[\s\S]*?restoreStagedStoredFiles,[\s\S]*?\} from "@\/lib\/files\/storage"/);
   assert.match(draftSource, /onboarding_draft_id=\$2 AND lifecycle_status='draft'/);
   assert.match(migration, /uq_stored_files_active_draft_slot/);
 });
