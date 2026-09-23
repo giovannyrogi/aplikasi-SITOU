@@ -2,6 +2,12 @@ import { isIP } from "node:net";
 import { NextResponse } from "next/server";
 import { normalizeRequiredString } from "@/app/utils/apiValidation";
 import { authenticateUser, LoginError } from "@/lib/auth/loginService";
+import {
+  getRequestId,
+  readBoundedRequestText,
+  ServiceError,
+  validateRequestOrigin,
+} from "@/lib/api/routeHelpers";
 import { createSessionToken, getSessionTtlSeconds, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
@@ -9,8 +15,13 @@ export const runtime = "nodejs";
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
 const getRequestIp = (request) => {
-  const forwardedIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const candidate = forwardedIp || request.headers.get("x-real-ip")?.trim();
+  const forwardedIp =
+    process.env.TRUST_PROXY === "1"
+      ? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      : null;
+  const candidate =
+    forwardedIp ||
+    (process.env.TRUST_PROXY === "1" ? request.headers.get("x-real-ip")?.trim() : null);
   return candidate && isIP(candidate) ? candidate : "127.0.0.1";
 };
 
@@ -18,10 +29,13 @@ const validationError = (message) =>
   NextResponse.json({ success: false, code: "VALIDATION_ERROR", message }, { status: 400 });
 
 export async function POST(request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId(request);
+  const invalidOrigin = validateRequestOrigin(request, requestId);
+  if (invalidOrigin) return invalidOrigin;
 
   try {
-    const body = await request.json();
+    const text = await readBoundedRequestText(request, 8192);
+    const body = JSON.parse(text);
     const unknownFields = Object.keys(body || {}).filter(
       (field) => !["username", "password"].includes(field),
     );
@@ -87,6 +101,10 @@ export async function POST(request) {
 
     return response;
   } catch (error) {
+    if (error instanceof ServiceError && error.code === "PAYLOAD_TOO_LARGE") {
+      return validationError("Payload login terlalu besar.");
+    }
+
     if (error instanceof LoginError) {
       const response = NextResponse.json(
         { success: false, code: error.code, message: error.message },

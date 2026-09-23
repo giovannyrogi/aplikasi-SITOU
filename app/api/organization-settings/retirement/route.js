@@ -19,7 +19,7 @@ async function handle(request, write = false) {
     const organizationId = new URL(request.url).searchParams.get("organizationId");
     let data;
     if (write) {
-      const denied = validateMutationRequest(request, user.id, requestId);
+      const denied = await validateMutationRequest(request, user.id, requestId);
       if (denied) return denied;
       const parsed = await readJson(request, retirementPolicySchema, requestId);
       if (parsed.response) return parsed.response;

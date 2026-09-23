@@ -318,7 +318,7 @@ test("endpoint upload umum menolak perubahan langsung pada file profil", () => {
     new URL("../app/api/uploads/[fileId]/route.js", import.meta.url),
     "utf8",
   );
-  assert.match(uploadRoute, /PROFILE_FILE_COMPOSITE_REQUIRED/);
+  assert.match(uploadRoute, /UPLOAD_ENDPOINT_DISABLED/);
   assert.match(deleteRoute, /PROFILE_FILE_COMPOSITE_REQUIRED/);
 });
 
@@ -540,7 +540,9 @@ test("label status perkawinan dari draft lama dinormalkan ke kode resmi", () => 
   assert.equal(normalizeMaritalStatus("Cerai Mati"), "widowed");
 });
 
-test("validasi origin menerima origin publik yang diteruskan reverse proxy", () => {
+test("validasi origin menerima APP_ORIGIN production", () => {
+  const previousOrigin = process.env.APP_ORIGIN;
+  process.env.APP_ORIGIN = "https://sitou.pasarmanado.id";
   const request = new Request("http://127.0.0.1:3000/api/uploads", {
     headers: {
       origin: "https://sitou.pasarmanado.id",
@@ -549,6 +551,8 @@ test("validasi origin menerima origin publik yang diteruskan reverse proxy", () 
     },
   });
   assert.equal(validateRequestOrigin(request, "request-test"), null);
+  if (previousOrigin === undefined) delete process.env.APP_ORIGIN;
+  else process.env.APP_ORIGIN = previousOrigin;
 });
 
 test("validasi origin tetap menolak origin asing", () => {

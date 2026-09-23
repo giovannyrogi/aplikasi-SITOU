@@ -48,6 +48,8 @@
 !/scripts/test-retirement-policy-ui.mjs
 !/scripts/test-disciplinary-report-db.mjs
 !/scripts/expire-disciplinary-actions.mjs
+!/scripts/test-file-purge-queue-db.mjs
+!/scripts/scan-stored-files-malware.mjs
 /tests/*
 !/tests/row-numbers.test.mjs
 !/tests/reports.test.mjs
@@ -56,6 +58,9 @@
 !/tests/retirement-policy.test.mjs
 !/tests/disciplinary-report.test.mjs
 !/tests/disciplinary-action-types.test.mjs
+!/tests/malware-scanner.test.mjs
+!/tests/production-hardening.test.mjs
+!/tests/multipart-streaming.test.mjs
 /ecosystem.config.js
 
 # debug

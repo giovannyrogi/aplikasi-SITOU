@@ -116,6 +116,7 @@ export default function LeaveDetailModal({ item, onClose }) {
                 icon={<FileSearchOutlined />}
                 href={`/api/uploads/${file.id}?organizationId=${item.organization_id}`}
                 target="_blank"
+                rel="noopener noreferrer"
               >
                 Lihat lampiran {index + 1}
               </Button>

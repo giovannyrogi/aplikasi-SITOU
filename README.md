@@ -54,3 +54,6 @@ Baca `AGENTS.md` untuk aturan pengembangan dan `docs/database-schema.md` untuk p
 ## Identitas akun
 
 `users` hanya menyimpan kredensial dan metadata keamanan. Nama serta kontak akun organisasi dibaca langsung dari profil pegawai; Superadmin memakai `platform_user_profiles`, sedangkan akun HRD/Pimpinan yang belum tertaut ditampilkan menggunakan username. Menu Pengaturan menyediakan Profil dan Keluar tanpa menampilkan identitas pada pop-up.
+## Deployment production
+
+Ikuti [panduan hardening dan rollout production](docs/production-hardening.md) untuk migration 032, ClamAV, pemindaian file lama, worker purge, Nginx, dan smoke test sebelum membuka kembali aplikasi.

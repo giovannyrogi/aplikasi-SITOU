@@ -15,7 +15,7 @@ export async function PATCH(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("profile_self.update");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const parsed = await readJson(request, selfProfileUpdateSchema, requestId);
   if (parsed.response) return parsed.response;

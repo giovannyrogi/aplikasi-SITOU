@@ -45,7 +45,7 @@ export async function POST(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requireRole([ROLES.SUPERADMIN, ROLES.HRD]);
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const parsed = await readJson(request, employmentTypeCreateSchema, requestId);
   if (parsed.response) return parsed.response;

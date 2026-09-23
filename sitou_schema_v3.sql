@@ -91,6 +91,10 @@ CREATE TABLE stored_files (
   mime_type varchar(150) NOT NULL, -- MIME type hasil validasi server.
   size_bytes bigint NOT NULL CHECK (size_bytes >= 0), -- Ukuran file untuk limit dan audit.
   sha256 char(64), -- Hash integritas dan deteksi duplikasi.
+  malware_scan_status varchar(24) NOT NULL DEFAULT 'legacy_unscanned' CHECK (malware_scan_status IN ('pending','clean','infected','scan_error','legacy_unscanned')), -- Status antivirus byte file.
+  malware_scanned_at timestamptz, -- Waktu pemeriksaan antivirus terakhir.
+  malware_scan_engine varchar(80), -- Engine dan versi antivirus.
+  malware_signature text, -- Nama signature bila ancaman ditemukan.
   category varchar(40) NOT NULL CONSTRAINT ck_stored_files_category CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','leave_attachment','contract','assignment_decree','discipline_letter','identity','education','employee_import_source','other')), -- Kelompok kegunaan file.
   is_confidential boolean NOT NULL DEFAULT true, -- Menandai file membutuhkan izin sensitif.
   uploaded_by_user_id bigint, -- User pengunggah; FK ditambahkan setelah tabel users.
@@ -101,6 +105,38 @@ CREATE TABLE stored_files (
   CONSTRAINT ck_stored_files_key CHECK (object_key !~ '(^/|\\.\\.)')
 );
 COMMENT ON TABLE stored_files IS 'Metadata file privat. Byte file tidak disimpan di tabel dan hanya diakses melalui API berizin.';
+CREATE INDEX ix_stored_files_malware_scan_pending ON stored_files(organization_id,malware_scan_status,id)
+  WHERE lifecycle_status IN ('draft','active') AND malware_scan_status IN ('pending','scan_error','legacy_unscanned');
+
+CREATE TABLE file_purge_jobs (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL,
+  stored_file_id bigint NOT NULL,
+  object_key text NOT NULL,
+  status varchar(20) NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','retry','completed','failed')),
+  attempts integer NOT NULL DEFAULT 0 CHECK (attempts>=0),
+  next_attempt_at timestamptz NOT NULL DEFAULT now(),
+  last_error_code varchar(80),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  started_at timestamptz,
+  completed_at timestamptz,
+  CONSTRAINT fk_file_purge_job_file FOREIGN KEY (organization_id,stored_file_id) REFERENCES stored_files(organization_id,id),
+  CONSTRAINT ck_file_purge_job_key CHECK (object_key !~ '(^/|\.\.)')
+);
+CREATE UNIQUE INDEX uq_file_purge_jobs_pending_file ON file_purge_jobs(organization_id,stored_file_id)
+  WHERE status IN ('queued','processing','retry');
+CREATE INDEX ix_file_purge_jobs_ready ON file_purge_jobs(next_attempt_at,id)
+  WHERE status IN ('queued','retry');
+
+CREATE TABLE security_rate_limit_buckets (
+  action varchar(80) NOT NULL,
+  bucket_key char(64) NOT NULL,
+  window_started_at timestamptz NOT NULL,
+  request_count integer NOT NULL DEFAULT 0 CHECK (request_count>=0),
+  expires_at timestamptz NOT NULL,
+  PRIMARY KEY(action,bucket_key,window_started_at)
+);
+CREATE INDEX ix_security_rate_limit_expiry ON security_rate_limit_buckets(expires_at);
 
 CREATE TABLE organization_branding (
   organization_id bigint PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE, -- Organisasi pemilik branding.

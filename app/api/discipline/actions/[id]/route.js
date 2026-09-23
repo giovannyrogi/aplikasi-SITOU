@@ -14,7 +14,7 @@ export async function PATCH(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("discipline.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId, { maxBytes: 11 * 1024 * 1024 });
+  const rejected = await validateMutationRequest(request, user.id, requestId, { maxBytes: 11 * 1024 * 1024 });
   if (rejected) return rejected;
   const parsed = await readMultipartJson(request, disciplinaryActionUpdateSchema, requestId);
   if (parsed.response) return parsed.response;
@@ -37,5 +37,7 @@ export async function PATCH(request, { params }) {
     });
   } catch (error) {
     return handleRouteError("discipline.actions.update", error, requestId);
+  } finally {
+    await parsed.cleanup?.();
   }
 }

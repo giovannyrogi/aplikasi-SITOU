@@ -32,7 +32,7 @@ export async function PATCH(request, context) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("contracts.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId, { maxBytes: 11 * 1024 * 1024 });
+  const rejected = await validateMutationRequest(request, user.id, requestId, { maxBytes: 11 * 1024 * 1024 });
   if (rejected) return rejected;
   const ids = await resolveRouteIds(context, requestId);
   if (ids.response) return ids.response;
@@ -55,6 +55,8 @@ export async function PATCH(request, context) {
     });
   } catch (error) {
     return handleRouteError("employee-contracts.correct", error, requestId);
+  } finally {
+    await parsed.cleanup?.();
   }
 }
 
@@ -63,7 +65,7 @@ export async function DELETE(request, context) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("contracts.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const ids = await resolveRouteIds(context, requestId);
   if (ids.response) return ids.response;

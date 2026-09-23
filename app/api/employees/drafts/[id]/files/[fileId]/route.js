@@ -14,7 +14,7 @@ export async function DELETE(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("private_files.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const resolved = await params;
   const draftId = parsePositiveInteger(resolved.id, "ID draft");

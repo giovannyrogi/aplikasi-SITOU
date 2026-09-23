@@ -1,0 +1,33 @@
+# Ganti domain dan path sertifikat sesuai VPS.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name sitou.pasarmanado.id;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name sitou.pasarmanado.id;
+
+    ssl_certificate /etc/letsencrypt/live/sitou.pasarmanado.id/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/sitou.pasarmanado.id/privkey.pem;
+
+    client_max_body_size 120m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3003;
+        proxy_http_version 1.1;
+        proxy_request_buffering off;
+        proxy_buffering off;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Connection "";
+    }
+}

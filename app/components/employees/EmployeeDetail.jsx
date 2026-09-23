@@ -312,6 +312,7 @@ function VisualIdentity({
   title,
   file,
   aspectRatio,
+  frameWidth,
   emptyText,
   organizationId,
   onPreview,
@@ -338,6 +339,8 @@ function VisualIdentity({
           aria-label={`Perbesar ${title.toLowerCase()}`}
           sx={{
             width: "100%",
+            maxWidth: frameWidth,
+            aspectRatio,
             p: 0,
             display: "block",
             overflow: "hidden",
@@ -363,7 +366,7 @@ function VisualIdentity({
             alt={title}
             style={{
               width: "100%",
-              ...(aspectRatio ? { aspectRatio } : {}),
+              height: "100%",
               display: "block",
               objectFit,
             }}
@@ -372,7 +375,9 @@ function VisualIdentity({
       ) : (
         <Box
           sx={{
-            minHeight: 132,
+            width: "100%",
+            maxWidth: frameWidth,
+            aspectRatio,
             display: "grid",
             placeItems: "center",
             px: 2,
@@ -900,8 +905,8 @@ export default function EmployeeDetail({ employeeId }) {
                     display: "grid",
                     gridTemplateColumns: {
                       xs: "minmax(0, 1fr)",
-                      sm: "180px minmax(0, 420px)",
-                      xl: "180px repeat(2, minmax(0, 420px))",
+                      sm: "135px 286px",
+                      xl: "135px 286px 286px",
                     },
                     gap: { xs: 3, sm: 3.5 },
                     alignItems: "start",
@@ -913,31 +918,34 @@ export default function EmployeeDetail({ employeeId }) {
                     title="Pas foto"
                     file={state.profile.profilePhoto}
                     aspectRatio="3 / 4"
+                    frameWidth={135}
                     emptyText="Pas foto belum diunggah."
                     organizationId={organizationId}
                     onPreview={setImagePreview}
-                    objectFit="cover"
-                    sx={{ width: "100%", maxWidth: 180, mx: { xs: "auto", sm: 0 } }}
+                    objectFit="contain"
+                    sx={{ width: "100%", maxWidth: 135, mx: { xs: "auto", sm: 0 } }}
                   />
                   <VisualIdentity
                     title="Foto KTP"
                     file={ktpIdentifier?.document_file}
+                    aspectRatio="1.586 / 1"
+                    frameWidth={286}
                     emptyText="Foto KTP belum diunggah."
                     organizationId={organizationId}
                     onPreview={setImagePreview}
-                    frameless
-                    sx={{ width: "100%", maxWidth: 420, mx: { xs: "auto", sm: 0 } }}
+                    sx={{ width: "100%", maxWidth: 286, mx: { xs: "auto", sm: 0 } }}
                   />
                   <VisualIdentity
                     title="Foto Kartu Keluarga (KK)"
                     file={familyCardIdentifier?.document_file}
+                    aspectRatio="1.586 / 1"
+                    frameWidth={286}
                     emptyText="Foto Kartu Keluarga belum diunggah."
                     organizationId={organizationId}
                     onPreview={setImagePreview}
-                    frameless
                     sx={{
                       width: "100%",
-                      maxWidth: 420,
+                      maxWidth: 286,
                       mx: { xs: "auto", sm: 0 },
                       gridColumn: { sm: 2, xl: "auto" },
                     }}

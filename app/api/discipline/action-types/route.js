@@ -56,7 +56,7 @@ export async function POST(request) {
       new ServiceError("FORBIDDEN", "Hanya Superadmin yang dapat menambahkan jenis sanksi.", 403),
       requestId,
     );
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const parsed = await readJson(request, disciplinaryActionTypeCreateSchema, requestId);
   if (parsed.response) return parsed.response;

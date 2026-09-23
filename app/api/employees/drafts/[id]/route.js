@@ -16,7 +16,7 @@ export async function PATCH(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("employees.create");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const id = parsePositiveInteger((await params).id, "ID draft");
   if (id.error) return errorResponse("INVALID_ID", id.error, 400, requestId);
@@ -38,7 +38,7 @@ export async function DELETE(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("employees.create");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const id = parsePositiveInteger((await params).id, "ID draft");
   if (id.error) return errorResponse("INVALID_ID", id.error, 400, requestId);

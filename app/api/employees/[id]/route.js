@@ -1,3 +1,4 @@
+import { parseMultipartToPrivateTemp } from "@/lib/api/multipart";
 import { parsePositiveInteger } from "@/app/utils/apiValidation";
 import { ROLES } from "@/app/constants/roles";
 import {
@@ -65,7 +66,7 @@ export async function PATCH(request, context) {
   const { user, response } = await requirePermission("employees.update");
   if (response) return response;
   const isMultipart = request.headers.get("content-type")?.includes("multipart/form-data");
-  const rejected = validateMutationRequest(request, user.id, requestId, {
+  const rejected = await validateMutationRequest(request, user.id, requestId, {
     maxBytes: isMultipart ? MAX_EMPLOYEE_EDIT_BYTES : undefined,
   });
   if (rejected) return rejected;
@@ -73,12 +74,17 @@ export async function PATCH(request, context) {
   if (resolved.response) return resolved.response;
   let parsed;
   let pendingUploads = [];
+  let multipartForm = null;
   if (isMultipart) {
     try {
-      const formData = await request.formData();
+      const formData = await parseMultipartToPrivateTemp(request);
+      multipartForm = formData;
       const payload = JSON.parse(String(formData.get("payload") || ""));
+      const submittedFields = [...formData.keys()];
       const result = employeeUpdateMultipartSchema.safeParse(payload);
       if (!result.success) {
+        await multipartForm.cleanup();
+        multipartForm = null;
         const fieldErrors = Object.fromEntries(
           result.error.issues.map((issue) => [issue.path.join(".") || "form", issue.message]),
         );
@@ -96,8 +102,19 @@ export async function PATCH(request, context) {
           throw new Error("File perubahan profil tidak lengkap.");
         return { ...upload, file };
       });
+      const allowedFields = new Set([
+        "payload",
+        ...result.data.uploads.map((upload) => `upload:${upload.token}`),
+      ]);
+      if (submittedFields.some((field) => !allowedFields.has(field)))
+        throw new Error("Bagian multipart tidak diizinkan.");
+      for (const field of allowedFields)
+        if (field !== "payload" && formData.getAll(field).length !== 1)
+          throw new Error("Token file tidak lengkap atau duplikat.");
       parsed = { data: result.data, response: null };
     } catch {
+      await multipartForm?.cleanup?.();
+      multipartForm = null;
       return errorResponse(
         "INVALID_MULTIPART",
         "Data pegawai atau file yang dikirim tidak valid.",
@@ -123,6 +140,8 @@ export async function PATCH(request, context) {
     return successResponse(data, { code: "EMPLOYEE_UPDATED", message: "Data pegawai diperbarui." });
   } catch (error) {
     return handleRouteError("employees.update", error, requestId);
+  } finally {
+    await multipartForm?.cleanup?.();
   }
 }
 
@@ -131,7 +150,7 @@ export async function DELETE(request, context) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("employees.deactivate");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const resolved = await resolveId(context, requestId);
   if (resolved.response) return resolved.response;

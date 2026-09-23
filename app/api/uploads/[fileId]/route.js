@@ -1,6 +1,7 @@
 import pool from "@/lib/dbConfig";
 import { writeAudit } from "@/lib/audit";
 import {
+  actorHasPermission,
   requirePermission,
   resolvePermissionOrganization,
   ensureActorEmployeeAccess,
@@ -23,6 +24,20 @@ import { canViewDraftDisciplinaryActions } from "@/lib/discipline/visibility.mjs
 
 /** Memeriksa scope pegawai untuk HRD dengan akses lokasi tertentu. */
 async function enforceFileScope(user, file) {
+  const categoryPermissions = {
+    employee_import_source: "employee_import.read",
+    discipline_letter: "discipline.read",
+    contract: "contracts.read",
+    assignment_decree: "assignments.read",
+    leave_attachment: "leave_requests.read",
+  };
+  const categoryPermission = categoryPermissions[file.category];
+  if (categoryPermission && !(await actorHasPermission(user, categoryPermission)))
+    throw new ServiceError(
+      "FILE_FORBIDDEN",
+      "Anda tidak memiliki akses ke jenis file tersebut.",
+      403,
+    );
   if (file.onboarding_draft_id) {
     const draft = await pool.query(
       `SELECT 1 FROM employee_onboarding_drafts
@@ -97,7 +112,7 @@ export async function DELETE(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("private_files.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   try {
     const { fileId } = await params;

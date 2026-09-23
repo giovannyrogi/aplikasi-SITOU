@@ -11,7 +11,7 @@ import {
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
-import { listEmployeeFiles, storeEmployeeFile } from "@/lib/files/storage";
+import { listEmployeeFiles } from "@/lib/files/storage";
 
 const MAX_REQUEST_BYTES = 11 * 1024 * 1024;
 const COMPOSITE_FILE_KINDS = new Set([
@@ -57,36 +57,14 @@ export async function POST(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("private_files.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId, {
+  const rejected = await validateMutationRequest(request, user.id, requestId, {
     maxBytes: MAX_REQUEST_BYTES,
   });
   if (rejected) return rejected;
-  try {
-    const form = await request.formData();
-    const organizationId = resolvePermissionOrganization(user, form.get("organizationId") || null);
-    const employeeId = String(form.get("employeeId") || "");
-    const fileKind = String(form.get("fileKind") || "");
-    if (COMPOSITE_FILE_KINDS.has(fileKind))
-      throw new ServiceError(
-        "PROFILE_FILE_COMPOSITE_REQUIRED",
-        "Simpan file bersama formulir utama agar data dan file diproses dalam satu transaksi.",
-        409,
-      );
-    await ensureActorEmployeeAccess(user, employeeId, organizationId);
-    const data = await storeEmployeeFile({
-      file: form.get("file"),
-      fileKind,
-      employeeId,
-      organizationId,
-      actor: user,
-      requestId,
-    });
-    return successResponse(data, {
-      status: 201,
-      code: "FILE_UPLOADED",
-      message: "File berhasil diunggah.",
-    });
-  } catch (error) {
-    return handleRouteError("uploads.create", error, requestId);
-  }
+  return errorResponse(
+    "UPLOAD_ENDPOINT_DISABLED",
+    "Upload file wajib dilakukan bersama formulir pemiliknya.",
+    410,
+    requestId,
+  );
 }

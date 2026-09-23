@@ -1,5 +1,9 @@
 import { parsePositiveInteger } from "@/app/utils/apiValidation";
-import { requirePermission, resolvePermissionOrganization } from "@/lib/auth/permissions";
+import {
+  ensureActorEmployeeAccess,
+  requirePermission,
+  resolvePermissionOrganization,
+} from "@/lib/auth/permissions";
 import {
   errorResponse,
   getRequestId,
@@ -23,6 +27,7 @@ export async function GET(request, context) {
       user,
       new URL(request.url).searchParams.get("organizationId"),
     );
+    await ensureActorEmployeeAccess(user, id.value, organizationId);
     const history = await getEmployeeHistory(id.value, organizationId);
     return successResponse(history.assignments);
   } catch (error) {
@@ -35,7 +40,9 @@ export async function POST(request, context) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("assignments.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId, { maxBytes: 11 * 1024 * 1024 });
+  const rejected = await validateMutationRequest(request, user.id, requestId, {
+    maxBytes: 11 * 1024 * 1024,
+  });
   if (rejected) return rejected;
   const id = parsePositiveInteger((await context.params).id, "ID pegawai");
   if (id.error) return errorResponse("INVALID_ID", id.error, 400, requestId);
@@ -58,5 +65,7 @@ export async function POST(request, context) {
     });
   } catch (error) {
     return handleRouteError("employee-assignments.create", error, requestId);
+  } finally {
+    await parsed.cleanup?.();
   }
 }

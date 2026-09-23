@@ -58,11 +58,12 @@ try {
     const inserted = await pool.query(
       `INSERT INTO stored_files(
         organization_id,storage_provider,object_key,original_name,mime_type,size_bytes,sha256,
-        category,is_confidential,uploaded_by_user_id,deleted_at,deleted_by_user_id,deletion_reason_code)
+        category,is_confidential,uploaded_by_user_id,deleted_at,deleted_by_user_id,deletion_reason_code,lifecycle_status)
        VALUES($1,'local_private',$2,$3,'image/webp',34,$4,$5,true,$6::bigint,
          CASE WHEN $7::boolean THEN now()-interval '8 days' ELSE NULL END,
          CASE WHEN $7::boolean THEN $6::bigint ELSE NULL END,
-         CASE WHEN $7::boolean THEN 'profile_removed' ELSE NULL END)
+         CASE WHEN $7::boolean THEN 'profile_removed' ELSE NULL END,
+         CASE WHEN $7::boolean THEN 'deleted' ELSE 'active' END)
        RETURNING id::text`,
       [
         organizationId,
@@ -115,8 +116,8 @@ try {
     false,
   );
   assert.equal(
-    inspected.rows.some((item) => item.stored_file_id === official.id),
-    false,
+    inspected.rows.find((item) => item.stored_file_id === official.id)?.status,
+    "needs_review",
   );
 
   const cleanup = await pool.query(
@@ -137,7 +138,10 @@ try {
        VALUES($1,$2,$3,'candidate','queued','retention_expired_unreferenced',$4,34)`,
       [organizationId, cleanup.rows[0].id, file.id, file.category],
     );
-  await pool.query("UPDATE stored_files SET deleted_at=NULL WHERE id=$1", [changedAfterScan.id]);
+  await pool.query(
+    "UPDATE stored_files SET lifecycle_status='active',deleted_at=NULL,deleted_by_user_id=NULL,deletion_reason_code=NULL WHERE id=$1",
+    [changedAfterScan.id],
+  );
   await processNextStorageMaintenanceRun(pool, uploadRoot);
 
   const result = await pool.query(

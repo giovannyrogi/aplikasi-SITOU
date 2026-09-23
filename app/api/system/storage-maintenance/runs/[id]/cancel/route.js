@@ -13,7 +13,7 @@ export async function POST(request, context) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("storage_maintenance.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const parsed = await readJson(request, storageMaintenanceCancelSchema, requestId);
   if (parsed.response) return parsed.response;

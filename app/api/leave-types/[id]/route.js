@@ -14,7 +14,7 @@ export async function PATCH(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("leave_types.manage");
   if (response) return response;
-  const rejected = validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const { id } = await params;
   if (!/^\d+$/.test(id))
