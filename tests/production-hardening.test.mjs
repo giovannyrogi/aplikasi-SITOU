@@ -51,3 +51,16 @@ test("akses histori dan disiplin memeriksa scope pegawai", () => {
   const discipline = read("lib/discipline/service.js");
   assert.match(discipline, /getDisciplineCaseForActor[\s\S]*ensureActorEmployeeAccess/);
 });
+
+test("CSP meneruskan nonce yang sama ke renderer Next.js dan respons browser", () => {
+  const proxy = read("proxy.js");
+  assert.match(
+    proxy,
+    /requestHeaders\.set\("Content-Security-Policy", contentSecurityPolicy\)/,
+  );
+  assert.match(
+    proxy,
+    /response\.headers\.set\("Content-Security-Policy", contentSecurityPolicy\)/,
+  );
+  assert.match(proxy, /requestHeaders\.set\("x-nonce", nonce\)/);
+});
