@@ -72,4 +72,12 @@ test("ikon antarmuka dibundel lokal tanpa koneksi Iconify", () => {
   assert.doesNotMatch(packageJson, /@iconify\/react/);
   assert.match(appIcon, /from "@ant-design\/icons"/);
   assert.match(menu, /AppIcon/);
+  const navigationIcons = [...menu.matchAll(/icon="(navigation:[^"]+)"/g)].map(
+    (match) => match[1],
+  );
+  assert.equal(new Set(navigationIcons).size, navigationIcons.length);
+  const mappedComponents = [
+    ...appIcon.matchAll(/"navigation:[^"]+": ([A-Za-z]+),/g),
+  ].map((match) => match[1]);
+  assert.equal(new Set(mappedComponents).size, mappedComponents.length);
 });

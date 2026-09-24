@@ -1,6 +1,4 @@
 import AppIcon from "@/app/components/icons/AppIcon";
-import AccountTreeRoundedIcon from "@mui/icons-material/AccountTreeRounded";
-import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import { ROLES } from "./ConstantRoles";
 
 const DASHBOARD_ROLES = [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER];
@@ -10,20 +8,20 @@ const MENU_CONFIG = [
     label: "Dashboard",
     value: "dashboard",
     path: "/dashboard",
-    icon: <AppIcon icon="solar:widget-5-bold-duotone" fontSize="20px" />,
+    icon: <AppIcon icon="navigation:dashboard" fontSize="20px" />,
     roles: DASHBOARD_ROLES,
   },
   {
     label: "Data Master",
     value: "master-data",
-    icon: <AppIcon icon="solar:database-bold-duotone" fontSize="20px" />,
+    icon: <AppIcon icon="navigation:master-data" fontSize="20px" />,
     roles: [ROLES.SUPERADMIN, ROLES.HRD],
     submenu: [
       {
         label: "Organisasi",
         value: "master-organizations",
         path: "/master-data/organizations",
-        icon: <AppIcon icon="solar:buildings-3-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:organization" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN],
       },
@@ -31,7 +29,7 @@ const MENU_CONFIG = [
         label: "Lokasi",
         value: "master-locations",
         path: "/master-data/locations",
-        icon: <AppIcon icon="solar:map-point-wave-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:location" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
@@ -39,7 +37,7 @@ const MENU_CONFIG = [
         label: "Jenis Unit Organisasi",
         value: "master-organization-unit-types",
         path: "/master-data/organization-unit-types",
-        icon: <CategoryRoundedIcon sx={{ fontSize: 20 }} />,
+        icon: <AppIcon icon="navigation:organization-unit-type" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
@@ -47,7 +45,7 @@ const MENU_CONFIG = [
         label: "Divisi & Unit",
         value: "master-organization-units",
         path: "/master-data/organization-units",
-        icon: <AccountTreeRoundedIcon sx={{ fontSize: 20 }} />,
+        icon: <AppIcon icon="navigation:organization-unit" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
@@ -55,7 +53,7 @@ const MENU_CONFIG = [
         label: "Jabatan",
         value: "master-positions",
         path: "/master-data/positions",
-        icon: <AppIcon icon="solar:case-round-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:position" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
@@ -63,7 +61,7 @@ const MENU_CONFIG = [
         label: "Jenis Kepegawaian",
         value: "master-employment-types",
         path: "/master-data/employment-types",
-        icon: <AppIcon icon="solar:document-add-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:employment-type" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
@@ -72,14 +70,14 @@ const MENU_CONFIG = [
   {
     label: "Kepegawaian",
     value: "employees-module",
-    icon: <AppIcon icon="solar:users-group-rounded-bold-duotone" fontSize="20px" />,
+    icon: <AppIcon icon="navigation:employees" fontSize="20px" />,
     roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
     submenu: [
       {
         label: "Data Pegawai",
         value: "employees",
         path: "/employees",
-        icon: <AppIcon icon="solar:user-id-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:employee-data" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
       },
@@ -87,7 +85,7 @@ const MENU_CONFIG = [
         label: "Cuti & Izin",
         value: "leave-requests",
         path: "/leave-requests",
-        icon: <AppIcon icon="solar:calendar-mark-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:leave" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],
       },
@@ -96,14 +94,14 @@ const MENU_CONFIG = [
   {
     label: "Laporan",
     value: "reports",
-    icon: <AppIcon icon="solar:chart-2-bold-duotone" fontSize="20px" />,
+    icon: <AppIcon icon="navigation:reports" fontSize="20px" />,
     roles: DASHBOARD_ROLES,
     submenu: [
       {
         label: "Kontrak Akan Berakhir",
         value: "expiring-contracts-report",
         path: "/reports/expiring-contracts",
-        icon: <AppIcon icon="clarity:contract-solid" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:expiring-contract" fontSize="20px" />,
         showIcon: true,
         roles: DASHBOARD_ROLES,
       },
@@ -111,7 +109,7 @@ const MENU_CONFIG = [
         label: "Proyeksi Pensiun",
         value: "retirement-report",
         path: "/reports/retirements",
-        icon: <AppIcon icon="fa6-solid:people-group" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:retirement-projection" fontSize="20px" />,
         showIcon: true,
         roles: DASHBOARD_ROLES,
       },
@@ -119,7 +117,7 @@ const MENU_CONFIG = [
         label: "Sanksi Pegawai",
         value: "disciplinary-actions-report",
         path: "/reports/disciplinary-actions",
-        icon: <AppIcon icon="solar:shield-warning-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:disciplinary-report" fontSize="20px" />,
         showIcon: true,
         roles: DASHBOARD_ROLES,
       },
@@ -128,14 +126,14 @@ const MENU_CONFIG = [
   {
     label: "Akun & Akses",
     value: "access-module",
-    icon: <AppIcon icon="solar:key-bold-duotone" fontSize="20px" />,
+    icon: <AppIcon icon="navigation:access" fontSize="20px" />,
     roles: [ROLES.SUPERADMIN, ROLES.HRD],
     submenu: [
       {
         label: "Akun Organisasi",
         value: "organization-accounts",
         path: "/access/accounts",
-        icon: <AppIcon icon="solar:shield-user-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:organization-account" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
@@ -144,14 +142,14 @@ const MENU_CONFIG = [
   {
     label: "Pengaturan Organisasi",
     value: "organization-settings",
-    icon: <AppIcon icon="solar:settings-bold-duotone" fontSize="20px" />,
+    icon: <AppIcon icon="navigation:organization-settings" fontSize="20px" />,
     roles: DASHBOARD_ROLES,
     submenu: [
       {
         label: "Aturan Cuti & Izin",
         value: "leave-settings",
         path: "/organization-settings/leave-types",
-        icon: <AppIcon icon="solar:calendar-minimalistic-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:leave-settings" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
@@ -159,7 +157,7 @@ const MENU_CONFIG = [
         label: "Pengaturan Sanksi",
         value: "disciplinary-action-settings",
         path: "/organization-settings/disciplinary-actions",
-        icon: <AppIcon icon="solar:shield-warning-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:disciplinary-settings" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN, ROLES.HRD],
       },
@@ -167,7 +165,7 @@ const MENU_CONFIG = [
         label: "Kebijakan Pensiun",
         value: "retirement-policy",
         path: "/organization-settings/retirement",
-        icon: <AppIcon icon="solar:calendar-date-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:retirement-policy" fontSize="20px" />,
         showIcon: true,
         roles: DASHBOARD_ROLES,
       },
@@ -176,14 +174,14 @@ const MENU_CONFIG = [
   {
     label: "Pemeliharaan Sistem",
     value: "system-maintenance",
-    icon: <AppIcon icon="solar:settings-minimalistic-bold-duotone" fontSize="20px" />,
+    icon: <AppIcon icon="navigation:system-maintenance" fontSize="20px" />,
     roles: [ROLES.SUPERADMIN],
     submenu: [
       {
         label: "Penyimpanan File",
         value: "storage-maintenance",
         path: "/system/storage-maintenance",
-        icon: <AppIcon icon="solar:folder-with-files-bold-duotone" fontSize="20px" />,
+        icon: <AppIcon icon="navigation:storage-maintenance" fontSize="20px" />,
         showIcon: true,
         roles: [ROLES.SUPERADMIN],
       },
