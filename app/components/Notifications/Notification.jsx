@@ -4,7 +4,7 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Snackbar from "@mui/material/Snackbar";
 import { alpha, useTheme } from "@mui/material/styles";
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import FontStyle from "../font-style/FontStyle";
 
 const DEFAULT_AUTO_HIDE_DURATION = 4000;
@@ -153,7 +153,7 @@ export default function Notification({
               flexShrink: 0,
             }}
           >
-            <Icon icon={config.icon} fontSize={22} />
+            <AppIcon icon={config.icon} fontSize={22} />
           </Box>
 
           <Box sx={{ minWidth: 0 }}>

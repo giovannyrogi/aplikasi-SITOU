@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import { Box, Paper, Skeleton, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 
@@ -26,7 +26,7 @@ export default function DashboardActivityList({ items = [], loading }) {
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Icon icon="solar:history-bold-duotone" width={22} color={theme.status.info.main} />
+        <AppIcon icon="solar:history-bold-duotone" width={22} color={theme.status.info.main} />
         <FontStyle component="h2" fontSize={15} fontWeight={700}>
           Aktivitas terbaru
         </FontStyle>
@@ -66,7 +66,7 @@ export default function DashboardActivityList({ items = [], loading }) {
                   color: theme.status.info.main,
                 }}
               >
-                <Icon icon="solar:check-read-bold-duotone" width={16} />
+                <AppIcon icon="solar:check-read-bold-duotone" width={16} />
               </Box>
               <Box sx={{ minWidth: 0 }}>
                 <FontStyle fontSize={12.5} fontWeight={600}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import { Box, Paper, Skeleton, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 
@@ -39,7 +39,7 @@ export default function DashboardChart({ title, description, icon, loading, empt
             flexShrink: 0,
           }}
         >
-          <Icon icon={icon} width={20} />
+          <AppIcon icon={icon} width={20} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <FontStyle component="h2" fontSize={15} fontWeight={700}>

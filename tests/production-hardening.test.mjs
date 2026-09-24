@@ -64,3 +64,12 @@ test("CSP meneruskan nonce yang sama ke renderer Next.js dan respons browser", (
   );
   assert.match(proxy, /requestHeaders\.set\("x-nonce", nonce\)/);
 });
+
+test("ikon antarmuka dibundel lokal tanpa koneksi Iconify", () => {
+  const packageJson = read("package.json");
+  const appIcon = read("app/components/icons/AppIcon.jsx");
+  const menu = read("app/components/menu/MenuConfig.jsx");
+  assert.doesNotMatch(packageJson, /@iconify\/react/);
+  assert.match(appIcon, /from "@ant-design\/icons"/);
+  assert.match(menu, /AppIcon/);
+});

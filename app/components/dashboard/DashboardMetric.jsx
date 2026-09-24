@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import { Box, Paper, Skeleton, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import MetricSparkline from "./MetricSparkline";
@@ -64,7 +64,7 @@ export default function DashboardMetric({ metric, loading }) {
                 flexShrink: 0,
               }}
             >
-              <Icon icon={metric.icon} width={23} />
+              <AppIcon icon={metric.icon} width={23} />
             </Box>
           </Box>
           {metric.trendData?.length ? (

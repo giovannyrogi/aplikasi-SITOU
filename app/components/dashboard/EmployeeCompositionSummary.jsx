@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import { Box, Paper, Skeleton, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import DonutChart from "./DonutChart";
@@ -112,7 +112,7 @@ export default function EmployeeCompositionSummary({ data, loading }) {
             bgcolor: theme.ui.panelAccentBg,
           }}
         >
-          <Icon icon="solar:chart-square-bold-duotone" width={21} />
+          <AppIcon icon="solar:chart-square-bold-duotone" width={21} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <FontStyle id="employee-composition-title" component="h2" fontSize={15} fontWeight={700}>
@@ -150,7 +150,7 @@ export default function EmployeeCompositionSummary({ data, loading }) {
             }}
           >
             <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-              <Icon icon={chart.icon} width={19} color={theme.palette.primary.main} />
+              <AppIcon icon={chart.icon} width={19} color={theme.palette.primary.main} />
               <Box sx={{ minWidth: 0 }}>
                 <FontStyle component="h3" fontSize={13} fontWeight={700}>
                   {chart.title}

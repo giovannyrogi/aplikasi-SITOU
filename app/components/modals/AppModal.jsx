@@ -3,7 +3,7 @@
 import { useId } from "react";
 import { Box, Divider, IconButton, Modal, Tooltip, useTheme } from "@mui/material";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import FontStyle from "../font-style/FontStyle";
 
 const SIZE_WIDTH = { sm: 480, md: 720, lg: 960, xl: 1200 };
@@ -98,7 +98,7 @@ export default function AppModal({
                 bgcolor: theme.ui.iconButtonBg,
               }}
             >
-              {typeof icon === "string" ? <Icon icon={icon} fontSize={22} /> : icon}
+              {typeof icon === "string" ? <AppIcon icon={icon} fontSize={22} /> : icon}
             </Box>
           ) : null}
           <Box sx={{ minWidth: 0, flex: 1 }}>

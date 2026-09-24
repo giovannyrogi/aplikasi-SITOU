@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "antd";
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import { Box, Divider, Paper, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 
@@ -41,7 +41,7 @@ export default function OperationalFilterSection({
       >
         <Box sx={{ minWidth: 0 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Icon icon="solar:filter-bold-duotone" width={20} color={theme.palette.primary.main} />
+            <AppIcon icon="solar:filter-bold-duotone" width={20} color={theme.palette.primary.main} />
             <FontStyle component="h2" fontSize={{ xs: 15, sm: 16 }} fontWeight={700}>
               {title}
             </FontStyle>
@@ -54,7 +54,7 @@ export default function OperationalFilterSection({
         </Box>
         {onReset ? (
           <Button
-            icon={<Icon icon="solar:restart-linear" width={18} />}
+            icon={<AppIcon icon="solar:restart-linear" width={18} />}
             onClick={onReset}
             style={{ minHeight: 40 }}
           >

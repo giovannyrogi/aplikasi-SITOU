@@ -3,7 +3,7 @@
 import { readApiResponse } from "@/lib/api/clientError";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import { Box, Button, Paper, useTheme } from "@mui/material";
 import { ROLES } from "@/app/constants/roles";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
@@ -247,7 +247,7 @@ export default function DashboardClient() {
                   color: attentionCount ? theme.status.warning.main : theme.status.success.main,
                 }}
               >
-                <Icon
+                <AppIcon
                   icon={
                     attentionCount
                       ? "solar:danger-triangle-bold-duotone"
@@ -274,7 +274,7 @@ export default function DashboardClient() {
             </Box>
             <Button
               variant="outlined"
-              startIcon={<Icon icon="solar:refresh-linear" />}
+              startIcon={<AppIcon icon="solar:refresh-linear" />}
               onClick={loadDashboard}
               disabled={state.loading}
               sx={{ minHeight: 44, bgcolor: theme.ui.panelBg, flexShrink: 0 }}

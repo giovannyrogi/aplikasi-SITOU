@@ -11,7 +11,7 @@ import {
   TextField,
   useTheme,
 } from "@mui/material";
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import axios from "axios";
 import Notification from "@/app/components/Notifications/Notification";
 import FontStyle from "@/app/components/font-style/FontStyle";
@@ -390,7 +390,7 @@ export default function LoginPage() {
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Icon icon="solar:user-linear" fontSize={20} color={theme.brand.iconMuted} />
+                    <AppIcon icon="solar:user-linear" fontSize={20} color={theme.brand.iconMuted} />
                   </InputAdornment>
                 ),
               },
@@ -434,7 +434,7 @@ export default function LoginPage() {
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Icon
+                    <AppIcon
                       icon="solar:lock-keyhole-linear"
                       fontSize={20}
                       color={theme.brand.iconMuted}
@@ -450,7 +450,7 @@ export default function LoginPage() {
                       edge="end"
                       sx={{ color: theme.brand.iconMuted }}
                     >
-                      <Icon
+                      <AppIcon
                         icon={showPassword ? "solar:eye-linear" : "solar:eye-closed-linear"}
                         fontSize={19}
                       />

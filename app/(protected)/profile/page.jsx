@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Form, Input, Select, Tag } from "antd";
 import { Avatar, Box, Paper, useTheme } from "@mui/material";
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
 import AppModal from "@/app/components/modals/AppModal";
@@ -58,7 +58,7 @@ function AccountInfo({ icon, label, value }) {
           bgcolor: theme.ui.iconButtonBg,
         }}
       >
-        <Icon icon={icon} fontSize={21} />
+        <AppIcon icon={icon} fontSize={21} />
       </Box>
       <Box sx={{ minWidth: 0 }}>
         <FontStyle fontSize={11} sx={{ color: theme.ui.mutedText }}>
@@ -101,7 +101,7 @@ function ProfileActionCard({ icon, title, description, buttonText, onClick, disa
           bgcolor: theme.ui.iconButtonBg,
         }}
       >
-        <Icon icon={icon} fontSize={23} />
+        <AppIcon icon={icon} fontSize={23} />
       </Box>
       <FontStyle component="h2" fontSize={15} fontWeight={700}>
         {title}

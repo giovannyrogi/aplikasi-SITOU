@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon } from "@iconify/react";
+import AppIcon from "@/app/components/icons/AppIcon";
 import { EyeOutlined } from "@ant-design/icons";
 import { Box, IconButton, Paper, Skeleton, Tooltip, useTheme } from "@mui/material";
 import { useRouter } from "next/navigation";
@@ -46,7 +46,7 @@ export default function DashboardAttentionList({
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Icon icon="solar:bell-bing-bold-duotone" width={22} color={theme.status.warning.main} />
+        <AppIcon icon="solar:bell-bing-bold-duotone" width={22} color={theme.status.warning.main} />
         <FontStyle component="h2" fontSize={15} fontWeight={700}>
           {title}
         </FontStyle>
