@@ -129,7 +129,6 @@ export function EmployeeRelatedSummary({ profile, embedded = false }) {
             description: [
               formatDependentRelationship(item.relationship),
               item.birth_date ? `Lahir ${formatProfileDate(item.birth_date)}` : null,
-              item.phone,
               item.is_dependent ? "Tanggungan" : null,
               item.notes,
             ]

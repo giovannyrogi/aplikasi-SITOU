@@ -452,15 +452,12 @@ CREATE TABLE employee_dependents (
   full_name varchar(200) NOT NULL, -- Nama anggota keluarga.
   birth_date date, -- Tanggal lahir.
   national_id varchar(30), -- NIK anggota keluarga; data sensitif.
-  phone varchar(30), -- Nomor kontak seluler E.164 Indonesia.
   is_dependent boolean NOT NULL DEFAULT true, -- Apakah menjadi tanggungan resmi.
-  is_emergency_contact boolean NOT NULL DEFAULT false, -- Apakah juga kontak darurat.
   notes text, -- Catatan administrasi.
-  CONSTRAINT fk_dependents_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE,
-  CONSTRAINT ck_employee_dependents_phone_e164 CHECK (phone IS NULL OR phone ~ '^\+628[1-9][0-9]{7,10}$')
+  CONSTRAINT fk_dependents_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE
 );
 COMMENT ON COLUMN employee_dependents.relationship IS 'Hubungan keluarga canonical: istri, suami, anak, ayah, ibu, saudara kandung, mertua, kakek, nenek, cucu, wali, atau lainnya.';
-COMMENT ON TABLE employee_dependents IS 'Anggota keluarga, tanggungan, dan kontak darurat terkait disimpan per individu.';
+COMMENT ON TABLE employee_dependents IS 'Anggota keluarga dan tanggungan pegawai; data komunikasi dikelola melalui employee_emergency_contacts.';
 CREATE INDEX ix_dependents_employee ON employee_dependents(organization_id,employee_id,relationship);
 
 CREATE TABLE employee_emergency_contacts (

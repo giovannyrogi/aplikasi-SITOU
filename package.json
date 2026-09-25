@@ -35,7 +35,8 @@
     "test:account-identity:db": "node scripts/test-account-identity-db.mjs",
     "db:migrate": "node scripts/apply-development-migration.mjs",
     "files:scan-malware": "node scripts/scan-stored-files-malware.mjs",
-    "test:file-purge:db": "node scripts/test-file-purge-queue-db.mjs"
+    "test:file-purge:db": "node scripts/test-file-purge-queue-db.mjs",
+    "test:dependent-contacts:db": "node scripts/test-dependent-contact-migration-db.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",

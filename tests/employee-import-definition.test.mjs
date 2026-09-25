@@ -1,9 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   EMPLOYEE_IMPORT_SHEET_GUIDANCE,
   EMPLOYEE_IMPORT_SHEETS,
+  EMPLOYEE_IMPORT_TEMPLATE_OUTDATED_MESSAGE,
+  EMPLOYEE_IMPORT_TEMPLATE_SUBJECT,
+  EMPLOYEE_IMPORT_TEMPLATE_VERSION,
   IMPORT_ENUMS,
+  isCurrentEmployeeImportTemplate,
   IMPORT_OPTION_GROUPS,
   getImportOptionGroup,
   isSupportedImportOption,
@@ -76,6 +81,29 @@ test("petunjuk mengklasifikasikan seluruh sheet dari satu sumber yang sama", () 
     assert.equal(guidance.requirement, "optional");
 });
 
+test("template import memakai versi baru setelah pemusatan kontak darurat", () => {
+  assert.equal(EMPLOYEE_IMPORT_TEMPLATE_VERSION, 2);
+  assert.equal(EMPLOYEE_IMPORT_TEMPLATE_SUBJECT, "SITOU_EMPLOYEE_IMPORT_V2");
+  assert.equal(isCurrentEmployeeImportTemplate(EMPLOYEE_IMPORT_TEMPLATE_SUBJECT), true);
+  assert.equal(isCurrentEmployeeImportTemplate("SITOU_EMPLOYEE_IMPORT_V1"), false);
+  assert.match(EMPLOYEE_IMPORT_TEMPLATE_OUTDATED_MESSAGE, /Kontak_Darurat/);
+  const family = EMPLOYEE_IMPORT_SHEETS.find((sheet) => sheet.name === "Keluarga");
+  const keys = family.columns.map(([key]) => key);
+  assert.equal(keys.includes("phone"), false);
+  assert.equal(keys.includes("isEmergencyContact"), false);
+});
+
+test("commit batch lama ditolak sebelum status batch diklaim", () => {
+  const service = readFileSync(
+    new URL("../lib/employees/importService.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    service,
+    /normalized_data \?\| ARRAY\['phone','isEmergencyContact'\][\s\S]*?IMPORT_TEMPLATE_OUTDATED[\s\S]*?const claimed/,
+  );
+});
+
 test("setiap sheet data ditautkan menggunakan NIP", () => {
   for (const sheet of EMPLOYEE_IMPORT_SHEETS)
     assert.equal(sheet.columns[0][0], "employeeNo", `${sheet.name} tidak memiliki employeeNo`);
@@ -125,7 +153,7 @@ test("seluruh field pilihan template dipetakan sesuai kontrol aplikasi", () => {
     Pegawai: ["gender", "maritalStatus", "bloodType", "employmentStatus"],
     Identitas: ["identifierType", "isVerified"],
     Rekening: ["isPrimary"],
-    Keluarga: ["relationship", "isDependent", "isEmergencyContact"],
+    Keluarga: ["relationship", "isDependent"],
     Kontak_Darurat: ["isPrimary"],
     Akun_Sosial: ["platform"],
     Pendidikan: ["educationLevel", "isHighest"],
@@ -231,6 +259,34 @@ test("schema profil menerima hubungan baru dan menolak hubungan ambigu lama", ()
       false,
       relationship,
     );
+});
+
+test("schema profil menolak field kontak keluarga lama dengan petunjuk khusus", () => {
+  const result = employeeProfileSectionsSchema.safeParse({
+    dependents: [
+      {
+        relationship: "wife",
+        fullName: "Anggota Keluarga",
+        phone: "+628123456789",
+        isEmergencyContact: true,
+      },
+    ],
+  });
+  assert.equal(result.success, false);
+  assert.equal(
+    result.error.issues.some(
+      (issue) =>
+        issue.path.join(".") === "dependents.0.phone" &&
+        /Kontak darurat/.test(issue.message),
+    ),
+    true,
+  );
+  assert.equal(
+    result.error.issues.some(
+      (issue) => issue.path.join(".") === "dependents.0.isEmergencyContact",
+    ),
+    true,
+  );
 });
 
 test("import menormalisasi label baru dan menjelaskan koreksi nilai lama", () => {

@@ -132,9 +132,7 @@ function normalizeProfile(profile) {
       fullName: "full_name",
       birthDate: "birth_date",
       nationalId: "national_id",
-      phone: "phone",
       isDependent: "is_dependent",
-      isEmergencyContact: "is_emergency_contact",
       notes: "notes",
     }).map((item) => ({ ...item, birthDate: toDatePickerValue(item.birthDate) })),
     emergencyContacts: map(profile.emergencyContacts, {
@@ -903,7 +901,7 @@ export default function EmployeeProfileSectionsForm({
         <ListSection
           name="dependents"
           addLabel="Tambah keluarga"
-          initialValue={{ relationship: "child", isDependent: true, isEmergencyContact: false }}
+          initialValue={{ relationship: "child", isDependent: true }}
           onRemoveItem={(fieldName, remove) =>
             requestListRemoval("dependents", "Tambah keluarga", fieldName, remove)
           }
@@ -930,13 +928,6 @@ export default function EmployeeProfileSectionsForm({
               >
                 <IndonesianNationalIdInput />
               </Form.Item>
-              <Form.Item
-                name={[field.name, "phone"]}
-                label="Nomor kontak"
-                rules={getIndonesianMobileFormRules()}
-              >
-                <IndonesiaPhoneInput />
-              </Form.Item>
               <Box
                 sx={{
                   gridColumn: "1 / -1",
@@ -945,13 +936,6 @@ export default function EmployeeProfileSectionsForm({
                   mt: -0.5,
                 }}
               >
-                <Form.Item
-                  name={[field.name, "isEmergencyContact"]}
-                  valuePropName="checked"
-                  style={{ marginBottom: 0 }}
-                >
-                  <Checkbox>Dapat dihubungi saat darurat</Checkbox>
-                </Form.Item>
                 <Form.Item
                   name={[field.name, "isDependent"]}
                   valuePropName="checked"

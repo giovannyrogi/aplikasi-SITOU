@@ -58,7 +58,12 @@ try {
       (SELECT array_agg(r.code::text ORDER BY r.code)=ARRAY['hrd','superadmin']::text[]
         FROM permissions p JOIN role_permissions rp ON rp.permission_id=p.id
         JOIN roles r ON r.id=rp.role_id WHERE p.code='employees.export_sensitive')
-        AS has_employee_sensitive_export`,
+        AS has_employee_sensitive_export,
+      NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='employee_dependents'
+          AND column_name IN ('phone','is_emergency_contact')
+      ) AS has_centralized_emergency_contact_phone`,
   );
   const checks = result.rows[0];
   // Bandingkan struktur kebijakan hasil upgrade lokal dengan bootstrap kosong.

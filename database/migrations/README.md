@@ -72,3 +72,7 @@ Migration `031` memusatkan lifecycle file dengan status `draft|active|deleted|pu
 Migration `032` menambahkan status antivirus, antrean purge byte pascacommit, dan rate limit PostgreSQL. Backup database dan `UPLOAD_ROOT`, pastikan migration `031` sudah tercatat, lalu jalankan `npm run db:migrate -- database/migrations/20260922_032_production_security_hardening.sql`. Deploy aplikasi dan worker baru dalam satu maintenance window setelah ClamAV tersedia.
 
 Migration `033` menambahkan permission `employees.export_sensitive` hanya untuk Superadmin dan HRD. Jalankan `npm run db:migrate -- database/migrations/20260924_033_employee_sensitive_export.sql` sebelum mengaktifkan tombol Export pada menu Data Pegawai.
+
+Migration `034` memindahkan seluruh nomor pada anggota keluarga ke kontak darurat. Kontak darurat yang cocok berdasarkan nama atau nomor selalu dipertahankan, kontak baru hanya dibuat bila belum ada kecocokan, dan kontak tunggal tanpa pilihan utama otomatis menjadi kontak utama. Migration berhenti dan rollback bila satu nomor atau nama sumber menunjuk beberapa data yang ambigu. Jalankan sebelum deploy aplikasi yang memusatkan nomor pada bagian Kontak Darurat.
+
+Migration `035` mengulangi sinkronisasi dan preflight migration `034`, lalu menghapus kolom `employee_dependents.phone` serta `employee_dependents.is_emergency_contact`. Jalankan dalam maintenance singkat setelah aplikasi baru terverifikasi dan tidak lagi menulis kedua kolom tersebut.

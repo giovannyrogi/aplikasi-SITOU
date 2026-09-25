@@ -16,7 +16,7 @@ Import tidak memproses akun login, foto, dokumen, kasus disiplin, tindakan sanks
 | `Kontrak`                                   | Wajib bersyarat | Wajib untuk pegawai berstatus aktif atau masa percobaan (`active` atau `probation`); dapat memuat histori kontrak yang periodenya tidak bertumpuk. |
 | `Penempatan`                                | Wajib bersyarat | Wajib untuk pegawai berstatus aktif atau masa percobaan (`active` atau `probation`); dapat memuat histori rolling, promosi, demosi, atau mutasi.   |
 | `Kontak`, `Identitas`, `Rekening`           | Opsional        | Diisi bila data administratif tersebut tersedia.                                                                                                   |
-| `Keluarga`, `Kontak_Darurat`, `Akun_Sosial` | Opsional        | Diisi sesuai kebutuhan profil pegawai.                                                                                                             |
+| `Keluarga`, `Kontak_Darurat`, `Akun_Sosial` | Opsional        | Keluarga menyimpan hubungan dan tanggungan; seluruh nomor yang dapat dihubungi hanya diisi pada `Kontak_Darurat`.                                  |
 | `Pendidikan`, `Keahlian`, `Sertifikasi`     | Opsional        | Diisi untuk melengkapi kompetensi dan riwayat pegawai; file sertifikat tetap diunggah manual.                                                      |
 
 Sheet opsional yang tidak diperlukan boleh dibiarkan kosong dan tidak menghalangi proses import. Seluruh petunjuk workbook dan modal bersumber dari definisi yang sama agar status pengisian tetap konsisten.
