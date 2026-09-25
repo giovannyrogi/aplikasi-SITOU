@@ -54,7 +54,11 @@ try {
       (SELECT count(DISTINCT r.code)=2 FROM permissions p
         JOIN role_permissions rp ON rp.permission_id=p.id JOIN roles r ON r.id=rp.role_id
         WHERE p.code='discipline_settings.manage' AND r.code IN ('superadmin','hrd'))
-        AS has_discipline_settings_manage`,
+        AS has_discipline_settings_manage,
+      (SELECT array_agg(r.code::text ORDER BY r.code)=ARRAY['hrd','superadmin']::text[]
+        FROM permissions p JOIN role_permissions rp ON rp.permission_id=p.id
+        JOIN roles r ON r.id=rp.role_id WHERE p.code='employees.export_sensitive')
+        AS has_employee_sensitive_export`,
   );
   const checks = result.rows[0];
   // Bandingkan struktur kebijakan hasil upgrade lokal dengan bootstrap kosong.

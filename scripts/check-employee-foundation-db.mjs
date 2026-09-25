@@ -92,6 +92,7 @@ const expectedRolePermissions = {
   superadmin: [
     "employees.read",
     "employees.read_sensitive",
+    "employees.export_sensitive",
     "employees.create",
     "employees.update",
     "employees.deactivate",
@@ -120,6 +121,7 @@ const expectedRolePermissions = {
   hrd: [
     "employees.read",
     "employees.read_sensitive",
+    "employees.export_sensitive",
     "employees.create",
     "employees.update",
     "employees.deactivate",

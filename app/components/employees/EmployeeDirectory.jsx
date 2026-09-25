@@ -15,6 +15,7 @@ import { alpha } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
+import TableExportMenu from "@/app/components/data-display/TableExportMenu";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -29,7 +30,7 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import { ROLES } from "@/app/constants/roles";
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
-import { readApiResponse } from "@/lib/api/clientError";
+import { normalizeRequestError, readApiResponse } from "@/lib/api/clientError";
 import EmployeeAvatar from "./EmployeeAvatar";
 import EmployeeForm from "./EmployeeForm";
 import EmployeeImportModal from "./EmployeeImportModal";
@@ -43,6 +44,7 @@ export default function EmployeeDirectory() {
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
   const readOnly = user.role_code === ROLES.LEADER;
+  const canExport = [ROLES.SUPERADMIN, ROLES.HRD].includes(user.role_code);
   const list = useDataList("/api/employees", {
     requiredFilter: isSuperadmin ? "organizationId" : undefined,
     initialFilters: !isSuperadmin ? { organizationId: String(user.organization_id) } : {},
@@ -52,6 +54,7 @@ export default function EmployeeDirectory() {
   const [form, setForm] = useState({ open: false, item: null });
   const [terminationEmployee, setTerminationEmployee] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [references, setReferences] = useState({
     locations: [],
@@ -270,6 +273,37 @@ export default function EmployeeDirectory() {
     router.push(`/employees/${item.id}?${query.toString()}`);
   };
 
+  /** Mengunduh seluruh hasil filter aktif tanpa membawa pagination tabel. */
+  const exportExcel = async () => {
+    if (!organizationId || exporting) return;
+    setExporting(true);
+    try {
+      const query = new URLSearchParams(list.query);
+      query.delete("page");
+      query.delete("pageSize");
+      const response = await fetch(`/api/employees/export?${query}`);
+      if (!response.ok) await readApiResponse(response, "Data pegawai tidak dapat diekspor.");
+      if (!response.headers.get("content-type")?.includes("spreadsheetml"))
+        throw new Error("Unduhan Excel tidak tersedia. Periksa sesi login lalu coba kembali.");
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      const disposition = response.headers.get("content-disposition") || "";
+      const filename = disposition.match(/filename="([^"]+)"/)?.[1];
+      link.href = objectUrl;
+      link.download = filename || "sitou-data-pegawai.xlsx";
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      showNotification("Data pegawai berhasil diekspor ke Excel.");
+    } catch (error) {
+      showNotification(
+        normalizeRequestError(error, "Data pegawai tidak dapat diekspor.").message,
+        "error",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
   /** Menyediakan satu pintu masuk agar seluruh riwayat dibuka dari workspace detail pegawai. */
   const actions = (item) => [
     {
@@ -510,6 +544,12 @@ export default function EmployeeDirectory() {
         action={
           !readOnly ? (
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              <TableExportMenu
+                enabled={canExport}
+                onExcel={exportExcel}
+                loading={exporting}
+                disabled={!organizationId}
+              />
               <Button
                 icon={<ImportOutlined />}
                 onClick={() => setImportOpen(true)}

@@ -1541,6 +1541,7 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO permissions(code,description) VALUES
   ('employees.read','Melihat daftar dan detail pegawai.'),
   ('employees.read_sensitive','Melihat data pribadi dan administrasi sensitif pegawai.'),
+  ('employees.export_sensitive','Mengekspor profil administratif sensitif pegawai ke Excel.'),
   ('employees.create','Membuat profil pegawai.'),
   ('employees.update','Memperbarui profil pegawai.'),
   ('employees.deactivate','Mengakhiri status aktif pegawai.'),
@@ -1577,7 +1578,7 @@ INSERT INTO role_permissions(role_id,permission_id)
 SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
 WHERE role.code IN ('superadmin','hrd')
   AND permission.code IN (
-    'employees.read','employees.read_sensitive','employees.create','employees.update','employees.deactivate',
+    'employees.read','employees.read_sensitive','employees.export_sensitive','employees.create','employees.update','employees.deactivate',
     'assignments.read','assignments.manage','contracts.read','contracts.manage',
     'discipline.read','discipline.manage','discipline_settings.read','discipline_settings.manage','accounts.read','accounts.manage',
     'employee_import.read','employee_import.manage',
@@ -1628,7 +1629,7 @@ BEGIN
   JOIN roles role ON role.id=mapping.role_id
   JOIN permissions permission ON permission.id=mapping.permission_id
   WHERE permission.code IN (
-    'employees.read','employees.read_sensitive','employees.create','employees.update','employees.deactivate',
+    'employees.read','employees.read_sensitive','employees.export_sensitive','employees.create','employees.update','employees.deactivate',
     'assignments.read','assignments.manage','contracts.read','contracts.manage',
     'discipline.read','discipline.manage','discipline_settings.read','discipline_settings.manage','accounts.read','accounts.manage',
     'employee_import.read','employee_import.manage',
@@ -1639,7 +1640,7 @@ BEGIN
     'profile_self.read','profile_self.update'
   );
 
-  IF superadmin_permission_count<>28 OR hrd_permission_count<>27
+  IF superadmin_permission_count<>29 OR hrd_permission_count<>28
     OR leader_permission_count<>11 OR employee_permission_count<>6 THEN
     RAISE EXCEPTION
       'Seed permission tidak lengkap: superadmin %, hrd %, leader %, employee %',

@@ -17,7 +17,7 @@ export default function TableExportMenu({ enabled = false, onExcel, loading, dis
         menu={{
           items: [
             { key: "excel", icon: <FileExcelOutlined />, label: "Unduh Excel", disabled: !onExcel },
-            { key: "pdf", icon: <FilePdfOutlined />, label: "Unduh PDF" },
+            { key: "pdf", icon: <FilePdfOutlined />, label: "Unduh PDF — Segera hadir" },
           ],
           onClick: ({ key }) => (key === "excel" ? onExcel?.() : setNotice(true)),
         }}

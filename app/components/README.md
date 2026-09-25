@@ -33,7 +33,7 @@ Laporan memakai `ReportCardFields` untuk baris label-nilai berdivider dan `Repor
 Tanpa konfigurasi atau dengan `enabled: false`, tombol tidak tampil. `TableExportMenu` menempatkan
 Export di kanan judul; di bawah 1024px hanya ikon dengan tooltip. Excel memanggil handler modul,
 sedangkan PDF hanya menampilkan pemberitahuan segera hadir. Permission, filter, audit, dan batas
-unduhan tetap ditangani endpoint modul. Saat ini ekspor diaktifkan hanya pada dua laporan.
+unduhan tetap ditangani endpoint modul. Ekspor tersedia pada laporan terkait dan menu Data Pegawai. Pada Data Pegawai, menu Export ditempatkan bersama aksi Import data dan Tambah pegawai; endpoint tetap menjadi sumber permission, filter, scope lokasi, audit, dan batas unduhan.
 
 ## Actions dan Modal
 
@@ -152,6 +152,7 @@ Semua tabel AntD disusun melalui `data-display/NumberedTable.jsx`, yang menambah
 `reports/EmployeeReport.jsx` menyatukan filter URL, daftar desktop/card mobile, ringkasan, navigasi detail, dan ekspor untuk Kontrak Akan Berakhir serta Proyeksi Pensiun. Gunakan komponen ini untuk kedua route, bukan membuat salinan form filter.
 
 `ResponsiveDataView` menerima `pagination={false}` untuk daftar dengan kontrol keyset server sendiri; perilaku default menu lain tidak berubah. `DashboardMetric` menerima `metric.description` sebagai penjelasan indikator, tidak dapat diklik, dan memakai hover seragam dengan dukungan reduced motion. Dashboard tidak memiliki filter tanggal global; tren memakai 12 bulan kalender hingga hari ini. `DashboardAttentionList` juga menerima `title`, `description`, `emptyMessage`, dan `showPriority` untuk daftar lima kasus resmi terbaru. Tombol detail pada daftar tetap dapat digunakan.
+
 # Pengaturan organisasi
 
 `AppModal` menyediakan `role=dialog`, `aria-modal`, dan hubungan judul/deskripsi pada panel konten agar konfirmasi dapat dikenali pembaca layar.

@@ -8,7 +8,7 @@ import {
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
-import { employeeCreateSchema, employeeListFilterSchema } from "@/lib/employees/schemas";
+import { employeeCreateSchema, parseEmployeeListFilters } from "@/lib/employees/schemas";
 import { createEmployee, listEmployees } from "@/lib/employees/service";
 
 /** Menampilkan daftar pegawai sesuai organisasi dan cakupan actor. */
@@ -19,17 +19,7 @@ export async function GET(request) {
   try {
     const url = new URL(request.url);
     const query = parseListQuery(url.searchParams);
-    const filters = employeeListFilterSchema.safeParse({
-      organizationId: url.searchParams.get("organizationId") || null,
-      locationId: url.searchParams.get("locationId") || null,
-      organizationUnitId: url.searchParams.get("organizationUnitId") || null,
-      positionId: url.searchParams.get("positionId") || null,
-      employmentTypeId: url.searchParams.get("employmentTypeId") || null,
-      completeness: url.searchParams.get("completeness") || "all",
-      createdByUserId: url.searchParams.get("createdByUserId") || null,
-      employmentStatus: url.searchParams.get("employmentStatus") || "all",
-      sanction: url.searchParams.get("sanction") || "all",
-    });
+    const filters = parseEmployeeListFilters(url.searchParams);
     if (!filters.success)
       return errorResponse("VALIDATION_ERROR", "Filter pegawai tidak valid.", 400, requestId);
     const organizationId = resolvePermissionOrganization(user, filters.data.organizationId);

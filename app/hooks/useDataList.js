@@ -108,6 +108,7 @@ export default function useDataList(endpoint, { requiredFilter, initialFilters =
     },
     filters,
     updateFilters,
+    query,
     pagination,
     setPage,
     refresh,
