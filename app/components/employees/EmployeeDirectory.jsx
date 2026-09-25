@@ -15,7 +15,6 @@ import { alpha } from "@mui/material/styles";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import TableExportMenu from "@/app/components/data-display/TableExportMenu";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -544,12 +543,6 @@ export default function EmployeeDirectory() {
         action={
           !readOnly ? (
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-              <TableExportMenu
-                enabled={canExport}
-                onExcel={exportExcel}
-                loading={exporting}
-                disabled={!organizationId}
-              />
               <Button
                 icon={<ImportOutlined />}
                 onClick={() => setImportOpen(true)}
@@ -595,6 +588,12 @@ export default function EmployeeDirectory() {
       <DataPanel
         title="Daftar data pegawai"
         description="Hasil mengikuti pencarian dan filter yang dipilih di atas."
+        exportConfig={{
+          enabled: canExport,
+          onExcel: exportExcel,
+          loading: exporting,
+          disabled: !organizationId,
+        }}
       >
         <ResponsiveDataView
           data={list.data}

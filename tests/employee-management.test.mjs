@@ -709,6 +709,13 @@ test("filter pembuat pegawai memakai audit pencatatan awal dan index pendukung",
   );
   assert.match(serviceSource, /creator_audit\.action='employee\.create'/);
   assert.match(serviceSource, /createdByUsers/);
+  const referenceOptionsBlock = serviceSource.match(
+    /export async function getEmployeeReferenceOptions[\s\S]*?\n}\n\nasync function upsertEmployeeContact/,
+  )?.[0];
+  assert.ok(referenceOptionsBlock);
+  assert.match(referenceOptionsBlock, /database = pool/);
+  assert.match(referenceOptionsBlock, /getActorLocationScope\(actor, database\)/);
+  assert.doesNotMatch(referenceOptionsBlock, /pool\.query/);
   for (const sql of [schemaSql, migrationSql]) assert.match(sql, /ix_audit_employee_create_lookup/);
 });
 
