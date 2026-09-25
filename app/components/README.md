@@ -33,7 +33,7 @@ Laporan memakai `ReportCardFields` untuk baris label-nilai berdivider dan `Repor
 Tanpa konfigurasi atau dengan `enabled: false`, tombol tidak tampil. `TableExportMenu` menempatkan
 Export di kanan judul; di bawah 1024px hanya ikon dengan tooltip. Excel memanggil handler modul,
 sedangkan PDF hanya menampilkan pemberitahuan segera hadir. Permission, filter, audit, dan batas
-unduhan tetap ditangani endpoint modul. Ekspor tersedia pada laporan terkait dan menu Data Pegawai. Pada Data Pegawai, menu Export ditempatkan bersama aksi Import data dan Tambah pegawai; endpoint tetap menjadi sumber permission, filter, scope lokasi, audit, dan batas unduhan.
+unduhan tetap ditangani endpoint modul. Ekspor tersedia pada laporan terkait dan menu Data Pegawai. Pada Data Pegawai, menu Export berada di kanan judul tabel seperti halaman laporan, sedangkan Import data dan Tambah pegawai tetap menjadi aksi halaman. Endpoint tetap menjadi sumber permission, filter, scope lokasi, audit, dan batas unduhan.
 
 ## Actions dan Modal
 

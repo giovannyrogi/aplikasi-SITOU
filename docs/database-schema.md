@@ -92,7 +92,7 @@ seluruh relasi, kolom, constraint, dan mapping permission tersedia.
 
 Export Excel Data Pegawai memakai permission `employees.export_sensitive`. Permission ini hanya
 diberikan kepada Superadmin dan HRD. Export mengikuti organisasi serta cakupan lokasi session,
-memuat profil administratif sensitif tanpa ID/path/URL file privat, dan mencatat audit `employee.export_sensitive`.
+memuat 13 sheet berbahasa Indonesia yang ringkas tanpa ID/path/URL file privat, memakai NIP sebagai penghubung, menampilkan waktu unduh pada zona waktu organisasi, dan mencatat audit `employee.export_sensitive`. Ringkasan memuat data utama serta rekap kelengkapan; rincian kontak, dokumen, rekening, keluarga, pendidikan, sertifikasi, kontrak, dan penempatan dipisahkan tanpa kolom status data yang berulang.
 
 ## Pegawai dan Profil
 
