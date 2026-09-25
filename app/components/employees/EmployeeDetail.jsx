@@ -922,7 +922,7 @@ export default function EmployeeDetail({ employeeId }) {
                     emptyText="Pas foto belum diunggah."
                     organizationId={organizationId}
                     onPreview={setImagePreview}
-                    objectFit="contain"
+                    objectFit="cover"
                     sx={{ width: "100%", maxWidth: 135, mx: { xs: "auto", sm: 0 } }}
                   />
                   <VisualIdentity
@@ -931,6 +931,7 @@ export default function EmployeeDetail({ employeeId }) {
                     aspectRatio="1.586 / 1"
                     frameWidth={286}
                     emptyText="Foto KTP belum diunggah."
+                    objectFit="cover"
                     organizationId={organizationId}
                     onPreview={setImagePreview}
                     sx={{ width: "100%", maxWidth: 286, mx: { xs: "auto", sm: 0 } }}
@@ -941,6 +942,7 @@ export default function EmployeeDetail({ employeeId }) {
                     aspectRatio="1.586 / 1"
                     frameWidth={286}
                     emptyText="Foto Kartu Keluarga belum diunggah."
+                    objectFit="cover"
                     organizationId={organizationId}
                     onPreview={setImagePreview}
                     sx={{
