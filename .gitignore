@@ -63,6 +63,7 @@
 !/tests/production-hardening.test.mjs
 !/tests/multipart-streaming.test.mjs
 !/tests/dependent-contact-migration.test.mjs
+!/tests/employee-export.test.mjs
 /ecosystem.config.js
 
 # debug
