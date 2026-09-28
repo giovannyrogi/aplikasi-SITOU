@@ -22,6 +22,19 @@ test("lifecycle mengantrekan purge di transaksi tanpa karantina byte sebelum com
   assert.match(storage, /export async function purgeStagedStoredFiles\(\) \{\}/);
 });
 
+test("query metadata upload memberi tipe eksplisit pada status scan malware", () => {
+  const storage = read("lib/files/storage.js");
+  assert.equal(
+    (storage.match(/CASE WHEN \$10::varchar\(24\)='clean'/g) || []).length,
+    2,
+  );
+  assert.equal(
+    (storage.match(/CASE WHEN \$11::varchar\(24\)='clean'/g) || []).length,
+    1,
+  );
+  assert.doesNotMatch(storage, /CASE WHEN \$(?:10|11)='clean'/);
+});
+
 test("seluruh multipart memakai parser streaming privat dan upload umum ditutup", () => {
   const multipart = read("lib/api/multipart.js");
   const allRoutes = [
@@ -36,12 +49,12 @@ test("seluruh multipart memakai parser streaming privat dan upload umum ditutup"
   assert.match(read("app/api/uploads/route.js"), /UPLOAD_ENDPOINT_DISABLED/);
 });
 
-test("ringkasan identitas memakai ukuran tetap dan object fit contain", () => {
+test("ringkasan identitas memakai ukuran tetap dan mengisi bingkai gambar", () => {
   const detail = read("app/components/employees/EmployeeDetail.jsx");
   assert.match(detail, /xl: "135px 286px 286px"/);
   assert.match(detail, /frameWidth=\{135\}/);
   assert.equal((detail.match(/frameWidth=\{286\}/g) || []).length, 2);
-  assert.match(detail, /objectFit="contain"/);
+  assert.equal((detail.match(/objectFit="cover"/g) || []).length, 3);
   assert.match(detail, /aria-label=\{`Perbesar/);
 });
 
