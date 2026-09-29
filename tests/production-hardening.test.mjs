@@ -12,6 +12,14 @@ test("migration 032 menyediakan purge queue, malware status, dan rate limit pers
   assert.match(migration, /uq_file_purge_jobs_pending_file/);
 });
 
+test("migration 036 menyediakan lifecycle retained dan karantina tujuh hari", () => {
+  const migration = read("database/migrations/20260929_036_storage_review_quarantine.sql");
+  assert.match(migration, /file_quarantine_items/);
+  assert.match(migration, /retained/);
+  assert.match(migration, /quarantined/);
+  assert.match(migration, /PROTECTED_OFFICIAL_HISTORY/);
+});
+
 test("lifecycle mengantrekan purge di transaksi tanpa karantina byte sebelum commit", () => {
   const storage = read("lib/files/storage.js");
   const start = storage.indexOf("export async function stageStoredFilesForDeletion");
@@ -76,6 +84,8 @@ test("CSP meneruskan nonce yang sama ke renderer Next.js dan respons browser", (
     /response\.headers\.set\("Content-Security-Policy", contentSecurityPolicy\)/,
   );
   assert.match(proxy, /requestHeaders\.set\("x-nonce", nonce\)/);
+  assert.match(proxy, /const developmentEval = production \? "" : " 'unsafe-eval'"/);
+  assert.match(proxy, /'strict-dynamic'\$\{developmentEval\}/);
 });
 
 test("ikon antarmuka dibundel lokal tanpa koneksi Iconify", () => {

@@ -4,8 +4,10 @@ import { getAllowedRolesForPath, isPublicPath } from "@/app/utils/protectedRoute
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
 
 const buildContentSecurityPolicy = (nonce) => {
-  const upgrade = process.env.NODE_ENV === "production" ? "; upgrade-insecure-requests" : "";
-  return `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'${upgrade}`;
+  const production = process.env.NODE_ENV === "production";
+  const developmentEval = production ? "" : " 'unsafe-eval'";
+  const upgrade = production ? "; upgrade-insecure-requests" : "";
+  return `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentEval}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'${upgrade}`;
 };
 
 const securityHeaders = (response, contentSecurityPolicy) => {

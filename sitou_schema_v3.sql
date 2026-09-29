@@ -83,7 +83,7 @@ CREATE TABLE stored_files (
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Pemilik file dan batas organisasi.
   employee_id bigint, -- Pegawai pemilik file bila file merupakan dokumen kepegawaian.
   onboarding_draft_id bigint, -- Draft onboarding pemilik file sebelum pegawai difinalisasi.
-  lifecycle_status varchar(20) NOT NULL DEFAULT 'active', -- draft, active, deleted, atau purged.
+  lifecycle_status varchar(20) NOT NULL DEFAULT 'active', -- draft, active, deleted, purged, retained, atau quarantined.
   draft_slot varchar(100), -- Slot stabil file pada draft onboarding.
   storage_provider varchar(30) NOT NULL DEFAULT 'local_private' CHECK (storage_provider IN ('local_private','s3','r2','azure_blob','other')), -- Backend penyimpanan.
   object_key text NOT NULL, -- Kunci relatif privat; bukan URL publik atau path absolut.
@@ -113,7 +113,7 @@ CREATE TABLE file_purge_jobs (
   organization_id bigint NOT NULL,
   stored_file_id bigint NOT NULL,
   object_key text NOT NULL,
-  status varchar(20) NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','retry','completed','failed')),
+  status varchar(20) NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','retry','completed','failed','cancelled')),
   attempts integer NOT NULL DEFAULT 0 CHECK (attempts>=0),
   next_attempt_at timestamptz NOT NULL DEFAULT now(),
   last_error_code varchar(80),
@@ -287,14 +287,20 @@ ALTER TABLE stored_files
   ADD COLUMN deleted_by_user_id bigint REFERENCES users(id),
   ADD COLUMN deletion_reason_code varchar(40),
   ADD COLUMN content_purged_at timestamptz,
+  ADD COLUMN retained_at timestamptz,
+  ADD COLUMN retained_by_user_id bigint REFERENCES users(id),
+  ADD COLUMN retention_reason text,
+  ADD COLUMN quarantined_at timestamptz,
   ADD CONSTRAINT ck_stored_files_lifecycle_status
-    CHECK (lifecycle_status IN ('draft','active','deleted','purged')),
+    CHECK (lifecycle_status IN ('draft','active','deleted','purged','retained','quarantined')),
   ADD CONSTRAINT ck_stored_files_lifecycle_consistency CHECK (
     (lifecycle_status='draft' AND onboarding_draft_id IS NOT NULL
       AND draft_slot IS NOT NULL AND deleted_at IS NULL AND content_purged_at IS NULL)
     OR (lifecycle_status='active' AND deleted_at IS NULL AND content_purged_at IS NULL)
     OR (lifecycle_status='deleted' AND deleted_at IS NOT NULL AND content_purged_at IS NULL)
     OR (lifecycle_status='purged' AND deleted_at IS NOT NULL AND content_purged_at IS NOT NULL)
+    OR (lifecycle_status='retained' AND deleted_at IS NOT NULL AND retained_at IS NOT NULL AND content_purged_at IS NULL)
+    OR (lifecycle_status='quarantined' AND quarantined_at IS NOT NULL AND content_purged_at IS NULL)
   );
 
 CREATE TABLE roles (
@@ -1408,6 +1414,11 @@ CREATE TABLE file_cleanup_items (
   reference_labels text[] NOT NULL DEFAULT '{}', -- Nama penggunaan file yang aman ditampilkan tanpa ID internal.
   category varchar(40) NOT NULL,
   size_bytes bigint NOT NULL DEFAULT 0 CHECK (size_bytes>=0),
+  mime_type varchar(150),
+  malware_scan_status varchar(24),
+  malware_signature varchar(240),
+  malware_scanned_at timestamptz,
+  file_modified_at timestamptz,
   quarantine_key text, -- Path internal karantina; tidak pernah dikirim ke browser.
   attempts integer NOT NULL DEFAULT 0 CHECK (attempts>=0),
   next_attempt_at timestamptz NOT NULL DEFAULT now(),
@@ -1431,6 +1442,34 @@ CREATE INDEX ix_stored_files_cleanup_candidates ON stored_files(organization_id,
 WHERE lifecycle_status='deleted' AND content_purged_at IS NULL;
 CREATE TRIGGER trg_file_cleanup_runs_updated_at BEFORE UPDATE ON file_cleanup_runs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_file_cleanup_items_updated_at BEFORE UPDATE ON file_cleanup_items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE file_quarantine_items (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  stored_file_id bigint,
+  source_cleanup_item_id bigint REFERENCES file_cleanup_items(id) ON DELETE SET NULL,
+  reason varchar(30) NOT NULL CHECK (reason IN ('filesystem_orphan','temporary_file','trash_file','malware')),
+  status varchar(20) NOT NULL DEFAULT 'quarantined' CHECK (status IN ('quarantined','restored','purged','failed')),
+  original_object_key text NOT NULL, quarantine_object_key text NOT NULL,
+  original_name text NOT NULL, mime_type varchar(150),
+  size_bytes bigint NOT NULL CHECK (size_bytes>=0), sha256 char(64) NOT NULL,
+  malware_scan_status varchar(24) NOT NULL CHECK (malware_scan_status IN ('clean','infected','scan_error','legacy_unscanned')),
+  malware_scan_engine varchar(80), malware_signature varchar(240),
+  quarantined_by_user_id bigint REFERENCES users(id), quarantined_at timestamptz NOT NULL DEFAULT now(),
+  purge_after timestamptz NOT NULL,
+  restored_by_user_id bigint REFERENCES users(id), restored_at timestamptz,
+  purged_by_user_id bigint REFERENCES users(id), purged_at timestamptz,
+  attempts integer NOT NULL DEFAULT 0 CHECK (attempts>=0), last_error_code varchar(80),
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT fk_file_quarantine_stored_file FOREIGN KEY (organization_id,stored_file_id) REFERENCES stored_files(organization_id,id),
+  CONSTRAINT ck_file_quarantine_keys CHECK (original_object_key !~ '(^/|\.\.)' AND quarantine_object_key !~ '(^/|\.\.)'),
+  CONSTRAINT ck_file_quarantine_result CHECK ((status='quarantined' AND restored_at IS NULL AND purged_at IS NULL) OR (status='restored' AND restored_at IS NOT NULL AND purged_at IS NULL) OR (status='purged' AND purged_at IS NOT NULL) OR status='failed')
+);
+CREATE UNIQUE INDEX uq_file_quarantine_active_source ON file_quarantine_items(organization_id,original_object_key) WHERE status='quarantined';
+CREATE UNIQUE INDEX uq_file_quarantine_active_stored_file ON file_quarantine_items(organization_id,stored_file_id) WHERE status='quarantined' AND stored_file_id IS NOT NULL;
+CREATE INDEX ix_file_quarantine_due ON file_quarantine_items(purge_after,id) WHERE status='quarantined';
+CREATE INDEX ix_file_quarantine_org_time ON file_quarantine_items(organization_id,quarantined_at DESC,id DESC);
+CREATE TRIGGER trg_file_quarantine_items_updated_at BEFORE UPDATE ON file_quarantine_items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE integration_outbox (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID event integrasi.

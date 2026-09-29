@@ -12,7 +12,10 @@ import {
   inspectDeletedProfileFile,
   resolveMaintenancePath,
 } from "../lib/storage-maintenance/worker.mjs";
-import { storageMaintenanceCleanupSchema } from "../lib/storage-maintenance/schemas.js";
+import {
+  storageMaintenanceActionSchema,
+  storageMaintenanceCleanupSchema,
+} from "../lib/storage-maintenance/schemas.js";
 
 const uploadRoot = path.resolve(process.cwd(), "uploads");
 const oldDate = new Date(Date.now() - 8 * 86_400_000).toISOString();
@@ -29,6 +32,20 @@ const baseFile = {
 
 test("kategori pembersihan hanya mencakup file profil replaceable", () => {
   assert.deepEqual(CLEANABLE_PROFILE_CATEGORIES, ["employee_photo", "identity", "education"]);
+});
+
+test("file aktif tanpa referensi selalu memerlukan persetujuan sebelum pembersihan", async () => {
+  const worker = await readFile(
+    new URL("../lib/storage-maintenance/worker.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = worker.indexOf("async function inspectActiveOrphanFile");
+  const end = worker.indexOf("async function performScan", start);
+  const inspection = worker.slice(start, end);
+  assert.match(inspection, /OFFICIAL_HISTORY_CATEGORIES\.includes\(file\.category\)/);
+  assert.match(inspection, /!CLEANABLE_PROFILE_CATEGORIES\.includes\(file\.category\)/);
+  assert.doesNotMatch(inspection, /status: "eligible"/);
+  assert.match(inspection, /reasonCode: "active_orphan"/);
 });
 
 test("registry referensi mencakup seluruh pemilik stored_files pada schema saat ini", () => {
@@ -86,7 +103,7 @@ test("satu referensi bisnis saja membuat file perlu ditinjau", async () => {
   };
   const result = await inspectDeletedProfileFile(database, uploadRoot, baseFile);
   assert.equal(result.status, "needs_review");
-  assert.equal(result.reasonCode, "still_referenced");
+  assert.equal(result.reasonCode, "metadata_status_invalid");
   assert.deepEqual(result.references, ["Pas foto pegawai"]);
 });
 
@@ -104,7 +121,7 @@ test("dokumen resmi dan path organisasi yang tidak sesuai selalu ditolak", async
     ...baseFile,
     category: "contract",
   });
-  assert.equal(official.reasonCode, "category_not_allowed");
+  assert.equal(official.reasonCode, "official_history_detached");
 
   const mismatch = resolveMaintenancePath(uploadRoot, {
     ...baseFile,
@@ -136,18 +153,40 @@ test("pembersihan memerlukan organisasi, kandidat, dan konfirmasi eksplisit", ()
   );
 });
 
+test("pemindahan temuan ke pembersihan memerlukan alasan dan konfirmasi", () => {
+  assert.equal(
+    storageMaintenanceActionSchema.safeParse({
+      organizationId: 1,
+      action: "stage_cleanup",
+      reason: "tidak ada",
+      confirmationAccepted: true,
+    }).success,
+    false,
+  );
+  assert.equal(
+    storageMaintenanceActionSchema.safeParse({
+      organizationId: 1,
+      action: "stage_cleanup",
+      reason: "File telah diverifikasi tidak digunakan.",
+      confirmationAccepted: true,
+    }).success,
+    true,
+  );
+});
+
 test("NIP hanya tersedia dalam bentuk masking pada hasil maintenance", () => {
   assert.equal(maskEmployeeNumber("20250194003"), "20*******03");
   assert.equal(maskEmployeeNumber("1234"), "****");
 });
 
-test("service API membuang NIP mentah dan tidak memilih path atau hash", async () => {
+test("service API membuang NIP mentah dan mapper publik tidak membocorkan path atau hash", async () => {
   const source = await readFile(
     new URL("../lib/storage-maintenance/service.js", import.meta.url),
     "utf8",
   );
   assert.match(source, /employee_no: employeeNumber/);
-  assert.doesNotMatch(source, /file\.object_key|file\.sha256/);
+  const mapper = source.slice(source.indexOf("const mapItem"), source.indexOf("async function ensureOrganization"));
+  assert.doesNotMatch(mapper, /object_key|sha256|quarantine_object_key/);
 });
 
 test("PM2 menjalankan server web dan satu worker pembersihan production", async () => {
@@ -166,4 +205,75 @@ test("halaman membedakan antrean worker dari proses yang sedang berjalan", async
   assert.match(source, /Menunggu worker/);
   assert.match(source, /Batalkan antrean/);
   assert.match(source, /sitou-file-cleanup-worker aktif di server/);
+  assert.match(source, /Integritas & pemulihan/);
+  assert.match(source, /Ancaman keamanan/);
+  assert.match(source, /Lihat file/);
+  assert.match(source, /Lihat hubungan file/);
+  assert.match(source, /Hubungan dengan data bisnis/);
+  assert.match(source, /Pulihkan status file/);
+  assert.match(source, /Pindahkan ke pembersihan/);
+  assert.match(source, /Selesaikan pembersihan/);
+  assert.match(source, /minHeight: 44/);
+  assert.match(source, /alignItems: "center"/);
+  assert.match(source, /background: theme\.palette\.info\.main/);
+  assert.match(source, /background: theme\.palette\.success\.main/);
+  assert.match(source, /background: theme\.palette\.warning\.main/);
+  assert.match(source, /"& \.MuiAlert-icon": \{/);
+  assert.match(source, /"& \.MuiAlert-message": \{/);
+  assert.match(source, /tone="brand"/);
+  assert.match(source, /tone="danger"/);
+  assert.match(source, /tone="success"/);
+  assert.match(source, /tone="warning"/);
+  assert.doesNotMatch(source, /Buka detail pegawai/);
+});
+
+test("aturan visual menetapkan warna semantik tombol dan alignment ikon", async () => {
+  const agents = await readFile(new URL("../AGENTS.md", import.meta.url), "utf8");
+  assert.match(agents, /batalkan proses, dan tindakan destruktif memakai danger merah/);
+  assert.match(agents, /Ikon dan teks di dalam tombol wajib disusun `inline-flex`/);
+});
+
+test("temuan integritas memakai modal hubungan dan tidak mengarahkan Superadmin ke profil", async () => {
+  const service = await readFile(
+    new URL("../lib/storage-maintenance/service.js", import.meta.url),
+    "utf8",
+  );
+  const mapper = service.slice(service.indexOf("const mapItem"), service.indexOf("async function ensureOrganization"));
+  assert.match(mapper, /availableActions\.unshift\("view_relationships"\)/);
+  assert.doesNotMatch(mapper, /open_employee/);
+  assert.match(mapper, /metadata_status_invalid/);
+  assert.match(mapper, /restore_metadata/);
+});
+
+test("migration karantina melindungi histori dan menyimpan tenggat pemulihan", async () => {
+  const migration = await readFile(
+    new URL("../database/migrations/20260929_036_storage_review_quarantine.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /CREATE TABLE file_quarantine_items/);
+  assert.match(migration, /PROTECTED_OFFICIAL_HISTORY/);
+  assert.match(migration, /'retained','quarantined'/);
+  assert.match(migration, /purge_after/);
+});
+
+test("pemulihan byte hilang memverifikasi hash, MIME, ukuran, dan ClamAV", async () => {
+  const service = await readFile(
+    new URL("../lib/storage-maintenance/service.js", import.meta.url),
+    "utf8",
+  );
+  const route = await readFile(
+    new URL(
+      "../app/api/system/storage-maintenance/runs/[id]/items/[itemId]/recovery/route.js",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const recovery = service.slice(service.indexOf("export async function recoverMaintenanceItemContent"));
+  assert.match(recovery, /active_content_missing/);
+  assert.match(recovery, /currentHash !== expectedHash/);
+  assert.match(recovery, /detectedMime !== expectedMime/);
+  assert.match(recovery, /scanUploadBuffer\(buffer\)/);
+  assert.match(recovery, /scan\.status !== "clean"/);
+  assert.match(route, /storage_maintenance\.manage/);
+  assert.match(route, /parseMultipartToPrivateTemp/);
 });

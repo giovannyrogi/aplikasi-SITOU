@@ -2,6 +2,32 @@
 
 Fitur ini tersedia khusus Superadmin melalui menu **Pemeliharaan Sistem > Penyimpanan File**. Pilih satu organisasi, jalankan pemeriksaan, tinjau hasil, pilih kandidat aman, lalu setujui konfirmasi penghapusan permanen.
 
+Hasil dibagi menjadi **Siap dibersihkan**, **Karantina**, **Integritas & pemulihan**,
+**Ancaman keamanan**, dan **Riwayat proses**. File aktif atau histori resmi yang masih
+memiliki referensi tidak ditampilkan. Preview gambar/PDF dan unduhan hanya tersedia
+setelah ClamAV memberi status `clean`; file `infected` hanya menampilkan metadata
+ancaman dan tidak pernah dapat dibuka atau diunduh.
+
+Pada tab **Integritas & pemulihan**, aksi **Lihat hubungan file** membuka modal yang
+menjelaskan organisasi, pegawai terkait, referensi bisnis, status antivirus, dampak,
+dan tindakan yang tersedia. Superadmin menyelesaikan pemulihan dari modal ini tanpa
+berpindah ke halaman detail pegawai yang bergantung pada membership organisasi.
+
+Klasifikasi hasil mengikuti kepastian kondisi:
+
+- File dengan referensi bisnis valid dan byte tersedia tidak ditampilkan.
+- File tanpa referensi yang aman dibersihkan masuk **Siap dibersihkan** setelah masa tunggu.
+- Metadata aktif tanpa referensi memerlukan persetujuan **Pindahkan ke pembersihan**;
+  server memeriksa ulang referensi, hash, ukuran, MIME, ClamAV, dan kategori sebelum
+  memulai masa aman tujuh hari.
+- **Isi file aktif tidak ditemukan** hanya digunakan bila metadata masih dirujuk data
+  bisnis tetapi byte benar-benar tidak ada di storage. Tindak lanjutnya adalah unggah
+  file yang sama dari backup.
+- Bila byte tidak ada dan tidak ada referensi bisnis, Superadmin dapat menyelesaikan
+  catatan pembersihan setelah pemeriksaan ulang server.
+- Dokumen histori resmi tidak dapat dipindahkan ke pembersihan; tindakannya adalah
+  pemulihan byte/referensi atau retensi sebagai arsip resmi.
+
 ## Menjalankan worker
 
 API hanya memasukkan pekerjaan ke antrean. Jalankan worker sebagai proses terpisah dari server web:
@@ -38,6 +64,27 @@ Saat antrean kosong worker memeriksa pekerjaan baru setiap dua detik. Halaman me
 - Worker memeriksa ulang status, organisasi, kategori, umur, provider, path, object key, dan referensi tepat sebelum karantina.
 - File yang berubah setelah pemeriksaan dilewati dan alasannya disimpan.
 - Metadata file dan audit tidak dihapus setelah byte berhasil dibersihkan.
+- Byte tanpa metadata dikarantina tujuh hari dan dapat dipulihkan sebelum tenggat.
+- File terinfeksi otomatis dikarantina, tidak dapat dipulihkan lewat UI, dan dihapus
+  otomatis setelah tujuh hari atau lebih awal setelah konfirmasi Superadmin.
+- Dokumen histori resmi yang terlepas hanya dapat dipulihkan referensinya atau
+  dipertahankan sebagai arsip; menu ini tidak menyediakan aksi hapus untuk dokumen tersebut.
+- Isi file aktif yang hilang hanya dapat dipulihkan dari backup dengan file yang sama persis.
+  Server mencocokkan ukuran, MIME dari byte, dan SHA-256, lalu mewajibkan hasil ClamAV
+  `clean` sebelum melakukan pemulihan atomik dan mencatat audit.
+
+## Endpoint tindakan
+
+Seluruh endpoint berikut mewajibkan `storage_maintenance.manage`, memilih organisasi
+secara eksplisit, dan mengaudit akses atau perubahan. Endpoint isi file juga memakai
+respons `private, no-store`, `nosniff`, dan CSP sandbox:
+
+- `GET /api/system/storage-maintenance/runs/:runId/items/:itemId/content` untuk preview/unduh file bersih.
+- `POST /api/system/storage-maintenance/runs/:runId/items/:itemId/quarantine` untuk orphan bersih.
+- `POST /api/system/storage-maintenance/runs/:runId/items/:itemId/recovery` untuk pemulihan byte dari backup.
+- `POST /api/system/storage-maintenance/runs/:runId/items/:itemId/resolve` untuk pemulihan metadata atau retensi arsip resmi.
+- `POST /api/system/storage-maintenance/quarantine/:id/restore` untuk memulihkan orphan sebelum tenggat.
+- `POST /api/system/storage-maintenance/quarantine/:id/purge` untuk menghapus ancaman lebih awal.
 
 ## CLI darurat
 

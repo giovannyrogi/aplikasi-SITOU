@@ -24,6 +24,7 @@ const requiredRelations = [
   "leave_balance_transactions",
   "file_cleanup_runs",
   "file_cleanup_items",
+  "file_quarantine_items",
   "v_user_identity",
 ];
 
@@ -39,6 +40,10 @@ const requiredColumns = [
   ["stored_files", "deleted_by_user_id"],
   ["stored_files", "deletion_reason_code"],
   ["stored_files", "content_purged_at"],
+  ["stored_files", "retained_at"],
+  ["stored_files", "quarantined_at"],
+  ["file_cleanup_items", "malware_scan_status"],
+  ["file_quarantine_items", "purge_after"],
   ["employee_import_rows", "sheet_name"],
   ["employee_import_rows", "entity_type"],
   ["employee_import_rows", "entity_ref"],

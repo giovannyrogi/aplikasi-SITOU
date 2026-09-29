@@ -76,3 +76,9 @@ Migration `033` menambahkan permission `employees.export_sensitive` hanya untuk 
 Migration `034` memindahkan seluruh nomor pada anggota keluarga ke kontak darurat. Kontak darurat yang cocok berdasarkan nama atau nomor selalu dipertahankan, kontak baru hanya dibuat bila belum ada kecocokan, dan kontak tunggal tanpa pilihan utama otomatis menjadi kontak utama. Migration berhenti dan rollback bila satu nomor atau nama sumber menunjuk beberapa data yang ambigu. Jalankan sebelum deploy aplikasi yang memusatkan nomor pada bagian Kontak Darurat.
 
 Migration `035` mengulangi sinkronisasi dan preflight migration `034`, lalu menghapus kolom `employee_dependents.phone` serta `employee_dependents.is_emergency_contact`. Jalankan dalam maintenance singkat setelah aplikasi baru terverifikasi dan tidak lagi menulis kedua kolom tersebut.
+
+Migration `036` memisahkan arsip resmi dan karantina dari file terhapus, menambahkan
+karantina tujuh hari untuk byte tanpa metadata atau file berbahaya, membatalkan purge
+dokumen histori resmi, dan menyimpan hasil antivirus pada pemeriksaan penyimpanan.
+Jalankan setelah backup PostgreSQL serta `UPLOAD_ROOT`, lalu deploy web dan worker dalam
+maintenance window yang sama.

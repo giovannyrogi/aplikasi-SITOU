@@ -18,7 +18,9 @@ export async function GET(request, context) {
       100,
       Math.max(10, Number.parseInt(searchParams.get("pageSize") || "10", 10) || 10),
     );
-    const itemKind = ["candidate", "issue"].includes(searchParams.get("itemKind"))
+    const itemKind = ["candidate", "issue", "recovery", "security"].includes(
+      searchParams.get("itemKind"),
+    )
       ? searchParams.get("itemKind")
       : "all";
     const result = await getStorageMaintenanceRun(runId, organizationId, {
