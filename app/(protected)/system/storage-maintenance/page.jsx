@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button as AntButton, Checkbox, Pagination, Skeleton, Tabs } from "antd";
+import { Button as AntButton, Checkbox, Pagination, Skeleton, Tabs, Tooltip } from "antd";
 import Table from "@/app/components/data-display/NumberedTable";
 import { rowNumberOffset } from "@/app/components/data-display/rowNumbers.mjs";
 import {
@@ -128,7 +128,7 @@ const actionDialogContent = {
   },
 };
 
-function Button({ tone, danger = false, type, block = false, style, ...props }) {
+function Button({ tone, danger = false, type, block = false, iconOnly = false, style, ...props }) {
   const theme = useTheme();
   const resolvedTone = tone || (danger ? "danger" : type === "primary" ? "brand" : "neutral");
   const palette = {
@@ -189,8 +189,9 @@ function Button({ tone, danger = false, type, block = false, style, ...props }) 
           justifyContent: "center",
           verticalAlign: "middle",
           minHeight: 44,
+          minWidth: iconOnly ? 44 : undefined,
           height: "auto",
-          px: 1.75,
+          px: iconOnly ? 0 : 1.75,
           py: 0.85,
           gap: 0.85,
           borderRadius: "8px",
@@ -247,6 +248,63 @@ function Button({ tone, danger = false, type, block = false, style, ...props }) 
       }}
     >
       <AntButton {...props} block={block} style={style} />
+    </Box>
+  );
+}
+
+const fileActionAppearance = {
+  cleanup: ["Bersihkan", "danger", <DeleteOutlined key="cleanup" />],
+  preview: ["Lihat file", "info", <EyeOutlined key="preview" />],
+  download: ["Unduh", "neutral", <DownloadOutlined key="download" />],
+  validate_storage: ["Validasi ulang", "info", <ReloadOutlined key="validate" />],
+  view_relationships: ["Lihat hubungan file", "brand", <EyeOutlined key="relationship" />],
+  quarantine: ["Karantina", "warning", <InboxOutlined key="quarantine" />],
+  restore_metadata: ["Pulihkan status", "success", <RollbackOutlined key="metadata" />],
+  retain_official: ["Pertahankan arsip", "brand", <SafetyCertificateOutlined key="retain" />],
+  restore_quarantine: ["Pulihkan", "success", <RollbackOutlined key="restore" />],
+  purge_now: ["Hapus permanen", "danger", <DeleteOutlined key="purge" />],
+  rescan: ["Periksa antivirus", "info", <ReloadOutlined key="rescan" />],
+  recover_content: ["Unggah pemulihan", "success", <UploadOutlined key="recover" />],
+};
+
+function FileActionButtons({ item, onAction, compact = false }) {
+  const actions = item.available_actions?.includes("view_relationships")
+    ? ["view_relationships"]
+    : item.available_actions || [];
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexWrap: "wrap",
+        gap: 1,
+      }}
+    >
+      {actions.map((action) => {
+        const appearance = fileActionAppearance[action];
+        if (!appearance) return null;
+        const [label, tone, icon] = appearance;
+        const button = (
+          <Button
+            key={action}
+            tone={tone}
+            icon={icon}
+            iconOnly={compact}
+            aria-label={label}
+            onClick={() => onAction?.(action, item)}
+          >
+            {compact ? null : label}
+          </Button>
+        );
+        return compact ? (
+          <Tooltip key={action} title={label}>
+            {button}
+          </Tooltip>
+        ) : (
+          button
+        );
+      })}
     </Box>
   );
 }
@@ -448,117 +506,10 @@ function FileItemsView({
     {
       title: "Aksi",
       key: "actions",
-      width: 210,
+      width: 200,
       fixed: "right",
-      render: (_, item) => (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-          {item.available_actions?.includes("cleanup") ? (
-            <Button danger icon={<DeleteOutlined />} onClick={() => onAction?.("cleanup", item)}>
-              {item.reason_code === "unreferenced_content_missing"
-                ? "Bersihkan catatan"
-                : "Bersihkan"}
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("validate_storage") ? (
-            <Button
-              tone="info"
-              icon={<ReloadOutlined />}
-              onClick={() => onAction?.("validate_storage", item)}
-            >
-              Validasi ulang
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("view_relationships") ? (
-            <Button
-              tone="brand"
-              icon={<EyeOutlined />}
-              onClick={() => onAction?.("view_relationships", item)}
-            >
-              Lihat hubungan file
-            </Button>
-          ) : (
-            <>
-              {item.available_actions?.includes("preview") ? (
-                <Button
-                  tone="info"
-                  icon={<EyeOutlined />}
-                  onClick={() => onAction?.("preview", item)}
-                >
-                  Lihat file
-                </Button>
-              ) : null}
-              {item.available_actions?.includes("download") ? (
-                <Button icon={<DownloadOutlined />} onClick={() => onAction?.("download", item)}>
-                  Unduh
-                </Button>
-              ) : null}
-              {item.available_actions?.includes("quarantine") ? (
-                <Button
-                  tone="warning"
-                  icon={<InboxOutlined />}
-                  onClick={() => onAction?.("quarantine", item)}
-                >
-                  Karantina
-                </Button>
-              ) : null}
-              {item.available_actions?.includes("restore_metadata") ? (
-                <Button
-                  tone="success"
-                  icon={<RollbackOutlined />}
-                  onClick={() => onAction?.("restore_metadata", item)}
-                >
-                  Pulihkan status
-                </Button>
-              ) : null}
-              {item.available_actions?.includes("retain_official") ? (
-                <Button
-                  tone="brand"
-                  icon={<SafetyCertificateOutlined />}
-                  onClick={() => onAction?.("retain_official", item)}
-                >
-                  Pertahankan arsip
-                </Button>
-              ) : null}
-              {item.available_actions?.includes("restore_quarantine") ? (
-                <Button
-                  tone="success"
-                  icon={<RollbackOutlined />}
-                  onClick={() => onAction?.("restore_quarantine", item)}
-                >
-                  Pulihkan
-                </Button>
-              ) : null}
-              {item.available_actions?.includes("purge_now") ? (
-                <Button
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => onAction?.("purge_now", item)}
-                >
-                  Hapus sekarang
-                </Button>
-              ) : null}
-              {item.available_actions?.includes("rescan") ? (
-                <Button
-                  tone="info"
-                  icon={<ReloadOutlined />}
-                  onClick={() => onAction?.("rescan", item)}
-                >
-                  Periksa antivirus
-                </Button>
-              ) : null}
-              {item.available_actions?.includes("recover_content") ? (
-                <Button
-                  tone="success"
-                  icon={<UploadOutlined />}
-                  onClick={() => onAction?.("recover_content", item)}
-                >
-                  Unggah pemulihan
-                </Button>
-              ) : null}
-            </>
-          )}
-        </Box>
-      ),
+      align: "center",
+      render: (_, item) => <FileActionButtons item={item} onAction={onAction} compact />,
     },
   ];
 
@@ -778,6 +729,7 @@ export default function StorageMaintenancePage() {
   const [actionReason, setActionReason] = useState("");
   const [actionConfirmed, setActionConfirmed] = useState(false);
   const organizationId = organization.id;
+  const allOrganizations = !organizationId;
   const latestScanId = summary?.latest_scan_id;
   const activeRun = useMemo(
     () => runs.find((run) => run.status === "queued" || run.status === "running") || null,
@@ -787,10 +739,20 @@ export default function StorageMaintenancePage() {
   const activeRunLabel = activeRun?.run_type === "cleanup" ? "Penghapusan file" : "Pemeriksaan";
 
   const refreshOverview = useCallback(async () => {
-    if (!organizationId) return;
     overviewController.current?.abort();
     const controller = new AbortController();
     overviewController.current = controller;
+    if (allOrganizations) {
+      const body = await requestJson("/api/system/storage-maintenance/all?itemKind=history", {
+        signal: controller.signal,
+      });
+      if (!controller.signal.aborted) {
+        setConnectionError("");
+        setSummary(body.data.summary);
+        setRuns(body.data.runs || []);
+      }
+      return;
+    }
     const query = `organizationId=${encodeURIComponent(organizationId)}`;
     const [summaryBody, runsBody] = await Promise.all([
       requestJson(`/api/system/storage-maintenance/summary?${query}`, {
@@ -804,12 +766,12 @@ export default function StorageMaintenancePage() {
     setConnectionError("");
     setSummary(summaryBody.data);
     setRuns(runsBody.data || []);
-  }, [organizationId]);
+  }, [organizationId, allOrganizations]);
 
   const loadItems = useCallback(
     async (page = 1) => {
-      if (!organizationId || activeTab === "history") return;
-      if (!latestScanId && activeTab !== "quarantine") return;
+      if (activeTab === "history") return;
+      if (!allOrganizations && !latestScanId && activeTab !== "quarantine") return;
       itemsController.current?.abort();
       const controller = new AbortController();
       itemsController.current = controller;
@@ -821,8 +783,14 @@ export default function StorageMaintenancePage() {
           page: String(page),
           pageSize: "20",
         });
-        const body =
-          activeTab === "quarantine"
+        const body = allOrganizations
+          ? await requestJson(
+              `/api/system/storage-maintenance/all?page=${page}&itemKind=${activeTab}`,
+              {
+                signal: controller.signal,
+              },
+            )
+          : activeTab === "quarantine"
             ? await requestJson(
                 `/api/system/storage-maintenance/quarantine?organizationId=${encodeURIComponent(organizationId)}&page=${page}&pageSize=20`,
                 { signal: controller.signal },
@@ -831,6 +799,10 @@ export default function StorageMaintenancePage() {
                 signal: controller.signal,
               });
         if (controller.signal.aborted) return;
+        if (allOrganizations) {
+          setSummary(body.data.summary);
+          setRuns(body.data.runs || []);
+        }
         const rows = body.data.items || [];
         setItemState({
           data:
@@ -871,7 +843,7 @@ export default function StorageMaintenancePage() {
         setItemState((current) => ({ ...current, loading: false, error: error.message }));
       }
     },
-    [activeTab, latestScanId, organizationId],
+    [activeTab, latestScanId, organizationId, allOrganizations],
   );
 
   useEffect(() => {
@@ -879,7 +851,6 @@ export default function StorageMaintenancePage() {
     setRuns([]);
     setSelectedItems(new Map());
     setItemState({ data: [], loading: false, error: "", page: 1, pageSize: 20, total: 0 });
-    if (!organizationId) return undefined;
     let active = true;
     let timer;
     const refresh = async () => {
@@ -917,14 +888,14 @@ export default function StorageMaintenancePage() {
     setSelectedItems(new Map());
   }, [latestScanId]);
 
-  const requestScan = async () => {
-    if (!organizationId) return;
+  const requestScan = async (targetOrganizationId = organizationId) => {
+    if (!targetOrganizationId) return;
     setSubmitting(true);
     try {
       const body = await requestJson("/api/system/storage-maintenance/scans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizationId }),
+        body: JSON.stringify({ organizationId: targetOrganizationId }),
       });
       showNotification(body.message, "info");
       setSelectedItems(new Map());
@@ -949,16 +920,23 @@ export default function StorageMaintenancePage() {
   const selectedBytes = selection.reduce((total, item) => total + Number(item.size_bytes || 0), 0);
 
   const requestCleanup = async () => {
-    if (!latestScanId || !selection.length || !confirmationAccepted) return;
+    if (!selection.length || !confirmationAccepted) return;
+    const cleanupOrganizationId = selection[0].organization_id || organizationId;
+    const cleanupScanId = selection[0].run_id || latestScanId;
+    if (
+      !cleanupScanId ||
+      selection.some((item) => String(item.organization_id) !== String(cleanupOrganizationId))
+    )
+      return;
     setSubmitting(true);
     try {
       const body = await requestJson(
-        `/api/system/storage-maintenance/runs/${latestScanId}/cleanup`,
+        `/api/system/storage-maintenance/runs/${cleanupScanId}/cleanup`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            organizationId,
+            organizationId: cleanupOrganizationId,
             itemIds: selection.map((item) => item.id),
             confirmationAccepted: true,
           }),
@@ -983,7 +961,7 @@ export default function StorageMaintenancePage() {
       const body = await requestJson(`/api/system/storage-maintenance/runs/${run.id}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizationId }),
+        body: JSON.stringify({ organizationId: run.organization_id }),
       });
       showNotification(body.message, "info");
       await refreshOverview();
@@ -1019,10 +997,10 @@ export default function StorageMaintenancePage() {
     setSubmitting(true);
     try {
       const form = new FormData();
-      form.append("organizationId", String(organizationId));
+      form.append("organizationId", String(recoveryItem.organization_id));
       form.append("file", recoveryFile);
       const body = await requestJson(
-        `/api/system/storage-maintenance/runs/${latestScanId}/items/${recoveryItem.id}/recovery`,
+        `/api/system/storage-maintenance/runs/${recoveryItem.run_id || latestScanId}/items/${recoveryItem.id}/recovery`,
         { method: "POST", body: form },
       );
       showNotification(body.message, "success");
@@ -1038,7 +1016,9 @@ export default function StorageMaintenancePage() {
   };
 
   const handleItemAction = async (action, item) => {
-    if (!organizationId) return;
+    const itemOrganizationId = item.organization_id || organizationId;
+    const itemScanId = item.run_id || latestScanId;
+    if (!itemOrganizationId) return;
     if (action === "view_relationships") {
       setRelationshipItem(item);
       return;
@@ -1051,7 +1031,7 @@ export default function StorageMaintenancePage() {
     if (action === "preview" || action === "download") {
       setSubmitting(true);
       try {
-        const url = `/api/system/storage-maintenance/runs/${latestScanId}/items/${item.id}/content?organizationId=${encodeURIComponent(organizationId)}${action === "download" ? "&download=1" : ""}`;
+        const url = `/api/system/storage-maintenance/runs/${itemScanId}/items/${item.id}/content?organizationId=${encodeURIComponent(itemOrganizationId)}${action === "download" ? "&download=1" : ""}`;
         const response = await fetch(url);
         if (!response.ok) {
           const body = await response.json().catch(() => ({}));
@@ -1089,7 +1069,7 @@ export default function StorageMaintenancePage() {
       return;
     }
     if (action === "rescan" || action === "validate_storage") {
-      await requestScan();
+      await requestScan(itemOrganizationId);
       return;
     }
     if (!actionDialogContent[action]) return;
@@ -1106,24 +1086,26 @@ export default function StorageMaintenancePage() {
   };
 
   const submitItemAction = async () => {
-    if (!organizationId || !actionDialog) return;
+    if (!actionDialog) return;
     const { action, item } = actionDialog;
+    const itemOrganizationId = item.organization_id || organizationId;
+    const itemScanId = item.run_id || latestScanId;
     let endpoint;
-    let payload = { organizationId, confirmationAccepted: true };
+    let payload = { organizationId: itemOrganizationId, confirmationAccepted: true };
     if (action === "quarantine")
-      endpoint = `/api/system/storage-maintenance/runs/${latestScanId}/items/${item.id}/quarantine`;
+      endpoint = `/api/system/storage-maintenance/runs/${itemScanId}/items/${item.id}/quarantine`;
     else if (action === "restore_quarantine")
       endpoint = `/api/system/storage-maintenance/quarantine/${item.id}/restore`;
     else if (action === "purge_now")
       endpoint = `/api/system/storage-maintenance/quarantine/${item.quarantine_id || item.id}/purge`;
     else if (action === "restore_metadata") {
-      endpoint = `/api/system/storage-maintenance/runs/${latestScanId}/items/${item.id}/resolve`;
+      endpoint = `/api/system/storage-maintenance/runs/${itemScanId}/items/${item.id}/resolve`;
       payload = { ...payload, action: "restore_metadata" };
     } else if (action === "retain_official") {
-      endpoint = `/api/system/storage-maintenance/runs/${latestScanId}/items/${item.id}/resolve`;
+      endpoint = `/api/system/storage-maintenance/runs/${itemScanId}/items/${item.id}/resolve`;
       payload = { ...payload, action: "retain_official", reason: actionReason.trim() };
     } else if (["stage_cleanup", "finalize_cleanup"].includes(action)) {
-      endpoint = `/api/system/storage-maintenance/runs/${latestScanId}/items/${item.id}/resolve`;
+      endpoint = `/api/system/storage-maintenance/runs/${itemScanId}/items/${item.id}/resolve`;
       payload = { ...payload, action, reason: actionReason.trim() };
     } else return;
 
@@ -1228,6 +1210,7 @@ export default function StorageMaintenancePage() {
           selected={new Set(selectedItems.keys())}
           onSelect={toggleItem}
           onAction={handleItemAction}
+          allowSelection={!allOrganizations}
         />
       ),
     },
@@ -1367,13 +1350,14 @@ export default function StorageMaintenancePage() {
           <Box>
             <FontStyle fontWeight={700}>Organisasi yang diperiksa</FontStyle>
             <FontStyle fontSize={11.5} sx={{ mt: 0.4, mb: 1, color: theme.ui.mutedText }}>
-              Satu pemeriksaan hanya berlaku untuk satu organisasi.
+              Lihat semua organisasi atau pilih satu untuk pemeriksaan baru.
             </FontStyle>
             <OrganizationSelect
+              includeAll
               disabled={submitting}
-              value={organizationId}
+              value={organizationId || "all"}
               onChange={(value, option) =>
-                setOrganization({ id: value || null, name: option?.label || "" })
+                setOrganization({ id: value === "all" ? null : value, name: option?.label || "" })
               }
             />
           </Box>
@@ -1383,14 +1367,16 @@ export default function StorageMaintenancePage() {
               icon={<ScanOutlined />}
               loading={submitting || activeRun?.status === "running"}
               disabled={!organizationId || hasActiveRun}
-              onClick={requestScan}
+              onClick={() => requestScan()}
               block={mobile}
             >
-              {activeRun?.status === "queued"
-                ? "Menunggu worker"
-                : activeRun?.status === "running"
-                  ? `${activeRunLabel} berjalan`
-                  : "Periksa penyimpanan"}
+              {allOrganizations
+                ? "Pilih organisasi untuk memeriksa"
+                : activeRun?.status === "queued"
+                  ? "Menunggu worker"
+                  : activeRun?.status === "running"
+                    ? `${activeRunLabel} berjalan`
+                    : "Periksa penyimpanan"}
             </Button>
           </Box>
         </Box>
@@ -1416,51 +1402,44 @@ export default function StorageMaintenancePage() {
           {connectionError}
         </Alert>
       ) : null}
-      {!organizationId ? (
-        <DataPanel title="Hasil pemeriksaan" description="Pilih organisasi untuk memulai.">
-          <Box sx={{ p: 4 }}>
-            <EmptyState description="Belum ada organisasi yang dipilih." />
-          </Box>
-        </DataPanel>
-      ) : (
-        <>
-          {hasActiveRun ? (
-            <Alert
-              severity="info"
-              sx={{
+      <>
+        {hasActiveRun ? (
+          <Alert
+            severity="info"
+            sx={{
+              alignItems: "center",
+              py: 1.5,
+              "& .MuiAlert-icon": {
+                alignSelf: "center",
                 alignItems: "center",
-                py: 1.5,
-                "& .MuiAlert-icon": {
-                  alignSelf: "center",
-                  alignItems: "center",
-                  py: 0,
-                  lineHeight: 0,
-                },
-                "& .MuiAlert-icon svg": { display: "block" },
-                "& .MuiAlert-message": {
-                  display: "flex",
-                  alignItems: "center",
-                  minWidth: 0,
-                  width: "100%",
-                  py: 0,
-                },
+                py: 0,
+                lineHeight: 0,
+              },
+              "& .MuiAlert-icon svg": { display: "block" },
+              "& .MuiAlert-message": {
+                minWidth: 0,
+                width: "100%",
+                py: 0,
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                width: "100%",
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: { xs: "stretch", sm: "center" },
+                justifyContent: "space-between",
+                gap: 1.5,
               }}
             >
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: { xs: "column", sm: "row" },
-                  alignItems: { xs: "stretch", sm: "center" },
-                  justifyContent: "space-between",
-                  gap: 1.5,
-                }}
-              >
-                <FontStyle>
-                  {activeRun?.status === "queued"
-                    ? `${activeRunLabel} masih menunggu worker. Pastikan proses sitou-file-cleanup-worker aktif di server.`
-                    : `${activeRunLabel} sedang diproses. Daftar diperbarui otomatis setelah proses selesai.`}
-                </FontStyle>
-                {activeRun?.status === "queued" ? (
+              <FontStyle>
+                {activeRun?.status === "queued"
+                  ? `${activeRun.organization_name}: ${activeRunLabel.toLowerCase()} masih menunggu worker. Pastikan proses sitou-file-cleanup-worker aktif di server.`
+                  : `${activeRun?.organization_name || "Organisasi"}: ${activeRunLabel.toLowerCase()} sedang diproses. Daftar diperbarui otomatis.`}
+              </FontStyle>
+              {activeRun?.status === "queued" ? (
+                <Box sx={{ ml: { sm: "auto" }, flexShrink: 0 }}>
                   <Button
                     tone="danger"
                     icon={<StopOutlined />}
@@ -1470,113 +1449,113 @@ export default function StorageMaintenancePage() {
                   >
                     Batalkan antrean
                   </Button>
-                ) : null}
-              </Box>
-            </Alert>
-          ) : null}
-
-          <Paper
-            component="section"
-            elevation={0}
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(5, 1fr)" },
-              gap: 0,
-              border: `1px solid ${theme.ui.panelBorder}`,
-              borderRadius: 2,
-              overflow: "hidden",
-              boxShadow: theme.ui.panelShadow,
-              "& > div": {
-                p: { xs: 2, sm: 2.5 },
-                borderBottom: { xs: `1px solid ${theme.ui.panelBorderSubtle}`, lg: 0 },
-                borderRight: { xs: 0, sm: `1px solid ${theme.ui.panelBorderSubtle}` },
-              },
-            }}
-          >
-            <Metric
-              icon={<CheckCircleOutlined />}
-              label="File siap dihapus"
-              value={summary?.candidate_items ?? 0}
-              helper="Tidak digunakan oleh data aktif"
-              tone="success"
-            />
-            <Metric
-              icon={<DeleteOutlined />}
-              label="Penyimpanan dapat dikosongkan"
-              value={formatBytes(summary?.candidate_bytes)}
-              helper="Berdasarkan pemeriksaan terakhir"
-              tone="info"
-            />
-            <Metric
-              icon={<WarningOutlined />}
-              label="Perlu pemulihan"
-              value={summary?.issue_items ?? 0}
-              helper="Membutuhkan tindakan admin"
-              tone="warning"
-            />
-            <Metric
-              icon={<SafetyCertificateOutlined />}
-              label="Ancaman keamanan"
-              value={summary?.security_items ?? 0}
-              helper="Tidak dapat dibuka atau diunduh"
-              tone="danger"
-            />
-            <Metric
-              icon={<HistoryOutlined />}
-              label="Penghapusan terakhir"
-              value={summary?.latest_cleanup_at ? `${summary.cleaned_items} file` : "Belum ada"}
-              helper={formatDateTime(summary?.latest_cleanup_at)}
-              tone="info"
-            />
-          </Paper>
-
-          <DataPanel
-            title="Hasil pemeriksaan penyimpanan"
-            description={
-              summary?.latest_scan_at
-                ? `Pemeriksaan terakhir ${formatDateTime(summary.latest_scan_at)}.`
-                : "Jalankan pemeriksaan untuk menemukan file tidak terpakai yang siap dihapus."
-            }
-            toolbar={
-              activeTab === "candidate" ? (
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: { xs: "stretch", sm: "center" },
-                    justifyContent: "space-between",
-                    flexDirection: { xs: "column", sm: "row" },
-                    gap: 1.5,
-                  }}
-                >
-                  <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
-                    {selection.length
-                      ? `${selection.length} file dipilih · ${formatBytes(selectedBytes)}`
-                      : "Pilih file atau catatan yang akan dibersihkan."}
-                  </FontStyle>
-                  <Button
-                    danger
-                    icon={<DeleteOutlined />}
-                    disabled={!selection.length || hasActiveRun}
-                    onClick={() => setConfirmOpen(true)}
-                  >
-                    Bersihkan terpilih
-                  </Button>
                 </Box>
-              ) : null
-            }
-          >
-            <Tabs
-              activeKey={activeTab}
-              onChange={(key) => {
-                setActiveTab(key);
-                setItemState((current) => ({ ...current, page: 1 }));
-              }}
-              items={tabItems}
-              tabBarStyle={{ paddingInline: 24, marginBottom: 0 }}
-            />
-          </DataPanel>
-        </>
-      )}
+              ) : null}
+            </Box>
+          </Alert>
+        ) : null}
+
+        <Paper
+          component="section"
+          elevation={0}
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(5, 1fr)" },
+            gap: 0,
+            border: `1px solid ${theme.ui.panelBorder}`,
+            borderRadius: 2,
+            overflow: "hidden",
+            boxShadow: theme.ui.panelShadow,
+            "& > div": {
+              p: { xs: 2, sm: 2.5 },
+              borderBottom: { xs: `1px solid ${theme.ui.panelBorderSubtle}`, lg: 0 },
+              borderRight: { xs: 0, sm: `1px solid ${theme.ui.panelBorderSubtle}` },
+            },
+          }}
+        >
+          <Metric
+            icon={<CheckCircleOutlined />}
+            label="File siap dihapus"
+            value={summary?.candidate_items ?? 0}
+            helper="Tidak digunakan oleh data aktif"
+            tone="success"
+          />
+          <Metric
+            icon={<DeleteOutlined />}
+            label="Penyimpanan dapat dikosongkan"
+            value={formatBytes(summary?.candidate_bytes)}
+            helper="Berdasarkan pemeriksaan terakhir"
+            tone="info"
+          />
+          <Metric
+            icon={<WarningOutlined />}
+            label="Perlu pemulihan"
+            value={summary?.issue_items ?? 0}
+            helper="Membutuhkan tindakan admin"
+            tone="warning"
+          />
+          <Metric
+            icon={<SafetyCertificateOutlined />}
+            label="Ancaman keamanan"
+            value={summary?.security_items ?? 0}
+            helper="Tidak dapat dibuka atau diunduh"
+            tone="danger"
+          />
+          <Metric
+            icon={<HistoryOutlined />}
+            label="Penghapusan terakhir"
+            value={summary?.latest_cleanup_at ? `${summary.cleaned_items} file` : "Belum ada"}
+            helper={formatDateTime(summary?.latest_cleanup_at)}
+            tone="info"
+          />
+        </Paper>
+
+        <DataPanel
+          title="Hasil pemeriksaan penyimpanan"
+          description={
+            summary?.latest_scan_at
+              ? `Pemeriksaan terakhir ${formatDateTime(summary.latest_scan_at)}.`
+              : "Jalankan pemeriksaan untuk menemukan file tidak terpakai yang siap dihapus."
+          }
+          toolbar={
+            activeTab === "candidate" && !allOrganizations ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: { xs: "stretch", sm: "center" },
+                  justifyContent: "space-between",
+                  flexDirection: { xs: "column", sm: "row" },
+                  gap: 1.5,
+                }}
+              >
+                <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
+                  {selection.length
+                    ? `${selection.length} file dipilih · ${formatBytes(selectedBytes)}`
+                    : "Pilih file atau catatan yang akan dibersihkan."}
+                </FontStyle>
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  disabled={!selection.length || hasActiveRun}
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  Bersihkan terpilih
+                </Button>
+              </Box>
+            ) : null
+          }
+        >
+          <Tabs
+            activeKey={activeTab}
+            onChange={(key) => {
+              setActiveTab(key);
+              setItemState((current) => ({ ...current, page: 1 }));
+            }}
+            items={tabItems}
+            tabBarStyle={{ paddingInline: 24, marginBottom: 0 }}
+          />
+        </DataPanel>
+      </>
 
       <AppModal
         open={Boolean(relationshipItem)}
@@ -1821,7 +1800,9 @@ export default function StorageMaintenancePage() {
             }}
           >
             <FontStyle sx={{ color: theme.ui.mutedText }}>Organisasi</FontStyle>
-            <FontStyle fontWeight={650}>{organization.name || "-"}</FontStyle>
+            <FontStyle fontWeight={650}>
+              {selection[0]?.organization_name || organization.name || "Organisasi belum diketahui"}
+            </FontStyle>
             <FontStyle sx={{ color: theme.ui.mutedText }}>Catatan tanpa file</FontStyle>
             <FontStyle>
               {

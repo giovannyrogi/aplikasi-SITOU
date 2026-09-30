@@ -67,12 +67,31 @@ try {
   if (runsResponse.status !== 200 || !Array.isArray(runsBody.data))
     throw new Error(`Superadmin gagal membaca riwayat: HTTP ${runsResponse.status}.`);
 
+  const allTabs = {};
+  for (const itemKind of ["candidate", "quarantine", "recovery", "security", "history"]) {
+    const allResponse = await request(
+      `/api/system/storage-maintenance/all?itemKind=${itemKind}&page=1`,
+      superadmin,
+    );
+    const body = await allResponse.json();
+    if (allResponse.status !== 200 || !Array.isArray(body.data?.items))
+      throw new Error(`Tampilan semua organisasi (${itemKind}) gagal: HTTP ${allResponse.status}.`);
+    if (body.data.items.some((item) => !item.organization_id || !item.organization_name))
+      throw new Error(`Asal organisasi tidak tersedia pada ${itemKind}.`);
+    if (JSON.stringify(body.data).includes('"object_key"'))
+      throw new Error(`Lokasi privat bocor pada ${itemKind}.`);
+    allTabs[itemKind] = body.data.total;
+  }
+
   let hrdStatus = "tidak diuji";
   if (hrd) {
     const denied = await request(`/api/system/storage-maintenance/summary?${query}`, hrd);
     if (denied.status !== 403)
       throw new Error(`HRD seharusnya ditolak, tetapi menerima HTTP ${denied.status}.`);
     hrdStatus = "ditolak 403";
+    const allDenied = await request("/api/system/storage-maintenance/all", hrd);
+    if (allDenied.status !== 403)
+      throw new Error(`HRD tidak boleh membaca seluruh organisasi: HTTP ${allDenied.status}.`);
   }
 
   console.log(
@@ -81,6 +100,7 @@ try {
         ready: true,
         superadminSummary: summaryResponse.status,
         superadminHistory: runsResponse.status,
+        allOrganizations: allTabs,
         hrdAccess: hrdStatus,
         sensitiveFieldsExposed: ["object_key", "sha256"].some((key) => key in summaryBody.data),
       },

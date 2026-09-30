@@ -8,6 +8,7 @@ const EMPTY_EXCLUDE_IDS = [];
 export default function OrganizationSelect({
   excludeIds = EMPTY_EXCLUDE_IDS,
   autoSelectFirst = false,
+  includeAll = false,
   value,
   onChange,
   ...props
@@ -16,8 +17,11 @@ export default function OrganizationSelect({
   const didAutoSelect = useRef(false);
   const excludedIds = useMemo(() => new Set(excludeIds.map(String)), [excludeIds]);
   const visibleOptions = useMemo(
-    () => state.options.filter((option) => !excludedIds.has(String(option.value))),
-    [excludedIds, state.options],
+    () => [
+      ...(includeAll ? [{ value: "all", label: "Semua organisasi" }] : []),
+      ...state.options.filter((option) => !excludedIds.has(String(option.value))),
+    ],
+    [excludedIds, includeAll, state.options],
   );
 
   useEffect(() => {

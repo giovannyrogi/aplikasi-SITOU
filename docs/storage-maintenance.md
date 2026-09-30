@@ -1,5 +1,7 @@
 # Pemeliharaan Penyimpanan File
 
+Halaman Superadmin menampilkan seluruh organisasi saat pertama dibuka. Pilihan organisasi membatasi daftar; pemeriksaan baru tetap dijalankan untuk satu organisasi. Hasil gabungan dapat ditinjau lintas organisasi, sedangkan setiap tindakan tetap memakai organisasi asal file yang diverifikasi server.
+
 Khusus Superadmin. Pilih satu organisasi, jalankan pemeriksaan, lalu pilih **Bersihkan**
 untuk kandidat yang tidak digunakan. Setiap tabel, kartu, riwayat, preview, dan
 konfirmasi menampilkan organisasi asal dari server.
