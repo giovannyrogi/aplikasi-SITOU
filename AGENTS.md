@@ -261,6 +261,10 @@ Lifecycle tindakan disiplin wajib mempertahankan histori: status `draft` masih d
 
 ## 14. File privat
 
+- Pemeliharaan penyimpanan melindungi file berdasarkan referensi nyata, termasuk histori, versi dokumen, logo organisasi, dan draft aktif. Kategori dokumen resmi atau kepemilikan `employee_id` saja bukan alasan mempertahankan file tanpa referensi. Superadmin boleh membersihkan file tersebut secara permanen setelah konfirmasi dan pemeriksaan ulang; histori bisnis dan audit tidak dihapus.
+- File tanpa catatan berumur kurang dari 24 jam tidak menjadi kandidat. Pembersihan manual kandidat tanpa referensi tidak memerlukan hasil antivirus bersih atau masa tunggu tujuh hari; preview/unduh tetap wajib bersih. File terinfeksi tetap mengikuti karantina keamanan.
+- Semua temuan, kartu, riwayat, dan modal pemeliharaan wajib menampilkan organisasi asal dari data server. Organisasi yang belum terverifikasi memblokir penghapusan. Gunakan keterangan singkat seperti “Tidak digunakan”, “File tanpa catatan”, atau “File tidak ditemukan”, serta tombol tindakan yang sesuai masalah.
+
 - Development boleh memakai direktori privat di luar public web root.
 - Produksi direkomendasikan object storage privat.
 - Database menyimpan `object_key`, nama asli, MIME, ukuran, hash, kategori, dan pemilik organisasi.

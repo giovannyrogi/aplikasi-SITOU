@@ -14,7 +14,7 @@ export async function POST(request, context) {
   try {
     const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);
     const data = await purgeQuarantineItem((await context.params).id, organizationId, user, requestId);
-    return successResponse(data, { code: "THREAT_PURGED", message: "File berbahaya berhasil dihapus permanen." });
+    return successResponse(data, { code: "THREAT_PURGED", message: "File berhasil dihapus permanen." });
   } catch (error) {
     return handleRouteError("storage-maintenance.quarantine-purge", error, requestId);
   }

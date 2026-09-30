@@ -213,7 +213,7 @@ organisasi, serta cakupan lokasi yang sama dan tidak pernah mengubah status tind
 
 Menu Superadmin `Pemeliharaan Sistem > Penyimpanan File` memeriksa lifecycle sebenarnya: draft aktif, draft dibuang atau kedaluwarsa, file aktif yang direferensikan, orphan aktif setelah masa aman 24 jam, histori resmi, metadata dengan byte hilang, byte tanpa metadata, file `.tmp`, dan sisa `.trash`. UI tidak menerima `object_key`; byte tanpa metadata ditampilkan dengan label aman.
 
-Cleanup selalu mengunci metadata dan memeriksa ulang organisasi, referensi seluruh tabel termasuk versi kontrak/penempatan, lifecycle, umur, provider, serta path. Dokumen resmi yang masih direferensikan tidak pernah menjadi kandidat. Byte dipindahkan ke karantina sebelum metadata berubah dan dipurge setelah commit; rollback memulihkan karantina. Metadata `stored_files`, item proses, dan audit tetap disimpan. Cleanup otomatis harus tetap nonaktif sampai laporan missing byte selesai dipulihkan atau diputuskan secara manual.
+Cleanup manual terkonfirmasi memeriksa organisasi, semua referensi termasuk versi histori, lifecycle, provider, path, ukuran, dan hash. Kategori resmi tanpa referensi dapat dibersihkan; file dirujuk dan draft aktif tetap dilindungi. File baru tanpa catatan dilindungi 24 jam. Transaksi mengunci tabel referensi agar file tidak dikaitkan bersamaan, mengisolasi file sementara sebelum commit, lalu menghapusnya; rollback memulihkan file. Catatan tanpa file menjadi purged hanya setelah konfirmasi. Metadata `stored_files`, item proses, dan audit tetap disimpan. Tidak ada perubahan schema untuk kebijakan ini.
 
 ## Kapan Membuka SQL
 

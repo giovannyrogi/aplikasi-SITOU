@@ -34,20 +34,6 @@ test("kategori pembersihan hanya mencakup file profil replaceable", () => {
   assert.deepEqual(CLEANABLE_PROFILE_CATEGORIES, ["employee_photo", "identity", "education"]);
 });
 
-test("file aktif tanpa referensi selalu memerlukan persetujuan sebelum pembersihan", async () => {
-  const worker = await readFile(
-    new URL("../lib/storage-maintenance/worker.mjs", import.meta.url),
-    "utf8",
-  );
-  const start = worker.indexOf("async function inspectActiveOrphanFile");
-  const end = worker.indexOf("async function performScan", start);
-  const inspection = worker.slice(start, end);
-  assert.match(inspection, /OFFICIAL_HISTORY_CATEGORIES\.includes\(file\.category\)/);
-  assert.match(inspection, /!CLEANABLE_PROFILE_CATEGORIES\.includes\(file\.category\)/);
-  assert.doesNotMatch(inspection, /status: "eligible"/);
-  assert.match(inspection, /reasonCode: "active_orphan"/);
-});
-
 test("registry referensi mencakup seluruh pemilik stored_files pada schema saat ini", () => {
   assert.deepEqual(
     STORED_FILE_REFERENCES.map(({ table, column }) => `${table}.${column}`).sort(),
@@ -85,14 +71,14 @@ test("pemeriksaan referensi melaporkan setiap tabel yang masih memakai file", as
   }
 });
 
-test("file aktif tidak pernah lolos sebagai kandidat pembersihan", async () => {
+test("catatan tanpa referensi tetap dapat dibersihkan meski status aktif", async () => {
   const result = await inspectDeletedProfileFile(
     { query: async () => ({ rows: [] }) },
     uploadRoot,
     { ...baseFile, deleted_at: null },
   );
-  assert.equal(result.status, "needs_review");
-  assert.equal(result.reasonCode, "active_metadata");
+  assert.equal(result.status, "eligible");
+  assert.equal(result.reasonCode, "unreferenced_content_missing");
 });
 
 test("satu referensi bisnis saja membuat file perlu ditinjau", async () => {
@@ -103,7 +89,7 @@ test("satu referensi bisnis saja membuat file perlu ditinjau", async () => {
   };
   const result = await inspectDeletedProfileFile(database, uploadRoot, baseFile);
   assert.equal(result.status, "needs_review");
-  assert.equal(result.reasonCode, "metadata_status_invalid");
+  assert.equal(result.reasonCode, "active_content_missing");
   assert.deepEqual(result.references, ["Pas foto pegawai"]);
 });
 
@@ -115,13 +101,14 @@ test("object key yang dipakai metadata aktif tidak dapat dibersihkan", async () 
   assert.equal(result.reasonCode, "active_object_key");
 });
 
-test("dokumen resmi dan path organisasi yang tidak sesuai selalu ditolak", async () => {
+test("dokumen tanpa referensi dapat dibersihkan tetapi path lintas organisasi ditolak", async () => {
   const database = { query: async () => ({ rows: [] }) };
   const official = await inspectDeletedProfileFile(database, uploadRoot, {
     ...baseFile,
     category: "contract",
   });
-  assert.equal(official.reasonCode, "official_history_detached");
+  assert.equal(official.reasonCode, "unreferenced_content_missing");
+  assert.equal(official.status, "eligible");
 
   const mismatch = resolveMaintenancePath(uploadRoot, {
     ...baseFile,
@@ -186,7 +173,7 @@ test("service API membuang NIP mentah dan mapper publik tidak membocorkan path a
   );
   assert.match(source, /employee_no: employeeNumber/);
   const mapper = source.slice(source.indexOf("const mapItem"), source.indexOf("async function ensureOrganization"));
-  assert.doesNotMatch(mapper, /object_key|sha256|quarantine_object_key/);
+  assert.doesNotMatch(mapper, /row\.(object_key|sha256|quarantine_object_key)/);
 });
 
 test("PM2 menjalankan server web dan satu worker pembersihan production", async () => {

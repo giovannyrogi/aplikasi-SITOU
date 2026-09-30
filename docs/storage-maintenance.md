@@ -1,103 +1,85 @@
 # Pemeliharaan Penyimpanan File
 
-Fitur ini tersedia khusus Superadmin melalui menu **Pemeliharaan Sistem > Penyimpanan File**. Pilih satu organisasi, jalankan pemeriksaan, tinjau hasil, pilih kandidat aman, lalu setujui konfirmasi penghapusan permanen.
+Khusus Superadmin. Pilih satu organisasi, jalankan pemeriksaan, lalu pilih **Bersihkan**
+untuk kandidat yang tidak digunakan. Setiap tabel, kartu, riwayat, preview, dan
+konfirmasi menampilkan organisasi asal dari server.
 
-Hasil dibagi menjadi **Siap dibersihkan**, **Karantina**, **Integritas & pemulihan**,
-**Ancaman keamanan**, dan **Riwayat proses**. File aktif atau histori resmi yang masih
-memiliki referensi tidak ditampilkan. Preview gambar/PDF dan unduhan hanya tersedia
-setelah ClamAV memberi status `clean`; file `infected` hanya menampilkan metadata
-ancaman dan tidak pernah dapat dibuka atau diunduh.
+## Klasifikasi
 
-Pada tab **Integritas & pemulihan**, aksi **Lihat hubungan file** membuka modal yang
-menjelaskan organisasi, pegawai terkait, referensi bisnis, status antivirus, dampak,
-dan tindakan yang tersedia. Superadmin menyelesaikan pemulihan dari modal ini tanpa
-berpindah ke halaman detail pegawai yang bergantung pada membership organisasi.
+| Kondisi | Hasil / tindakan |
+|---|---|
+| Masih dirujuk profil, histori, versi dokumen atau data organisasi dan valid | Tidak tampil |
+| Tanpa referensi, termasuk kontrak/cuti/penempatan | Siap dibersihkan → Bersihkan |
+| File tanpa catatan, berumur minimal 24 jam | Siap dibersihkan → Bersihkan |
+| Catatan tanpa referensi dan file hilang | Siap dibersihkan → Bersihkan catatan |
+| File dirujuk tetapi hilang | Integritas & pemulihan → Unggah pemulihan |
+| File dirujuk tetapi status terhapus | Integritas & pemulihan → Pulihkan status |
+| Scanner gagal pada file dirujuk | Integritas & pemulihan → Periksa antivirus |
+| Path, izin atau provider bermasalah | Petunjuk perbaikan server dan Validasi ulang |
+| Terinfeksi | Karantina privat / Ancaman keamanan → Hapus permanen |
+| Karantina biasa | Pulihkan atau Hapus permanen |
 
-Klasifikasi hasil mengikuti kepastian kondisi:
+Kategori resmi dan employee_id bukan bukti bahwa file masih digunakan. Referensi
+histori tetap dilindungi tanpa menyaring status akhir pegawai. Draft aktif dan
+upload baru dilindungi. Inventaris filesystem mencocokkan semua lifecycle agar
+arsip retained/purged/quarantined tidak dianggap file tanpa catatan.
 
-- File dengan referensi bisnis valid dan byte tersedia tidak ditampilkan.
-- File tanpa referensi yang aman dibersihkan masuk **Siap dibersihkan** setelah masa tunggu.
-- Metadata aktif tanpa referensi memerlukan persetujuan **Pindahkan ke pembersihan**;
-  server memeriksa ulang referensi, hash, ukuran, MIME, ClamAV, dan kategori sebelum
-  memulai masa aman tujuh hari.
-- **Isi file aktif tidak ditemukan** hanya digunakan bila metadata masih dirujuk data
-  bisnis tetapi byte benar-benar tidak ada di storage. Tindak lanjutnya adalah unggah
-  file yang sama dari backup.
-- Bila byte tidak ada dan tidak ada referensi bisnis, Superadmin dapat menyelesaikan
-  catatan pembersihan setelah pemeriksaan ulang server.
-- Dokumen histori resmi tidak dapat dipindahkan ke pembersihan; tindakannya adalah
-  pemulihan byte/referensi atau retensi sebagai arsip resmi.
+## Eksekusi dan keamanan
 
-## Menjalankan worker
+Scan tidak menghapus kandidat. Pembersihan manual terkonfirmasi menghapus permanen,
+tanpa tambahan masa tunggu tujuh hari. Status scanner gagal/belum diperiksa tidak
+menghalangi penghapusan file tanpa referensi. Preview/unduh tetap hanya untuk clean.
+Pemeriksaan antivirus ulang menjalankan scanner pada file yang belum bersih.
 
-API hanya memasukkan pekerjaan ke antrean. Jalankan worker sebagai proses terpisah dari server web:
+Worker memeriksa referensi, organisasi, path, symlink, ukuran dan hash ulang.
+Transaksi penghapusan menggunakan lock singkat pada tabel referensi dan stored_files
+untuk mencegah pengaitan file bersamaan; lock timeout menyebabkan retry.
+File dipindahkan sementara sebelum commit, dipulihkan jika rollback, lalu dihapus.
+Ini mekanisme pemulihan transaksi, bukan karantina tujuh hari. Metadata menjadi
+purged; catatan file dan audit tetap tersedia. Hanya ENOENT berarti file hilang.
 
-```powershell
-npm run worker:file-cleanup
-```
+Pemulihan wajib memakai file asli dengan ukuran, MIME, SHA-256 yang cocok dan ClamAV
+clean. File terinfeksi tidak boleh dibuka, diunduh, atau dipulihkan. Karantina ancaman
+tetap tujuh hari atau dihapus lebih awal dengan konfirmasi.
 
-Untuk memproses satu pekerjaan lalu berhenti saat pengujian:
+API tetap memakai endpoint runs/:id/cleanup, items/:itemId/content, recovery,
+resolve, serta quarantine/:id/restore dan purge. Cleanup menerima kandidat dengan
+atau tanpa catatan database. Respons publik tidak memuat object key/path/hash.
+Aksi lama stage_cleanup/retain_official dipertahankan untuk kompatibilitas klien;
+UI baru memakai kandidat hasil scan terbaru dan endpoint cleanup.
 
-```powershell
-npm run worker:file-cleanup -- --once
-```
+## Worker dan rollout VPS
 
-Production harus menjalankan worker sebagai service yang otomatis hidup kembali. Pengambilan job memakai `FOR UPDATE SKIP LOCKED` dan pembersihan per file tetap idempotent.
-
-Repository sudah mendaftarkan server web dan satu worker pada `ecosystem.config.js`. Setelah deployment, muat ulang keduanya melalui PM2:
+Jalankan web dan worker dengan revisi yang sama:
 
 ```bash
 pm2 startOrReload ecosystem.config.js
 pm2 save
+pm2 status
 ```
 
-Jalankan `pm2 startup` satu kali pada VPS dan ikuti perintah yang ditampilkan agar daftar proses hasil `pm2 save` dipulihkan setelah server reboot. Pastikan `pm2 status` menampilkan `sitou` dan `sitou-file-cleanup-worker` dalam keadaan `online`.
+Pastikan sitou dan sitou-file-cleanup-worker online serta UPLOAD_ROOT menunjuk mount
+persisten yang sama. Update ini tidak mengubah migration 036 atau schema database.
+Jalankan scan baru setelah deployment; jangan memakai hasil lama sebagai bukti
+bahwa file boleh dihapus. Worker tetap memeriksa kondisi terkini pada setiap aksi.
 
-Saat antrean kosong worker memeriksa pekerjaan baru setiap dua detik. Halaman menampilkan **Menunggu worker** selama pekerjaan masih berstatus `queued`, kemudian **Pemeriksaan berjalan** atau **Pembersihan berjalan** setelah worker mengambilnya. Antrean yang belum diambil dapat dibatalkan dari pemberitahuan halaman atau tab riwayat.
+## Diagnosis koneksi
 
-## Aturan keamanan
+UI menampilkan kegagalan jaringan dalam Bahasa Indonesia, satu pesan koneksi dengan
+Coba lagi, polling berurutan, dan membatalkan request saat organisasi/halaman berubah.
+Respons API mempertahankan request ID ketika tersedia.
 
-- Pemeriksaan selalu dibatasi ke satu organisasi.
-- Hanya file profil replaceable yang sudah nonaktif minimal tujuh hari yang dapat menjadi kandidat.
-- Kandidat wajib memiliki nol referensi pada seluruh tabel bisnis.
-- Dokumen histori resmi tidak pernah dibersihkan melalui fitur ini.
-- Worker memeriksa ulang status, organisasi, kategori, umur, provider, path, object key, dan referensi tepat sebelum karantina.
-- File yang berubah setelah pemeriksaan dilewati dan alasannya disimpan.
-- Metadata file dan audit tidak dihapus setelah byte berhasil dibersihkan.
-- Byte tanpa metadata dikarantina tujuh hari dan dapat dipulihkan sebelum tenggat.
-- File terinfeksi otomatis dikarantina, tidak dapat dipulihkan lewat UI, dan dihapus
-  otomatis setelah tujuh hari atau lebih awal setelah konfirmasi Superadmin.
-- Dokumen histori resmi yang terlepas hanya dapat dipulihkan referensinya atau
-  dipertahankan sebagai arsip; menu ini tidak menyediakan aksi hapus untuk dokumen tersebut.
-- Isi file aktif yang hilang hanya dapat dipulihkan dari backup dengan file yang sama persis.
-  Server mencocokkan ukuran, MIME dari byte, dan SHA-256, lalu mewajibkan hasil ClamAV
-  `clean` sebelum melakukan pemulihan atomik dan mencatat audit.
+“Failed to fetch” di VPS belum dapat dipastikan hanya dari screenshot. Cocokkan waktu
+dan endpoint request gagal pada Network/Console browser dengan:
+`pm2 logs sitou --lines 100`, log reverse proxy, status worker, HTTPS/certificate,
+dan kebijakan CSP. Jangan membagikan cookie, token, isi file, atau konfigurasi rahasia.
+Pesan yang lebih jelas tidak membuktikan penyebab jaringan telah diperbaiki.
 
-## Endpoint tindakan
+## Verifikasi
 
-Seluruh endpoint berikut mewajibkan `storage_maintenance.manage`, memilih organisasi
-secara eksplisit, dan mengaudit akses atau perubahan. Endpoint isi file juga memakai
-respons `private, no-store`, `nosniff`, dan CSP sandbox:
-
-- `GET /api/system/storage-maintenance/runs/:runId/items/:itemId/content` untuk preview/unduh file bersih.
-- `POST /api/system/storage-maintenance/runs/:runId/items/:itemId/quarantine` untuk orphan bersih.
-- `POST /api/system/storage-maintenance/runs/:runId/items/:itemId/recovery` untuk pemulihan byte dari backup.
-- `POST /api/system/storage-maintenance/runs/:runId/items/:itemId/resolve` untuk pemulihan metadata atau retensi arsip resmi.
-- `POST /api/system/storage-maintenance/quarantine/:id/restore` untuk memulihkan orphan sebelum tenggat.
-- `POST /api/system/storage-maintenance/quarantine/:id/purge` untuk menghapus ancaman lebih awal.
-
-## CLI darurat
-
-Dry-run menampilkan jumlah per kategori tanpa mengungkap object key atau data pribadi:
-
-```powershell
-npm run files:cleanup-profile -- --organization-id=12
-```
-
-Eksekusi darurat memerlukan ID akun Superadmin aktif dan tetap memakai worker serta pemeriksaan yang sama:
-
-```powershell
-npm run files:cleanup-profile -- --organization-id=12 --actor-user-id=1 --apply
-```
-
-Untuk operasi rutin gunakan menu aplikasi agar pilihan file, konfirmasi, dan riwayat lebih mudah ditinjau.
+- `node scripts/test-storage-reference-cleanup-db.mjs`: membuat database bootstrap
+  serta direktori upload sementara; menguji dokumen resmi tanpa referensi, orphan,
+  file hilang, race referensi, organisasi berbeda, dan retry tanpa data pengguna.
+- `node --test tests/storage-maintenance.test.mjs tests/storage-reference-policy.test.mjs`
+- `npm run test:storage-maintenance:http`: pemeriksaan akses Superadmin/HRD terhadap server lokal.
+- Lint, build produksi, dan regresi upload pegawai tetap wajib.

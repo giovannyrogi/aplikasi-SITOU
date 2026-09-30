@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button as AntButton, Checkbox, Pagination, Skeleton, Tabs } from "antd";
 import Table from "@/app/components/data-display/NumberedTable";
 import { rowNumberOffset } from "@/app/components/data-display/rowNumbers.mjs";
@@ -19,7 +19,18 @@ import {
   UploadOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import { Alert, alpha, Box, Divider, Paper, TextField, useMediaQuery, useTheme } from "@mui/material";
+import {
+  Alert,
+  alpha,
+  Box,
+  Divider,
+  Paper,
+  TextField,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import { readApiResponse, normalizeRequestError } from "@/lib/api/clientError";
+import FileUploadField from "@/app/components/forms/FileUploadField";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import ModernTableFrame from "@/app/components/data-display/ModernTableFrame";
@@ -89,13 +100,13 @@ const actionDialogContent = {
     button: "Pulihkan file",
   },
   purge_now: {
-    title: "Hapus ancaman secara permanen?",
-    description: "Aksi ini hanya tersedia untuk file terinfeksi dan tidak dapat dibatalkan.",
+    title: "Hapus file secara permanen?",
+    description: "File akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.",
     button: "Hapus permanen",
   },
   restore_metadata: {
     title: "Pulihkan status file?",
-    description: "Status metadata dipulihkan setelah referensi dan isi file diverifikasi ulang.",
+    description: "Status file dipulihkan setelah referensi dan isi file diverifikasi ulang.",
     button: "Pulihkan status",
   },
   retain_official: {
@@ -112,7 +123,7 @@ const actionDialogContent = {
   finalize_cleanup: {
     title: "Selesaikan catatan file yang sudah hilang?",
     description:
-      "Server akan memastikan byte fisik benar-benar tidak ada dan file tidak dipakai data bisnis.",
+      "Server akan memastikan file fisik benar-benar tidak ada dan file tidak dipakai data bisnis.",
     button: "Selesaikan pembersihan",
   },
 };
@@ -259,10 +270,15 @@ const formatDateTime = (value) =>
     : "Belum ada";
 
 async function requestJson(url, options) {
-  const response = await fetch(url, options);
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.message || "Permintaan tidak dapat diproses.");
-  return body;
+  try {
+    const response = await fetch(url, { cache: "no-store", ...options });
+    const body = await readApiResponse(response);
+    if (!body) throw new Error("Respons server tidak dapat dibaca. Silakan masuk kembali.");
+    return body;
+  } catch (error) {
+    if (error.name === "AbortError") throw error;
+    throw normalizeRequestError(error);
+  }
 }
 
 function Metric({ icon, label, value, helper, tone = "info" }) {
@@ -313,8 +329,11 @@ function FileIdentity({ item }) {
         {item.original_name || "Nama file tidak tersedia"}
       </FontStyle>
       <FontStyle fontSize={11} sx={{ mt: 0.4, color: theme.ui.mutedText }}>
-        {item.organization_name} · {item.employee_name || item.relationship_label}
-        {item.employee_no_masked !== "-" ? ` · NIP ${item.employee_no_masked}` : ""}
+        {item.organization_name || "Organisasi belum diketahui"} ·{" "}
+        {item.employee_name || item.relationship_label}
+        {item.employee_no_masked && item.employee_no_masked !== "-"
+          ? ` · NIP ${item.employee_no_masked}`
+          : ""}
       </FontStyle>
     </Box>
   );
@@ -366,6 +385,12 @@ function FileItemsView({
 
   const columns = [
     {
+      title: "Organisasi",
+      dataIndex: "organization_name",
+      width: 190,
+      render: (name) => name || "Organisasi belum diketahui",
+    },
+    {
       title: "File dan pegawai",
       key: "file",
       width: 300,
@@ -395,7 +420,7 @@ function FileItemsView({
       ),
     },
     {
-      title: "Masalah dan tindakan berikutnya",
+      title: "Kondisi file",
       key: "inspection",
       width: 280,
       render: (_, item) => (
@@ -407,14 +432,9 @@ function FileItemsView({
           <FontStyle fontSize={10.5} sx={{ mt: 0.55, color: theme.ui.mutedText }}>
             {item.reason_label}
           </FontStyle>
-          {item.impact ? (
-            <FontStyle fontSize={10.5} sx={{ mt: 0.35, color: theme.ui.mutedText }}>
-              Dampak: {item.impact}
-            </FontStyle>
-          ) : null}
           {item.recommended_action ? (
             <FontStyle fontSize={10.5} sx={{ mt: 0.35, fontWeight: 650 }}>
-              Berikutnya: {item.recommended_action}
+              {item.recommended_action}
             </FontStyle>
           ) : null}
           {item.reference_labels?.length ? (
@@ -432,57 +452,109 @@ function FileItemsView({
       fixed: "right",
       render: (_, item) => (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+          {item.available_actions?.includes("cleanup") ? (
+            <Button danger icon={<DeleteOutlined />} onClick={() => onAction?.("cleanup", item)}>
+              {item.reason_code === "unreferenced_content_missing"
+                ? "Bersihkan catatan"
+                : "Bersihkan"}
+            </Button>
+          ) : null}
+          {item.available_actions?.includes("validate_storage") ? (
+            <Button
+              tone="info"
+              icon={<ReloadOutlined />}
+              onClick={() => onAction?.("validate_storage", item)}
+            >
+              Validasi ulang
+            </Button>
+          ) : null}
           {item.available_actions?.includes("view_relationships") ? (
-            <Button tone="brand" icon={<EyeOutlined />} onClick={() => onAction?.("view_relationships", item)}>
+            <Button
+              tone="brand"
+              icon={<EyeOutlined />}
+              onClick={() => onAction?.("view_relationships", item)}
+            >
               Lihat hubungan file
             </Button>
           ) : (
             <>
-          {item.available_actions?.includes("preview") ? (
-            <Button tone="info" icon={<EyeOutlined />} onClick={() => onAction?.("preview", item)}>
-              Lihat file
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("download") ? (
-            <Button icon={<DownloadOutlined />} onClick={() => onAction?.("download", item)}>
-              Unduh
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("quarantine") ? (
-            <Button tone="warning" icon={<InboxOutlined />} onClick={() => onAction?.("quarantine", item)}>
-              Karantina
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("restore_metadata") ? (
-            <Button tone="success" icon={<RollbackOutlined />} onClick={() => onAction?.("restore_metadata", item)}>
-              Pulihkan status
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("retain_official") ? (
-            <Button tone="brand" icon={<SafetyCertificateOutlined />} onClick={() => onAction?.("retain_official", item)}>
-              Pertahankan arsip
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("restore_quarantine") ? (
-            <Button tone="success" icon={<RollbackOutlined />} onClick={() => onAction?.("restore_quarantine", item)}>
-              Pulihkan
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("purge_now") ? (
-            <Button danger icon={<DeleteOutlined />} onClick={() => onAction?.("purge_now", item)}>
-              Hapus sekarang
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("rescan") ? (
-            <Button tone="info" icon={<ReloadOutlined />} onClick={() => onAction?.("rescan", item)}>
-              Periksa ulang
-            </Button>
-          ) : null}
-          {item.available_actions?.includes("recover_content") ? (
-            <Button tone="success" icon={<UploadOutlined />} onClick={() => onAction?.("recover_content", item)}>
-              Unggah pemulihan
-            </Button>
-          ) : null}
+              {item.available_actions?.includes("preview") ? (
+                <Button
+                  tone="info"
+                  icon={<EyeOutlined />}
+                  onClick={() => onAction?.("preview", item)}
+                >
+                  Lihat file
+                </Button>
+              ) : null}
+              {item.available_actions?.includes("download") ? (
+                <Button icon={<DownloadOutlined />} onClick={() => onAction?.("download", item)}>
+                  Unduh
+                </Button>
+              ) : null}
+              {item.available_actions?.includes("quarantine") ? (
+                <Button
+                  tone="warning"
+                  icon={<InboxOutlined />}
+                  onClick={() => onAction?.("quarantine", item)}
+                >
+                  Karantina
+                </Button>
+              ) : null}
+              {item.available_actions?.includes("restore_metadata") ? (
+                <Button
+                  tone="success"
+                  icon={<RollbackOutlined />}
+                  onClick={() => onAction?.("restore_metadata", item)}
+                >
+                  Pulihkan status
+                </Button>
+              ) : null}
+              {item.available_actions?.includes("retain_official") ? (
+                <Button
+                  tone="brand"
+                  icon={<SafetyCertificateOutlined />}
+                  onClick={() => onAction?.("retain_official", item)}
+                >
+                  Pertahankan arsip
+                </Button>
+              ) : null}
+              {item.available_actions?.includes("restore_quarantine") ? (
+                <Button
+                  tone="success"
+                  icon={<RollbackOutlined />}
+                  onClick={() => onAction?.("restore_quarantine", item)}
+                >
+                  Pulihkan
+                </Button>
+              ) : null}
+              {item.available_actions?.includes("purge_now") ? (
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => onAction?.("purge_now", item)}
+                >
+                  Hapus sekarang
+                </Button>
+              ) : null}
+              {item.available_actions?.includes("rescan") ? (
+                <Button
+                  tone="info"
+                  icon={<ReloadOutlined />}
+                  onClick={() => onAction?.("rescan", item)}
+                >
+                  Periksa antivirus
+                </Button>
+              ) : null}
+              {item.available_actions?.includes("recover_content") ? (
+                <Button
+                  tone="success"
+                  icon={<UploadOutlined />}
+                  onClick={() => onAction?.("recover_content", item)}
+                >
+                  Unggah pemulihan
+                </Button>
+              ) : null}
             </>
           )}
         </Box>
@@ -602,7 +674,6 @@ function FileItemsView({
                   ? ["view_relationships"]
                   : item.available_actions
                 )?.map((action) => {
-                  if (action === "cleanup") return null;
                   const labels = {
                     preview: "Lihat file",
                     download: "Unduh",
@@ -611,7 +682,9 @@ function FileItemsView({
                     retain_official: "Pertahankan arsip",
                     restore_quarantine: "Pulihkan",
                     purge_now: "Hapus sekarang",
-                    rescan: "Periksa ulang",
+                    rescan: "Periksa antivirus",
+                    validate_storage: "Validasi ulang",
+                    cleanup: "Bersihkan",
                     recover_content: "Unggah pemulihan",
                     view_relationships: "Lihat hubungan file",
                   };
@@ -624,6 +697,8 @@ function FileItemsView({
                     restore_quarantine: "success",
                     purge_now: "danger",
                     rescan: "info",
+                    validate_storage: "info",
+                    cleanup: "danger",
                     recover_content: "success",
                     view_relationships: "brand",
                   };
@@ -636,6 +711,8 @@ function FileItemsView({
                     restore_quarantine: <RollbackOutlined />,
                     purge_now: <DeleteOutlined />,
                     rescan: <ReloadOutlined />,
+                    validate_storage: <ReloadOutlined />,
+                    cleanup: <DeleteOutlined />,
                     recover_content: <UploadOutlined />,
                     view_relationships: <EyeOutlined />,
                   };
@@ -675,6 +752,9 @@ export default function StorageMaintenancePage() {
   const mobile = useMediaQuery("(max-width:767px)");
   const { notification, showNotification, closeNotification } = useAppNotification();
   const [organization, setOrganization] = useState({ id: null, name: "" });
+  const overviewController = useRef(null);
+  const itemsController = useRef(null);
+  const [connectionError, setConnectionError] = useState("");
   const [summary, setSummary] = useState(null);
   const [runs, setRuns] = useState([]);
   const [activeTab, setActiveTab] = useState("candidate");
@@ -690,6 +770,8 @@ export default function StorageMaintenancePage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmationAccepted, setConfirmationAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [recoveryItem, setRecoveryItem] = useState(null);
+  const [recoveryFile, setRecoveryFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [relationshipItem, setRelationshipItem] = useState(null);
   const [actionDialog, setActionDialog] = useState(null);
@@ -706,11 +788,20 @@ export default function StorageMaintenancePage() {
 
   const refreshOverview = useCallback(async () => {
     if (!organizationId) return;
+    overviewController.current?.abort();
+    const controller = new AbortController();
+    overviewController.current = controller;
     const query = `organizationId=${encodeURIComponent(organizationId)}`;
     const [summaryBody, runsBody] = await Promise.all([
-      requestJson(`/api/system/storage-maintenance/summary?${query}`),
-      requestJson(`/api/system/storage-maintenance/runs?${query}&pageSize=50`),
+      requestJson(`/api/system/storage-maintenance/summary?${query}`, {
+        signal: controller.signal,
+      }),
+      requestJson(`/api/system/storage-maintenance/runs?${query}&pageSize=50`, {
+        signal: controller.signal,
+      }),
     ]);
+    if (controller.signal.aborted) return;
+    setConnectionError("");
     setSummary(summaryBody.data);
     setRuns(runsBody.data || []);
   }, [organizationId]);
@@ -719,6 +810,9 @@ export default function StorageMaintenancePage() {
     async (page = 1) => {
       if (!organizationId || activeTab === "history") return;
       if (!latestScanId && activeTab !== "quarantine") return;
+      itemsController.current?.abort();
+      const controller = new AbortController();
+      itemsController.current = controller;
       setItemState((current) => ({ ...current, loading: true, error: "" }));
       try {
         const query = new URLSearchParams({
@@ -731,10 +825,12 @@ export default function StorageMaintenancePage() {
           activeTab === "quarantine"
             ? await requestJson(
                 `/api/system/storage-maintenance/quarantine?organizationId=${encodeURIComponent(organizationId)}&page=${page}&pageSize=20`,
+                { signal: controller.signal },
               )
-            : await requestJson(
-                `/api/system/storage-maintenance/runs/${latestScanId}?${query}`,
-              );
+            : await requestJson(`/api/system/storage-maintenance/runs/${latestScanId}?${query}`, {
+                signal: controller.signal,
+              });
+        if (controller.signal.aborted) return;
         const rows = body.data.items || [];
         setItemState({
           data:
@@ -757,9 +853,9 @@ export default function StorageMaintenancePage() {
                       ? "Hapus permanen sekarang atau tunggu penghapusan otomatis."
                       : "Pulihkan sebelum tenggat jika file masih diperlukan.",
                   available_actions: item.restore_available
-                    ? ["restore_quarantine"]
+                    ? ["restore_quarantine", "purge_now"]
                     : ["purge_now"],
-                  organization_name: organization.name,
+                  organization_name: item.organization_name || "Organisasi belum diketahui",
                   original_name: item.original_name,
                   deletion_reason_label: "Karantina tujuh hari",
                 }))
@@ -771,10 +867,11 @@ export default function StorageMaintenancePage() {
           total: body.data.total || 0,
         });
       } catch (error) {
+        if (controller.signal.aborted) return;
         setItemState((current) => ({ ...current, loading: false, error: error.message }));
       }
     },
-    [activeTab, latestScanId, organization.name, organizationId],
+    [activeTab, latestScanId, organizationId],
   );
 
   useEffect(() => {
@@ -784,20 +881,36 @@ export default function StorageMaintenancePage() {
     setItemState({ data: [], loading: false, error: "", page: 1, pageSize: 20, total: 0 });
     if (!organizationId) return undefined;
     let active = true;
-    const refresh = () =>
-      refreshOverview().catch((error) => {
-        if (active) showNotification(error.message, "error");
-      });
+    let timer;
+    const refresh = async () => {
+      try {
+        await refreshOverview();
+      } catch (error) {
+        if (active && error.name !== "AbortError")
+          setConnectionError(normalizeRequestError(error).message);
+      } finally {
+        if (active) timer = window.setTimeout(refresh, 10000);
+      }
+    };
+    setConnectionError("");
+    setRelationshipItem(null);
+    setRecoveryItem(null);
+    setRecoveryFile(null);
+    setPreview(null);
+    setConfirmOpen(false);
+    setActionDialog(null);
     refresh();
-    const timer = window.setInterval(refresh, 4000);
     return () => {
       active = false;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
+      overviewController.current?.abort();
+      itemsController.current?.abort();
     };
-  }, [organizationId, refreshOverview, showNotification]);
+  }, [organizationId, refreshOverview]);
 
   useEffect(() => {
     loadItems(1);
+    return () => itemsController.current?.abort();
   }, [loadItems, summary?.latest_scan_at, summary?.latest_scan_status]);
 
   useEffect(() => {
@@ -817,7 +930,7 @@ export default function StorageMaintenancePage() {
       setSelectedItems(new Map());
       await refreshOverview();
     } catch (error) {
-      showNotification(error.message, "error");
+      showNotification(normalizeRequestError(error).message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -858,7 +971,7 @@ export default function StorageMaintenancePage() {
       await refreshOverview();
       await loadItems(itemState.page);
     } catch (error) {
-      showNotification(error.message, "error");
+      showNotification(normalizeRequestError(error).message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -875,11 +988,18 @@ export default function StorageMaintenancePage() {
       showNotification(body.message, "info");
       await refreshOverview();
     } catch (error) {
-      showNotification(error.message, "error");
+      showNotification(normalizeRequestError(error).message, "error");
     } finally {
       setSubmitting(false);
     }
   };
+
+  useEffect(
+    () => () => {
+      if (preview?.url) URL.revokeObjectURL(preview.url);
+    },
+    [preview],
+  );
 
   const closePreview = () => {
     if (preview?.url) URL.revokeObjectURL(preview.url);
@@ -894,6 +1014,29 @@ export default function StorageMaintenancePage() {
     anchor.click();
   };
 
+  const submitRecovery = async () => {
+    if (!recoveryItem || !recoveryFile || submitting) return;
+    setSubmitting(true);
+    try {
+      const form = new FormData();
+      form.append("organizationId", String(organizationId));
+      form.append("file", recoveryFile);
+      const body = await requestJson(
+        `/api/system/storage-maintenance/runs/${latestScanId}/items/${recoveryItem.id}/recovery`,
+        { method: "POST", body: form },
+      );
+      showNotification(body.message, "success");
+      setRecoveryItem(null);
+      setRecoveryFile(null);
+      await refreshOverview();
+      await loadItems(itemState.page);
+    } catch (error) {
+      showNotification(normalizeRequestError(error).message, "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleItemAction = async (action, item) => {
     if (!organizationId) return;
     if (action === "view_relationships") {
@@ -901,31 +1044,8 @@ export default function StorageMaintenancePage() {
       return;
     }
     if (action === "recover_content") {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = item.mime_type || "application/pdf,image/jpeg,image/png,image/webp";
-      input.onchange = async () => {
-        const file = input.files?.[0];
-        if (!file) return;
-        const form = new FormData();
-        form.append("organizationId", String(organizationId));
-        form.append("file", file);
-        setSubmitting(true);
-        try {
-          const body = await requestJson(
-            `/api/system/storage-maintenance/runs/${latestScanId}/items/${item.id}/recovery`,
-            { method: "POST", body: form },
-          );
-          showNotification(body.message, "success");
-          await refreshOverview();
-          await loadItems(itemState.page);
-        } catch (error) {
-          showNotification(error.message, "error");
-        } finally {
-          setSubmitting(false);
-        }
-      };
-      input.click();
+      setRecoveryItem(item);
+      setRecoveryFile(null);
       return;
     }
     if (action === "preview" || action === "download") {
@@ -950,19 +1070,25 @@ export default function StorageMaintenancePage() {
           setPreview({
             url: blobUrl,
             kind: item.preview_kind,
-            title: item.original_name,
+            title: `${item.organization_name || "Organisasi belum diketahui"} · ${item.original_name}`,
             mimeType: blob.type,
           });
         }
       } catch (error) {
-        showNotification(error.message, "error");
+        showNotification(normalizeRequestError(error).message, "error");
       } finally {
         setSubmitting(false);
       }
       return;
     }
 
-    if (action === "rescan") {
+    if (action === "cleanup") {
+      setSelectedItems(new Map([[item.id, item]]));
+      setConfirmationAccepted(false);
+      setConfirmOpen(true);
+      return;
+    }
+    if (action === "rescan" || action === "validate_storage") {
       await requestScan();
       return;
     }
@@ -1013,13 +1139,18 @@ export default function StorageMaintenancePage() {
       await refreshOverview();
       await loadItems(itemState.page);
     } catch (error) {
-      showNotification(error.message, "error");
+      showNotification(normalizeRequestError(error).message, "error");
     } finally {
       setSubmitting(false);
     }
   };
 
   const historyColumns = [
+    {
+      title: "Organisasi",
+      dataIndex: "organization_name",
+      render: (name) => name || "Organisasi belum diketahui",
+    },
     {
       title: "Proses",
       key: "run",
@@ -1156,16 +1287,49 @@ export default function StorageMaintenancePage() {
       label: "Riwayat proses",
       children: runs.length ? (
         <Box sx={{ p: { xs: 2, sm: 2.5, lg: 3 } }}>
-          <ModernTableFrame>
-            <Table
-              rowKey="id"
-              dataSource={runs}
-              columns={historyColumns}
-              size="middle"
-              scroll={{ x: 850 }}
-              pagination={{ pageSize: 10, showSizeChanger: false }}
-            />
-          </ModernTableFrame>
+          {mobile ? (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              {runs.map((run) => (
+                <Box
+                  key={run.id}
+                  sx={{ minWidth: 0, borderBottom: `1px solid ${theme.ui.panelBorder}`, pb: 2 }}
+                >
+                  <FontStyle fontWeight={700}>
+                    {run.run_type === "scan" ? "Pemeriksaan file" : "Pembersihan file"}
+                  </FontStyle>
+                  <FontStyle sx={{ overflowWrap: "anywhere" }}>
+                    {run.organization_name || "Organisasi belum diketahui"}
+                  </FontStyle>
+                  <CompactInfoChip
+                    label={statusLabels[run.status] || run.status}
+                    tone={statusTones[run.status] || "neutral"}
+                  />
+                  <FontStyle>{formatDateTime(run.created_at)}</FontStyle>
+                  {run.status === "queued" ? (
+                    <Button
+                      danger
+                      icon={<StopOutlined />}
+                      disabled={submitting}
+                      onClick={() => cancelRun(run)}
+                    >
+                      Batalkan
+                    </Button>
+                  ) : null}
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            <ModernTableFrame>
+              <Table
+                rowKey="id"
+                dataSource={runs}
+                columns={historyColumns}
+                size="middle"
+                scroll={{ x: 850 }}
+                pagination={{ pageSize: 10, showSizeChanger: false }}
+              />
+            </ModernTableFrame>
+          )}
         </Box>
       ) : (
         <Box sx={{ p: 3 }}>
@@ -1206,6 +1370,7 @@ export default function StorageMaintenancePage() {
               Satu pemeriksaan hanya berlaku untuk satu organisasi.
             </FontStyle>
             <OrganizationSelect
+              disabled={submitting}
               value={organizationId}
               onChange={(value, option) =>
                 setOrganization({ id: value || null, name: option?.label || "" })
@@ -1231,6 +1396,26 @@ export default function StorageMaintenancePage() {
         </Box>
       </Paper>
 
+      {connectionError ? (
+        <Alert
+          severity="error"
+          sx={{ alignItems: "center" }}
+          action={
+            <Button
+              tone="info"
+              onClick={() =>
+                refreshOverview().catch((error) =>
+                  setConnectionError(normalizeRequestError(error).message),
+                )
+              }
+            >
+              Coba lagi
+            </Button>
+          }
+        >
+          {connectionError}
+        </Alert>
+      ) : null}
       {!organizationId ? (
         <DataPanel title="Hasil pemeriksaan" description="Pilih organisasi untuk memulai.">
           <Box sx={{ p: 4 }}>
@@ -1366,7 +1551,7 @@ export default function StorageMaintenancePage() {
                   <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
                     {selection.length
                       ? `${selection.length} file dipilih · ${formatBytes(selectedBytes)}`
-                      : "Pilih file fisik yang akan dihapus. Sistem akan memastikan ulang bahwa file tidak sedang digunakan."}
+                      : "Pilih file atau catatan yang akan dibersihkan."}
                   </FontStyle>
                   <Button
                     danger
@@ -1374,7 +1559,7 @@ export default function StorageMaintenancePage() {
                     disabled={!selection.length || hasActiveRun}
                     onClick={() => setConfirmOpen(true)}
                   >
-                    Hapus file terpilih
+                    Bersihkan terpilih
                   </Button>
                 </Box>
               ) : null
@@ -1444,9 +1629,6 @@ export default function StorageMaintenancePage() {
             <FontStyle fontSize={12} sx={{ mt: 0.6 }}>
               {relationshipItem?.reason_label}
             </FontStyle>
-            <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-              Dampak: {relationshipItem?.impact}
-            </FontStyle>
           </Box>
 
           <Box>
@@ -1459,8 +1641,8 @@ export default function StorageMaintenancePage() {
               </Box>
             ) : (
               <Alert severity="info" sx={{ mt: 0.75 }}>
-                Pemeriksaan terakhir tidak menemukan referensi bisnis aktif. Untuk dokumen resmi,
-                file tetap dilindungi dan dapat dipertahankan sebagai arsip resmi.
+                Tidak ada referensi pada pemeriksaan terakhir. Jalankan pemeriksaan untuk
+                memperbarui kondisi file.
               </Alert>
             )}
           </Box>
@@ -1508,12 +1690,19 @@ export default function StorageMaintenancePage() {
               }}
             >
               {relationshipItem?.available_actions?.includes("preview") ? (
-                <Button tone="info" icon={<EyeOutlined />} onClick={() => runRelationshipAction("preview")}>
+                <Button
+                  tone="info"
+                  icon={<EyeOutlined />}
+                  onClick={() => runRelationshipAction("preview")}
+                >
                   Lihat file
                 </Button>
               ) : null}
               {relationshipItem?.available_actions?.includes("download") ? (
-                <Button icon={<DownloadOutlined />} onClick={() => runRelationshipAction("download")}>
+                <Button
+                  icon={<DownloadOutlined />}
+                  onClick={() => runRelationshipAction("download")}
+                >
                   Unduh file
                 </Button>
               ) : null}
@@ -1562,9 +1751,22 @@ export default function StorageMaintenancePage() {
                   Selesaikan pembersihan
                 </Button>
               ) : null}
+              {relationshipItem?.available_actions?.includes("validate_storage") ? (
+                <Button
+                  tone="info"
+                  icon={<ReloadOutlined />}
+                  onClick={() => runRelationshipAction("validate_storage")}
+                >
+                  Validasi ulang
+                </Button>
+              ) : null}
               {relationshipItem?.available_actions?.includes("rescan") ? (
-                <Button tone="info" icon={<ReloadOutlined />} onClick={() => runRelationshipAction("rescan")}>
-                  Periksa ulang
+                <Button
+                  tone="info"
+                  icon={<ReloadOutlined />}
+                  onClick={() => runRelationshipAction("rescan")}
+                >
+                  Periksa antivirus
                 </Button>
               ) : null}
             </Box>
@@ -1602,7 +1804,7 @@ export default function StorageMaintenancePage() {
               disabled={!confirmationAccepted}
               onClick={requestCleanup}
             >
-              Hapus file
+              Bersihkan
             </Button>
           </>
         }
@@ -1620,14 +1822,21 @@ export default function StorageMaintenancePage() {
           >
             <FontStyle sx={{ color: theme.ui.mutedText }}>Organisasi</FontStyle>
             <FontStyle fontWeight={650}>{organization.name || "-"}</FontStyle>
-            <FontStyle sx={{ color: theme.ui.mutedText }}>Jumlah file</FontStyle>
+            <FontStyle sx={{ color: theme.ui.mutedText }}>Catatan tanpa file</FontStyle>
+            <FontStyle>
+              {
+                selection.filter((item) => item.reason_code === "unreferenced_content_missing")
+                  .length
+              }
+            </FontStyle>
+            <FontStyle sx={{ color: theme.ui.mutedText }}>Jumlah pilihan</FontStyle>
             <FontStyle fontWeight={650}>{selection.length}</FontStyle>
             <FontStyle sx={{ color: theme.ui.mutedText }}>Total ukuran</FontStyle>
             <FontStyle fontWeight={650}>{formatBytes(selectedBytes)}</FontStyle>
           </Box>
           <Alert severity="warning">
-            Kondisi setiap file diperiksa ulang tepat sebelum karantina. File yang kembali aktif
-            atau memiliki referensi akan dilewati.
+            Kondisi setiap file diperiksa ulang sebelum dihapus. File yang kembali aktif atau
+            memiliki referensi akan dilewati.
           </Alert>
           <Checkbox
             checked={confirmationAccepted}
@@ -1643,7 +1852,9 @@ export default function StorageMaintenancePage() {
         open={Boolean(actionDialog)}
         title={actionDialogContent[actionDialog?.action]?.title || "Konfirmasi tindakan"}
         description={actionDialogContent[actionDialog?.action]?.description}
-        icon={actionDialog?.action === "purge_now" ? <StopOutlined /> : <SafetyCertificateOutlined />}
+        icon={
+          actionDialog?.action === "purge_now" ? <StopOutlined /> : <SafetyCertificateOutlined />
+        }
         size="sm"
         disableClose={submitting}
         onClose={() => setActionDialog(null)}
@@ -1660,9 +1871,7 @@ export default function StorageMaintenancePage() {
                         actionDialog?.action,
                       )
                     ? "warning"
-                    : ["restore_metadata", "restore_quarantine"].includes(
-                          actionDialog?.action,
-                        )
+                    : ["restore_metadata", "restore_quarantine"].includes(actionDialog?.action)
                       ? "success"
                       : "brand"
               }
@@ -1684,10 +1893,12 @@ export default function StorageMaintenancePage() {
               disabled={
                 (["purge_now", "stage_cleanup", "finalize_cleanup"].includes(
                   actionDialog?.action,
-                ) && !actionConfirmed) ||
+                ) &&
+                  !actionConfirmed) ||
                 (["retain_official", "stage_cleanup", "finalize_cleanup"].includes(
                   actionDialog?.action,
-                ) && actionReason.trim().length < 10)
+                ) &&
+                  actionReason.trim().length < 10)
               }
               onClick={submitItemAction}
             >
@@ -1699,6 +1910,7 @@ export default function StorageMaintenancePage() {
         <Box sx={{ display: "grid", gap: 2 }}>
           <Box sx={{ p: 2, borderRadius: 2, bgcolor: theme.ui.panelSubtleBg }}>
             <FontStyle fontWeight={650} sx={{ overflowWrap: "anywhere" }}>
+              {actionDialog?.item?.organization_name || "Organisasi belum diketahui"} ·{" "}
               {actionDialog?.item?.original_name || "File tanpa nama"}
             </FontStyle>
             <FontStyle fontSize={11} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
@@ -1724,23 +1936,21 @@ export default function StorageMaintenancePage() {
               inputProps={{ maxLength: 500 }}
             />
           ) : null}
-          {["purge_now", "stage_cleanup", "finalize_cleanup"].includes(
-            actionDialog?.action,
-          ) ? (
+          {["purge_now", "stage_cleanup", "finalize_cleanup"].includes(actionDialog?.action) ? (
             <>
               <Alert severity={actionDialog?.action === "purge_now" ? "error" : "warning"}>
                 {actionDialog?.action === "purge_now"
-                  ? "Byte file akan dihapus permanen. Metadata ancaman dan audit tetap disimpan."
+                  ? "File dihapus permanen. Catatan dan audit tetap disimpan."
                   : actionDialog?.action === "stage_cleanup"
                     ? "File dilepas dari status aktif dan memasuki masa aman sebelum dapat dihapus."
-                    : "Metadata akan ditandai selesai karena server memastikan byte fisik sudah tidak ada."}
+                    : "Metadata akan ditandai selesai karena server memastikan file fisik sudah tidak ada."}
               </Alert>
               <Checkbox
                 checked={actionConfirmed}
                 onChange={(event) => setActionConfirmed(event.target.checked)}
               >
                 {actionDialog?.action === "purge_now"
-                  ? "Saya memahami bahwa file terinfeksi ini tidak dapat dipulihkan setelah dihapus."
+                  ? "Saya memahami bahwa file ini tidak dapat dipulihkan setelah dihapus."
                   : "Saya telah meninjau hubungan file dan memahami dampak tindakan ini."}
               </Checkbox>
             </>
@@ -1748,6 +1958,41 @@ export default function StorageMaintenancePage() {
         </Box>
       </AppModal>
 
+      <AppModal
+        open={Boolean(recoveryItem)}
+        title="Pulihkan file"
+        description={`${recoveryItem?.organization_name || "Organisasi belum diketahui"} · ${recoveryItem?.original_name || "File"}`}
+        size="sm"
+        disableClose={submitting}
+        onClose={() => setRecoveryItem(null)}
+        footer={
+          <>
+            <Button disabled={submitting} onClick={() => setRecoveryItem(null)}>
+              Batal
+            </Button>
+            <Button
+              tone="success"
+              icon={<UploadOutlined />}
+              loading={submitting}
+              disabled={!recoveryFile}
+              onClick={submitRecovery}
+            >
+              Unggah pemulihan
+            </Button>
+          </>
+        }
+      >
+        <FileUploadField
+          value={recoveryFile}
+          onSelect={setRecoveryFile}
+          onRemove={() => setRecoveryFile(null)}
+          maxSizeBytes={10 * 1024 * 1024}
+          accept={recoveryItem?.mime_type}
+          disabled={submitting}
+          helpText="Pilih file asli dari cadangan. Isi dan ukuran harus sama."
+          onError={(message) => showNotification(message, "error")}
+        />
+      </AppModal>
       <ImagePreviewModal
         open={preview?.kind === "image"}
         onClose={closePreview}
