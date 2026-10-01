@@ -28,7 +28,9 @@ import { getIndonesianNationalIdFormRules } from "@/lib/validation/indonesianNat
 import {
   BLOOD_TYPE_OPTIONS,
   EDUCATION_LEVEL_OPTIONS,
+  isEducationLevelWithoutDetails,
   MARITAL_STATUS_OPTIONS,
+  normalizeEducationWithoutDetails,
   normalizeMaritalStatus,
 } from "@/lib/employees/profileOptions";
 
@@ -58,7 +60,7 @@ const FIELD_LABELS = {
   "contact.whatsapp": "Nomor WhatsApp",
   "contact.ktpAddress": "Alamat sesuai KTP",
   "contact.domicileAddress": "Alamat domisili",
-  "profile.educations.0.educationLevel": "Jenjang pendidikan",
+  "profile.educations.0.educationLevel": "Pendidikan terakhir yang ditamatkan",
   "profile.educations.0.institution": "Nama institusi pendidikan",
   "profile.educations.0.fieldOfStudy": "Program studi atau jurusan",
   "profile.educations.0.graduationYear": "Tahun kelulusan",
@@ -172,6 +174,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   const [files, setFiles] = useState([]);
   const [domicileSameAsKtp, setDomicileSameAsKtp] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [pendingEducationLevel, setPendingEducationLevel] = useState(null);
   const [references, setReferences] = useState({
     locations: [],
     organizationUnits: [],
@@ -188,6 +191,10 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   const selectedOrganizationId = Form.useWatch("organizationId", form);
   const selectedLocationId = Form.useWatch(["assignment", "locationId"], form);
   const selectedEmploymentTypeId = Form.useWatch(["contract", "employmentTypeId"], form);
+  const selectedEducationLevel = Form.useWatch(
+    ["profile", "educations", 0, "educationLevel"],
+    form,
+  );
   const editing = Boolean(item);
   const targetOrganizationId = String(organizationId || user.organization_id || "");
   const contractFile = files.find((file) => file.category === "contract") || null;
@@ -476,13 +483,15 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
       joinedDate: formatDate(values.joinedDate),
       contact,
       profile: {
-        educations: (values.profile?.educations || []).map((education) => ({
-          ...education,
-          graduationYear: education.graduationYear?.year
-            ? education.graduationYear.year()
-            : education.graduationYear || null,
-          isHighest: true,
-        })),
+        educations: (values.profile?.educations || []).map((education) =>
+          normalizeEducationWithoutDetails({
+            ...education,
+            graduationYear: education.graduationYear?.year
+              ? education.graduationYear.year()
+              : education.graduationYear || null,
+            isHighest: true,
+          }),
+        ),
       },
       ...(editing
         ? { version: item.updated_at }
@@ -588,7 +597,9 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
       ],
       [
         ["profile", "educations", 0, "educationLevel"],
-        ["profile", "educations", 0, "institution"],
+        ...(!isEducationLevelWithoutDetails(selectedEducationLevel)
+          ? [["profile", "educations", 0, "institution"]]
+          : []),
       ],
       [
         ["contract", "employmentTypeId"],
@@ -766,6 +777,53 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   const draftVisual = theme.status[draftTone[draftStatus]];
   const draftInfo = draftPresentation[draftStatus];
   const query = `?organizationId=${targetOrganizationId}`;
+  const educationWithoutDetails = isEducationLevelWithoutDetails(selectedEducationLevel);
+
+  const applyEducationLevel = (educationLevel) => {
+    form.setFieldValue(["profile", "educations", 0, "educationLevel"], educationLevel);
+    if (isEducationLevelWithoutDetails(educationLevel)) {
+      form.setFields([
+        { name: ["profile", "educations", 0, "institution"], value: null },
+        { name: ["profile", "educations", 0, "fieldOfStudy"], value: null },
+        { name: ["profile", "educations", 0, "graduationYear"], value: null },
+        { name: ["profile", "educations", 0, "certificateFileId"], value: null },
+      ]);
+    }
+    markDraftDirty();
+  };
+
+  const changeEducationLevel = (educationLevel) => {
+    if (isEducationLevelWithoutDetails(educationLevel) && educationFile) {
+      form.setFieldValue(
+        ["profile", "educations", 0, "educationLevel"],
+        selectedEducationLevel || null,
+      );
+      setPendingEducationLevel(educationLevel);
+      return;
+    }
+    applyEducationLevel(educationLevel);
+  };
+
+  const confirmEducationLevelChange = async () => {
+    if (!pendingEducationLevel || !educationFile || !draft) return;
+    await runWithLoadingBackdrop(
+      async () => {
+        try {
+          const response = await fetch(
+            `/api/employees/drafts/${draft.id}/files/${educationFile.id}${query}`,
+            { method: "DELETE" },
+          );
+          await readApiResponse(response, "Foto ijazah tidak dapat dihapus.");
+          setFiles((current) => current.filter((value) => value.category !== "education"));
+          applyEducationLevel(pendingEducationLevel);
+          setPendingEducationLevel(null);
+        } catch (error) {
+          reportError(error.message);
+        }
+      },
+      { message: "Menghapus foto ijazah..." },
+    );
+  };
 
   return (
     <>
@@ -1162,72 +1220,77 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 <Box sx={{ ...gridSx, display: step === 1 ? "grid" : "none" }}>
                   <Form.Item
                     name={["profile", "educations", 0, "educationLevel"]}
-                    label="Jenjang pendidikan"
-                    rules={required("Jenjang pendidikan wajib dipilih.")}
+                    label="Pendidikan terakhir yang ditamatkan"
+                    rules={required("Pendidikan terakhir wajib dipilih.")}
                   >
                     <Select
                       showSearch
                       optionFilterProp="label"
                       placeholder="Pilih jenjang pendidikan"
                       options={EDUCATION_LEVEL_OPTIONS}
+                      onChange={changeEducationLevel}
                     />
                   </Form.Item>
-                  <Form.Item
-                    name={["profile", "educations", 0, "institution"]}
-                    label="Nama institusi pendidikan"
-                    rules={required("Nama institusi pendidikan wajib diisi.")}
-                  >
-                    <Input maxLength={200} placeholder="Contoh: Universitas Sam Ratulangi" />
-                  </Form.Item>
-                  <Form.Item
-                    name={["profile", "educations", 0, "fieldOfStudy"]}
-                    label="Program studi atau jurusan"
-                  >
-                    <Input maxLength={150} placeholder="Contoh: Teknik Informatika" />
-                  </Form.Item>
-                  <Form.Item
-                    name={["profile", "educations", 0, "graduationYear"]}
-                    label="Tahun kelulusan"
-                  >
-                    <DatePicker
-                      picker="year"
-                      format="YYYY"
-                      placeholder="Pilih tahun kelulusan"
-                      disabledDate={(current) => current && current.year() > dayjs().year()}
-                      style={{ width: "100%" }}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    className="employee-upload-field"
-                    label="Foto ijazah (opsional)"
-                    style={{ gridColumn: "1 / -1" }}
-                  >
-                    <PrivateFileUpload
-                      value={educationFile}
-                      uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
-                      removeUrl={
-                        educationFile
-                          ? `/api/employees/drafts/${draft?.id}/files/${educationFile.id}${query}`
-                          : null
-                      }
-                      fields={{ fileKind: "pendidikan", draftSlot: "education:0" }}
-                      organizationId={targetOrganizationId}
-                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                      maxSizeBytes={5 * 1024 * 1024}
-                      emptyTitle="Pilih atau tarik foto ijazah ke area ini"
-                      helpText="Gunakan JPEG, PNG, atau WebP maksimal 5 MB. Data dapat dilengkapi kembali melalui profil pegawai."
-                      selectedText="Foto ijazah tersimpan pada draft privat"
-                      onChange={(file) =>
-                        setFiles((current) => [
-                          ...current.filter((value) => value.category !== "education"),
-                          ...(file ? [file] : []),
-                        ])
-                      }
-                      onError={reportError}
-                      disabled={!draft}
-                      backdropMessages={WIZARD_FILE_BACKDROP_MESSAGES}
-                    />
-                  </Form.Item>
+                  {!educationWithoutDetails ? (
+                    <>
+                      <Form.Item
+                        name={["profile", "educations", 0, "institution"]}
+                        label="Nama institusi pendidikan"
+                        rules={required("Nama institusi pendidikan wajib diisi.")}
+                      >
+                        <Input maxLength={200} placeholder="Contoh: Universitas Sam Ratulangi" />
+                      </Form.Item>
+                      <Form.Item
+                        name={["profile", "educations", 0, "fieldOfStudy"]}
+                        label="Program studi atau jurusan"
+                      >
+                        <Input maxLength={150} placeholder="Contoh: Teknik Informatika" />
+                      </Form.Item>
+                      <Form.Item
+                        name={["profile", "educations", 0, "graduationYear"]}
+                        label="Tahun kelulusan"
+                      >
+                        <DatePicker
+                          picker="year"
+                          format="YYYY"
+                          placeholder="Pilih tahun kelulusan"
+                          disabledDate={(current) => current && current.year() > dayjs().year()}
+                          style={{ width: "100%" }}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        className="employee-upload-field"
+                        label="Foto ijazah (opsional)"
+                        style={{ gridColumn: "1 / -1" }}
+                      >
+                        <PrivateFileUpload
+                          value={educationFile}
+                          uploadUrl={`/api/employees/drafts/${draft?.id}/files`}
+                          removeUrl={
+                            educationFile
+                              ? `/api/employees/drafts/${draft?.id}/files/${educationFile.id}${query}`
+                              : null
+                          }
+                          fields={{ fileKind: "pendidikan", draftSlot: "education:0" }}
+                          organizationId={targetOrganizationId}
+                          accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                          maxSizeBytes={5 * 1024 * 1024}
+                          emptyTitle="Pilih atau tarik foto ijazah ke area ini"
+                          helpText="Gunakan JPEG, PNG, atau WebP maksimal 5 MB. Data dapat dilengkapi kembali melalui profil pegawai."
+                          selectedText="Foto ijazah tersimpan pada draft privat"
+                          onChange={(file) =>
+                            setFiles((current) => [
+                              ...current.filter((value) => value.category !== "education"),
+                              ...(file ? [file] : []),
+                            ])
+                          }
+                          onError={reportError}
+                          disabled={!draft}
+                          backdropMessages={WIZARD_FILE_BACKDROP_MESSAGES}
+                        />
+                      </Form.Item>
+                    </>
+                  ) : null}
                 </Box>
                 <Box sx={{ ...gridSx, display: step === 2 ? "grid" : "none" }}>
                   <Form.Item
@@ -1404,6 +1467,15 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
         danger
         onConfirm={discardDraft}
         onClose={() => setDiscardOpen(false)}
+      />
+      <ConfirmDialog
+        open={Boolean(pendingEducationLevel)}
+        title="Hapus foto ijazah?"
+        message="Pilihan pendidikan ini tidak menggunakan ijazah. Foto ijazah pada draft harus dihapus sebelum pilihan dapat digunakan."
+        confirmText="Hapus dan lanjutkan"
+        danger
+        onConfirm={confirmEducationLevelChange}
+        onClose={() => setPendingEducationLevel(null)}
       />
     </>
   );

@@ -99,15 +99,15 @@ Seluruh aksi lihat gambar wajib memakai `modals/ImagePreviewModal`; jangan membu
 | `dashboard/MetricSparkline`            | Grafik mini tanpa sumbu untuk tren pada KPI.                                                            | `data`, `color`                             |
 | `dashboard/DashboardAttentionList`     | Daftar prioritas operasional dengan tingkat urgensi.                                                    | `items`, `loading`                          |
 | `dashboard/EmployeeCompositionSummary` | Satu panel snapshot komposisi jenis kelamin, status, masa kerja, dan jenis kepegawaian.                 | `data`, `loading`                           |
-| `dashboard/DashboardActivityList`      | Daftar aktivitas audit terbaru tanpa membuka payload sensitif.                                          | `items`, `loading`                          |
+| `dashboard/DashboardActivityList`      | Aktivitas organisasi dengan pelaku, tindakan, nama/NIP pegawai, dan waktu organisasi; tanpa payload audit sensitif. | `items` (`label`, `actor`, `subject`, `occurredAt`, `timezone`), `loading` |
 | `dashboard/chartAdapter`               | Sumber konfigurasi ApexCharts untuk theme, format Indonesia, responsive behavior, tooltip, dan animasi. | `createChartOptions`, `formatChartCategory` |
 
 Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender melalui `ApexChartClient` dengan SSR nonaktif. Adapter wajib menormalkan kategori dan nilai numerik agar label `NaN` atau `undefined` tidak pernah tampil. Grafik fitur tidak boleh menyalin konfigurasi theme, tooltip, breakpoint, atau reduced motion secara terpisah. Grafik harus mendukung keputusan pengguna dan selalu memiliki state loading, kosong, serta error pada shell-nya. `DashboardAttentionList` menerima scope organisasi agar item disiplin dapat membuka tab sanksi pegawai yang tepat; chip prioritas ditempatkan bersama judul dan aksi detail memakai ikon mata yang mudah dikenali.
 
 ## Branding
 
-- `branding/AppLogo` adalah satu-satunya komponen untuk menampilkan logo SITOU. Gunakan `variant="full"` untuk logo beserta tagline dan `variant="mark"` untuk simbol ringkas.
-- Seluruh path aset logo, termasuk metadata aplikasi, bersumber dari `APP_LOGO_ASSETS` di `branding/AppLogo.jsx`. Perubahan logo dilakukan hanya pada konfigurasi tersebut.
+- `branding/AppLogo` adalah satu-satunya komponen untuk menampilkan logo SITOU. Gunakan `variant="full"` untuk komposisi ikon dan teks **SITOU** pada navbar, serta `variant="mark"` untuk simbol ringkas.
+- Path ikon logo dan warna teks SITOU dipusatkan melalui `branding/AppLogo.jsx` dan token tema agar tampilannya konsisten pada navbar desktop maupun mobile.
 - `/public/logo-sitou-v2.png`: logo huruf/simbol ringkas.
 - `/public/logo-sitou-v1.png`: logo SITOU beserta tagline.
 - SITOU hanya memakai theme light. Merah adalah aksen, bukan warna seluruh permukaan.

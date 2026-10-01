@@ -1,6 +1,6 @@
 # AGENTS.md - SITOU
 
-Dokumen ini adalah aturan kerja utama untuk developer dan Codex pada proyek **SITOU - Sistem Informasi Tenaga Operasional Unit**. Berlaku untuk seluruh folder proyek, kecuali ada `AGENTS.md` yang lebih spesifik di subfolder. Jika implementasi berbeda dari dokumen ini, perubahan harus dicatat melalui migration, test, dan pembaruan dokumentasi.
+Dokumen ini adalah aturan kerja utama untuk developer dan Codex pada proyek **SITOU - Sistem Informasi Teknologi dan Organisasi Unit**. Berlaku untuk seluruh folder proyek, kecuali ada `AGENTS.md` yang lebih spesifik di subfolder. Jika implementasi berbeda dari dokumen ini, perubahan harus dicatat melalui migration, test, dan pembaruan dokumentasi.
 
 ## 1. Tujuan produk saat ini
 
@@ -448,7 +448,7 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 - Tombol kanan akun di `TopMenu` adalah Pengaturan berikon roda gigi. Pop-up hanya memuat Profil dan Keluar tanpa nama, username, role, avatar, atau detail akun. Route `/profile` tidak masuk sidebar dan memakai identitas terpusat serta lifecycle loading navigasi.
 - Responsive wajib diuji untuk desktop lebar, laptop, tablet, mobile besar, dan mobile kecil. Gunakan breakpoint yang stabil, hindari ukuran tetap yang membuat form/tabel terpotong, dan pastikan setiap halaman nyaman pada lebar 320px sampai desktop wide.
 - Untuk setiap UI baru atau perubahan layout, verifikasi minimal pada viewport mobile 320/375px, tablet 768px, laptop 1024/1366px, dan desktop lebar. Pastikan tidak ada overflow horizontal, overlap, teks terpotong, atau tindakan utama yang sulit dijangkau.
-- Asset logo resmi berada di `public/`: `logo-sitou-v2.png` untuk logo ikon/huruf, `logo-sitou-v1.png` untuk logo lengkap dengan tagline sesuai aset yang disediakan, dan `logo-sitou-v3.png` sebagai varian lengkap bertuliskan Sistem Informasi Tenaga Operasional Unit bila diperlukan untuk konteks produk.
+- Asset logo resmi navbar memakai `public/logo-sitou-v2-transparent.png` dan teks HTML **SITOU** berwarna brand. Navbar desktop maupun mobile tidak menampilkan kepanjangan SITOU atau teks “by Perumda Pasar Manado”; aset raster lama dengan kepanjangan terdahulu tidak digunakan pada UI.
 - Halaman login adalah entry awal aplikasi. Jangan menampilkan pilihan demo role; setelah login, server/client mengarahkan user berdasarkan role aktif.
 - Form login SITOU hanya meminta username dan password. `users` khusus menyimpan kredensial dan metadata keamanan; nama, email, serta WhatsApp dilarang diduplikasi ke tabel atau form akun. Identitas organisasi berasal dari profil pegawai, identitas Superadmin berasal dari `platform_user_profiles`, dan akun tanpa profil memakai username sebagai fallback. Tautan lupa password tetap dipertahankan sampai OTP WhatsApp terverifikasi dikembangkan.
 - Login, perpindahan menu/halaman, pengambilan data halaman, dan seluruh proses CRUD wajib memakai reusable Backdrop.jsx melalui LoadingBackdropProvider. Backdrop dibuka tepat sebelum proses dimulai dan ditutup hanya setelah promise proses selesai; dilarang menambahkan delay atau durasi minimum buatan.

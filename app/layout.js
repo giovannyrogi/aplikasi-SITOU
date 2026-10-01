@@ -14,7 +14,7 @@ const poppins = Poppins({
 
 export const metadata = {
   title: "SITOU",
-  description: "Sistem Informasi Tenaga Operasional Unit",
+  description: "Sistem Informasi Teknologi dan Organisasi Unit",
   icons: {
     icon: "/favicon.ico",
     apple: APP_LOGO_ASSETS.mark,

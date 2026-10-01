@@ -27,7 +27,13 @@ import {
   employeeListFilterSchema,
   employeeUpdateMultipartSchema,
 } from "../lib/employees/schemas.js";
-import { normalizeMaritalStatus } from "../lib/employees/profileOptions.js";
+import {
+  EDUCATION_LEVEL_INCOMPLETE_PRIMARY,
+  EDUCATION_LEVEL_NEVER_SCHOOL,
+  EDUCATION_LEVEL_OPTIONS,
+  normalizeEducationWithoutDetails,
+  normalizeMaritalStatus,
+} from "../lib/employees/profileOptions.js";
 import { calculateEmployeeTenure } from "../lib/employees/tenure.js";
 import {
   isValidIndonesianNationalId,
@@ -1079,6 +1085,150 @@ test("checkpoint draft menerima pendidikan yang belum lengkap pada step Profil",
     },
   });
   assert.equal(result.success, true);
+});
+
+test("pilihan pendidikan dasar ditambahkan tanpa mengubah pilihan lama", () => {
+  assert.deepEqual(
+    EDUCATION_LEVEL_OPTIONS.slice(0, 4).map(({ value }) => value),
+    [EDUCATION_LEVEL_NEVER_SCHOOL, EDUCATION_LEVEL_INCOMPLETE_PRIMARY, "PAUD/TK", "SD"],
+  );
+  for (const value of ["SMP", "SMA", "SMK", "D1", "D4", "S1", "S3", "Lainnya"])
+    assert.equal(EDUCATION_LEVEL_OPTIONS.some((option) => option.value === value), true);
+});
+
+test("pendidikan tanpa rincian dapat disimpan dan otomatis menjadi pendidikan tertinggi", () => {
+  for (const educationLevel of [
+    EDUCATION_LEVEL_NEVER_SCHOOL,
+    EDUCATION_LEVEL_INCOMPLETE_PRIMARY,
+  ]) {
+    const parsed = employeeProfileSectionsSchema.safeParse({
+      educations: [{ educationLevel, isHighest: false }],
+    });
+    assert.equal(parsed.success, true);
+    assert.deepEqual(parsed.data.educations[0], {
+      educationLevel,
+      institution: null,
+      fieldOfStudy: null,
+      graduationYear: null,
+      isHighest: true,
+      certificateFileId: null,
+    });
+  }
+});
+
+test("normalisasi pendidikan dasar menghasilkan payload draft yang diterima API", () => {
+  for (const educationLevel of [EDUCATION_LEVEL_NEVER_SCHOOL, EDUCATION_LEVEL_INCOMPLETE_PRIMARY]) {
+    const education = normalizeEducationWithoutDetails({
+      educationLevel,
+      institution: "Sekolah sebelumnya",
+      fieldOfStudy: "Jurusan sebelumnya",
+      graduationYear: 2020,
+      isHighest: true,
+    });
+    assert.equal(Object.hasOwn(education, "certificateFile"), false);
+    const result = employeeDraftSaveSchema.safeParse({
+      organizationId: 1,
+      currentStep: 2,
+      version: 1,
+      payload: { profile: { educations: [education] } },
+    });
+    assert.equal(result.success, true);
+    assert.equal(result.data.payload.profile.educations[0].institution, null);
+  }
+});
+
+test("normalisasi pendidikan dasar membersihkan state ijazah yang memang tersedia di form", () => {
+  const education = normalizeEducationWithoutDetails({
+    educationLevel: EDUCATION_LEVEL_INCOMPLETE_PRIMARY,
+    certificateFile: { pending: true },
+    certificateFileId: 10,
+  });
+  assert.equal(education.certificateFile, null);
+  assert.equal(education.certificateFileId, null);
+});
+
+test("pendidikan tanpa rincian menolak sekolah, tahun, dan ijazah yang dikirim langsung", () => {
+  const parsed = employeeProfileSectionsSchema.safeParse({
+    educations: [
+      {
+        educationLevel: EDUCATION_LEVEL_NEVER_SCHOOL,
+        institution: "Sekolah tidak semestinya",
+        graduationYear: 2020,
+        certificateFileId: 10,
+        isHighest: true,
+      },
+    ],
+  });
+  assert.equal(parsed.success, false);
+  assert.match(parsed.error.issues[0].message, /tidak diperlukan/);
+});
+
+test("multipart profil menolak upload ijazah untuk pendidikan tanpa rincian", () => {
+  const parsed = employeeProfileMultipartSchema.safeParse({
+    organizationId: 1,
+    profile: {
+      educations: [
+        {
+          educationLevel: EDUCATION_LEVEL_INCOMPLETE_PRIMARY,
+          isHighest: true,
+        },
+      ],
+    },
+    uploads: [
+      {
+        token: "d9ab55b8-54a8-4b78-9bf2-c71b07ea2965",
+        target: "education",
+        index: 0,
+      },
+    ],
+  });
+  assert.equal(parsed.success, false);
+  assert.equal(
+    parsed.error.issues.some((issue) => issue.message === "Ijazah tidak diperlukan untuk pilihan pendidikan ini."),
+    true,
+  );
+});
+
+test("Tidak\/Belum Pernah Sekolah tidak dapat digabung dengan pendidikan lain", () => {
+  const parsed = employeeProfileSectionsSchema.safeParse({
+    educations: [
+      { educationLevel: EDUCATION_LEVEL_NEVER_SCHOOL, isHighest: true },
+      { educationLevel: "SMA", institution: "SMA Contoh", isHighest: false },
+    ],
+  });
+  assert.equal(parsed.success, false);
+  assert.equal(
+    parsed.error.issues.some((issue) => issue.message.includes("tidak dapat digunakan bersama")),
+    true,
+  );
+});
+
+test("jenjang pendidikan biasa tetap mewajibkan institusi", () => {
+  const parsed = employeeProfileSectionsSchema.safeParse({
+    educations: [{ educationLevel: "S1", isHighest: true }],
+  });
+  assert.equal(parsed.success, false);
+  assert.equal(
+    parsed.error.issues.some((issue) => issue.path.join(".") === "educations.0.institution"),
+    true,
+  );
+});
+
+test("migration dan schema bootstrap memuat constraint rincian pendidikan", () => {
+  const schemaSql = readFileSync(new URL("../sitou_schema_v3.sql", import.meta.url), "utf8");
+  const migrationSql = readFileSync(
+    new URL(
+      "../database/migrations/20261001_037_add_basic_education_options.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  for (const sql of [schemaSql, migrationSql]) {
+    assert.match(sql, /ck_employee_education_details/);
+    assert.match(sql, /Tidak\/Belum Pernah Sekolah/);
+    assert.match(sql, /Tidak\/Belum Tamat SD/);
+  }
+  assert.match(migrationSql, /NOT VALID/);
 });
 
 test("migration dan schema awal mewajibkan periode lokasi unit eksplisit tanpa overlap", () => {

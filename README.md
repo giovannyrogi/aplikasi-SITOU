@@ -1,6 +1,6 @@
 # SITOU
 
-SITOU (Sistem Informasi Tenaga Operasional Unit) adalah dashboard HRIS multi-organisasi untuk mengelola organisasi, lokasi, akun Admin/HRD, pegawai, penempatan, kontrak, absensi, izin, dokumen, dan disiplin secara terisolasi per organisasi.
+SITOU (Sistem Informasi Teknologi dan Organisasi Unit) adalah dashboard HRIS multi-organisasi untuk mengelola organisasi, lokasi, akun Admin/HRD, pegawai, penempatan, kontrak, absensi, izin, dokumen, dan disiplin secara terisolasi per organisasi.
 
 ## Teknologi
 

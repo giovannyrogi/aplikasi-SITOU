@@ -221,6 +221,10 @@ test("pilihan import pegawai baru tidak menawarkan status final atau identitas y
     "tax_npwp",
   ]);
   assert.ok(IMPORT_OPTION_GROUPS.educationLevel.some((option) => option.value === "S3"));
+  assert.deepEqual(
+    IMPORT_OPTION_GROUPS.educationLevel.slice(0, 2).map((option) => option.label),
+    ["Tidak/Belum Pernah Sekolah", "Tidak/Belum Tamat SD"],
+  );
   for (const status of ["terminated", "retired", "deceased"])
     assert.equal(IMPORT_ENUMS.employmentStatus.includes(status), false);
 });

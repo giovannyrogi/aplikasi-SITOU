@@ -30,6 +30,10 @@ import { ROLES } from "@/app/constants/roles";
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import { normalizeRequestError, readApiResponse } from "@/lib/api/clientError";
+import {
+  EMPLOYEE_COMPLETENESS_OPTIONS,
+  getEmployeeCompletenessOption,
+} from "@/lib/employees/completenessOptions";
 import EmployeeAvatar from "./EmployeeAvatar";
 import EmployeeForm from "./EmployeeForm";
 import EmployeeImportModal from "./EmployeeImportModal";
@@ -239,11 +243,9 @@ export default function EmployeeDirectory() {
           aria-label="Kelengkapan data"
           value={list.filters.completeness || "all"}
           onChange={(value) => updateFilter("completeness", value)}
-          options={[
-            { value: "all", label: "Semua kelengkapan" },
-            { value: "incomplete", label: "Belum lengkap" },
-            { value: "complete", label: "Lengkap" },
-          ]}
+          showSearch
+          optionFilterProp="label"
+          options={EMPLOYEE_COMPLETENESS_OPTIONS.map(({ value, label }) => ({ value, label }))}
         />
       ),
     },
@@ -569,17 +571,16 @@ export default function EmployeeDirectory() {
         onReset={resetFilters}
         wideColumns={4}
       />
-      {list.filters.completeness === "incomplete" ? (
+      {getEmployeeCompletenessOption(list.filters.completeness)?.description ? (
         <Alert
           type="info"
           showIcon
-          title="Data pegawai belum lengkap"
+          title={getEmployeeCompletenessOption(list.filters.completeness).label}
           description={
             <Box sx={{ textAlign: "justify", overflowWrap: "anywhere", lineHeight: 1.7 }}>
               <Box component="p" sx={{ m: 0 }}>
-                Daftar di bawah menampilkan pegawai yang belum memiliki satu atau lebih data
-                berikut: NIK, pas foto, data kontak, atau penempatan utama yang berlaku saat ini.
-                Buka detail pegawai untuk memeriksa data yang perlu dilengkapi.
+                {getEmployeeCompletenessOption(list.filters.completeness).description} Buka detail
+                pegawai untuk memeriksa data yang perlu dilengkapi.
               </Box>
             </Box>
           }

@@ -278,7 +278,7 @@ export default function LoginPage() {
           >
             Sistem Informasi
             <br />
-            Tenaga Operasional Unit
+            Teknologi dan Organisasi Unit
           </FontStyle>
           <FontStyle
             fontSize={14.5}

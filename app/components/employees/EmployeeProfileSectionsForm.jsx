@@ -16,8 +16,20 @@ import IndonesianNationalIdInput from "@/app/components/forms/IndonesianNational
 import PrivateFileUpload from "@/app/components/forms/PrivateFileUpload";
 import { getIndonesianMobileFormRules } from "@/lib/validation/indonesianPhone";
 import { getIndonesianNationalIdFormRules } from "@/lib/validation/indonesianNationalId";
-import { EDUCATION_LEVEL_OPTIONS } from "@/lib/employees/profileOptions";
+import {
+  EDUCATION_LEVEL_NEVER_SCHOOL,
+  EDUCATION_LEVEL_OPTIONS,
+  isEducationLevelWithoutDetails,
+  normalizeEducationWithoutDetails,
+} from "@/lib/employees/profileOptions";
 import { DEPENDENT_RELATIONSHIP_OPTIONS } from "@/lib/employees/dependentRelationships";
+
+// Layout dipakai komponen section dan field pendidikan yang berada pada scope modul.
+const twoColumns = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+  gap: { sm: "0 16px" },
+};
 
 /** Mengubah tanggal API menjadi nilai Day.js yang diterima DatePicker AntD. */
 function toDatePickerValue(value) {
@@ -216,10 +228,12 @@ function normalizeProfileSubmission(profile) {
     })),
     emergencyContacts: array(source.emergencyContacts),
     socialAccounts: array(source.socialAccounts),
-    educations: array(source.educations).map((item) => ({
-      ...item,
-      graduationYear: toYearNumber(item.graduationYear),
-    })),
+    educations: array(source.educations).map((item) =>
+      normalizeEducationWithoutDetails({
+        ...item,
+        graduationYear: toYearNumber(item.graduationYear),
+      }),
+    ),
     skills: array(source.skills),
     certifications: array(source.certifications).map((item) => ({
       ...item,
@@ -505,6 +519,113 @@ function CredentialImageField({
   );
 }
 
+/** Rincian pendidikan hanya tampil untuk jenjang yang memang mempunyai sekolah dan ijazah. */
+function EducationFields({ field, form, employee, organizationId, onError, onRemoveRequest }) {
+  const levelPath = ["educations", field.name, "educationLevel"];
+  const educationLevel = Form.useWatch(levelPath, form);
+  const educationRows = Form.useWatch("educations", form) || [];
+  const certificateFile = Form.useWatch(["educations", field.name, "certificateFile"], {
+    form,
+    preserve: true,
+  });
+  const certificateFileId = Form.useWatch(["educations", field.name, "certificateFileId"], form);
+  const withoutDetails = isEducationLevelWithoutDetails(educationLevel);
+  const educationOptions = EDUCATION_LEVEL_OPTIONS.map((option) => ({
+    ...option,
+    disabled:
+      option.value === EDUCATION_LEVEL_NEVER_SCHOOL &&
+      educationRows.length > 1 &&
+      educationLevel !== EDUCATION_LEVEL_NEVER_SCHOOL,
+  }));
+
+  const applyLevel = (nextLevel) => {
+    form.setFieldValue(levelPath, nextLevel);
+    if (!isEducationLevelWithoutDetails(nextLevel)) return;
+    form.setFields([
+      { name: ["educations", field.name, "institution"], value: null },
+      { name: ["educations", field.name, "fieldOfStudy"], value: null },
+      { name: ["educations", field.name, "graduationYear"], value: null },
+      { name: ["educations", field.name, "certificateFileId"], value: null },
+      { name: ["educations", field.name, "certificateFile"], value: null },
+      { name: ["educations", field.name, "isHighest"], value: true },
+    ]);
+  };
+
+  const changeLevel = (nextLevel) => {
+    if (isEducationLevelWithoutDetails(nextLevel) && (certificateFile || certificateFileId)) {
+      form.setFieldValue(levelPath, educationLevel || null);
+      onRemoveRequest({
+        fileId: certificateFile?.id || certificateFileId,
+        label: "foto ijazah",
+        apply: () => applyLevel(nextLevel),
+      });
+      return;
+    }
+    applyLevel(nextLevel);
+  };
+
+  return (
+    <Box sx={twoColumns}>
+      <Form.Item
+        name={[field.name, "educationLevel"]}
+        label="Jenjang pendidikan"
+        rules={[{ required: true, message: "Pilih jenjang pendidikan." }]}
+      >
+        <Select
+          options={educationOptions}
+          placeholder="Pilih jenjang pendidikan"
+          showSearch
+          optionFilterProp="label"
+          onChange={changeLevel}
+        />
+      </Form.Item>
+      {!withoutDetails ? (
+        <>
+          <Form.Item
+            name={[field.name, "institution"]}
+            label="Nama institusi pendidikan"
+            rules={[{ required: true, message: "Nama institusi pendidikan wajib diisi." }]}
+          >
+            <Input placeholder="Contoh: Universitas Sam Ratulangi" maxLength={200} />
+          </Form.Item>
+          <Form.Item name={[field.name, "fieldOfStudy"]} label="Program studi atau jurusan">
+            <Input placeholder="Contoh: Teknik Informatika" maxLength={150} />
+          </Form.Item>
+          <Form.Item name={[field.name, "graduationYear"]} label="Tahun kelulusan">
+            <DatePicker
+              picker="year"
+              format="YYYY"
+              placeholder="Pilih tahun kelulusan"
+              style={{ width: "100%" }}
+            />
+          </Form.Item>
+          <Form.Item
+            name={[field.name, "isHighest"]}
+            valuePropName="checked"
+            style={{ gridColumn: "1 / -1", marginBottom: 0 }}
+          >
+            <Checkbox>Tandai sebagai pendidikan tertinggi</Checkbox>
+          </Form.Item>
+          <Form.Item name={[field.name, "certificateFileId"]} hidden>
+            <Input />
+          </Form.Item>
+          <Box sx={{ gridColumn: "1 / -1" }}>
+            <CredentialImageField
+              listName="educations"
+              field={field}
+              form={form}
+              employee={employee}
+              organizationId={organizationId}
+              onError={onError}
+              onRemoveRequest={onRemoveRequest}
+            />
+          </Box>
+        </>
+      ) : null}
+    </Box>
+  );
+}
+
 /** Wrapper daftar memberi pola tambah/hapus konsisten untuk setiap section profil. */
 function ListSection({ name, addLabel, initialValue, children, onRemoveItem, onAddUnavailable }) {
   return (
@@ -757,11 +878,6 @@ export default function EmployeeProfileSectionsForm({
     setErrorSections(resolveErrorSections(remainingErrors));
   };
 
-  const twoColumns = {
-    display: "grid",
-    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-    gap: { sm: "0 16px" },
-  };
   const items = [
     {
       key: "identifiers",
@@ -1017,61 +1133,31 @@ export default function EmployeeProfileSectionsForm({
         <ListSection
           name="educations"
           addLabel="Tambah pendidikan"
-          initialValue={{ isHighest: false }}
+          initialValue={() =>
+            (form.getFieldValue("educations") || []).some(
+              (item) => item.educationLevel === EDUCATION_LEVEL_NEVER_SCHOOL,
+            )
+              ? null
+              : { isHighest: false }
+          }
+          onAddUnavailable={() =>
+            onError?.(
+              "Pilihan Tidak/Belum Pernah Sekolah tidak dapat digunakan bersama riwayat pendidikan lain.",
+            )
+          }
           onRemoveItem={(fieldName, remove) =>
             requestListRemoval("educations", "Tambah pendidikan", fieldName, remove)
           }
         >
           {(field) => (
-            <Box sx={twoColumns}>
-              <Form.Item
-                name={[field.name, "educationLevel"]}
-                label="Jenjang pendidikan"
-                rules={[{ required: true, message: "Pilih jenjang pendidikan." }]}
-              >
-                <Select
-                  options={EDUCATION_LEVEL_OPTIONS}
-                  placeholder="Pilih jenjang pendidikan"
-                  showSearch
-                  optionFilterProp="label"
-                />
-              </Form.Item>
-              <Form.Item name={[field.name, "institution"]} label="Nama institusi pendidikan">
-                <Input placeholder="Contoh: Universitas Sam Ratulangi" maxLength={200} />
-              </Form.Item>
-              <Form.Item name={[field.name, "fieldOfStudy"]} label="Program studi atau jurusan">
-                <Input placeholder="Contoh: Teknik Informatika" maxLength={150} />
-              </Form.Item>
-              <Form.Item name={[field.name, "graduationYear"]} label="Tahun kelulusan">
-                <DatePicker
-                  picker="year"
-                  format="YYYY"
-                  placeholder="Pilih tahun kelulusan"
-                  style={{ width: "100%" }}
-                />
-              </Form.Item>
-              <Form.Item
-                name={[field.name, "isHighest"]}
-                valuePropName="checked"
-                style={{ gridColumn: "1 / -1", marginBottom: 0 }}
-              >
-                <Checkbox>Tandai sebagai pendidikan tertinggi</Checkbox>
-              </Form.Item>
-              <Form.Item name={[field.name, "certificateFileId"]} hidden>
-                <Input />
-              </Form.Item>
-              <Box sx={{ gridColumn: "1 / -1" }}>
-                <CredentialImageField
-                  listName="educations"
-                  field={field}
-                  form={form}
-                  employee={employee}
-                  organizationId={organizationId}
-                  onError={onError}
-                  onRemoveRequest={requestRemoval}
-                />
-              </Box>
-            </Box>
+            <EducationFields
+              field={field}
+              form={form}
+              employee={employee}
+              organizationId={organizationId}
+              onError={onError}
+              onRemoveRequest={requestRemoval}
+            />
           )}
         </ListSection>
       ),

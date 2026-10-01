@@ -38,6 +38,8 @@
 !/scripts/test-reports-ui.mjs
 !/scripts/test-dashboard-http.mjs
 !/scripts/test-dashboard-birthdays-db.mjs
+!/scripts/test-dashboard-activities-db.mjs
+!/scripts/test-employee-completeness-db.mjs
 !/scripts/test-mobile-navigation-ui.mjs
 !/scripts/cleanup-replaced-profile-files.mjs
 !/scripts/file-cleanup-worker.mjs
@@ -68,6 +70,7 @@
 !/tests/multipart-streaming.test.mjs
 !/tests/dependent-contact-migration.test.mjs
 !/tests/employee-export.test.mjs
+!/tests/employee-completeness.test.mjs
 /ecosystem.config.js
 
 # debug

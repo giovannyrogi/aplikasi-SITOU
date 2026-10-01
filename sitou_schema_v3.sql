@@ -1,6 +1,6 @@
 -- ============================================================================
 -- SITOU - PostgreSQL 18 schema v3
--- Sistem Informasi Tenaga Operasional Unit - by Perumda Pasar Manado
+-- Sistem Informasi Teknologi dan Organisasi Unit - by Perumda Pasar Manado
 -- Tujuan: HRIS multi-organisasi, siap dashboard saat ini dan mobile attendance.
 -- Konvensi: seluruh waktu absolut memakai timestamptz; tanggal bisnis mengikuti
 -- timezone organisasi. File privat disimpan di storage, database menyimpan metadata.
@@ -503,6 +503,22 @@ CREATE TABLE employee_educations (
   graduation_year smallint CHECK (graduation_year BETWEEN 1900 AND 2200), -- Tahun lulus.
   is_highest boolean NOT NULL DEFAULT false, -- Penanda pendidikan tertinggi.
   certificate_file_id bigint, -- Ijazah/sertifikat privat.
+  CONSTRAINT ck_employee_education_details CHECK (
+    (
+      education_level IN ('Tidak/Belum Pernah Sekolah', 'Tidak/Belum Tamat SD')
+      AND institution IS NULL
+      AND field_of_study IS NULL
+      AND graduation_year IS NULL
+      AND certificate_file_id IS NULL
+      AND is_highest
+    )
+    OR
+    (
+      education_level NOT IN ('Tidak/Belum Pernah Sekolah', 'Tidak/Belum Tamat SD')
+      AND institution IS NOT NULL
+      AND btrim(institution) <> ''
+    )
+  ),
   CONSTRAINT fk_education_employee FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id) ON DELETE CASCADE,
   CONSTRAINT fk_education_file FOREIGN KEY (organization_id,certificate_file_id) REFERENCES stored_files(organization_id,id)
 );

@@ -4,10 +4,14 @@ import AppIcon from "@/app/components/icons/AppIcon";
 import { Box, Paper, Skeleton, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 
-const dateTimeFormatter = new Intl.DateTimeFormat("id-ID", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+/** Waktu mengikuti organisasi agar konsisten meskipun perangkat berada di zona berbeda. */
+function formatActivityTime(item) {
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: item.timezone || "Asia/Makassar",
+  }).format(new Date(item.occurredAt));
+}
 
 /** Menampilkan jejak aktivitas terbaru tanpa membuka payload audit sensitif. */
 export default function DashboardActivityList({ items = [], loading }) {
@@ -32,7 +36,7 @@ export default function DashboardActivityList({ items = [], loading }) {
         </FontStyle>
       </Box>
       <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-        Perubahan operasional terkini yang telah tercatat dalam audit sistem.
+        Perubahan terbaru yang dicatat oleh pengelola organisasi.
       </FontStyle>
       <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, mt: 2 }}>
         {loading ? (
@@ -69,14 +73,19 @@ export default function DashboardActivityList({ items = [], loading }) {
                 <AppIcon icon="solar:check-read-bold-duotone" width={16} />
               </Box>
               <Box sx={{ minWidth: 0 }}>
-                <FontStyle fontSize={12.5} fontWeight={600}>
-                  {item.label}
+                <FontStyle fontSize={12.5} fontWeight={600} sx={{ overflowWrap: "anywhere" }}>
+                  {item.actor} · {item.label}
                 </FontStyle>
+                {item.subject ? (
+                  <FontStyle fontSize={11.5} sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
+                    {item.subject}
+                  </FontStyle>
+                ) : null}
                 <FontStyle
                   fontSize={10.8}
                   sx={{ mt: 0.3, color: theme.ui.mutedText, overflowWrap: "anywhere" }}
                 >
-                  {item.actor} · {dateTimeFormatter.format(new Date(item.occurredAt))}
+                  {formatActivityTime(item)}
                 </FontStyle>
               </Box>
             </Box>

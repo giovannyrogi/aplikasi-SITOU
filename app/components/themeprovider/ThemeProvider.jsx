@@ -162,6 +162,7 @@ export default function AppThemeProvider({ children }) {
       <GlobalStyles
         styles={{
           ":root": {
+            "--sitou-brand-primary": BRAND_COLORS.primary,
             "--sitou-scrollbar-thumb": BRAND_COLORS.primary,
             "--sitou-scrollbar-thumb-soft": BRAND_COLORS.primarySoft,
             "--sitou-scrollbar-thumb-hover": BRAND_COLORS.primaryHover,

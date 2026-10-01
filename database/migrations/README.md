@@ -82,3 +82,9 @@ karantina tujuh hari untuk byte tanpa metadata atau file berbahaya, membatalkan 
 dokumen histori resmi, dan menyimpan hasil antivirus pada pemeriksaan penyimpanan.
 Jalankan setelah backup PostgreSQL serta `UPLOAD_ROOT`, lalu deploy web dan worker dalam
 maintenance window yang sama.
+
+Migration `037` menambahkan aturan kondisional pendidikan **Tidak/Belum Pernah Sekolah**
+dan **Tidak/Belum Tamat SD**. Kedua pilihan tidak memakai institusi, jurusan, tahun
+kelulusan, atau ijazah dan otomatis menjadi pendidikan tertinggi. Constraint dibuat
+`NOT VALID` agar tidak mengubah data lama, tetapi langsung melindungi insert serta update
+baru. Terapkan sebelum deploy form dan validasi pendidikan baru.

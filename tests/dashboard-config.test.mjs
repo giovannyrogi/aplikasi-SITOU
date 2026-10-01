@@ -7,6 +7,8 @@ import {
   DASHBOARD_PERIODS,
   formatDisciplineSeverity,
   formatDashboardActivity,
+  formatDashboardActivitySubject,
+  ORGANIZATION_ACTIVITY_ACTIONS,
   formatSubscriptionStatus,
   normalizeDashboardPeriod,
   normalizeDashboardRange,
@@ -27,6 +29,57 @@ test("aktivitas audit diterjemahkan tanpa mengekspos payload", () => {
     "Memperbarui kontrak kerja",
   );
   assert.equal(formatDashboardActivity("unknown", "unknown"), "Memproses data operasional");
+});
+
+test("aktivitas dashboard membedakan perubahan profil, histori, dan import", () => {
+  for (const [action, entity, expected] of [
+    ["employee.update", "employee", "Memperbarui identitas dan kontak pegawai"],
+    ["employee.profile_sections.update", "employee", "Memperbarui profil lengkap pegawai"],
+    ["employment_contract.correct", "employment_contract", "Mengoreksi kontrak kerja"],
+    ["employee_assignment.correct", "employee_assignment", "Mengoreksi penempatan pegawai"],
+    ["organization_account.password_reset", "user", "Mereset password akun organisasi"],
+    ["employee_import.employee_commit", "employee", "Menambahkan pegawai melalui import"],
+  ])
+    assert.equal(formatDashboardActivity(action, entity), expected);
+});
+
+test("login dan setiap kode feed mempunyai label tindakan yang jelas", () => {
+  assert.equal(formatDashboardActivity("login.success", "user"), "Masuk ke SITOU");
+  for (const action of ORGANIZATION_ACTIVITY_ACTIONS) {
+    const entity =
+      {
+        organization_account: "user",
+        profile_self: "user",
+        login: "user",
+        employee_import: "employee_import_batch",
+        retirement_policy: "organization_retirement_policy",
+        leave_balance: "leave_request",
+      }[action.split(".")[0]] || action.split(".")[0];
+    assert.doesNotMatch(formatDashboardActivity(action, entity), /Memproses|data operasional/);
+  }
+});
+
+test("target aktivitas memakai label pegawai, NIP, akun, master, dan laporan yang jelas", () => {
+  assert.equal(
+    formatDashboardActivitySubject({ employee_name: "Nama Contoh", employee_no: "001" }),
+    "Nama pegawai: Nama Contoh · NIP: 001",
+  );
+  assert.equal(
+    formatDashboardActivitySubject({ entity_type: "user", target_username: "akuncontoh" }),
+    "Akun: @akuncontoh",
+  );
+  assert.equal(
+    formatDashboardActivitySubject({ entity_type: "location", target_name: "Pasar Contoh" }),
+    "Lokasi: Pasar Contoh",
+  );
+  assert.equal(
+    formatDashboardActivitySubject({ entity_type: "report", report_kind: "retirements" }),
+    "Laporan: Proyeksi Pensiun",
+  );
+  assert.equal(
+    formatDashboardActivitySubject({ entity_type: "employee_export", employee_count: "326" }),
+    "Data pegawai: 326 pegawai",
+  );
 });
 
 test("status dan tingkat pelanggaran dashboard memakai Bahasa Indonesia", () => {
