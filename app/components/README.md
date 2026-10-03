@@ -54,21 +54,21 @@ Seluruh tanggal form memakai `DatePicker` dengan locale terpusat; komponen fitur
 
 ## Form dan Select
 
-| Komponen                             | Tujuan                                                                                                                         | Props penting                                                                                               |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `forms/AsyncSelect`                  | Select async umum dengan loading dan empty state.                                                                              | Props AntD `Select`, `loading`, `options`                                                                   |
-| `forms/OrganizationScopeField`       | Pemilih organisasi Superadmin atau organisasi session HRD yang terkunci.                                                       | `disabled`                                                                                                  |
-| `forms/FormSettingSwitch`            | Satu-satunya kontrol on/off untuk form domain non-pegawai; menyatukan judul, penjelasan, kondisi terkunci, dan field lanjutan. | `name`, `title`, `description`, `disabled`, `disabledReason`, `children`, `switchProps`, `formItemProps`    |
-| `forms/FileUploadField`              | Dropzone umum untuk Excel, PDF, gambar, dan dokumen; gambar selalu dilihat melalui `ImagePreviewModal`.                        | `value`, `accept`, `maxSizeBytes`, `onSelect`, `onRemove`, `previewUrl`                                     |
-| `forms/FileUploadListField`          | Adapter koleksi file lokal yang menyusun `FileUploadField` untuk form komposit dengan banyak lampiran.                         | `value`, `accept`, `maxSizeBytes`, `maxCount`, `onChange`, `onError`, `fullWidth`                           |
-| `forms/IndonesiaPhoneInput`          | Input nomor seluler Indonesia dengan prefix tetap `+62` dan nilai E.164.                                                       | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                                    |
-| `forms/IndonesianNationalIdInput`    | Input NIK 16 digit dengan penyaring angka, counter, dan indikator valid.                                                       | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                                    |
-| `forms/PrivateFileUpload`            | Adapter upload privat umum berbasis file ID atau pilihan file tertunda untuk form komposit, dengan backdrop global opsional.   | `value`, `deferred`, `uploadUrl`, `removeUrl`, `fields`, `accept`, `maxSizeBytes`, `showRemove`             |
-| `forms/PrivatePdfUpload`             | Adapter upload PDF privat berbasis file ID yang menyusun `FileUploadField`.                                                    | `value`, `uploadUrl`, `removeUrl`, `fields`, `organizationId`, `onChange`, `showRemove`, `backdropMessages` |
-| `selects/OrganizationSelect`         | Pilihan organisasi dari endpoint options.                                                                                      | `excludeIds`, `autoSelectFirst`, `includeAll`, props `AsyncSelect`                                           |
-| `selects/LocationSelect`             | Pilihan lokasi aktif berdasarkan organisasi; label kode dapat disembunyikan pada filter.                                       | `organizationId`, `showCode`, props `AsyncSelect`                                                           |
-| `selects/OrganizationUnitTypeSelect` | Pilihan jenis unit aktif per organisasi dan pilihan lama saat edit.                                                            | `organizationId`, `includeId`, props `AsyncSelect`                                                          |
-| `selects/EmployeeSelect`             | Pilihan pegawai aktif sesuai organisasi dan cakupan lokasi actor; NIP dapat disembunyikan pada filter.                         | `organizationId`, `excludeId`, `showEmployeeNumber`, props `AsyncSelect`                                    |
+| Komponen                             | Tujuan                                                                                                                                                 | Props penting                                                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `forms/AsyncSelect`                  | Select async umum dengan loading dan empty state.                                                                                                      | Props AntD `Select`, `loading`, `options`                                                                   |
+| `forms/OrganizationScopeField`       | Pemilih organisasi Superadmin atau organisasi session HRD yang terkunci.                                                                               | `disabled`                                                                                                  |
+| `forms/FormSettingSwitch`            | Satu-satunya kontrol on/off untuk form domain non-pegawai; menyatukan judul, penjelasan, kondisi terkunci, dan field lanjutan.                         | `name`, `title`, `description`, `disabled`, `disabledReason`, `children`, `switchProps`, `formItemProps`    |
+| `forms/FileUploadField`              | Dropzone umum untuk Excel, PDF, gambar, dan dokumen; gambar selalu dilihat melalui `ImagePreviewModal`.                                                | `value`, `accept`, `maxSizeBytes`, `onSelect`, `onRemove`, `previewUrl`                                     |
+| `forms/FileUploadListField`          | Adapter file lokal yang menyusun `FileUploadField`; `maxCount=1` menampilkan satu area untuk pilih, ganti, dan hapus. `id` mendukung fokus error form. | `value`, `accept`, `maxSizeBytes`, `maxCount`, `onChange`, `onError`, `fullWidth`, `id`                     |
+| `forms/IndonesiaPhoneInput`          | Input nomor seluler Indonesia dengan prefix tetap `+62` dan nilai E.164.                                                                               | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                                    |
+| `forms/IndonesianNationalIdInput`    | Input NIK 16 digit dengan penyaring angka, counter, dan indikator valid.                                                                               | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                                    |
+| `forms/PrivateFileUpload`            | Adapter upload privat umum berbasis file ID atau pilihan file tertunda untuk form komposit, dengan backdrop global opsional.                           | `value`, `deferred`, `uploadUrl`, `removeUrl`, `fields`, `accept`, `maxSizeBytes`, `showRemove`             |
+| `forms/PrivatePdfUpload`             | Adapter upload PDF privat berbasis file ID yang menyusun `FileUploadField`.                                                                            | `value`, `uploadUrl`, `removeUrl`, `fields`, `organizationId`, `onChange`, `showRemove`, `backdropMessages` |
+| `selects/OrganizationSelect`         | Pilihan organisasi dari endpoint options.                                                                                                              | `excludeIds`, `autoSelectFirst`, `includeAll`, props `AsyncSelect`                                          |
+| `selects/LocationSelect`             | Pilihan lokasi aktif berdasarkan organisasi; label kode dapat disembunyikan pada filter.                                                               | `organizationId`, `showCode`, props `AsyncSelect`                                                           |
+| `selects/OrganizationUnitTypeSelect` | Pilihan jenis unit aktif per organisasi dan pilihan lama saat edit.                                                                                    | `organizationId`, `includeId`, props `AsyncSelect`                                                          |
+| `selects/EmployeeSelect`             | Pilihan pegawai aktif sesuai organisasi dan cakupan lokasi actor; callback pilihan juga menerima pegawai preset setelah opsi selesai dimuat.           | `organizationId`, `excludeId`, `showEmployeeNumber`, `onSelectedEmployeeChange`, props `AsyncSelect`        |
 
 Form domain tetap berada di modul fitur dan dirender sebagai children `AppModal`. Gunakan `hooks/useFormModalClose` bersama `ConfirmDialog` untuk dirty-state warning.
 Form fitur non-pegawai dilarang memakai `Switch` AntD secara langsung. Susun pengaturan terkait dengan `FormSettingsGroup` dan `FormSettingSwitch`; gunakan judul yang menjelaskan dampak bagi pengguna, bukan istilah teknis seperti "Status aktif". Gunakan `Segmented` untuk pilihan mode yang saling eksklusif dan `Checkbox` hanya untuk beberapa pilihan independen atau persetujuan.
@@ -88,19 +88,19 @@ Seluruh aksi lihat gambar wajib memakai `modals/ImagePreviewModal`; jangan membu
 
 ## Dashboard dan Visualisasi
 
-| Komponen                               | Tujuan                                                                                                  | Props penting                               |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `dashboard/DashboardMetric`            | Panel KPI dengan aksen status, angka lokal, ikon, dan dukungan microtrend.                              | `metric`, `loading`                         |
-| `dashboard/DashboardChart`             | Shell grafik dengan header, tinggi stabil, loading, empty state, dan hover yang halus.                  | `title`, `description`, `icon`, `loading`   |
-| `dashboard/AreaTrendChart`             | Grafik area untuk membandingkan arus perubahan berdasarkan periode.                                     | `data`                                      |
-| `dashboard/HorizontalBarChart`         | Grafik batang horizontal untuk label kategori yang panjang.                                             | `data`, `percent`                           |
-| `dashboard/StackedBarChart`            | Grafik batang bertumpuk untuk komposisi beberapa seri.                                                  | `data`, `horizontal`                        |
-| `dashboard/DonutChart`                 | Grafik donut kelengkapan data dengan total dan legend Bahasa Indonesia.                                 | `data`                                      |
-| `dashboard/MetricSparkline`            | Grafik mini tanpa sumbu untuk tren pada KPI.                                                            | `data`, `color`                             |
-| `dashboard/DashboardAttentionList`     | Daftar prioritas operasional dengan tingkat urgensi.                                                    | `items`, `loading`                          |
-| `dashboard/EmployeeCompositionSummary` | Satu panel snapshot komposisi jenis kelamin, status, masa kerja, dan jenis kepegawaian.                 | `data`, `loading`                           |
+| Komponen                               | Tujuan                                                                                                              | Props penting                                                              |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `dashboard/DashboardMetric`            | Panel KPI dengan aksen status, angka lokal, ikon, dan dukungan microtrend.                                          | `metric`, `loading`                                                        |
+| `dashboard/DashboardChart`             | Shell grafik dengan header, tinggi stabil, loading, empty state, dan hover yang halus.                              | `title`, `description`, `icon`, `loading`                                  |
+| `dashboard/AreaTrendChart`             | Grafik area untuk membandingkan arus perubahan berdasarkan periode.                                                 | `data`                                                                     |
+| `dashboard/HorizontalBarChart`         | Grafik batang horizontal untuk label kategori yang panjang.                                                         | `data`, `percent`                                                          |
+| `dashboard/StackedBarChart`            | Grafik batang bertumpuk untuk komposisi beberapa seri.                                                              | `data`, `horizontal`                                                       |
+| `dashboard/DonutChart`                 | Grafik donut kelengkapan data dengan total dan legend Bahasa Indonesia.                                             | `data`                                                                     |
+| `dashboard/MetricSparkline`            | Grafik mini tanpa sumbu untuk tren pada KPI.                                                                        | `data`, `color`                                                            |
+| `dashboard/DashboardAttentionList`     | Daftar prioritas operasional dengan tingkat urgensi.                                                                | `items`, `loading`                                                         |
+| `dashboard/EmployeeCompositionSummary` | Satu panel snapshot komposisi jenis kelamin, status, masa kerja, dan jenis kepegawaian.                             | `data`, `loading`                                                          |
 | `dashboard/DashboardActivityList`      | Aktivitas organisasi dengan pelaku, tindakan, nama/NIP pegawai, dan waktu organisasi; tanpa payload audit sensitif. | `items` (`label`, `actor`, `subject`, `occurredAt`, `timezone`), `loading` |
-| `dashboard/chartAdapter`               | Sumber konfigurasi ApexCharts untuk theme, format Indonesia, responsive behavior, tooltip, dan animasi. | `createChartOptions`, `formatChartCategory` |
+| `dashboard/chartAdapter`               | Sumber konfigurasi ApexCharts untuk theme, format Indonesia, responsive behavior, tooltip, dan animasi.             | `createChartOptions`, `formatChartCategory`                                |
 
 Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender melalui `ApexChartClient` dengan SSR nonaktif. Adapter wajib menormalkan kategori dan nilai numerik agar label `NaN` atau `undefined` tidak pernah tampil. Grafik fitur tidak boleh menyalin konfigurasi theme, tooltip, breakpoint, atau reduced motion secara terpisah. Grafik harus mendukung keputusan pengguna dan selalu memiliki state loading, kosong, serta error pada shell-nya. `DashboardAttentionList` menerima scope organisasi agar item disiplin dapat membuka tab sanksi pegawai yang tepat; chip prioritas ditempatkan bersama judul dan aksi detail memakai ikon mata yang mudah dikenali.
 
@@ -108,6 +108,7 @@ Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender
 
 - `branding/AppLogo` adalah satu-satunya komponen untuk menampilkan logo SITOU. Gunakan `variant="full"` untuk komposisi ikon dan teks **SITOU** pada navbar, serta `variant="mark"` untuk simbol ringkas.
 - Path ikon logo dan warna teks SITOU dipusatkan melalui `branding/AppLogo.jsx` dan token tema agar tampilannya konsisten pada navbar desktop maupun mobile.
+- `navbar/SidebarContent` memakai pas foto profil pegawai yang ditautkan ke akun dari data session terbaru, melalui endpoint file privat. Desktop dan drawer mobile memakai komponen yang sama; inisial tetap tampil jika foto belum ada atau gagal dimuat.
 - `/public/logo-sitou-v2.png`: logo huruf/simbol ringkas.
 - `/public/logo-sitou-v1.png`: logo SITOU beserta tagline.
 - SITOU hanya memakai theme light. Merah adalah aksen, bukan warna seluruh permukaan.
@@ -140,10 +141,10 @@ Data sensitif yang panjang memakai pola kartu ringkas dan `AppModal` detail. Kar
 # Modul Cuti & Izin
 
 - Halaman operasional memakai `ResponsiveDataView`, filter server-side, dan state filter di URL.
-- `LeaveRequestForm` mencatat keputusan HRD langsung sebagai approved setelah konfirmasi; validasi lokal tidak membuka loading backdrop.
+- `LeaveRequestForm` memakai tombol Simpan dan konfirmasi berisi nama/NIP, jenis, periode, jumlah hari/jam, serta dampak saldo. Validasi gagal memberi notifikasi dan fokus ke field tanpa menghapus isian atau file. Jumlah HRD tetap menjadi dasar pemotongan; perkiraan rentang tanggal memakai hari kalender dan dapat disesuaikan.
 - `LeaveDetailModal` menjadi tampilan yang sama untuk HRD, Superadmin, dan Pimpinan read-only.
 - Tab pegawai membaca `leave-summary`; saldo berasal dari ledger dan approved record hanya dapat dikoreksi melalui pembatalan beralasan.
-- Lampiran diunggah privat dengan jenis `lampiran_cuti`, dibatasi organisasi/pegawai, dan dibersihkan kembali bila transaksi pencatatan gagal.
+- Pencatatan baru menerima satu dokumen pendukung JPEG/PNG/WebP/PDF maksimal 10 MB; total multipart maksimal 11 MB. File dipilih lokal dan baru disimpan bersama pencatatan. Histori lama tetap dapat membuka semua lampirannya. File privat dibatasi organisasi/pegawai dan dibersihkan bila transaksi gagal.
 
 # Laporan pegawai
 
@@ -156,6 +157,8 @@ Semua tabel AntD disusun melalui `data-display/NumberedTable.jsx`, yang menambah
 # Pengaturan organisasi
 
 `AppModal` menyediakan `role=dialog`, `aria-modal`, dan hubungan judul/deskripsi pada panel konten agar konfirmasi dapat dikenali pembaca layar.
+
+Lebar panel `AppModal` dibatasi oleh kolom grid yang dapat menyusut sesuai viewport, termasuk saat lebar modal lebih besar dari layar tablet. Footer tetap berada di dalam layar.
 
 `organization-settings/RetirementPolicy` menampilkan usia berlaku, dasar perhitungan, audit terakhir, dan akses laporan. Tombol Ubah/Tetapkan membuka `RetirementPolicyEditor` berbasis AppModal. Form memakai schema bersama, snapshot versi, alasan dan konfirmasi, mempertahankan isian saat gagal, serta meminta konfirmasi sebelum membuang isian. Organisasi dipertahankan di URL; Pimpinan hanya membaca. Tidak ada perubahan status pegawai otomatis.
 

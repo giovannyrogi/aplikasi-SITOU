@@ -71,6 +71,10 @@
 !/tests/dependent-contact-migration.test.mjs
 !/tests/employee-export.test.mjs
 !/tests/employee-completeness.test.mjs
+!/tests/employee-identity-conflict.test.mjs
+!/tests/leave-request.test.mjs
+!/scripts/test-leave-service-db.mjs
+!/scripts/test-leave-form-ui.mjs
 /ecosystem.config.js
 
 # debug

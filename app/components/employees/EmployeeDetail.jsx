@@ -989,7 +989,7 @@ export default function EmployeeDetail({ employeeId }) {
               }
             >
               <InfoField
-                label="Tanggal bergabung di organisasi"
+                label="TMT bergabung"
                 value={formatDate(employee.joined_date)}
               />
               <InfoField label="Masa kerja" value={tenureText} />
@@ -1015,7 +1015,7 @@ export default function EmployeeDetail({ employeeId }) {
               />
               <InfoField
                 label={
-                  finalEmploymentStatus ? "Tanggal mulai kontrak terakhir" : "Tanggal mulai kontrak"
+                  finalEmploymentStatus ? "TMT kontrak terakhir" : "TMT kontrak"
                 }
                 value={formatDate(relationshipContract?.start_date)}
               />

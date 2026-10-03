@@ -107,6 +107,13 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
         }}
       >
         <Avatar
+          // Endpoint privat mempertahankan pemeriksaan organisasi dan izin; inisial menjadi fallback.
+          src={
+            profileLinked && user?.profile_photo_file_id
+              ? `/api/uploads/${encodeURIComponent(user.profile_photo_file_id)}?organizationId=${encodeURIComponent(user.organization_id)}`
+              : undefined
+          }
+          alt={`Pas foto ${primaryIdentity}`}
           sx={{
             width: 42,
             height: 42,

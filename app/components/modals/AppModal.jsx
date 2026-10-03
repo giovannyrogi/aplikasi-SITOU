@@ -47,7 +47,12 @@ export default function AppModal({
       onClose={requestClose}
       aria-labelledby={titleId}
       aria-describedby={resolvedDescription ? descriptionId : undefined}
-      sx={{ display: "grid", placeItems: "center", p: { xs: 1, sm: 2 } }}
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr)",
+        placeItems: "center",
+        p: { xs: 1, sm: 2 },
+      }}
       slotProps={{
         backdrop: { sx: { bgcolor: "rgba(17, 24, 39, 0.38)", backdropFilter: "blur(4px)" } },
       }}
@@ -63,6 +68,7 @@ export default function AppModal({
           width: { xs: "100%", sm: Math.min(width || SIZE_WIDTH[size] || SIZE_WIDTH.md, 1200) },
           maxWidth: "100%",
           maxHeight,
+          minWidth: 0,
           minHeight: 0,
           display: "flex",
           flexDirection: "column",

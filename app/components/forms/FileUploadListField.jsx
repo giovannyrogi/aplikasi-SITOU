@@ -17,6 +17,7 @@ export default function FileUploadListField({
   selectedText = "File terpilih dan akan disimpan bersama data",
   disabled = false,
   fullWidth = false,
+  id,
 }) {
   const previewUrls = useRef(new Map());
 
@@ -77,6 +78,8 @@ export default function FileUploadListField({
 
   return (
     <Box
+      id={id}
+      tabIndex={id ? -1 : undefined}
       sx={{
         display: "grid",
         gridTemplateColumns: fullWidth

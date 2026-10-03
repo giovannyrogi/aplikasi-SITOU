@@ -118,6 +118,8 @@ Lifecycle akhir hubungan kerja memakai `employees.employment_status` dengan nila
 
 Daftar Data Pegawai dapat difilter menurut **Ditambahkan oleh**. Nilai ini bersumber dari audit append-only `employee.create`, bukan kolom profil yang dapat berubah. Opsi akun dibatasi organisasi serta cakupan lokasi actor. Pegawai lama yang belum memiliki audit pencatatan tetap muncul ketika filter memakai Semua akun; memilih akun hanya menampilkan record yang memiliki audit pencatatan oleh akun tersebut.
 
+Konflik NIP dan NIK KTP pada pendaftaran atau pembaruan dipetakan dari constraint identitas ke pesan terpisah dan `fieldErrors` untuk `employeeNo` atau `nationalId`. Pemeriksaan tetap dalam organisasi yang sama dan mencakup record yang dihapus logis. Import memakai pesan identitas yang sama; bila kedua nomor duplikat, masing-masing dijelaskan tanpa menampilkan nomor atau data pegawai lain.
+
 Import pegawai memakai workbook `.xlsx` multi-sheet resmi tanpa foto, dokumen, kasus disiplin, atau tindakan sanksi. NIK wajib 16 digit untuk import. Nomor baris unik di dalam sheet melalui `(batch_id,sheet_name,row_number)`. Validasi dikelompokkan berdasarkan `employee_no`, dan commit atomik per pegawai menghasilkan status `committed` atau `partially_committed` tanpa menggagalkan pegawai valid lain. Detail operasional berada di `docs/employee-import.md`.
 
 ## Penyimpanan Privat Pegawai
@@ -177,6 +179,8 @@ Koreksi salah input penempatan menggunakan `PATCH /api/employees/:employeeId/ass
 | `leave_decisions`            | Keputusan final HRD.                                                                                   | `leave_request_id`, `decision`, `decided_by_user_id`, `decision_role`, `notes`, `decided_at`.                                                                          |
 
 Jatah tahunan, durasi pencatatan, dan seluruh transaksi saldo cuti/izin menggunakan bilangan bulat. Sistem tidak menerima atau membulatkan pecahan hari/jam secara diam-diam.
+
+Pencatatan HRD langsung berstatus Disetujui dan memotong saldo berdasarkan `requested_units` dalam transaksi yang sama. Nilai awal dari rentang tanggal memakai hari kalender; HRD menyesuaikan jumlah hari/jam sesuai kebijakan organisasi. Validasi TMT memakai `joined_date::text` dalam format `YYYY-MM-DD` agar tidak bergeser oleh timezone host. Pencatatan baru menerima satu dokumen pendukung maksimal 10 MB (gabungan upload baru dan referensi file), dengan total request maksimal 11 MB. Histori lama yang memiliki banyak lampiran tetap tersedia. Koreksi hanya melalui pembatalan beralasan dan pencatatan ulang; pembatalan mengembalikan pemakaian saldo tepat satu kali serta mempertahankan histori dan dokumen.
 
 | Tabel                       | Fungsi                                                                                                                                                   | Kolom Kunci                                                                                                                                                                                     |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

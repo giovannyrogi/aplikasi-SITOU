@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/routeHelpers";
 import { leaveListFilterSchema, leaveRequestCreateSchema } from "@/lib/leave/schemas";
 import { createLeaveRequest, listLeaveRequests } from "@/lib/leave/service";
+import { MAX_LEAVE_REQUEST_BYTES } from "@/lib/leave/requestRules.mjs";
 
 const filterInput = (params) => ({
   organizationId: params.get("organizationId") || null,
@@ -58,9 +59,13 @@ export async function POST(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("leave_requests.manage");
   if (response) return response;
-  const rejected = await validateMutationRequest(request, user.id, requestId, { maxBytes: 51 * 1024 * 1024 });
+  const rejected = await validateMutationRequest(request, user.id, requestId, {
+    maxBytes: MAX_LEAVE_REQUEST_BYTES,
+  });
   if (rejected) return rejected;
-  const parsed = await readMultipartJson(request, leaveRequestCreateSchema, requestId, { fileField: "files" });
+  const parsed = await readMultipartJson(request, leaveRequestCreateSchema, requestId, {
+    fileField: "files",
+  });
   if (parsed.response) return parsed.response;
   try {
     const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);

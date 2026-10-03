@@ -53,3 +53,31 @@ test("cleanup multipart idempotent walaupun file belum dibaca", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("multipart cuti chunked menolak dua file dan file di atas 10 MB, serta membersihkan temp", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "sitou-leave-multipart-"));
+  const previousRoot = process.env.UPLOAD_ROOT;
+  process.env.UPLOAD_ROOT = root;
+  try {
+    for (const sizes of [[100, 100], [10 * 1024 * 1024 + 1]]) {
+      const body = new FormData();
+      body.set("payload", "{}");
+      for (const size of sizes)
+        body.append(
+          "files",
+          new Blob([Buffer.alloc(size)], { type: "application/pdf" }),
+          "test.pdf",
+        );
+      const request = new Request("http://localhost/api/leave-requests", { method: "POST", body });
+      assert.equal(request.headers.has("content-length"), false);
+      await assert.rejects(parseMultipartToPrivateTemp(request), (error) => error.status === 413);
+      // Formidable dapat selesai menutup file sesaat setelah error stream.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.deepEqual(await readdir(path.join(root, ".tmp", "multipart")), []);
+    }
+  } finally {
+    if (previousRoot === undefined) delete process.env.UPLOAD_ROOT;
+    else process.env.UPLOAD_ROOT = previousRoot;
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -11,14 +11,29 @@ export default function EmployeeSelect({
   excludeId,
   onError,
   showEmployeeNumber = true,
+  onSelectedEmployeeChange,
   ...props
 }) {
-  const [state, setState] = useState({ loading: false, options: [] });
+  const [state, setState] = useState({ loading: false, options: [], organizationId: null });
   const onErrorRef = useRef(onError);
+  const onSelectedRef = useRef(onSelectedEmployeeChange);
 
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
+
+  useEffect(() => {
+    onSelectedRef.current = onSelectedEmployeeChange;
+  }, [onSelectedEmployeeChange]);
+
+  // Termasuk nilai preset dari Form; tidak bergantung pada pengguna memilih ulang dropdown.
+  useEffect(() => {
+    const selected =
+      state.organizationId === organizationId
+        ? state.options.find((option) => String(option.value) === String(props.value))
+        : null;
+    onSelectedRef.current?.(selected?.employee || null);
+  }, [props.value, state.options, state.organizationId, organizationId]);
 
   useEffect(() => {
     if (!organizationId) return undefined;
@@ -35,6 +50,7 @@ export default function EmployeeSelect({
         if (active)
           setState({
             loading: false,
+            organizationId,
             options: (body.data || []).map((employee) => ({
               value: employee.id,
               label: showEmployeeNumber
@@ -47,7 +63,7 @@ export default function EmployeeSelect({
       .catch((error) => {
         if (error.name === "AbortError") return;
         if (active) {
-          setState({ loading: false, options: [] });
+          setState({ loading: false, options: [], organizationId });
           onErrorRef.current?.(error.message || "Daftar pegawai tidak dapat dimuat.");
         }
       });
@@ -62,7 +78,7 @@ export default function EmployeeSelect({
     <AsyncSelect
       {...props}
       loading={organizationId ? state.loading : false}
-      options={organizationId ? state.options : []}
+      options={organizationId && state.organizationId === organizationId ? state.options : []}
       disabled={!organizationId || props.disabled}
       placeholder={props.placeholder || "Pilih pegawai"}
       notFoundContent={state.loading ? "Memuat pegawai..." : "Pegawai tidak ditemukan"}

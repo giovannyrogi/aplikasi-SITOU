@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Col, DatePicker, Form, Input, InputNumber, Row, Select } from "antd";
-import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import EmployeeSelect from "@/app/components/selects/EmployeeSelect";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
@@ -10,6 +9,7 @@ import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { readApiResponse } from "@/lib/api/clientError";
 import { LEAVE_UNIT } from "./leaveLabels";
+import { MAX_LEAVE_ATTACHMENTS, MAX_LEAVE_FILE_BYTES } from "@/lib/leave/requestRules.mjs";
 
 export default function LeaveRequestForm({
   open,
@@ -24,15 +24,19 @@ export default function LeaveRequestForm({
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const [types, setTypes] = useState([]);
   const [confirm, setConfirm] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const watchedTypeId = Form.useWatch("leaveTypeId", form);
   const period = Form.useWatch("period", form);
-  const files = Form.useWatch("attachmentFiles", form) || [];
   const selectedType = types.find((item) => item.id === String(watchedTypeId));
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
   useEffect(() => {
     if (!open || !organizationId) return;
+    const controller = new AbortController();
     form.resetFields();
     form.setFieldsValue({
       organizationId,
@@ -40,10 +44,15 @@ export default function LeaveRequestForm({
       requestedUnits: 1,
       attachmentFiles: [],
     });
-    fetch(`/api/leave-types?organizationId=${organizationId}&options=true`)
+    fetch(`/api/leave-types?organizationId=${organizationId}&options=true`, {
+      signal: controller.signal,
+    })
       .then(readApiResponse)
       .then((body) => setTypes(body.data || []))
-      .catch((error) => onErrorRef.current?.(error.message));
+      .catch((error) => {
+        if (error.name !== "AbortError") onErrorRef.current?.(error.message);
+      });
+    return () => controller.abort();
   }, [form, open, organizationId, presetEmployeeId]);
   useEffect(() => {
     if (period?.[0] && period?.[1] && selectedType?.unit === "day")
@@ -52,15 +61,54 @@ export default function LeaveRequestForm({
         period[1].startOf("day").diff(period[0].startOf("day"), "day") + 1,
       );
   }, [form, period, selectedType]);
+  /** Field tanggal API dipetakan ke satu rentang tanggal tanpa membuang pesan. */
+  const formFieldName = (name) =>
+    name === "startDate" || name === "endDate"
+      ? "period"
+      : name === "attachmentFileIds" || name === "files"
+        ? "attachmentFiles"
+        : name;
+
+  /** Memfokuskan field pertama yang bermasalah tanpa menghapus isian pengguna. */
+  const focusError = (name) => {
+    if (!name) return;
+    window.setTimeout(() => {
+      form.scrollToField(name, { behavior: "smooth", block: "center", focus: true });
+      const instance = form.getFieldInstance(name);
+      if (instance?.focus) instance.focus();
+      else document.getElementById(`leave-request_${name}`)?.focus();
+    }, 100);
+  };
+
   const validate = async () => {
+    if (savingRef.current) return;
     try {
-      await form.validateFields();
+      const values = await form.validateFields();
+      if (
+        !selectedEmployee ||
+        String(selectedEmployee.id) !== String(values.employeeId) ||
+        !selectedType
+      ) {
+        onErrorRef.current?.(
+          "Tunggu sampai data pegawai dan jenis cuti selesai dimuat, lalu coba kembali.",
+        );
+        return;
+      }
+      setConfirmation({ values, employee: selectedEmployee, type: selectedType });
       setConfirm(true);
-    } catch {}
+    } catch (error) {
+      focusError(error.errorFields?.[0]?.name);
+      onErrorRef.current?.(
+        error.errorFields?.[0]?.errors?.[0] || "Periksa field yang ditandai, lalu coba kembali.",
+      );
+    }
   };
   const submit = async () => {
+    if (savingRef.current || !confirmation) return;
+    savingRef.current = true;
+    setSaving(true);
     setConfirm(false);
-    const values = form.getFieldsValue(true);
+    const values = confirmation.values;
     try {
       await runWithLoadingBackdrop(
         async () => {
@@ -77,7 +125,8 @@ export default function LeaveRequestForm({
           };
           const formData = new FormData();
           formData.append("payload", JSON.stringify(payload));
-          for (const entry of files) formData.append("files", entry.localFile);
+          for (const entry of values.attachmentFiles || [])
+            formData.append("files", entry.localFile);
           const response = await fetch("/api/leave-requests", {
             method: "POST",
             body: formData,
@@ -88,19 +137,17 @@ export default function LeaveRequestForm({
         { message: "Mencatat dan menyetujui cuti atau izin..." },
       );
     } catch (error) {
-      if (error.fieldErrors)
-        form.setFields(
-          Object.entries(error.fieldErrors).map(([name, message]) => ({
-            name:
-              name === "startDate" || name === "endDate"
-                ? "period"
-                : name === "attachmentFileIds"
-                  ? "attachmentFiles"
-                  : name,
-            errors: [message],
-          })),
-        );
-      onError(error.message);
+      const errors = new Map();
+      for (const [name, message] of Object.entries(error.fieldErrors || {})) {
+        const field = formFieldName(name);
+        errors.set(field, [...(errors.get(field) || []), message]);
+      }
+      form.setFields([...errors].map(([name, messages]) => ({ name, errors: messages })));
+      focusError(errors.keys().next().value);
+      onErrorRef.current?.(error.message);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   };
   return (
@@ -109,14 +156,17 @@ export default function LeaveRequestForm({
         open={open}
         onClose={onClose}
         title="Catat cuti atau izin"
-        description="Pencatatan HRD langsung disetujui dan masuk ke histori pegawai."
+        description="Pencatatan oleh HRD langsung disetujui. Jika jenis cuti menggunakan saldo, saldo berkurang setelah berhasil disimpan."
         icon="solar:calendar-add-bold-duotone"
         size="lg"
+        disableClose={saving}
         footer={
           <>
-            <Button onClick={onClose}>Batal</Button>
-            <Button type="primary" onClick={validate}>
-              Periksa & simpan
+            <Button onClick={onClose} disabled={saving}>
+              Batal
+            </Button>
+            <Button type="primary" onClick={validate} loading={saving} disabled={confirm}>
+              Simpan
             </Button>
           </>
         }
@@ -124,11 +174,11 @@ export default function LeaveRequestForm({
         <Alert
           type="info"
           showIcon
-          title="Keputusan langsung oleh HRD"
-          description="Periksa periode, durasi, saldo, dan lampiran. Data yang disetujui tidak dapat diedit; koreksi dilakukan melalui pembatalan."
+          title="Periksa data sebelum menyimpan"
+          description="Data yang tersimpan tidak dapat diedit atau dihapus. Jika ada kesalahan, batalkan pencatatan dengan alasan, lalu catat ulang. Saldo yang terpotong akan dikembalikan saat pembatalan."
           style={{ marginBottom: 20 }}
         />
-        <Form form={form} layout="vertical">
+        <Form form={form} name="leave-request" layout="vertical" disabled={saving || confirm}>
           <Row gutter={[16, 4]}>
             <Col xs={24}>
               <OrganizationScopeField disabled />
@@ -139,13 +189,17 @@ export default function LeaveRequestForm({
                 label="Pegawai"
                 rules={[{ required: true, message: "Pegawai wajib dipilih." }]}
               >
-                <EmployeeSelect organizationId={organizationId} />
+                <EmployeeSelect
+                  organizationId={organizationId}
+                  onError={onError}
+                  onSelectedEmployeeChange={setSelectedEmployee}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item
                 name="leaveTypeId"
-                label="Cuti atau izin"
+                label="Jenis cuti atau izin"
                 rules={[{ required: true, message: "Pilih cuti atau izin." }]}
               >
                 <Select
@@ -161,8 +215,8 @@ export default function LeaveRequestForm({
             <Col xs={24} sm={12}>
               <Form.Item
                 name="period"
-                label="Periode"
-                rules={[{ required: true, message: "Periode wajib dipilih." }]}
+                label="Tanggal mulai dan selesai"
+                rules={[{ required: true, message: "Tanggal mulai dan selesai wajib dipilih." }]}
               >
                 <DatePicker.RangePicker format="DD MMM YYYY" style={{ width: "100%" }} />
               </Form.Item>
@@ -170,8 +224,20 @@ export default function LeaveRequestForm({
             <Col xs={24} sm={12}>
               <Form.Item
                 name="requestedUnits"
-                label={`Durasi yang dibebankan${selectedType ? ` (${LEAVE_UNIT[selectedType.unit]})` : ""}`}
-                rules={[{ required: true }]}
+                label={`Jumlah ${selectedType?.unit === "hour" ? "jam" : "hari"} yang dibebankan`}
+                rules={[
+                  { required: true, message: "Isi jumlah hari atau jam yang dibebankan." },
+                  {
+                    type: "integer",
+                    min: 1,
+                    message: "Jumlah harus berupa angka bulat minimal 1.",
+                  },
+                ]}
+                extra={
+                  selectedType?.unit === "hour"
+                    ? "Isi jumlah jam sesuai kebijakan organisasi."
+                    : "Perkiraan awal memakai hari kalender. Sesuaikan dengan hari kerja dan kebijakan organisasi. Jumlah ini digunakan untuk mengurangi saldo jika jenis cuti memakai saldo."
+                }
               >
                 <InputNumber min={1} step={1} precision={0} style={{ width: "100%" }} />
               </Form.Item>
@@ -179,8 +245,11 @@ export default function LeaveRequestForm({
             <Col xs={24}>
               <Form.Item
                 name="reason"
-                label="Alasan"
-                rules={[{ required: true }, { min: 10, message: "Alasan minimal 10 karakter." }]}
+                label="Alasan cuti atau izin"
+                rules={[
+                  { required: true, message: "Alasan cuti atau izin wajib diisi." },
+                  { min: 10, message: "Alasan minimal 10 karakter." },
+                ]}
               >
                 <Input.TextArea rows={3} maxLength={2000} showCount />
               </Form.Item>
@@ -188,36 +257,39 @@ export default function LeaveRequestForm({
             <Col xs={24}>
               <Form.Item
                 name="attachmentFiles"
-                label="Lampiran"
+                label="Dokumen pendukung"
                 required={Boolean(selectedType?.requires_attachment)}
                 rules={[
                   {
                     validator: (_, value) =>
                       selectedType?.requires_attachment && !value?.length
-                        ? Promise.reject(new Error("Lampiran wajib dilengkapi untuk pilihan ini."))
+                        ? Promise.reject(
+                            new Error("Dokumen pendukung wajib dilengkapi untuk jenis ini."),
+                          )
                         : Promise.resolve(),
                   },
                 ]}
                 extra={
                   selectedType?.requires_attachment
                     ? "Dokumen wajib diunggah sesuai aturan cuti atau izin yang dipilih."
-                    : "Lampiran bersifat opsional untuk pilihan ini."
+                    : "Dokumen pendukung tidak wajib untuk jenis ini."
                 }
               >
                 <FileUploadListField
                   onError={onError}
                   accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
-                  maxSizeBytes={10 * 1024 * 1024}
-                  maxCount={5}
-                  emptyTitle="Pilih atau tarik lampiran ke area ini"
-                  helpText="JPG, PNG, WebP, atau PDF. Maksimal 10 MB per file."
+                  maxSizeBytes={MAX_LEAVE_FILE_BYTES}
+                  maxCount={MAX_LEAVE_ATTACHMENTS}
+                  disabled={saving || confirm}
+                  emptyTitle="Pilih atau tarik dokumen ke area ini"
+                  helpText="Satu file JPG, PNG, WebP, atau PDF. Maksimal 10 MB."
                   selectedText="Lampiran siap disimpan bersama pencatatan"
                   fullWidth
                 />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item name="decisionNotes" label="Catatan keputusan (opsional)">
+              <Form.Item name="decisionNotes" label="Catatan HRD (opsional)">
                 <Input.TextArea rows={2} maxLength={2000} />
               </Form.Item>
             </Col>
@@ -226,9 +298,40 @@ export default function LeaveRequestForm({
       </AppModal>
       <ConfirmDialog
         open={confirm}
-        title="Setujui pencatatan ini?"
-        message="Cuti atau izin akan langsung disetujui, dicatat pada histori, dan mengurangi saldo bila jenisnya memakai saldo."
-        confirmText="Setujui & simpan"
+        title="Simpan cuti atau izin?"
+        message={
+          confirmation ? (
+            <span style={{ display: "grid", gap: 12, overflowWrap: "anywhere" }}>
+              <span>
+                <strong>{confirmation.employee.full_name}</strong>
+                <br />
+                NIP: {confirmation.employee.employee_no}
+              </span>
+              <span>
+                {confirmation.type.name}
+                <br />
+                {confirmation.values.period[0].format("DD MMM YYYY")} –{" "}
+                {confirmation.values.period[1].format("DD MMM YYYY")}
+                <br />
+                Jumlah yang dibebankan: {confirmation.values.requestedUnits}{" "}
+                {LEAVE_UNIT[confirmation.type.unit]}
+              </span>
+              <span>
+                {confirmation.type.uses_balance
+                  ? `Saldo akan berkurang ${confirmation.values.requestedUnits} ${LEAVE_UNIT[confirmation.type.unit]} setelah berhasil disimpan.`
+                  : "Pencatatan ini tidak mengurangi saldo."}
+              </span>
+              <span>
+                Pencatatan langsung disetujui. Koreksi dilakukan melalui pembatalan dengan alasan,
+                lalu pencatatan ulang.
+              </span>
+            </span>
+          ) : (
+            ""
+          )
+        }
+        confirmText="Simpan"
+        loading={saving}
         onClose={() => setConfirm(false)}
         onConfirm={submit}
       />
