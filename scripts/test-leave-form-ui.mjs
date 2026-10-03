@@ -63,6 +63,29 @@ try {
     return route.continue();
   });
   let postCount = 0;
+  let remainingBalance = 9;
+  await page.route("**/api/employees/99991/leave-summary?**", (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        data: {
+          employee,
+          year: 2026,
+          balances: [
+            {
+              leave_type_id: type.id,
+              balance: remainingBalance,
+              transactions: [
+                { type: "grant", units: 12 },
+                { type: "usage", units: -3 },
+              ],
+            },
+          ],
+          requests: [],
+        },
+      },
+    }),
+  );
   await page.route("**/api/leave-requests", async (route) => {
     if (route.request().method() !== "POST") return route.continue();
     postCount++;
@@ -88,6 +111,8 @@ try {
   );
   await page.goto(`${base}/leave-requests`);
   await hydrated;
+  assert.equal(new URL(page.url()).searchParams.get("startDate"), "2026-01-01");
+  assert.equal(new URL(page.url()).searchParams.get("endDate"), "2026-12-31");
   await page.getByRole("button", { name: /Catat cuti\/izin/ }).click();
   const form = page.getByRole("dialog", { name: "Catat cuti atau izin", exact: true });
   await form.getByRole("button", { name: "Simpan", exact: true }).click();
@@ -108,6 +133,10 @@ try {
   await dates.nth(1).fill("29 Agt 2026");
   await dates.nth(1).press("Enter");
   await form.locator("#leave-request_reason").fill("Urusan keluarga untuk pengujian form");
+  await form.locator("#leave-request_requestedUnits").fill("2");
+  await form.getByText("Perkiraan sisa setelah disimpan: 7 hari.", { exact: true }).waitFor();
+  await form.locator("#leave-request_requestedUnits").fill("10");
+  assert.equal(await form.getByRole("button", { name: "Simpan", exact: true }).isDisabled(), true);
   await form.locator("#leave-request_requestedUnits").fill("2");
   const file = {
     name: "dokumen-uji.pdf",
@@ -136,6 +165,25 @@ try {
       await form.evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
       `Overflow form ${width}`,
     );
+    assert.ok(
+      await form.evaluate((el) => {
+        const panel = [...el.querySelectorAll(".ant-alert")].find((item) =>
+          item.textContent.includes("Saldo Cuti Tahunan"),
+        );
+        const field = el.querySelector("#leave-request_period")?.closest(".ant-form-item");
+        if (!panel || !field) return false;
+        return field.getBoundingClientRect().top - panel.getBoundingClientRect().bottom >= 15;
+      }),
+      `Panel saldo terlalu dekat dengan field tanggal ${width}`,
+    );
+    assert.ok(
+      await form.evaluate((el) =>
+        [...el.querySelectorAll(".ant-form-item-control-input-content")].every(
+          (item) => item.scrollWidth <= item.clientWidth + 1,
+        ),
+      ),
+      `Field keluar dari kolom ${width}`,
+    );
     await form.screenshot({ path: `.next/leave-qa/form-${width}.png` });
     await form.getByRole("button", { name: "Simpan", exact: true }).click();
     const confirm = page.getByRole("dialog", { name: "Simpan cuti atau izin?", exact: true });
@@ -163,10 +211,61 @@ try {
     "Error tanggal harus memfokuskan kontrol tanggal.",
   );
   assert.deepEqual(runtimeErrors, []);
+  remainingBalance = 0;
+  await form.getByRole("button", { name: "Batal", exact: true }).click();
+  await page.getByRole("button", { name: /Catat cuti\/izin/ }).click();
+  await form.locator("#leave-request_employeeId").click();
+  await page
+    .locator(".ant-select-dropdown:visible .ant-select-item-option")
+    .filter({ hasText: "QA-0001" })
+    .click();
+  await form.locator("#leave-request_leaveTypeId").click();
+  await page
+    .locator(".ant-select-dropdown:visible .ant-select-item-option")
+    .filter({ hasText: "Cuti Tahunan" })
+    .click();
+  await form
+    .getByText("Saldo sudah habis. Pencatatan jenis cuti ini tidak dapat disimpan.", {
+      exact: true,
+    })
+    .waitFor();
+  assert.equal(await form.getByRole("button", { name: "Simpan", exact: true }).isDisabled(), true);
   console.log(
     "PASS UI 320–1920px: validasi, satu lampiran, ganti/hapus, konfirmasi nama/NIP dan saldo, keyboard Escape, field error fokus, isian/file dipertahankan.",
   );
 } catch (error) {
+  if (page)
+    console.log(
+      "Tanggal:",
+      await page
+        .locator("#leave-request_period")
+        .evaluate((el) =>
+          [...el.closest(".ant-form-item-control-input-content").querySelectorAll("*")].map(
+            (item) => ({
+              tag: item.tagName,
+              cls: item.className,
+              width: item.getBoundingClientRect().width,
+              scroll: item.scrollWidth,
+              left: item.getBoundingClientRect().left,
+            }),
+          ),
+        ),
+    );
+  if (page)
+    console.log(
+      "Kontrol melewati kolom:",
+      await page
+        .locator(".ant-form-item-control-input-content")
+        .evaluateAll((items) =>
+          items
+            .filter((item) => item.scrollWidth > item.clientWidth + 1)
+            .map((item) => ({
+              label: item.closest(".ant-form-item")?.querySelector("label")?.textContent,
+              width: item.clientWidth,
+              contentWidth: item.scrollWidth,
+            })),
+        ),
+    );
   await mkdir(".next/leave-qa", { recursive: true });
   await page?.screenshot({ path: ".next/leave-qa/failure.png" });
   if (page)

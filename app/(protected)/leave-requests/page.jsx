@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { Button, DatePicker, Select } from "antd";
 import { CloseCircleOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
@@ -31,14 +33,6 @@ import {
 } from "@/app/components/leave/leaveLabels";
 import { readApiResponse } from "@/lib/api/clientError";
 
-const monthFilters = () => ({
-  startDate: dayjs().startOf("month").format("YYYY-MM-DD"),
-  endDate: dayjs().endOf("month").format("YYYY-MM-DD"),
-});
-const DEFAULTS = {
-  requestStatus: "all",
-  ...monthFilters(),
-};
 const SelectFilter = ({ value, onChange, options, placeholder }) => (
   <Select
     allowClear={false}
@@ -53,6 +47,14 @@ const SelectFilter = ({ value, onChange, options, placeholder }) => (
 export default function LeaveRequestsPage() {
   const theme = useTheme();
   const user = useAuthenticatedUser();
+  const router = useRouter();
+  const { startNavigationLoading } = useLoadingBackdrop();
+  // Tahun berjalan mengikuti timezone organisasi, bukan tanggal lokal browser.
+  const year = new Intl.DateTimeFormat("en", {
+    year: "numeric",
+    timeZone: user.organization_timezone || "Asia/Makassar",
+  }).format(new Date());
+  const DEFAULTS = { requestStatus: "all", startDate: `${year}-01-01`, endDate: `${year}-12-31` };
   const canManage = [ROLES.SUPERADMIN, ROLES.HRD].includes(user.role_code);
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
   const list = useDataList("/api/leave-requests", {
@@ -235,6 +237,17 @@ export default function LeaveRequestsPage() {
   ];
   const actions = (item) => [
     { key: "detail", icon: <EyeOutlined />, label: "Lihat detail", onClick: () => setDetail(item) },
+    {
+      key: "balance",
+      icon: <EyeOutlined />,
+      label: "Lihat saldo & histori pegawai",
+      onClick: () => {
+        startNavigationLoading({ message: "Membuka saldo dan histori pegawai..." });
+        const params = new URLSearchParams({ tab: "leave" });
+        if (isSuperadmin) params.set("organizationId", organizationId);
+        router.push(`/employees/${item.employee_id}?${params}`);
+      },
+    },
     ...(canManage && item.status === "approved"
       ? [
           {
@@ -256,7 +269,7 @@ export default function LeaveRequestsPage() {
             {item.full_name}
           </FontStyle>
           <FontStyle fontSize={11.5} sx={{ mt: 0.4, color: theme.ui.mutedText }}>
-            {item.employee_no} · {item.request_no}
+            NIP {item.employee_no} · {item.request_no}
           </FontStyle>
         </Box>
       ),
@@ -370,7 +383,7 @@ export default function LeaveRequestsPage() {
       />
       <OperationalFilterSection
         title="Filter cuti dan izin"
-        description="Data awal menampilkan bulan berjalan. Pilih pegawai, lokasi, Divisi & Unit, atau status untuk mempersempit hasil."
+        description="Data awal menampilkan tahun berjalan. Pilih pegawai, lokasi, Divisi & Unit, atau status untuk mempersempit hasil."
         items={filterItems}
         onReset={clear}
       />

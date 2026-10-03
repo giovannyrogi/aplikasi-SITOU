@@ -53,3 +53,38 @@ test("schema menerima jumlah HRD berbeda dari hari kalender dan menolak pecahan 
     false,
   );
 });
+import { previewLeaveBalance } from "../lib/leave/balancePreview.mjs";
+
+test("preview saldo mengikuti ledger, pembatalan, penyesuaian, dan hak awal tanpa mutation", () => {
+  const type = { id: "8", annual_allowance: "12" };
+  assert.deepEqual(previewLeaveBalance(type, [], 2), {
+    allowance: 12,
+    used: 0,
+    adjustments: 0,
+    remaining: 12,
+    after: 10,
+    automatic: true,
+  });
+  const balances = [
+    {
+      leave_type_id: "8",
+      balance: "8",
+      transactions: [
+        { type: "grant", units: "12" },
+        { type: "usage", units: "-6" },
+        { type: "restoration", units: "2" },
+        { type: "adjustment", units: "-1" },
+        { type: "carryover", units: "1" },
+      ],
+    },
+  ];
+  assert.deepEqual(previewLeaveBalance(type, balances, 9), {
+    allowance: 12,
+    used: 4,
+    adjustments: 0,
+    remaining: 8,
+    after: -1,
+    automatic: false,
+  });
+  assert.equal(previewLeaveBalance(type, [{ leave_type_id: "8", balance: "0" }], 1).remaining, 0);
+});

@@ -10,6 +10,8 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import { readApiResponse } from "@/lib/api/clientError";
 import { LEAVE_UNIT } from "./leaveLabels";
 import { MAX_LEAVE_ATTACHMENTS, MAX_LEAVE_FILE_BYTES } from "@/lib/leave/requestRules.mjs";
+import { previewLeaveBalance } from "@/lib/leave/balancePreview.mjs";
+import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 
 export default function LeaveRequestForm({
   open,
@@ -20,6 +22,7 @@ export default function LeaveRequestForm({
   onError,
 }) {
   const [form] = Form.useForm();
+  const user = useAuthenticatedUser();
   const onErrorRef = useRef(onError);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const [types, setTypes] = useState([]);
@@ -30,7 +33,52 @@ export default function LeaveRequestForm({
   const savingRef = useRef(false);
   const watchedTypeId = Form.useWatch("leaveTypeId", form);
   const period = Form.useWatch("period", form);
+  const employeeId = Form.useWatch("employeeId", form);
+  const units = Form.useWatch("requestedUnits", form);
   const selectedType = types.find((item) => item.id === String(watchedTypeId));
+  const year =
+    period?.[0]?.year() ||
+    Number(
+      new Intl.DateTimeFormat("en", {
+        year: "numeric",
+        timeZone: user?.organization_timezone || "Asia/Makassar",
+      }).format(new Date()),
+    );
+  const balanceKey = `${organizationId}:${employeeId}:${watchedTypeId}:${year}`;
+  const [balanceState, setBalanceState] = useState({ key: null, data: null, error: null });
+  const [balanceRevision, setBalanceRevision] = useState(0);
+  const usesBalance = Boolean(selectedType?.uses_balance);
+  const balanceReady = balanceState.key === balanceKey && Boolean(balanceState.data);
+  const balance =
+    usesBalance && balanceReady
+      ? previewLeaveBalance(selectedType, balanceState.data.balances, units)
+      : null;
+  const balanceBlocked =
+    usesBalance && (!balanceReady || balance.remaining <= 0 || balance.after < 0);
+  // Batalkan respons lama saat pegawai, jenis, atau tahun berganti agar saldo tidak tertukar.
+  useEffect(() => {
+    if (!open || !organizationId || !employeeId || !usesBalance) return;
+    const controller = new AbortController();
+    Promise.resolve().then(() => {
+      if (!controller.signal.aborted) setBalanceState({ key: balanceKey, data: null, error: null });
+    });
+    fetch(
+      `/api/employees/${encodeURIComponent(employeeId)}/leave-summary?organizationId=${encodeURIComponent(organizationId)}&year=${year}`,
+      { signal: controller.signal },
+    )
+      .then(readApiResponse)
+      .then((body) => {
+        if (!controller.signal.aborted)
+          setBalanceState({ key: balanceKey, data: body.data, error: null });
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setBalanceState({ key: balanceKey, data: null, error: error.message });
+          onErrorRef.current?.(error.message);
+        }
+      });
+    return () => controller.abort();
+  }, [open, organizationId, employeeId, usesBalance, year, balanceKey, balanceRevision]);
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
@@ -84,6 +132,12 @@ export default function LeaveRequestForm({
     if (savingRef.current) return;
     try {
       const values = await form.validateFields();
+      if (balanceBlocked) {
+        onErrorRef.current?.(
+          "Periksa saldo cuti. Saldo harus tersedia dan mencukupi sebelum disimpan.",
+        );
+        return;
+      }
       if (
         !selectedEmployee ||
         String(selectedEmployee.id) !== String(values.employeeId) ||
@@ -94,7 +148,7 @@ export default function LeaveRequestForm({
         );
         return;
       }
-      setConfirmation({ values, employee: selectedEmployee, type: selectedType });
+      setConfirmation({ values, employee: selectedEmployee, type: selectedType, balance });
       setConfirm(true);
     } catch (error) {
       focusError(error.errorFields?.[0]?.name);
@@ -137,6 +191,10 @@ export default function LeaveRequestForm({
         { message: "Mencatat dan menyetujui cuti atau izin..." },
       );
     } catch (error) {
+      if (error.code === "LEAVE_BALANCE_INSUFFICIENT") {
+        setBalanceState({ key: balanceKey, data: null, error: null });
+        setBalanceRevision((value) => value + 1);
+      }
       const errors = new Map();
       for (const [name, message] of Object.entries(error.fieldErrors || {})) {
         const field = formFieldName(name);
@@ -165,7 +223,12 @@ export default function LeaveRequestForm({
             <Button onClick={onClose} disabled={saving}>
               Batal
             </Button>
-            <Button type="primary" onClick={validate} loading={saving} disabled={confirm}>
+            <Button
+              type="primary"
+              onClick={validate}
+              loading={saving}
+              disabled={confirm || balanceBlocked}
+            >
               Simpan
             </Button>
           </>
@@ -212,13 +275,96 @@ export default function LeaveRequestForm({
                 />
               </Form.Item>
             </Col>
+            {selectedType ? (
+              <Col xs={24}>
+                <Alert
+                  showIcon
+                  style={{ marginBottom: 16, lineHeight: 1.6, overflowWrap: "anywhere" }}
+                  type={balanceBlocked && balanceReady ? "warning" : "info"}
+                  title={
+                    usesBalance ? `Saldo ${selectedType.name} · ${year}` : "Tidak menggunakan saldo"
+                  }
+                  description={
+                    !usesBalance ? (
+                      "Jenis ini tidak mengurangi saldo cuti. Tetap periksa tanggal, jumlah hari atau jam, dan dokumen pendukung."
+                    ) : !employeeId ? (
+                      "Pilih pegawai untuk melihat saldo cuti."
+                    ) : !balanceReady ? (
+                      balanceState.key === balanceKey && balanceState.error ? (
+                        <div>
+                          Saldo belum dapat dimuat.{" "}
+                          <Button
+                            size="small"
+                            onClick={() => setBalanceRevision((value) => value + 1)}
+                          >
+                            Coba lagi
+                          </Button>
+                        </div>
+                      ) : (
+                        "Memuat saldo pegawai..."
+                      )
+                    ) : (
+                      <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 125px), 1fr))",
+                            gap: 16,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {[
+                            ["Hak tahunan", balance.allowance],
+                            ["Sudah digunakan", balance.used],
+                            ["Sisa saldo", balance.remaining],
+                          ].map(([label, value]) => (
+                            <div key={label} style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                              <div>{label}</div>
+                              <strong>
+                                {value} {LEAVE_UNIT[selectedType.unit]}
+                              </strong>
+                            </div>
+                          ))}
+                        </div>
+                        {balance.adjustments !== 0 ? (
+                          <div>
+                            Penyesuaian saldo: {balance.adjustments} {LEAVE_UNIT[selectedType.unit]}
+                            .
+                          </div>
+                        ) : null}
+                        <div>
+                          {balance.remaining <= 0
+                            ? "Saldo sudah habis. Pencatatan jenis cuti ini tidak dapat disimpan."
+                            : balance.after < 0
+                              ? `Jumlah yang dibebankan melebihi sisa saldo. Maksimal ${balance.remaining} ${LEAVE_UNIT[selectedType.unit]}.`
+                              : `Perkiraan sisa setelah disimpan: ${balance.after} ${LEAVE_UNIT[selectedType.unit]}.`}
+                        </div>
+                        {balance.automatic ? (
+                          <div>
+                            Hak tahunan akan dicatat otomatis saat penyimpanan pertama berhasil.
+                          </div>
+                        ) : null}
+                        <div>
+                          Saldo mengikuti tahun tanggal mulai dan diperiksa kembali saat
+                          penyimpanan.
+                        </div>
+                      </div>
+                    )
+                  }
+                />
+              </Col>
+            ) : null}
             <Col xs={24} sm={12}>
               <Form.Item
                 name="period"
                 label="Tanggal mulai dan selesai"
                 rules={[{ required: true, message: "Tanggal mulai dan selesai wajib dipilih." }]}
               >
-                <DatePicker.RangePicker format="DD MMM YYYY" style={{ width: "100%" }} />
+                {/* Garis penanda fokus AntD dapat menyimpan posisi lama setelah resize; batasi pada control. */}
+                <DatePicker.RangePicker
+                  format="DD MMM YYYY"
+                  style={{ width: "100%", overflow: "hidden" }}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
@@ -320,6 +466,14 @@ export default function LeaveRequestForm({
                 {confirmation.type.uses_balance
                   ? `Saldo akan berkurang ${confirmation.values.requestedUnits} ${LEAVE_UNIT[confirmation.type.unit]} setelah berhasil disimpan.`
                   : "Pencatatan ini tidak mengurangi saldo."}
+                {confirmation.balance ? (
+                  <>
+                    <br />
+                    Sisa saldo: {confirmation.balance.remaining}{" "}
+                    {LEAVE_UNIT[confirmation.type.unit]}. Perkiraan setelah disimpan:{" "}
+                    {confirmation.balance.after} {LEAVE_UNIT[confirmation.type.unit]}.
+                  </>
+                ) : null}
               </span>
               <span>
                 Pencatatan langsung disetujui. Koreksi dilakukan melalui pembatalan dengan alasan,

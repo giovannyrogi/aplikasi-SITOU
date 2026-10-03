@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   Avatar,
+  ButtonBase,
   Box,
   Collapse,
   Divider,
@@ -18,6 +19,7 @@ import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { ROLE_LABELS } from "@/app/constants/roles";
 import FontStyle from "../font-style/FontStyle";
 import AppLogo from "../branding/AppLogo";
+import ImagePreviewModal from "../modals/ImagePreviewModal";
 
 const APP_VERSION = "v0.1.0";
 
@@ -37,6 +39,11 @@ const isPathActive = (pathname, path) =>
 export default function SidebarContent({ menus, user, pathname, onNavigate, compact = false }) {
   const theme = useTheme();
   const profileLinked = user?.identity_source === "employee";
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
+  const photoUrl =
+    profileLinked && user?.profile_photo_file_id
+      ? `/api/uploads/${encodeURIComponent(user.profile_photo_file_id)}?organizationId=${encodeURIComponent(user.organization_id)}`
+      : undefined;
   const primaryIdentity = profileLinked
     ? user?.preferred_name || user?.username
     : user?.username || "Pengguna";
@@ -96,7 +103,7 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: "42px minmax(0, 1fr)",
+          gridTemplateColumns: "44px minmax(0, 1fr)",
           gap: 1.25,
           alignItems: "center",
           p: 1.25,
@@ -106,25 +113,36 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
           border: `1px solid ${theme.ui.navUserBorder}`,
         }}
       >
-        <Avatar
-          // Endpoint privat mempertahankan pemeriksaan organisasi dan izin; inisial menjadi fallback.
-          src={
-            profileLinked && user?.profile_photo_file_id
-              ? `/api/uploads/${encodeURIComponent(user.profile_photo_file_id)}?organizationId=${encodeURIComponent(user.organization_id)}`
-              : undefined
-          }
-          alt={`Pas foto ${primaryIdentity}`}
+        <ButtonBase
+          disabled={!photoUrl}
+          onClick={() => setPhotoPreviewOpen(true)}
+          aria-label="Lihat pas foto profil"
           sx={{
-            width: 42,
-            height: 42,
-            color: theme.palette.primary.main,
-            bgcolor: theme.ui.iconButtonBg,
-            fontSize: 13,
-            fontWeight: 600,
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            "&.Mui-focusVisible": {
+              outline: `2px solid ${theme.palette.primary.main}`,
+              outlineOffset: 2,
+            },
           }}
         >
-          {getInitials(primaryIdentity) || "U"}
-        </Avatar>
+          <Avatar
+            // Endpoint privat mempertahankan pemeriksaan organisasi dan izin; inisial menjadi fallback.
+            src={photoUrl}
+            alt={`Pas foto ${primaryIdentity}`}
+            sx={{
+              width: 42,
+              height: 42,
+              color: theme.palette.primary.main,
+              bgcolor: theme.ui.iconButtonBg,
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {getInitials(primaryIdentity) || "U"}
+          </Avatar>
+        </ButtonBase>
         <Box sx={{ minWidth: 0 }}>
           <FontStyle fontSize={12.5} fontWeight={600} noWrap title={primaryIdentity || ""}>
             {primaryIdentity}
@@ -133,6 +151,7 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
             fontSize={11}
             fontWeight={500}
             noWrap
+            title={secondaryIdentity}
             sx={{ mt: 0.25, color: theme.palette.primary.main }}
           >
             {secondaryIdentity}
@@ -140,6 +159,13 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
         </Box>
       </Box>
 
+      <ImagePreviewModal
+        open={photoPreviewOpen && Boolean(photoUrl)}
+        onClose={() => setPhotoPreviewOpen(false)}
+        imageUrl={photoUrl}
+        title="Pas foto profil"
+        alt={`Pas foto ${primaryIdentity}`}
+      />
       <Divider sx={{ mb: 2, borderColor: theme.ui.navDivider }} />
       <FontStyle
         fontSize={10.5}

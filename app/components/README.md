@@ -109,6 +109,7 @@ Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender
 - `branding/AppLogo` adalah satu-satunya komponen untuk menampilkan logo SITOU. Gunakan `variant="full"` untuk komposisi ikon dan teks **SITOU** pada navbar, serta `variant="mark"` untuk simbol ringkas.
 - Path ikon logo dan warna teks SITOU dipusatkan melalui `branding/AppLogo.jsx` dan token tema agar tampilannya konsisten pada navbar desktop maupun mobile.
 - `navbar/SidebarContent` memakai pas foto profil pegawai yang ditautkan ke akun dari data session terbaru, melalui endpoint file privat. Desktop dan drawer mobile memakai komponen yang sama; inisial tetap tampil jika foto belum ada atau gagal dimuat.
+- Pas foto sidebar dapat ditekan atau dibuka melalui keyboard untuk menampilkan `ImagePreviewModal` menggunakan endpoint privat yang sama.
 - `/public/logo-sitou-v2.png`: logo huruf/simbol ringkas.
 - `/public/logo-sitou-v1.png`: logo SITOU beserta tagline.
 - SITOU hanya memakai theme light. Merah adalah aksen, bukan warna seluruh permukaan.
@@ -139,6 +140,8 @@ Data sensitif yang panjang memakai pola kartu ringkas dan `AppModal` detail. Kar
 `TopMenu` memakai tombol Pengaturan tanpa identitas pengguna pada pop-up. Aksi Profil wajib menuju `/profile` melalui lifecycle loading shell; aksi Keluar memakai alur logout terpusat.
 
 # Modul Cuti & Izin
+
+Form pencatatan membaca saldo dari endpoint ringkasan pegawai sesuai organisasi dan tahun tanggal mulai. Informasi meliputi hak tahunan, pemakaian bersih setelah pembatalan, penyesuaian, sisa saldo, dan perkiraan setelah disimpan. Hak yang belum dicatat mengikuti pengaturan jenis cuti dan baru dibuat dalam transaksi penyimpanan pertama. Saldo belum tersedia, habis, atau tidak mencukupi memblokir Simpan; backend tetap menjadi pemeriksaan final. Filter awal dan Atur ulang menggunakan tahun berjalan pada timezone organisasi.
 
 - Halaman operasional memakai `ResponsiveDataView`, filter server-side, dan state filter di URL.
 - `LeaveRequestForm` memakai tombol Simpan dan konfirmasi berisi nama/NIP, jenis, periode, jumlah hari/jam, serta dampak saldo. Validasi gagal memberi notifikasi dan fokus ke field tanpa menghapus isian atau file. Jumlah HRD tetap menjadi dasar pemotongan; perkiraan rentang tanggal memakai hari kalender dan dapat disesuaikan.
