@@ -1386,6 +1386,37 @@ CREATE INDEX ix_audit_actor ON audit_logs(actor_user_id,occurred_at DESC);
 CREATE INDEX ix_audit_employee_create_lookup ON audit_logs(organization_id,entity_id,actor_user_id)
 WHERE entity_type='employee' AND action='employee.create';
 
+CREATE TABLE system_backup_jobs (
+  id uuid PRIMARY KEY,
+  requested_by_user_id bigint NOT NULL REFERENCES users(id),
+  request_id uuid NOT NULL UNIQUE,
+  status varchar(24) NOT NULL DEFAULT 'queued'
+    CHECK (status IN ('queued','copying','securing','verifying','ready','failed','expired')),
+  organization_count integer,
+  file_count bigint,
+  file_bytes bigint,
+  package_bytes bigint,
+  package_sha256 char(64),
+  package_path text,
+  error_code varchar(60),
+  error_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  started_at timestamptz,
+  heartbeat_at timestamptz,
+  completed_at timestamptz,
+  expires_at timestamptz,
+  CONSTRAINT ck_system_backup_ready CHECK (
+    status <> 'ready' OR
+    (package_path IS NOT NULL AND package_sha256 IS NOT NULL AND expires_at IS NOT NULL)
+  )
+);
+CREATE UNIQUE INDEX uq_system_backup_active ON system_backup_jobs ((true))
+WHERE status IN ('queued','copying','securing','verifying');
+CREATE INDEX ix_system_backup_history ON system_backup_jobs(created_at DESC,id DESC);
+CREATE INDEX ix_system_backup_expiry ON system_backup_jobs(expires_at) WHERE status='ready';
+CREATE INDEX ix_system_backup_stale ON system_backup_jobs(heartbeat_at)
+WHERE status IN ('queued','copying','securing','verifying');
+
 CREATE TABLE file_cleanup_runs (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID proses pemeriksaan atau pembersihan.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi yang diperiksa; proses lintas organisasi dilarang.
@@ -1618,6 +1649,7 @@ INSERT INTO permissions(code,description) VALUES
   ('private_files.read_sensitive','Melihat dan mengunduh file sensitif.'),
   ('private_files.manage','Mengunggah dan melakukan soft delete file privat.'),
   ('storage_maintenance.manage','Memeriksa dan membersihkan byte file profil yang tidak lagi digunakan.'),
+  ('system_backup.manage','Membuat, melihat, memverifikasi, dan mengunduh backup seluruh sistem.'),
   ('employees.read_self','Melihat profil pegawai milik akun sendiri.'),
   ('assignments.read_self','Melihat penempatan milik akun sendiri.'),
   ('contracts.read_self','Melihat kontrak milik akun sendiri.'),
@@ -1643,6 +1675,11 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions(role_id,permission_id)
 SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
 WHERE role.code='superadmin' AND permission.code='storage_maintenance.manage'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions(role_id,permission_id)
+SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
+WHERE role.code='superadmin' AND permission.code='system_backup.manage'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO role_permissions(role_id,permission_id)

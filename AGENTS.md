@@ -267,6 +267,7 @@ Lifecycle tindakan disiplin wajib mempertahankan histori: status `draft` masih d
 
 - Development boleh memakai direktori privat di luar public web root.
 - Produksi direkomendasikan object storage privat.
+- Backup sistem manual oleh Superadmin wajib mencakup PostgreSQL dan seluruh `UPLOAD_ROOT` lintas organisasi dalam satu paket terenkripsi. Kata sandi tidak disimpan; paket server hanya sementara 24 jam, unduhan diaudit, dan restore produksi tidak tersedia dari dashboard. Snapshot harus gagal aman jika file yang masih direferensikan hilang/berubah; uji pemulihan dilakukan di lingkungan terpisah. Lihat `docs/system-backup.md`.
 - Database menyimpan `object_key`, nama asli, MIME, ukuran, hash, kategori, dan pemilik organisasi.
 - API file melakukan authorization setiap preview/download dan mengaudit dokumen sensitif.
 - Jangan membangun URL `/uploads/...` yang bisa ditebak.

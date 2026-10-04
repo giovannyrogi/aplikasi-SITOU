@@ -28,5 +28,17 @@ module.exports = {
         NODE_ENV: "production",
       },
     },
+    {
+      name: "sitou-backup-expiry-worker",
+      cwd: __dirname,
+      script: "npm",
+      args: "run worker:backup-expiry",
+      instances: 1,
+      exec_mode: "fork",
+      autorestart: true,
+      watch: false,
+      restart_delay: 5000,
+      env: { NODE_ENV: "production" },
+    },
   ],
 };

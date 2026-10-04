@@ -33,6 +33,18 @@ try {
     `SELECT
       to_regclass('public.file_cleanup_runs') IS NOT NULL AS has_runs,
       to_regclass('public.file_cleanup_items') IS NOT NULL AS has_items,
+      to_regclass('public.system_backup_jobs') IS NOT NULL AS has_backup_jobs,
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='system_backup_jobs'
+          AND column_name='heartbeat_at'
+      ) AS has_backup_heartbeat,
+      EXISTS (
+        SELECT 1 FROM permissions permission
+        JOIN role_permissions mapping ON mapping.permission_id=permission.id
+        JOIN roles role ON role.id=mapping.role_id
+        WHERE permission.code='system_backup.manage' AND role.code='superadmin'
+      ) AS has_backup_permission,
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema='public' AND table_name='stored_files'

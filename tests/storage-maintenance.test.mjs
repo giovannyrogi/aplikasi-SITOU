@@ -176,12 +176,14 @@ test("service API membuang NIP mentah dan mapper publik tidak membocorkan path a
   assert.doesNotMatch(mapper, /row\.(object_key|sha256|quarantine_object_key)/);
 });
 
-test("PM2 menjalankan server web dan satu worker pembersihan production", async () => {
+test("PM2 menjalankan web, worker pembersihan, dan worker kedaluwarsa backup", async () => {
   const source = await readFile(new URL("../ecosystem.config.js", import.meta.url), "utf8");
   assert.match(source, /name: "sitou-file-cleanup-worker"/);
   assert.match(source, /args: "run worker:file-cleanup"/);
   assert.match(source, /instances: 1/);
-  assert.equal((source.match(/NODE_ENV: "production"/g) || []).length, 2);
+  assert.match(source, /name: "sitou-backup-expiry-worker"/);
+  assert.match(source, /args: "run worker:backup-expiry"/);
+  assert.equal((source.match(/NODE_ENV: "production"/g) || []).length, 3);
 });
 
 test("halaman membedakan antrean worker dari proses yang sedang berjalan", async () => {

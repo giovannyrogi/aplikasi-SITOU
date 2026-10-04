@@ -26,12 +26,17 @@
 *.pem
 # hris_perumda_postgresql.sql
 /uploads/*
+/.sitou-backups/
 !/uploads/.gitkeep
 /database/*
 !/database/migrations/
 !/database/migrations/*.sql
 !/database/migrations/README.md
 /scripts/*
+!/scripts/run-system-backup.mjs
+!/scripts/expire-system-backups.mjs
+!/scripts/verify-system-backup.mjs
+!/scripts/test-system-backup-db.mjs
 !/scripts/test-employee-creator-filter-http.mjs
 !/scripts/test-reports-db.mjs
 !/scripts/test-reports-http.mjs
@@ -56,6 +61,7 @@
 !/scripts/scan-stored-files-malware.mjs
 !/scripts/test-dependent-contact-migration-db.mjs
 /tests/*
+!/tests/system-backup.test.mjs
 !/tests/row-numbers.test.mjs
 !/tests/reports.test.mjs
 !/tests/dashboard-config.test.mjs

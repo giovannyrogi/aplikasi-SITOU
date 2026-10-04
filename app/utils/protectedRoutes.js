@@ -69,6 +69,10 @@ export const PROTECTED_ROUTES = [
     path: "/system/storage-maintenance",
     roles: [ROLES.SUPERADMIN],
   },
+  {
+    path: "/system/backups",
+    roles: [ROLES.SUPERADMIN],
+  },
 ];
 
 export const isPublicPath = (pathname) =>

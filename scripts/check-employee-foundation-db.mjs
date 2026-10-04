@@ -120,6 +120,7 @@ const expectedRolePermissions = {
     "private_files.read_sensitive",
     "private_files.manage",
     "storage_maintenance.manage",
+    "system_backup.manage",
     "profile_self.read",
     "profile_self.update",
   ],

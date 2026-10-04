@@ -4,6 +4,8 @@ Panduan ini wajib diikuti untuk deployment perubahan migration 032. Aplikasi bar
 
 ## 1. Backup dan preflight
 
+Untuk rilis baru, menu Superadmin **Backup Sistem** menyediakan paket terenkripsi database dan seluruh `UPLOAD_ROOT` serta unduhan selama 24 jam. Persyaratan worker, ruang, verifikasi, dan latihan restore dijelaskan pada `docs/system-backup.md`. Contoh manual di bawah tetap berguna sebagai prosedur darurat ketika dashboard tidak tersedia.
+
 1. Aktifkan mode pemeliharaan agar mutasi profil dan upload berhenti.
 2. Backup PostgreSQL dan seluruh direktori `UPLOAD_ROOT`.
 3. Pastikan aplikasi web dan worker memakai nilai `UPLOAD_ROOT` absolut yang sama pada storage persisten.

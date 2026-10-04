@@ -212,8 +212,13 @@ organisasi, serta cakupan lokasi yang sama dan tidak pernah mengubah status tind
 | `file_cleanup_runs`            | Antrean dan histori pemeriksaan atau pembersihan file per organisasi. | `organization_id`, `run_type`, `source_scan_run_id`, `status`, ringkasan jumlah/ukuran, retry, pelaku, dan waktu proses.                               |
 | `file_cleanup_items`           | Hasil pemeriksaan metadata maupun byte tanpa metadata.                | `run_id`, `stored_file_id` atau `object_key` internal, status, alasan, MIME, hasil antivirus, referensi, ukuran, retry, dan waktu proses.              |
 | `file_quarantine_items`        | Karantina privat untuk orphan dan file yang terdeteksi berbahaya.     | Sumber internal, hash, MIME, status antivirus, tenggat tujuh hari, pemulihan/purge, pelaku, retry, dan waktu proses.                                   |
+| `system_backup_jobs`           | Histori backup manual seluruh organisasi oleh Superadmin.           | UUID pekerjaan, pelaku, status/heartbeat, jumlah organisasi/file, ukuran dan SHA-256 paket, batas unduh 24 jam, kesalahan aman, serta lokasi internal paket. |
 | `v_employee_current_profile`   | View profil dan penempatan aktif untuk dashboard.                     | Baca profil pegawai aktif dari `employees` + `employee_assignments` aktif.                                                                             |
 | `v_employee_attention_summary` | View ringkasan perhatian 30 hari.                                     | Ringkasan absensi/indikator untuk HRD dan pimpinan tanpa membuka bukti sensitif.                                                                       |
+
+### Backup seluruh sistem
+
+Permission `system_backup.manage` hanya diberikan kepada Superadmin. Menu backup membuat satu paket terenkripsi berisi `pg_dump` custom dan seluruh `UPLOAD_ROOT`; kata sandi tidak disimpan. `system_backup_jobs.package_path` adalah path server internal dan tidak dikirim ke browser. Pekerjaan aktif dibatasi satu, unduhan diaudit, dan paket sementara kedaluwarsa setelah 24 jam. Lihat `docs/system-backup.md` untuk konfigurasi, verifikasi, dan latihan pemulihan.
 
 ### Pemeliharaan penyimpanan file
 
