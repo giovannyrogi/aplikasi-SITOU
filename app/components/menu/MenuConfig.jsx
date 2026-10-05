@@ -2,14 +2,15 @@ import AppIcon from "@/app/components/icons/AppIcon";
 import { ROLES } from "./ConstantRoles";
 
 const DASHBOARD_ROLES = [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER];
+const DASHBOARD_ICON = <AppIcon icon="navigation:dashboard" fontSize="20px" />;
 
 const MENU_CONFIG = [
   {
     label: "Dashboard",
     value: "dashboard",
     path: "/dashboard",
-    icon: <AppIcon icon="navigation:dashboard" fontSize="20px" />,
-    roles: DASHBOARD_ROLES,
+    icon: DASHBOARD_ICON,
+    roles: [...DASHBOARD_ROLES, ROLES.EMPLOYEE],
   },
   {
     label: "Data Master",

@@ -27,6 +27,14 @@ const generatedAtFormatter = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
   timeStyle: "short",
 });
+const DASHBOARD_TITLE = "Dashboard monitoring";
+
+/** Pegawai hanya mendapat header; komponen data organisasi tidak dipasang. */
+export default function DashboardClient() {
+  const user = useAuthenticatedUser();
+  if (user.role_code === ROLES.EMPLOYEE) return <PageHeader title={DASHBOARD_TITLE} />;
+  return <OrganizationDashboard />;
+}
 
 /** Memastikan panel grafik tidak menggambar canvas kosong saat dataset bernilai nol. */
 function hasChartValues(chart) {
@@ -121,7 +129,7 @@ function buildChartDefinitions(data) {
 }
 
 /** Dashboard utama yang mengubah data dan hierarchy visual berdasarkan role session. */
-export default function DashboardClient() {
+function OrganizationDashboard() {
   const theme = useTheme();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
@@ -171,7 +179,7 @@ export default function DashboardClient() {
   return (
     <Box sx={{ minWidth: 0, display: "grid", gap: { xs: 2, md: 3 } }}>
       <PageHeader
-        title="Dashboard monitoring"
+        title={DASHBOARD_TITLE}
         description={pageDescription}
         metadata={
           <>

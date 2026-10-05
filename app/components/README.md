@@ -162,6 +162,8 @@ Semua tabel AntD disusun melalui `data-display/NumberedTable.jsx`, yang menambah
 
 # Pengaturan organisasi
 
+Seluruh role memakai `/dashboard` melalui `DashboardClient`. Pegawai hanya menerima `PageHeader` berjudul **Dashboard monitoring**, tanpa kartu, grafik, filter organisasi, metadata operasional, atau request `/api/dashboard/summary`. Komponen `OrganizationDashboard` hanya dipasang bagi Superadmin, HRD, dan Pimpinan; permission API organisasi tetap dibatasi di backend. Self-service Pegawai belum dikembangkan. Rute lama `/employee-dashboard` hanya mengarahkan ke dashboard terpusat.
+
 `AppModal` menyediakan `role=dialog`, `aria-modal`, dan hubungan judul/deskripsi pada panel konten agar konfirmasi dapat dikenali pembaca layar.
 
 Lebar panel `AppModal` dibatasi oleh kolom grid yang dapat menyusut sesuai viewport, termasuk saat lebar modal lebih besar dari layar tablet. Footer tetap berada di dalam layar.

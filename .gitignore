@@ -43,6 +43,7 @@
 !/scripts/test-system-restore-db.mjs
 !/scripts/test-employee-creator-filter-http.mjs
 !/scripts/test-account-linking-http.mjs
+!/scripts/test-employee-dashboard-http.mjs
 !/scripts/test-reports-db.mjs
 !/scripts/test-reports-http.mjs
 !/scripts/test-reports-ui.mjs
@@ -81,6 +82,7 @@
 !/tests/multipart-streaming.test.mjs
 !/tests/dependent-contact-migration.test.mjs
 !/tests/employee-export.test.mjs
+!/tests/employee-dashboard-access.test.mjs
 !/tests/employee-completeness.test.mjs
 !/tests/employee-identity-conflict.test.mjs
 !/tests/leave-request.test.mjs

@@ -14,8 +14,12 @@ export const PROTECTED_ROUTES = [
     roles: ALL_ROLE_CODES,
   },
   {
+    path: "/employee-dashboard",
+    roles: [ROLES.EMPLOYEE],
+  },
+  {
     path: "/dashboard",
-    roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER, ROLES.EMPLOYEE],
+    roles: ALL_ROLE_CODES,
   },
   {
     path: "/master-data/organizations",
