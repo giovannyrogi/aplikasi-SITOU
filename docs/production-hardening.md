@@ -84,6 +84,15 @@ pm2 status
 
 Kedua proses `sitou` dan `sitou-file-cleanup-worker` harus berstatus `online`. Worker memproses purge setelah commit dan mengulang kegagalan dengan backoff. Jangan menjalankan cleanup fisik manual saat antrean worker aktif.
 
+### Dependency keamanan (5 Oktober 2026)
+
+- Next.js dan `eslint-config-next` diselaraskan pada 16.3.8; Axios 1.20.0 dan Moment 2.31.0. Lockfile juga memperbarui DOMPurify ke 3.4.16 serta `brace-expansion` ke versi perbaikan pada masing-masing major (1.1.21, 2.1.7, 5.0.12).
+- `package.json` dan `package-lock.json` harus diterapkan bersama, lalu gunakan `npm ci` agar versi dependency turunan sama dengan hasil pengujian. Tidak memerlukan migration database.
+- Audit produksi (`npm audit --omit=dev`) setelah pembaruan menunjukkan nol temuan. Audit lengkap masih melaporkan lima paket high dalam satu rantai tooling: `eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces`.
+- Temuan terakhir berasal dari [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm); saat pemeriksaan, `braces` belum memiliki versi perbaikan resmi. Jalankan lint hanya pada kode/pola file proyek yang dipercaya; jangan memberikan pola glob dari request pengguna kepada tooling ini. Ini batasan sementara, bukan temuan yang telah diperbaiki.
+- Jangan memakai `npm audit fix --force` untuk menurunkan konfigurasi Next.js ke versi 14 atau menghapus pemeriksaan lint. Perbarui kembali ketika rantai tooling menyediakan perbaikan kompatibel, lalu jalankan audit, unit test, lint, dan build.
+- Peringatan deprecated dari dependency turunan ExcelJS dapat tetap tampil saat `npm ci`; berbeda dari temuan audit. Perubahan major paket import/export harus diuji terhadap template dan workbook yang sudah dipakai organisasi.
+
 ## 5. Nginx
 
 Gunakan contoh [nginx-sitou.conf.example](../deploy/nginx-sitou.conf.example). Ketentuan utamanya:
