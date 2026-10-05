@@ -16,7 +16,7 @@ import {
 } from "@mui/material";
 import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
-import { ROLE_LABELS } from "@/app/constants/roles";
+import { ROLES, ROLE_LABELS } from "@/app/constants/roles";
 import FontStyle from "../font-style/FontStyle";
 import AppLogo from "../branding/AppLogo";
 import ImagePreviewModal from "../modals/ImagePreviewModal";
@@ -42,7 +42,9 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
   const photoUrl =
     profileLinked && user?.profile_photo_file_id
-      ? `/api/uploads/${encodeURIComponent(user.profile_photo_file_id)}?organizationId=${encodeURIComponent(user.organization_id)}`
+      ? user.role_code === ROLES.EMPLOYEE
+        ? `/api/uploads/profile_self?photoVersion=${encodeURIComponent(user.profile_photo_file_id)}`
+        : `/api/uploads/${encodeURIComponent(user.profile_photo_file_id)}?organizationId=${encodeURIComponent(user.organization_id)}`
       : undefined;
   const primaryIdentity = profileLinked
     ? user?.preferred_name || user?.username

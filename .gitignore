@@ -83,6 +83,7 @@
 !/tests/dependent-contact-migration.test.mjs
 !/tests/employee-export.test.mjs
 !/tests/employee-dashboard-access.test.mjs
+!/tests/self-profile-photo.test.mjs
 !/tests/employee-completeness.test.mjs
 !/tests/employee-identity-conflict.test.mjs
 !/tests/leave-request.test.mjs

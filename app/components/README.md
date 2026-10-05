@@ -182,3 +182,12 @@ Lebar panel `AppModal` dibatasi oleh kolom grid yang dapat menyusut sesuai viewp
 - `ConfirmDialog.messageAlign` mengatur alignment paragraf utama (default `left`); konfirmasi hapus backup memakai `center` tanpa mengubah alignment konten rincian.
 
 - Form akun memakai `/api/access/accounts/reference-options`, bukan referensi pegawai umum. Profil yang tertaut ke akun lain (termasuk akun nonaktif) tidak ditawarkan; edit tetap menawarkan profil akun sendiri. Backend memeriksa organisasi/cakupan lokasi, mengunci profil dalam transaksi, dan mempertahankan constraint unik `employees.user_id`. Konflik penautan ditampilkan pada field profil. Daftar akun dimuat ulang saat jendela kembali aktif agar perubahan role oleh pengelola lain dapat terlihat.
+# Pas foto sidebar Pegawai
+
+Sidebar desktop dan mobile membaca pas foto Pegawai melalui `/api/uploads/profile_self`
+dengan permission `profile_self.read`. Target selalu dipetakan dari session dan
+referensi pas foto aktif pada profil akun sendiri. Parameter `photoVersion` hanya
+memicu pemuatan ulang setelah foto diganti, bukan memilih file. Endpoint file umum
+tetap memerlukan `private_files.read_sensitive`; Pegawai tidak memperoleh akses
+ke foto atau dokumen pegawai lain. Preview tetap diaudit dan tidak di-cache.
+
