@@ -42,6 +42,7 @@
 !/scripts/restore-system-backup.mjs
 !/scripts/test-system-restore-db.mjs
 !/scripts/test-employee-creator-filter-http.mjs
+!/scripts/test-account-linking-http.mjs
 !/scripts/test-reports-db.mjs
 !/scripts/test-reports-http.mjs
 !/scripts/test-reports-ui.mjs

@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, CircularProgress, LinearProgress, useMediaQuery, useTheme } from "@mui/material";
-import AppLogo from "@/app/components/branding/AppLogo";
+import { ArchiveRounded, CheckCircleRounded, ContentCopyRounded, DeleteOutlineRounded, ErrorOutlineRounded, HourglassTopRounded, LockRounded, ManageSearchRounded, SettingsBackupRestoreRounded, StorageRounded, TaskAltRounded, WarningAmberRounded } from "@mui/icons-material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import { stagePercent } from "@/lib/system-backup/progress.mjs";
 
@@ -28,28 +28,41 @@ export default function BackupProgressPanel({ job }) {
   const progress = job.progress || {};
   const stage = progress.stage || "queued";
   const label = stages[stage] || "Memproses backup";
-  const pendingZips = Object.values(job.artifacts || {}).some((item) =>
+  const unavailable = ["deleted", "expired"].includes(job.status);
+  const pendingZips = !unavailable && Object.values(job.artifacts || {}).some((item) =>
     ["pending", "creating"].includes(item.status));
   const isSuccessful = ["ready", "ready_with_warnings"].includes(job.status);
+  const busy = running || (isSuccessful && pendingZips);
+  const stageIcons = { queued: HourglassTopRounded, preparing: SettingsBackupRestoreRounded,
+    snapshot: ContentCopyRounded, dump: StorageRounded, inspect: ManageSearchRounded,
+    package: LockRounded, verify: TaskAltRounded, complete: ArchiveRounded };
+  const StatusIcon = job.status === "deleted" ? DeleteOutlineRounded : job.status === "failed" ? ErrorOutlineRounded : busy ?
+    (running ? stageIcons[stage] || SettingsBackupRestoreRounded : ArchiveRounded) :
+    job.status === "ready_with_warnings" ? WarningAmberRounded : isSuccessful ? CheckCircleRounded : ArchiveRounded;
+  const tone = job.status === "failed" ? "danger" : busy ? "info" :
+    job.status === "ready_with_warnings" ? "warning" : isSuccessful ? "success" : "neutral";
   const currentPercent = running ? progress.percent : null;
   const needsAttention = running && progress.needsAttention;
 
-  return <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3,
-    bgcolor: "background.default", p: { xs: 2, sm: 2.5 }, display: "grid", gap: 1.25 }}
+  return <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, minWidth: 0,
+    bgcolor: "background.default", p: { xs: 2, sm: 2.5 }, display: "grid", gap: 2 }}
     role="group" aria-label="Progres backup">
     <Box sx={{ position: "relative", width: 88, height: 88, mx: "auto", display: "grid", placeItems: "center" }}>
-      {running || pendingZips ? <CircularProgress aria-hidden="true" size={86} thickness={2.5}
-        sx={{ position: "absolute", color: theme.palette.primary.main,
+      {busy ? <CircularProgress aria-hidden="true" size={86} thickness={2.5}
+        sx={{ position: "absolute", color: theme.status[tone].main,
           ...(reducedMotion ? { animation: "none" } : {}) }} /> :
         <Box aria-hidden="true" sx={{ position: "absolute", inset: 0, borderRadius: "50%",
-          border: "2px solid", borderColor: isSuccessful ? "success.main" :
-            job.status === "failed" ? "error.main" : "divider" }} />}
-      <AppLogo variant="mark" alt="" width={50} height={50}
-        style={{ width: 50, height: 50, objectFit: "contain" }} />
+          border: "2px solid", borderColor: theme.status[tone].border }} />}
+      <Box sx={{ display: "grid", placeItems: "center", width: 68, height: 68,
+        borderRadius: "50%", bgcolor: theme.status[tone].background, color: theme.status[tone].main }}>
+        <StatusIcon aria-hidden="true" sx={{ fontSize: 36,
+          ...(busy && !reducedMotion ? { animation: "backup-icon-pulse 1.6s ease-in-out infinite",
+            "@keyframes backup-icon-pulse": { "0%, 100%": { transform: "scale(1)" }, "50%": { transform: "scale(1.12)" } } } : {}) }} />
+      </Box>
     </Box>
     <FontStyle component="h3" fontSize={17} fontWeight={700} sx={{ textAlign: "center" }}
       aria-live="polite" aria-atomic="true">
-      {job.status === "failed" ? "Backup gagal" : job.status === "ready_with_warnings" ?
+      {job.status === "deleted" ? "File backup telah dihapus" : job.status === "expired" ? "Masa unduh backup telah berakhir" : job.status === "failed" ? "Backup gagal" : job.status === "ready_with_warnings" ?
         "Paket siap, ada file perlu ditindaklanjuti" : job.status === "ready" ?
           (pendingZips ? "Paket utama siap; ZIP sedang dibuat" : "Backup siap diunduh") : label}
     </FontStyle>
@@ -61,10 +74,12 @@ export default function BackupProgressPanel({ job }) {
         job.status === "failed" ? job.error_message || "Periksa layanan server lalu coba lagi." :
           pendingZips ? "Paket utama dapat diunduh; tunggu ZIP tambahan selesai." :
             job.status === "deleted" ? "File paket telah dihapus; riwayat tetap tersedia." :
+              job.status === "expired" ? "File backup tidak lagi tersedia untuk diunduh; riwayat tetap tersimpan." :
               "Paket utama dan ZIP tersedia selama belum dihapus."}
     </FontStyle>
     {running ? <>
       <LinearProgress variant={currentPercent == null ? "indeterminate" : "determinate"}
+        color="info"
         value={currentPercent ?? undefined} aria-label={`Progres tahap ${label}`}
         sx={{ mt: 1, height: 8, borderRadius: 4,
           ...(reducedMotion ? { "& .MuiLinearProgress-bar": { animation: "none" } } : {}) }} />
@@ -82,20 +97,24 @@ export default function BackupProgressPanel({ job }) {
     {Object.entries(artifactNames).map(([kind, name]) => {
       const artifact = job.artifacts?.[kind];
       if (!artifact) return null;
+      const status = job.status === "deleted" ? "deleted" : job.status === "expired" ? "expired" : artifact.status;
       const percent = artifact.status === "ready" ? 100 :
         artifact.status === "creating" ? stagePercent(artifact.progressDone, artifact.progressTotal) : null;
       return <Box key={kind} sx={{ display: "grid", gap: 0.5, pt: 1, borderTop: "1px solid", borderColor: "divider" }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
           <FontStyle fontSize={12} fontWeight={600}>{name}</FontStyle>
           <FontStyle fontSize={12} sx={{ color: "text.secondary" }}>
-            {artifact.status === "ready" ? "Siap" : artifact.status === "failed" ? "Gagal" :
-              artifact.status === "creating" ? percent == null ? "Sedang dibuat" : `${percent}%` : "Menunggu"}
+            {status === "deleted" ? "Dihapus" : status === "expired" ? "Masa unduh habis" : status === "ready" ? "Siap" : status === "failed" ? "Gagal" :
+              status === "creating" ? percent == null ? "Sedang dibuat" : `${percent}%` : status === "pending" ? "Menunggu" : "Belum tersedia"}
           </FontStyle>
         </Box>
-        {artifact.status === "creating" ? <LinearProgress
+        {status === "creating" ? <LinearProgress
           variant={percent == null ? "indeterminate" : "determinate"} value={percent ?? undefined}
           aria-label={`Progres ${name}`} sx={{ height: 5, borderRadius: 3,
-            ...(reducedMotion ? { "& .MuiLinearProgress-bar": { animation: "none" } } : {}) }} /> : null}
+            "& .MuiLinearProgress-bar": {
+              backgroundColor: theme.action[kind === "database_zip" ? "database" : "files"].main,
+              ...(reducedMotion ? { animation: "none" } : {}),
+            } }} /> : null}
       </Box>;
     })}
   </Box>;

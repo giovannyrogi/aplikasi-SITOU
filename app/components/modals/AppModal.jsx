@@ -157,7 +157,7 @@ export default function AppModal({
                 display: "flex",
                 justifyContent: "flex-end",
                 flexWrap: "wrap",
-                gap: 1,
+                gap: 1.5,
               }}
             >
               {footer}

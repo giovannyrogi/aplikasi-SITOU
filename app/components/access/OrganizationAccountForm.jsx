@@ -2,7 +2,7 @@
 
 import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Segmented, Select } from "antd";
 import { Box } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
@@ -26,6 +26,14 @@ export default function OrganizationAccountForm({
   const [form] = Form.useForm();
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const [options, setOptions] = useState({ employees: [], locations: [] });
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [optionsReady, setOptionsReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
   const targetOrganizationId = Form.useWatch("organizationId", form);
   const roleCode = Form.useWatch("roleCode", form);
   const scopeMode = Form.useWatch("locationScopeMode", form);
@@ -54,23 +62,48 @@ export default function OrganizationAccountForm({
     });
   }, [form, item, open, organizationId, user.organization_id]);
 
-  /** Memuat pegawai dan lokasi dalam satu request master pegawai. */
+  /** Hanya memuat profil bebas dan profil milik akun yang sedang diedit. */
   useEffect(() => {
     const target = targetOrganizationId || organizationId || user.organization_id;
     if (!open || !target) return;
-    fetch(`/api/employees/reference-options?organizationId=${target}`)
-      .then((response) => response.json())
-      .then((body) =>
+    const controller = new AbortController();
+    const query = new URLSearchParams({ organizationId: String(target) });
+    if (item?.id) query.set("accountId", String(item.id));
+    Promise.resolve()
+      .then(() => {
+        if (controller.signal.aborted) return null;
+        setOptions({ employees: [], locations: [] });
+        setOptionsReady(false);
+        setOptionsLoading(true);
+        return fetch(`/api/access/accounts/reference-options?${query}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+      })
+      .then((response) => (response ? readApiResponse(response) : null))
+      .then((body) => {
+        if (controller.signal.aborted || !body) return;
         setOptions({
           employees: body.data?.employees || [],
           locations: body.data?.locations || [],
-        }),
-      )
-      .catch(() => onError("Referensi akun tidak dapat dimuat."));
-  }, [onError, open, organizationId, targetOrganizationId, user.organization_id]);
+        });
+        setOptionsReady(true);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted)
+          onErrorRef.current(error.message || "Referensi akun tidak dapat dimuat.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setOptionsLoading(false);
+      });
+    return () => controller.abort();
+  }, [item?.id, open, organizationId, targetOrganizationId, user.organization_id]);
 
   /** Backend memvalidasi password dan konfirmasinya; confirmPassword tidak pernah disimpan. */
   const submit = async (values) => {
+    if (savingRef.current || !optionsReady) return;
+    savingRef.current = true;
+    setSaving(true);
     try {
       await runWithLoadingBackdrop(
         async () => {
@@ -99,6 +132,9 @@ export default function OrganizationAccountForm({
     } catch (error) {
       applyApiFieldErrors(form, error);
       onError(error.message);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   };
 
@@ -118,7 +154,12 @@ export default function OrganizationAccountForm({
       footer={
         <>
           <Button onClick={onClose}>Batal</Button>
-          <Button type="primary" onClick={() => form.submit()}>
+          <Button
+            type="primary"
+            loading={saving}
+            disabled={!optionsReady || optionsLoading}
+            onClick={() => form.submit()}
+          >
             Simpan akun
           </Button>
         </>
@@ -172,6 +213,8 @@ export default function OrganizationAccountForm({
               showSearch
               optionFilterProp="label"
               placeholder="Pilih profil bila diperlukan"
+              loading={optionsLoading}
+              disabled={optionsLoading || saving}
               options={options.employees.map((value) => ({
                 value: value.id,
                 label: `${value.employee_no} - ${value.full_name}`,

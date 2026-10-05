@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, KeyOutlined, PlusOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
@@ -29,6 +29,14 @@ export default function OrganizationAccountsPage() {
   const list = useDataList("/api/access/accounts", {
     requiredFilter: isSuperadmin ? "organizationId" : undefined,
   });
+  const refreshAccounts = list.refresh;
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") void refreshAccounts();
+    };
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [refreshAccounts]);
   const { notification, showNotification, closeNotification } = useAppNotification();
   const [form, setForm] = useState({ open: false, item: null });
   const [passwordItem, setPasswordItem] = useState(null);

@@ -40,7 +40,7 @@ unduhan tetap ditangani endpoint modul. Ekspor tersedia pada laporan terkait dan
 | Komponen                     | Tujuan                                                                                                                                       | Props penting                                                                                                         |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `actions/RowActionMenu`      | Menu aksi per baris/kartu dengan target sentuh yang aman.                                                                                    | `items`                                                                                                               |
-| `actions/ConfirmDialog`      | Konfirmasi risiko yang menyusun `AppModal`.                                                                                                  | `open`, `title`, `message`, `confirmText`, `danger`, `onConfirm`                                                      |
+| `actions/ConfirmDialog`      | Konfirmasi risiko yang menyusun `AppModal`.                                                                                                  | `open`, `title`, `message`, `confirmText`, `danger`, `onConfirm`, `illustration`, `heading`, `children`, `messageAlign`                                                      |
 | `modals/AppModal`            | Satu-satunya modal shell umum untuk form, detail, konfirmasi, dan konten React. Properti ikon menerima nama Iconify atau elemen React lokal. | `open`, `onClose`, `title`, `description`, `icon`, `size`, `width`, `component`, `onSubmit`, `footer`, close controls |
 | `modals/ExpiredSessionModal` | Feedback sesi kedaluwarsa, countdown, progress, dan redirect login.                                                                          | `open`, `secondsRemaining`, `onLogout`                                                                                |
 | `modals/ImagePreviewModal`   | Preview endpoint privat/blob/file lokal dengan loading, error, alt text, dan zoom.                                                           | `imageUrl`, `alt`, `title`, `open`, `onClose`                                                                         |
@@ -109,10 +109,13 @@ Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender
 - `branding/AppLogo` adalah satu-satunya komponen untuk menampilkan logo SITOU. Gunakan `variant="full"` untuk komposisi ikon dan teks **SITOU** pada navbar, serta `variant="mark"` untuk simbol ringkas.
 - Path ikon logo dan warna teks SITOU dipusatkan melalui `branding/AppLogo.jsx` dan token tema agar tampilannya konsisten pada navbar desktop maupun mobile.
 - `navbar/SidebarContent` memakai pas foto profil pegawai yang ditautkan ke akun dari data session terbaru, melalui endpoint file privat. Desktop dan drawer mobile memakai komponen yang sama; inisial tetap tampil jika foto belum ada atau gagal dimuat.
+- Setelah edit data pegawai atau Profil lengkap berhasil disimpan, `router.refresh()` memuat ulang identitas layout server agar sidebar desktop dan mobile langsung memakai pas foto terbaru (termasuk kembali ke inisial setelah foto dilepas), tanpa reload halaman penuh. Penyimpanan gagal tidak memicu refresh identitas.
 - Pas foto sidebar dapat ditekan atau dibuka melalui keyboard untuk menampilkan `ImagePreviewModal` menggunakan endpoint privat yang sama.
 - `/public/logo-sitou-v2.png`: logo huruf/simbol ringkas.
 - `/public/logo-sitou-v1.png`: logo SITOU beserta tagline.
 - SITOU hanya memakai theme light. Merah adalah aksen, bukan warna seluruh permukaan.
+- `ACTION_TONES` tersedia melalui `theme.action`. Tombol AntD memakai `data-action-tone="detail|download|database|files|verify|danger"`: detail biru, paket lengkap teal, database biru, file ungu, verifikasi hijau, hapus merah. Styling terpusat mencakup hover, fokus keyboard, dan target sentuh 44px.
+- `system-backup/BackupProgressPanel` menerima `job`; ikon mengikuti tahap dan hasil, bergerak hanya saat proses aktif serta menghormati prefers-reduced-motion. Gagal memakai ikon error, siap dengan temuan memakai peringatan, dan siap tanpa temuan memakai centang.
 - Token BRAND_COLORS dan STATUS_TONES berada di themeprovider/ThemeProvider.jsx serta tersedia melalui theme.brand dan theme.status. Komponen MUI, AntD, badge, dan halaman fitur harus memakai sumber warna semantik yang sama.
 
 ## Kepegawaian dan Akses
@@ -166,3 +169,14 @@ Lebar panel `AppModal` dibatasi oleh kolom grid yang dapat menyusut sesuai viewp
 `organization-settings/RetirementPolicy` menampilkan usia berlaku, dasar perhitungan, audit terakhir, dan akses laporan. Tombol Ubah/Tetapkan membuka `RetirementPolicyEditor` berbasis AppModal. Form memakai schema bersama, snapshot versi, alasan dan konfirmasi, mempertahankan isian saat gagal, serta meminta konfirmasi sebelum membuang isian. Organisasi dipertahankan di URL; Pimpinan hanya membaca. Tidak ada perubahan status pegawai otomatis.
 
 `ResponsiveDataView` membatasi track grid mobile dengan `minmax(0, 1fr)` dan membolehkan Box dalam kartu menyusut. Nama/NIP dan metadata pegawai membungkus teks panjang; tombol RowActionMenu tetap 44px dan tidak menyusut. Jangan mengganti perbaikan ukuran dengan overflow hidden yang memotong isi. Tes browser `scripts/test-retirement-policy-ui.mjs` memeriksa batas elemen kartu, bukan hanya lebar dokumen, menggunakan data sintetis panjang pada tujuh menu.
+
+- `ConfirmDialog` mendukung ikon ilustrasi, subjudul, dan children untuk rincian dampak; pemanggilan lama tetap didukung. Ikon database, folder file, unduhan paket, mata, perisai, dan tempat sampah mengikuti objek/tindakan, dengan label atau tooltip yang jelas.
+- Backup berstatus dihapus menampilkan judul dan ZIP sebagai Dihapus, tanpa spinner atau unduhan. Temuan tetap menjadi histori pemeriksaan saat backup dibuat, bukan indikator kondisi penyimpanan terkini.
+
+- Standar jarak aman: tombol 12px, field/fakta 16px, section dan pemisahan data-aksi 24px, label-nilai 8px, padding kartu mobile minimal 16px. Backup memakai kartu berlabel dengan kelompok aksi terpisah dan tombol lebar penuh pada mobile; kolom Aksi desktop memakai alignment tengah untuk header dan isi.
+
+- Footer `AppModal` menjaga jarak minimal 12px antar tombol, termasuk saat tombol membungkus pada layar kecil.
+
+- `ConfirmDialog.messageAlign` mengatur alignment paragraf utama (default `left`); konfirmasi hapus backup memakai `center` tanpa mengubah alignment konten rincian.
+
+- Form akun memakai `/api/access/accounts/reference-options`, bukan referensi pegawai umum. Profil yang tertaut ke akun lain (termasuk akun nonaktif) tidak ditawarkan; edit tetap menawarkan profil akun sendiri. Backend memeriksa organisasi/cakupan lokasi, mengunci profil dalam transaksi, dan mempertahankan constraint unik `employees.user_id`. Konflik penautan ditampilkan pada field profil. Daftar akun dimuat ulang saat jendela kembali aktif agar perubahan role oleh pengelola lain dapat terlihat.

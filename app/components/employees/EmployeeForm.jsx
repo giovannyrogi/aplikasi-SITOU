@@ -3,6 +3,7 @@
 import { readApiResponse } from "@/lib/api/clientError";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Alert, Button, Checkbox, DatePicker, Form, Input, Select, Steps } from "antd";
 import {
   CheckCircleOutlined,
@@ -163,6 +164,7 @@ function hydrateDraft(payload, organizationId) {
 
 /** Form pegawai menyatukan profil, kontrak awal, penempatan, dokumen, dan draft otomatis. */
 export default function EmployeeForm({ open, item, organizationId, onClose, onSaved, onError }) {
+  const router = useRouter();
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down("sm"));
   const user = useAuthenticatedUser();
@@ -688,6 +690,8 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
           }
           draftRef.current = null;
           dirtyRef.current = false;
+          // Layout memuat ulang identitas akun tertaut, termasuk foto kedua sidebar.
+          router.refresh();
           await onSaved(body.message);
         },
         {

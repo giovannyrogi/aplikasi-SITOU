@@ -31,6 +31,7 @@ export async function GET(request) {
       ...filters.data,
       organizationId,
       actorRoleCode: user.role_code,
+      actor: user,
     });
     return successResponse(result.data, {
       pagination: { page: query.page, pageSize: query.pageSize, total: result.total },

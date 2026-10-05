@@ -46,6 +46,15 @@ export const STATUS_TONES = Object.freeze({
   },
 });
 
+export const ACTION_TONES = Object.freeze({
+  detail: { main: STATUS_TONES.info.text, hover: "#1E40AF" },
+  download: { main: "#0F766E", hover: "#115E59" },
+  database: { main: STATUS_TONES.info.text, hover: "#1E40AF" },
+  files: { main: "#6D28D9", hover: "#5B21B6" },
+  verify: { main: STATUS_TONES.success.text, hover: "#14532D" },
+  danger: { main: STATUS_TONES.danger.main, hover: STATUS_TONES.danger.text },
+});
+
 export const UI_TOKENS = Object.freeze({
   pageBg: "#F7F7F8",
   surface: "#FFFFFF",
@@ -88,6 +97,7 @@ export const appTheme = createTheme({
   },
   brand: BRAND_COLORS,
   status: STATUS_TONES,
+  action: ACTION_TONES,
   ui: {
     pageBg: UI_TOKENS.pageBg,
     panelBg: UI_TOKENS.surface,
@@ -161,6 +171,16 @@ export default function AppThemeProvider({ children }) {
     <ThemeProvider theme={appTheme}>
       <GlobalStyles
         styles={{
+          ...Object.fromEntries(Object.entries(ACTION_TONES).map(([name, tone]) => [
+            `.ant-btn[data-action-tone="${name}"]:not(:disabled):not(.ant-btn-disabled)`,
+            {
+              backgroundColor: tone.main, borderColor: tone.main, color: BRAND_COLORS.onPrimary,
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+              minHeight: 44, minWidth: 44, boxShadow: "none",
+              "&:hover, &:active": { backgroundColor: tone.hover, borderColor: tone.hover, color: BRAND_COLORS.onPrimary },
+              "&:focus-visible": { outline: `2px solid ${tone.main}`, outlineOffset: 3 },
+            },
+          ])),
           ":root": {
             "--sitou-brand-primary": BRAND_COLORS.primary,
             "--sitou-scrollbar-thumb": BRAND_COLORS.primary,

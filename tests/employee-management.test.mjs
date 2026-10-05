@@ -941,8 +941,8 @@ test("label tanggal pegawai membedakan tanggal bergabung, kontrak, dan TMT", () 
   assert.match(employeeForm, /TMT jabatan\/penempatan/);
   assert.match(lifecycleForms, /Tanggal mulai kontrak/);
   assert.match(lifecycleForms, /TMT jabatan\/penempatan/);
-  assert.match(employeeDetail, /Tanggal bergabung di organisasi/);
-  assert.match(employeeDetail, /Tanggal mulai kontrak/);
+  assert.match(employeeDetail, /TMT bergabung/);
+  assert.match(employeeDetail, /TMT kontrak/);
   assert.match(employeeDetail, /TMT jabatan\/penempatan/);
 });
 test("service menolak koreksi penempatan historis dengan kode stabil", () => {

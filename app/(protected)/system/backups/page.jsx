@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Tooltip } from "antd";
-import { CloudDownloadOutlined, DeleteOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
-import { Alert, Box, IconButton, InputAdornment, MenuItem, TextField, Typography, useTheme } from "@mui/material";
+import { CloudDownloadOutlined, DatabaseOutlined, FolderOpenOutlined, DeleteOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
+import { Alert, Box, IconButton, InputAdornment, MenuItem, TextField } from "@mui/material";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
+import FontStyle from "@/app/components/font-style/FontStyle";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
@@ -19,6 +20,8 @@ import AppIcon from "@/app/components/icons/AppIcon";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { normalizeRequestError, readApiResponse } from "@/lib/api/clientError";
 import BackupProgressPanel from "@/app/components/system-backup/BackupProgressPanel";
+
+const alertTextSx = { borderRadius: 2, alignItems: "flex-start", "& .MuiAlert-message": { minWidth: 0, textAlign: "justify", textAlignLast: "left", overflowWrap: "anywhere", lineHeight: 1.7 } };
 
 const labels = {
   queued: "Menunggu", copying: "Menyalin data dan file", securing: "Mengamankan paket",
@@ -66,7 +69,7 @@ async function fetchBackups(signal, quiet, cursor = null) {
 
 /** Halaman Superadmin menyatukan pembuatan, riwayat, unduhan, dan verifikasi lokal. */
 export default function SystemBackupsPage() {
-  const theme = useTheme();
+
   const { notification, showNotification, closeNotification } = useAppNotification();
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const [jobs, setJobs] = useState([]);
@@ -286,7 +289,9 @@ export default function SystemBackupsPage() {
     finally { setDeleting(false); }
   };
 
-  const artifactSummary = (artifact) => {
+  const artifactSummary = (artifact, jobStatus) => {
+    if (jobStatus === "deleted") return "Dihapus";
+    if (jobStatus === "expired") return "Masa unduh habis";
     if (!artifact) return "Belum tersedia";
     if (artifact.status === "ready") return `${formatBytes(artifact.sizeBytes)} · Siap diunduh`;
     if (["pending", "creating"].includes(artifact.status)) return "Sedang dibuat";
@@ -298,48 +303,43 @@ export default function SystemBackupsPage() {
     ["database_zip", "Unduh database"], ["uploads_zip", "Unduh semua file"],
   ].map(([kind, label]) => {
     const artifact = job.artifacts?.[kind];
-    if (artifact?.status === "ready") return <Button key={kind} icon={<CloudDownloadOutlined />}
+    if (artifact?.status === "ready") return <Button key={kind} data-action-tone={kind === "database_zip" ? "database" : "files"} icon={kind === "database_zip" ? <DatabaseOutlined /> : <FolderOpenOutlined />}
       href={`/api/system/backups/${job.id}/artifacts/${kind}/download`}
-      style={{ minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "center",
-        backgroundColor: theme.palette.info.main, borderColor: theme.palette.info.main,
-        color: theme.palette.info.contrastText }}>{label}</Button>;
-    if (artifact?.status === "failed") return <Button key={kind} icon={<ReloadOutlined />}
+      style={{ minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{label}</Button>;
+    if (artifact?.status === "failed") return <Button key={kind} data-action-tone={kind === "database_zip" ? "database" : "files"} icon={<ReloadOutlined />}
       onClick={() => { setRetryArtifact({ id: job.id, kind, label }); setRetryPassword(""); setShowRetryPassword(false); }}
-      style={{ minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "center",
-        backgroundColor: theme.palette.info.main, borderColor: theme.palette.info.main,
-        color: theme.palette.info.contrastText }}>
+      style={{ minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
       Coba lagi: {label}</Button>;
     return null;
   });
 
   const actionButtons = (job, iconOnly = false) => (
     <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center",
-      justifyContent: iconOnly ? "center" : "flex-start", gap: 1.5 }}>
+      justifyContent: "center", width: "100%", gap: 1.5,
+      ...(!iconOnly ? { display: "grid", gridTemplateColumns: "minmax(0, 1fr)", "& .ant-btn": { width: "100%" } } : {}) }}>
       <Tooltip title={iconOnly ? "Lihat detail backup" : ""}>
-        <Button icon={<EyeOutlined />} aria-label="Lihat detail backup" onClick={() => setSelected(job)}
+        <Button data-action-tone="detail" icon={<EyeOutlined />} aria-label="Lihat detail backup" onClick={() => setSelected(job)}
           style={{ minHeight: 44, minWidth: 44, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
           {iconOnly ? null : "Detail"}
         </Button>
       </Tooltip>
       {["ready", "ready_with_warnings"].includes(job.status) ? <>
         <Tooltip title={iconOnly ? "Unduh paket backup lengkap" : ""}>
-          <Button type="primary" icon={<CloudDownloadOutlined />} aria-label="Unduh paket backup lengkap"
+          <Button data-action-tone="download" icon={<CloudDownloadOutlined />} aria-label="Unduh paket backup lengkap"
             href={`/api/system/backups/${job.id}/download`}
             style={{ minHeight: 44, minWidth: 44, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
             {iconOnly ? null : "Unduh paket lengkap"}
           </Button>
         </Tooltip>
         <Tooltip title={iconOnly ? "Verifikasi file unduhan" : ""}>
-          <Button icon={<SafetyCertificateOutlined />} aria-label="Verifikasi file unduhan"
+          <Button data-action-tone="verify" icon={<SafetyCertificateOutlined />} aria-label="Verifikasi file unduhan"
             onClick={() => { setVerifyJob(job); setVerifyFile(null); setVerifyResult(""); }}
-            style={{ minHeight: 44, minWidth: 44, display: "inline-flex", alignItems: "center", justifyContent: "center",
-              backgroundColor: theme.palette.info.main, borderColor: theme.palette.info.main,
-              color: theme.palette.info.contrastText }}>
+            style={{ minHeight: 44, minWidth: 44, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
             {iconOnly ? null : "Verifikasi"}
           </Button>
         </Tooltip>
         <Tooltip title={iconOnly ? "Hapus file backup dari server" : ""}>
-          <Button danger icon={<DeleteOutlined />} aria-label="Hapus file backup dari server"
+          <Button danger data-action-tone="danger" icon={<DeleteOutlined />} aria-label="Hapus file backup dari server"
             disabled={Object.values(job.artifacts || {}).some((artifact) => ["pending", "creating"].includes(artifact.status))}
             onClick={() => setDeleteJob(job)}
             style={{ minHeight: 44, minWidth: 44, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
@@ -356,12 +356,14 @@ export default function SystemBackupsPage() {
       <CompactInfoChip label={statusLabel(job)} tone={tones[job.status]} /> },
     { title: "Cakupan", render: (_, job) => job.organization_count == null ? "Seluruh organisasi" :
       `${job.organization_count} organisasi · ${job.file_count ?? "…"} file dalam paket` },
-    { title: "Perlu tindak lanjut", dataIndex: "issue_count", render: (count) => Number(count || 0) },
+    { title: "Temuan pemeriksaan", dataIndex: "issue_count", render: (count) => Number(count || 0) },
     { title: "Ukuran paket", dataIndex: "package_bytes", render: formatBytes },
     { title: "Penyimpanan", render: (_, job) => job.status === "deleted"
       ? `Dihapus ${formatDate(job.deleted_at)}` : job.status === "expired" ? "Masa unduh habis" :
-        ["ready", "ready_with_warnings"].includes(job.status) ? "Sampai dihapus" : "Belum tersedia" },
-    { title: "Aksi", width: 245, align: "center", render: (_, job) => actionButtons(job, true) },
+        ["ready", "ready_with_warnings"].includes(job.status) ? "Tersedia" : "Belum tersedia" },
+    { title: <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>Aksi</Box>, width: 245, align: "center", className: "backup-actions-cell",
+      onHeaderCell: () => ({ className: "backup-actions-cell", style: { textAlign: "center", verticalAlign: "middle" } }),
+      onCell: () => ({ style: { textAlign: "center", verticalAlign: "middle" } }), render: (_, job) => actionButtons(job, true) },
   ];
 
   return (
@@ -372,12 +374,12 @@ export default function SystemBackupsPage() {
           Buat backup
         </Button>} />
 
-      <Alert severity="info" sx={{ borderRadius: 2, alignItems: "center", "& .MuiAlert-icon": { alignItems: "center" } }}>
+      <Alert severity="info" sx={alertTextSx}>
         Backup mencakup database serta seluruh isi folder upload: foto, dokumen, histori, draft, dan karantina dari semua organisasi.
         Hasil disimpan di server sampai Superadmin menghapusnya. Unduh juga ke tempat aman di luar server dan simpan kata sandinya sendiri.
         Jika ada catatan file yang tidak sesuai, daftar tindak lanjut tetap tersedia.
       </Alert>
-      <Alert severity="warning" sx={{ borderRadius: 2 }}>
+      <Alert severity="warning" sx={alertTextSx}>
         ZIP database dan ZIP semua file adalah unduhan terpisah dari backup yang sama. Buka dengan kata sandi melalui aplikasi ZIP AES-256.
         ZIP semua file berisi satu ZIP lagi agar lokasi file tetap tersembunyi sampai kata sandi dimasukkan.
         Untuk pemulihan seluruh sistem gunakan paket lengkap; jangan memasangkan database dan file dari backup berbeda.
@@ -392,20 +394,26 @@ export default function SystemBackupsPage() {
         contentSx={{ pb: 0 }}>
         <ResponsiveDataView data={jobs} columns={columns} rowKey="id" loading={loading}
           error={error} onRetry={() => reload()} scrollX={1050}
+          tableSx={{ "& .ant-table-wrapper .backup-actions-cell": { textAlign: "center", verticalAlign: "middle" } }}
           emptyDescription="Belum ada backup. Tekan Buat backup untuk memulai."
-          renderCard={(job) => <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
-              <Typography fontWeight={700}>{formatDate(job.created_at)}</Typography>
-              <CompactInfoChip label={statusLabel(job)} tone={tones[job.status]} />
+          renderCard={(job) => <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>
+            <Box sx={{ display: "grid", gap: 1.5 }}>
+              <FontStyle fontSize={16} fontWeight={700}>{formatDate(job.created_at)}</FontStyle>
+              <Box><CompactInfoChip label={statusLabel(job)} tone={tones[job.status]} /></Box>
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
-              {job.organization_count ?? "Semua"} organisasi · {job.file_count ?? "…"} file dalam paket · {formatBytes(job.package_bytes)}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">Perlu tindak lanjut: {job.issue_count || 0} file</Typography>
-            <Typography variant="body2" color="text.secondary">{job.status === "deleted"
-              ? `Dihapus ${formatDate(job.deleted_at)}` : job.status === "expired" ? "Masa unduh habis" :
-                ["ready", "ready_with_warnings"].includes(job.status) ? "Disimpan sampai dihapus" : "Belum tersedia"}</Typography>
-            {actionButtons(job)}
+            <Box component="dl" sx={{ m: 0, display: "grid", gap: 2, minWidth: 0 }}>
+              {[["Cakupan", job.organization_count == null ? "Seluruh organisasi" : job.organization_count + " organisasi"],
+                ["File dalam paket", job.file_count == null ? "Belum tersedia" : job.file_count + " file"],
+                ["Ukuran paket", formatBytes(job.package_bytes)],
+                ["Temuan pemeriksaan", (job.issue_count || 0) + " file"],
+                ["Penyimpanan", job.status === "deleted" ? "Dihapus " + formatDate(job.deleted_at) : job.status === "expired" ? "Masa unduh habis" :
+                  ["ready", "ready_with_warnings"].includes(job.status) ? "Tersedia" : "Belum tersedia"]].map(([label, value]) =>
+                <Box key={label} sx={{ display: "grid", gap: 0.75, minWidth: 0 }}>
+                  <FontStyle component="dt" fontSize={12} color="text.secondary">{label}</FontStyle>
+                  <FontStyle component="dd" fontSize={14} fontWeight={600} sx={{ m: 0 }}>{value}</FontStyle>
+                </Box>)}
+            </Box>
+            <Box sx={{ pt: 3, borderTop: "1px solid", borderColor: "divider" }}>{actionButtons(job)}</Box>
           </Box>} />
         {historyCursor ? <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
           <Button onClick={loadMoreHistory} loading={historyLoading} style={{ minHeight: 44 }}>Muat riwayat lainnya</Button>
@@ -421,37 +429,37 @@ export default function SystemBackupsPage() {
         <Box sx={{ display: "grid", gap: 2.5, minWidth: 0 }}>
           <Box sx={{ display: "grid", gap: 0.75 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-              <Typography variant="subtitle2" fontWeight={700}>Cakupan backup</Typography>
+              <FontStyle fontSize={14} variant="subtitle2" fontWeight={700}>Cakupan backup</FontStyle>
               <CompactInfoChip label="Seluruh organisasi" tone="info" />
             </Box>
-            <Typography variant="body2" color="text.secondary">
+            <FontStyle fontSize={14} variant="body2" color="text.secondary">
               Database, foto, dokumen, histori, draft, dan file karantina disalin dalam satu pekerjaan.
-            </Typography>
+            </FontStyle>
           </Box>
           {estimate ? <Box sx={{ display: "grid", gap: 1.25, p: 2, minWidth: 0,
             border: "1px solid", borderColor: "divider", borderRadius: 2, bgcolor: "background.default" }}>
-            <Typography variant="subtitle2" fontWeight={700}>Perkiraan sebelum mulai</Typography>
+            <FontStyle fontSize={14} variant="subtitle2" fontWeight={700}>Perkiraan sebelum mulai</FontStyle>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 2, flexWrap: "wrap" }}>
-              <Typography variant="body2" color="text.secondary">Database</Typography>
-              <Typography variant="body2" fontWeight={700}>{formatBytes(estimate.databaseBytes)}</Typography>
+              <FontStyle fontSize={14} variant="body2" color="text.secondary">Database</FontStyle>
+              <FontStyle fontSize={14} variant="body2" fontWeight={700}>{formatBytes(estimate.databaseBytes)}</FontStyle>
             </Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 2, flexWrap: "wrap" }}>
-              <Typography variant="body2" color="text.secondary">Foto & dokumen ({Number(estimate.fileCount || 0).toLocaleString("id-ID")} file)</Typography>
-              <Typography variant="body2" fontWeight={700}>{formatBytes(estimate.fileBytes)}</Typography>
+              <FontStyle fontSize={14} variant="body2" color="text.secondary">Foto & dokumen ({Number(estimate.fileCount || 0).toLocaleString("id-ID")} file)</FontStyle>
+              <FontStyle fontSize={14} variant="body2" fontWeight={700}>{formatBytes(estimate.fileBytes)}</FontStyle>
             </Box>
             <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1.25, display: "grid", gap: 0.5 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 2, flexWrap: "wrap" }}>
-                <Typography variant="body2" fontWeight={700}>Ruang sementara dibutuhkan</Typography>
-                <Typography variant="body2" fontWeight={700} color="primary.main">{formatBytes(estimate.requiredTemporaryBytes)}</Typography>
+                <FontStyle fontSize={14} variant="body2" fontWeight={700}>Ruang sementara dibutuhkan</FontStyle>
+                <FontStyle fontSize={14} variant="body2" fontWeight={700} color="primary.main">{formatBytes(estimate.requiredTemporaryBytes)}</FontStyle>
               </Box>
-              <Typography variant="caption" color="text.secondary">Tersedia {formatBytes(estimate.freeBytes)} di server · untuk paket lengkap dan dua ZIP.</Typography>
+              <FontStyle fontSize={12} variant="caption" color="text.secondary">Tersedia {formatBytes(estimate.freeBytes)} di server · untuk paket lengkap dan dua ZIP.</FontStyle>
             </Box>
           </Box> : null}
-          <Alert severity="warning" sx={{ borderRadius: 2, "& .MuiAlert-message": { minWidth: 0 } }}>
+          <Alert severity="warning" sx={alertTextSx}>
             Paket berisi data sensitif. Simpan file dan kata sandinya secara terpisah; kata sandi tidak disimpan di server.
           </Alert>
-          <Box sx={{ display: "grid", gap: 1.5 }}>
-            <Typography variant="subtitle2" fontWeight={700}>Kata sandi paket</Typography>
+          <Box sx={{ display: "grid", gap: 2 }}>
+            <FontStyle fontSize={14} variant="subtitle2" fontWeight={700}>Kata sandi paket</FontStyle>
             <TextField label="Kata sandi backup" type={showPassword ? "text" : "password"} autoComplete="new-password" value={password}
               onChange={(event) => { setPassword(event.target.value); setFieldErrors({}); }}
               error={Boolean(fieldErrors.password)}
@@ -481,11 +489,12 @@ export default function SystemBackupsPage() {
 
       <AppModal open={Boolean(selected)} title="Detail backup" size="lg" onClose={() => setSelected(null)}
         footer={<Button onClick={() => setSelected(null)} style={{ minHeight: 44 }}>Tutup</Button>}>
-        {selected ? <Box sx={{ display: "grid", gap: 1.5, overflowWrap: "anywhere" }}>
+        {selected ? <Box sx={{ display: "grid", gap: 3, overflowWrap: "anywhere", minWidth: 0 }}>
           <BackupProgressPanel job={selected} />
-          {!activeStatuses.has(selected.status) ? <Alert severity="info">Untuk mengambil gambar atau dokumen, unduh ZIP semua file, buka dengan kata sandi, lalu ekstrak uploads.zip di dalamnya.
+          {["ready", "ready_with_warnings"].includes(selected.status) ? <Alert severity="info" sx={alertTextSx}>Untuk mengambil gambar atau dokumen, unduh ZIP semua file, buka dengan kata sandi, lalu ekstrak uploads.zip di dalamnya.
             Untuk DBeaver, ekstrak ZIP database dan pilih database.dump. Restore penuh memakai paket lengkap di server.</Alert>
             : null}
+          <Box sx={{ display: "grid", gap: 2, minWidth: 0 }}>
           {(activeStatuses.has(selected.status) ?
             [["ID pekerjaan", selected.id], ["Diminta", formatDate(selected.created_at)],
               ["Mulai", formatDate(selected.started_at)]] :
@@ -495,31 +504,32 @@ export default function SystemBackupsPage() {
             ["Mulai", formatDate(selected.started_at)], ["Selesai", formatDate(selected.completed_at)],
             ["Organisasi", selected.organization_count ?? "Belum tersedia"],
             ["File dalam paket", selected.file_count ?? "Belum tersedia"],
-            ["File perlu tindak lanjut", selected.issue_count || 0],
+            ["Temuan saat pemeriksaan", selected.issue_count || 0],
             ["Ukuran file", formatBytes(selected.file_bytes)], ["Ukuran paket", formatBytes(selected.package_bytes)],
             ["SHA-256 paket", selected.package_sha256 || "Belum tersedia"],
-            ["ZIP database", artifactSummary(selected.artifacts?.database_zip)],
+            ["ZIP database", artifactSummary(selected.artifacts?.database_zip, selected.status)],
             ["SHA-256 ZIP database", selected.artifacts?.database_zip?.sha256 || "Belum tersedia"],
-            ["ZIP semua file", artifactSummary(selected.artifacts?.uploads_zip)],
+            ["ZIP semua file", artifactSummary(selected.artifacts?.uploads_zip, selected.status)],
             ["SHA-256 ZIP semua file", selected.artifacts?.uploads_zip?.sha256 || "Belum tersedia"],
             ["Penyimpanan", selected.status === "deleted" ? `Dihapus ${formatDate(selected.deleted_at)}` :
               selected.status === "expired" ? "Masa unduh habis" :
-                ["ready", "ready_with_warnings"].includes(selected.status) ? "Sampai dihapus" : "Belum tersedia"],
+                ["ready", "ready_with_warnings"].includes(selected.status) ? "Tersedia" : "Belum tersedia"],
             ["Masalah", selected.error_message || "Tidak ada masalah"]]).map(([label, value]) =>
-            <Box key={label} sx={{ display: "grid", gridTemplateColumns: "minmax(100px, 34%) minmax(0, 1fr)", gap: 1 }}>
-              <Typography variant="body2" color="text.secondary">{label}</Typography>
-              <Typography variant="body2" fontWeight={600}>{value}</Typography>
+            <Box key={label} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(100px, 34%) minmax(0, 1fr)" }, gap: { xs: 1, sm: 2 }, minWidth: 0 }}>
+              <FontStyle fontSize={14} variant="body2" color="text.secondary">{label}</FontStyle>
+              <FontStyle fontSize={14} variant="body2" fontWeight={600}>{value}</FontStyle>
             </Box>)}
+          </Box>
           {["ready", "ready_with_warnings"].includes(selected.status) ?
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, pt: 1 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" }, gap: 1.5, pt: 3, borderTop: "1px solid", borderColor: "divider" }}>
               {artifactButtons(selected)}
             </Box> : null}
-          {Number(selected.issue_count) > 0 ? <Box sx={{ display: "grid", gap: 1.5, mt: 2, minWidth: 0 }}>
-            <Typography fontWeight={700}>File perlu ditindaklanjuti</Typography>
-            <Typography variant="body2" color="text.secondary">
-              File yang tersedia tetap dicadangkan. Daftar ini juga ada di dalam paket terenkripsi.
-            </Typography>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3,minmax(0,1fr))" }, gap: 1 }}>
+          {Number(selected.issue_count) > 0 ? <Box sx={{ display: "grid", gap: 3, mt: 0, pt: 3, borderTop: "1px solid", borderColor: "divider", minWidth: 0 }}>
+            <FontStyle fontSize={16} fontWeight={700}>{["deleted", "expired"].includes(selected.status) ? "Temuan saat backup dibuat" : "File perlu ditindaklanjuti"}</FontStyle>
+            <FontStyle fontSize={14} variant="body2" color="text.secondary">
+              {["deleted", "expired"].includes(selected.status) ? "File backup sudah tidak tersedia. Daftar ini disimpan sebagai histori pemeriksaan pada saat backup dibuat, bukan kondisi file saat ini. Periksa Penyimpanan File untuk pengecekan terbaru." : "Daftar ini berisi temuan saat backup dibuat. File yang tersedia tetap dicadangkan, dan daftar temuan disertakan di dalam paket terenkripsi."}
+            </FontStyle>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3,minmax(0,1fr))" }, gap: 2 }}>
               <TextField select size="small" label="Organisasi" value={issueOrganization}
                 sx={{ "& .MuiInputBase-root": { minHeight: 44 } }}
                 onChange={(event) => setIssueOrganization(event.target.value)}>
@@ -543,24 +553,24 @@ export default function SystemBackupsPage() {
             </Box>
             {issueError ? <Alert severity="error" action={<Button onClick={() => loadIssues(selected.id)}>Coba lagi</Button>}>
               {issueError}</Alert> : null}
-            {issues.map((issue) => <Box key={issue.stored_file_id} sx={{ p: 1.5, border: "1px solid",
-              borderColor: "divider", borderRadius: 2, display: "grid", gap: 0.5, minWidth: 0 }}>
+            {issues.map((issue) => <Box key={issue.stored_file_id} sx={{ p: 2, border: "1px solid",
+              borderColor: "divider", borderRadius: 2, display: "grid", gap: 1.5, minWidth: 0 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                <Typography fontWeight={700}>{issue.file_label}</Typography>
+                <FontStyle fontSize={16} fontWeight={700}>{issue.file_label}</FontStyle>
                 <CompactInfoChip label={issueLabels[issue.issue_type]} tone="warning" />
               </Box>
-              <Typography variant="body2">{issue.organization_name} · {issue.employee_name || "Tidak terkait pegawai"}
-                {issue.employee_no_masked ? ` · NIP ${issue.employee_no_masked}` : ""}</Typography>
-              <Typography variant="body2" color="text.secondary">ID file {issue.stored_file_id} · {
-                issue.priority === "restore" ? "Pulihkan atau unggah ulang file ini." : "Tinjau untuk pembersihan."}</Typography>
-              {issue.relationships?.length > 1 ? <Typography variant="caption" color="text.secondary">
+              <FontStyle fontSize={14} variant="body2">{issue.organization_name} · {issue.employee_name || "Tidak terkait pegawai"}
+                {issue.employee_no_masked ? ` · NIP ${issue.employee_no_masked}` : ""}</FontStyle>
+              <FontStyle fontSize={14} variant="body2" color="text.secondary">ID file {issue.stored_file_id} · {
+                ["deleted", "expired"].includes(selected.status) ? "Temuan historis; periksa kondisi file terbaru di Penyimpanan File." : issue.priority === "restore" ? "Pulihkan atau unggah ulang file ini." : "Tinjau untuk pembersihan."}</FontStyle>
+              {issue.relationships?.length > 1 ? <FontStyle fontSize={12} variant="caption" color="text.secondary">
                 Terkait: {issue.relationships.map((relation) => `${relation.source}${relation.employeeName
                   ? ` (${relation.employeeName}${relation.nipMasked ? ` · NIP ${relation.nipMasked}` : ""})` : ""}`).join(", ")}
-              </Typography> : null}
+              </FontStyle> : null}
             </Box>)}
-            {issueLoading ? <Typography variant="body2" color="text.secondary">Memuat temuan…</Typography> : null}
-            {!issueLoading && !issueError && issues.length === 0 ? <Typography variant="body2" color="text.secondary">
-              Tidak ada temuan yang cocok dengan filter.</Typography> : null}
+            {issueLoading ? <FontStyle fontSize={14} variant="body2" color="text.secondary">Memuat temuan…</FontStyle> : null}
+            {!issueLoading && !issueError && issues.length === 0 ? <FontStyle fontSize={14} variant="body2" color="text.secondary">
+              Tidak ada temuan yang cocok dengan filter.</FontStyle> : null}
             {issueCursor ? <Button onClick={() => loadIssues(selected.id, issueCursor)} loading={issueLoading}
               style={{ minHeight: 44, justifySelf: "start" }}>Muat lainnya</Button> : null}
           </Box> : null}
@@ -575,7 +585,7 @@ export default function SystemBackupsPage() {
           <Button type="primary" loading={retrying} disabled={!retryPassword} onClick={retryZip}
             style={{ minHeight: 44 }}>Buat ulang ZIP</Button></>}>
         <Box sx={{ display: "grid", gap: 2 }}>
-          <Alert severity="info">Masukkan kata sandi paket utama. Sistem tidak menyimpan kata sandi Anda.</Alert>
+          <Alert severity="info" sx={alertTextSx}>Masukkan kata sandi paket utama. Sistem tidak menyimpan kata sandi Anda.</Alert>
           <TextField label="Kata sandi backup" type={showRetryPassword ? "text" : "password"}
             autoComplete="off" value={retryPassword} onChange={(event) => setRetryPassword(event.target.value)} fullWidth
             slotProps={{ htmlInput: { maxLength: 128 }, input: { endAdornment: <InputAdornment position="end">
@@ -600,18 +610,27 @@ export default function SystemBackupsPage() {
             emptyTitle="Pilih paket backup yang sudah diunduh"
             helpText="Pemeriksaan ini membandingkan file dengan paket asli di server." />
           {verifyResult ? <Alert severity={verifyResult.startsWith("File unduhan cocok") ? "success" : "error"}>{verifyResult}</Alert> : null}
-          <Typography variant="body2" color="text.secondary">
+          <FontStyle fontSize={14} variant="body2" color="text.secondary">
             Untuk memeriksa isi dan kata sandi, jalankan alat pemeriksa lokal pada Windows atau Linux sesuai panduan pemulihan.
-          </Typography>
+          </FontStyle>
         </Box>
       </AppModal>
-      <ConfirmDialog open={Boolean(deleteJob)} title="Hapus file backup dari server?"
-        message={deleteJob ? `Paket lengkap dan ZIP dari backup ${formatDate(deleteJob.created_at)} akan dihapus permanen dari server (sekitar ${formatBytes(Number(deleteJob.package_bytes || 0) +
-          Object.values(deleteJob.artifacts || {}).reduce((total, artifact) => total + Number(artifact.sizeBytes || 0), 0))}).
-          Backup ini mencakup seluruh organisasi. Riwayat dan daftar file bermasalah tetap ada, tetapi paket tidak dapat diunduh atau dipulihkan lagi dari server.
-          Pastikan Anda sudah menyimpan salinan di tempat lain.` : ""}
+      <ConfirmDialog open={Boolean(deleteJob)} title="Hapus file backup"
+        messageAlign="center"
+        illustration={<DeleteOutlined />} heading="Hapus salinan backup dari server?"
+        message="Paket lengkap, ZIP database, dan ZIP seluruh file dari backup ini akan dihapus permanen. Pastikan salinan yang diperlukan sudah Anda unduh."
         confirmText="Hapus backup" danger loading={deleting} onConfirm={removeBackup}
-        onClose={() => { if (!deleting) setDeleteJob(null); }} />
+        onClose={() => { if (!deleting) setDeleteJob(null); }}>
+        {deleteJob ? <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
+          <Box sx={{ p: 2, border: "1px solid", borderColor: "divider", bgcolor: "background.default", borderRadius: 2, display: "grid", gap: 1 }}>
+            <FontStyle fontSize={14} fontWeight={600}>Backup {formatDate(deleteJob.created_at)}</FontStyle>
+            <FontStyle fontSize={13} color="text.secondary">Ukuran yang dihapus: {formatBytes(Number(deleteJob.package_bytes || 0) +
+              Object.values(deleteJob.artifacts || {}).reduce((total, artifact) => total + Number(artifact.sizeBytes || 0), 0))}</FontStyle>
+          </Box>
+          <Alert severity="info" sx={alertTextSx}>Database aktif dan foto atau dokumen asli tidak dihapus. Riwayat backup, catatan penghapusan, dan temuan pemeriksaan tetap tersimpan.</Alert>
+          <Alert severity="warning" sx={alertTextSx}>Setelah dihapus, backup ini tidak dapat diunduh atau digunakan untuk pemulihan dari server.</Alert>
+        </Box> : null}
+      </ConfirmDialog>
       <Notification {...notification} onClose={closeNotification} />
     </Box>
   );

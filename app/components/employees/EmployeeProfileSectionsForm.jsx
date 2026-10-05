@@ -3,6 +3,7 @@
 import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Checkbox, Collapse, DatePicker, Form, Input, Select } from "antd";
 import { DeleteOutlined, PlusOutlined, WarningOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
@@ -687,6 +688,7 @@ export default function EmployeeProfileSectionsForm({
   onSaved,
   onError,
 }) {
+  const router = useRouter();
   const [form] = Form.useForm();
   const [activeSections, setActiveSections] = useState([]);
   const [errorSections, setErrorSections] = useState([]);
@@ -841,6 +843,8 @@ export default function EmployeeProfileSectionsForm({
             body: multipart,
           });
           const body = await readApiResponse(response);
+          // Identitas sidebar berasal dari layout server, bukan snapshot halaman pegawai.
+          router.refresh();
           await onSaved(body.message);
           setRemovedFileIds([]);
         },
