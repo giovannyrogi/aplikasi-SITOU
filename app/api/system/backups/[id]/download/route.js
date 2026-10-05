@@ -17,10 +17,10 @@ export async function GET(request, { params }) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
       return errorResponse("BACKUP_ID_INVALID", "ID backup tidak valid.", 400, requestId);
     const result = await pool.query(
-      `SELECT id::text,status,package_path,expires_at FROM system_backup_jobs WHERE id=$1::uuid`, [id]);
+      `SELECT id::text,status,package_path FROM system_backup_jobs WHERE id=$1::uuid`, [id]);
     const job = result.rows[0];
-    if (!job || job.status !== "ready" || new Date(job.expires_at).getTime() <= Date.now())
-      return errorResponse("BACKUP_UNAVAILABLE", "Paket backup tidak tersedia atau masa unduh sudah habis.", 404, requestId);
+    if (!job || !["ready", "ready_with_warnings"].includes(job.status))
+      return errorResponse("BACKUP_UNAVAILABLE", "Paket backup tidak tersedia atau telah dihapus.", 404, requestId);
     const expected = packagePath(backupPaths().backupRoot, id);
     if (job.package_path !== expected)
       return errorResponse("BACKUP_PATH_INVALID", "Lokasi paket backup tidak valid.", 503, requestId);

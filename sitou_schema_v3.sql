@@ -1391,9 +1391,10 @@ CREATE TABLE system_backup_jobs (
   requested_by_user_id bigint NOT NULL REFERENCES users(id),
   request_id uuid NOT NULL UNIQUE,
   status varchar(24) NOT NULL DEFAULT 'queued'
-    CHECK (status IN ('queued','copying','securing','verifying','ready','failed','expired')),
+    CHECK (status IN ('queued','copying','securing','verifying','ready','ready_with_warnings','failed','expired','deleted')),
   organization_count integer,
   file_count bigint,
+  issue_count bigint NOT NULL DEFAULT 0 CHECK (issue_count >= 0),
   file_bytes bigint,
   package_bytes bigint,
   package_sha256 char(64),
@@ -1405,17 +1406,54 @@ CREATE TABLE system_backup_jobs (
   heartbeat_at timestamptz,
   completed_at timestamptz,
   expires_at timestamptz,
+  deleted_at timestamptz,
+  deleted_by_user_id bigint REFERENCES users(id),
   CONSTRAINT ck_system_backup_ready CHECK (
-    status <> 'ready' OR
-    (package_path IS NOT NULL AND package_sha256 IS NOT NULL AND expires_at IS NOT NULL)
+    status NOT IN ('ready','ready_with_warnings') OR
+    (package_path IS NOT NULL AND package_sha256 IS NOT NULL)
+  ),
+  CONSTRAINT ck_system_backup_deleted CHECK (
+    status <> 'deleted' OR (deleted_at IS NOT NULL AND deleted_by_user_id IS NOT NULL)
   )
 );
 CREATE UNIQUE INDEX uq_system_backup_active ON system_backup_jobs ((true))
 WHERE status IN ('queued','copying','securing','verifying');
 CREATE INDEX ix_system_backup_history ON system_backup_jobs(created_at DESC,id DESC);
-CREATE INDEX ix_system_backup_expiry ON system_backup_jobs(expires_at) WHERE status='ready';
 CREATE INDEX ix_system_backup_stale ON system_backup_jobs(heartbeat_at)
 WHERE status IN ('queued','copying','securing','verifying');
+
+CREATE TABLE system_backup_file_issues (
+  job_id uuid NOT NULL REFERENCES system_backup_jobs(id) ON DELETE CASCADE,
+  organization_id bigint NOT NULL,
+  organization_name varchar(200) NOT NULL,
+  stored_file_id bigint NOT NULL,
+  employee_id bigint,
+  employee_name varchar(200),
+  employee_no_masked varchar(80),
+  file_label varchar(120) NOT NULL,
+  issue_type varchar(24) NOT NULL CHECK (issue_type IN ('missing','size_mismatch','hash_mismatch')),
+  priority varchar(20) NOT NULL CHECK (priority IN ('restore','cleanup_review')),
+  relationships jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(relationships)='array'),
+  PRIMARY KEY (job_id,stored_file_id)
+);
+CREATE INDEX ix_system_backup_file_issues_filters
+  ON system_backup_file_issues(job_id,organization_id,priority,issue_type,stored_file_id);
+
+CREATE TABLE system_backup_artifacts (
+  job_id uuid NOT NULL REFERENCES system_backup_jobs(id) ON DELETE CASCADE,
+  kind varchar(20) NOT NULL CHECK (kind IN ('database_zip','uploads_zip')),
+  status varchar(16) NOT NULL CHECK (status IN ('pending','creating','ready','failed','expired','deleted')),
+  size_bytes bigint CHECK (size_bytes >= 0),
+  sha256 char(64),
+  internal_path text,
+  error_message text,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (job_id,kind),
+  CONSTRAINT ck_system_backup_artifact_ready CHECK (
+    status <> 'ready' OR (size_bytes IS NOT NULL AND sha256 IS NOT NULL AND internal_path IS NOT NULL)
+  )
+);
+CREATE INDEX ix_system_backup_artifacts_status ON system_backup_artifacts(status,updated_at);
 
 CREATE TABLE file_cleanup_runs (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID proses pemeriksaan atau pembersihan.
@@ -1649,7 +1687,7 @@ INSERT INTO permissions(code,description) VALUES
   ('private_files.read_sensitive','Melihat dan mengunduh file sensitif.'),
   ('private_files.manage','Mengunggah dan melakukan soft delete file privat.'),
   ('storage_maintenance.manage','Memeriksa dan membersihkan byte file profil yang tidak lagi digunakan.'),
-  ('system_backup.manage','Membuat, melihat, memverifikasi, dan mengunduh backup seluruh sistem.'),
+  ('system_backup.manage','Membuat, melihat, memverifikasi, mengunduh, dan menghapus paket backup seluruh sistem.'),
   ('employees.read_self','Melihat profil pegawai milik akun sendiri.'),
   ('assignments.read_self','Melihat penempatan milik akun sendiri.'),
   ('contracts.read_self','Melihat kontrak milik akun sendiri.'),

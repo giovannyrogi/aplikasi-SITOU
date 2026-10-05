@@ -34,9 +34,13 @@
 !/database/migrations/README.md
 /scripts/*
 !/scripts/run-system-backup.mjs
+!/scripts/diagnose-system-backup-files.mjs
 !/scripts/expire-system-backups.mjs
 !/scripts/verify-system-backup.mjs
 !/scripts/test-system-backup-db.mjs
+!/scripts/retry-system-backup-artifact.mjs
+!/scripts/restore-system-backup.mjs
+!/scripts/test-system-restore-db.mjs
 !/scripts/test-employee-creator-filter-http.mjs
 !/scripts/test-reports-db.mjs
 !/scripts/test-reports-http.mjs

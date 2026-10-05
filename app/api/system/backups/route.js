@@ -9,9 +9,11 @@ export async function GET(request) {
   const { response } = await requirePermission("system_backup.manage");
   if (response) return response;
   try {
-    const includeEstimate = new URL(request.url).searchParams.get("estimate") !== "0";
-    const [jobs, estimate] = await Promise.all([listBackups(), includeEstimate ? estimateBackup() : null]);
-    return successResponse({ jobs, estimate });
+    const parameters = new URL(request.url).searchParams;
+    const includeEstimate = parameters.get("estimate") !== "0";
+    const [history, estimate] = await Promise.all([listBackups(parameters.get("cursor")),
+      includeEstimate ? estimateBackup() : null]);
+    return successResponse({ jobs: history.rows, nextCursor: history.nextCursor, estimate });
   } catch (error) {
     return handleRouteError("system-backup.list", error, requestId);
   }
@@ -28,8 +30,8 @@ export async function POST(request) {
   if (parsed.response) return parsed.response;
   try {
     const job = await createBackup({ user, password: parsed.data.password, requestId });
-    return successResponse(job, { status: job.status === "ready" ? 200 : 202,
-      message: job.status === "ready"
+    return successResponse(job, { status: ["ready", "ready_with_warnings"].includes(job.status) ? 200 : 202,
+      message: ["ready", "ready_with_warnings"].includes(job.status)
         ? "Backup dari permintaan ini sudah siap diunduh."
         : "Backup dimulai. Simpan kata sandi Anda dengan aman." });
   } catch (error) {

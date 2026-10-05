@@ -1,5 +1,5 @@
 import { createCipheriv, createHash, randomBytes, scryptSync } from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createReadStream, createWriteStream } from "node:fs";
 import { appendFile, link, lstat, mkdir, mkdtemp, opendir, realpath, rm, stat, statfs, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -8,8 +8,10 @@ import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import dotenv from "dotenv";
 import pg from "pg";
-import { backupPaths, packagePath } from "../lib/system-backup/paths.mjs";
-import { STORED_FILE_REFERENCES } from "../lib/storage-maintenance/policy.mjs";
+import { artifactPath, backupPaths, packagePath } from "../lib/system-backup/paths.mjs";
+import { createEncryptedZip, createPlainZip, pairedManifest } from "../lib/system-backup/artifacts.mjs";
+import { describeBackupFailure } from "../lib/system-backup/diagnostics.mjs";
+import { collectBackupMetadata, inspectBackupFiles } from "../lib/system-backup/file-issues.mjs";
 import { verifyArchive } from "../lib/system-backup/archive.mjs";
 
 dotenv.config({
@@ -58,15 +60,20 @@ async function runCommand(binary, args, env, timeoutMs, outputPath) {
     const timer = setTimeout(() => child.kill(), timeoutMs);
     const output = outputPath ? createWriteStream(outputPath, { flags: "wx", mode: 0o600 }) : null;
     if (output) {
-      output.once("error", reject);
+      output.once("error", (error) => { error.source = "backup_output"; reject(error); });
       child.stdout.pipe(output);
     }
     else child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8").slice(0, 200); });
-    child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8").slice(0, 300); });
-    child.once("error", (error) => { clearTimeout(timer); reject(error); });
+    child.stderr.on("data", (chunk) => { stderr = (stderr + chunk.toString("utf8")).slice(0, 2048); });
+    child.once("error", (error) => { clearTimeout(timer); error.source = "pg_dump"; reject(error); });
     child.once("close", async (code) => {
       clearTimeout(timer);
-      if (code !== 0) reject(new Error(`Perintah database gagal (${code}): ${stderr.slice(0, 200)}`));
+      if (code !== 0) {
+        const failure = new Error(`Perintah database gagal (${code}).`);
+        failure.code = "PG_DUMP_FAILED";
+        failure.commandStderr = stderr;
+        reject(failure);
+      }
       else {
         if (output && !output.writableFinished)
           await new Promise((done, fail) => { output.once("finish", done); output.once("error", fail); }).catch(reject);
@@ -107,39 +114,8 @@ async function digestFile(filePath) {
   return { sha256: hash.digest("hex"), size };
 }
 
-/** Referensi domain nyata harus tersedia dalam snapshot dan sesuai metadata. */
-async function collectReferencedFiles(client) {
-  const references = STORED_FILE_REFERENCES.map(({ table, column }) =>
-    `SELECT organization_id,${column} AS file_id FROM ${table} WHERE ${column} IS NOT NULL`
-  ).join(" UNION ");
-  return (await client.query(
-    `SELECT CASE WHEN f.lifecycle_status='quarantined' THEN
-       q.quarantine_object_key ELSE f.object_key END AS object_key,
-       COALESCE(f.sha256,q.sha256) AS sha256,f.size_bytes,f.storage_provider
-     FROM (${references}) ref JOIN stored_files f
-       ON f.organization_id=ref.organization_id AND f.id=ref.file_id
-     LEFT JOIN file_quarantine_items q ON q.organization_id=f.organization_id
-       AND q.stored_file_id=f.id AND q.status='quarantined'`,
-  )).rows;
-}
-
-async function validateReferencedFiles(references, snapshotDirectory) {
-  for (const file of references) {
-    if (file.storage_provider !== "local_private")
-      throw new Error("Ada file aktif di storage eksternal yang belum didukung backup ini.");
-    const relative = String(file.object_key || "").replaceAll("/", path.sep);
-    const target = path.resolve(snapshotDirectory, relative);
-    if (!target.startsWith(snapshotDirectory + path.sep))
-      throw new Error("Ada lokasi file aktif yang tidak aman.");
-    const actual = await digestFile(target).catch(() => null);
-    if (!actual || actual.size !== Number(file.size_bytes) ||
-        (file.sha256 && actual.sha256 !== file.sha256.trim()))
-      throw new Error("Ada file yang masih digunakan tetapi hilang atau berubah. Periksa menu Penyimpanan File.");
-  }
-}
-
 /** Membatasi seluruh mutasi PostgreSQL selama snapshot file dan dump dibuat. */
-async function consistentSnapshot(snapshotDirectory, dumpPath) {
+async function consistentSnapshot(snapshotDirectory, dumpPath, onPhase) {
   const client = await pool.connect();
   let keeper;
   let inTransaction = false;
@@ -168,6 +144,7 @@ async function consistentSnapshot(snapshotDirectory, dumpPath) {
     // Keeper memegang snapshot yang sama tanpa kunci tulis selama pg_dump berlangsung.
     await client.query("COMMIT");
     inTransaction = false;
+    onPhase("dump");
     const pgDump = process.env.PG_DUMP_PATH || "pg_dump";
     await runCommand(pgDump,
       ["--format=custom", "--no-owner", "--no-acl", `--snapshot=${stableSnapshotId}`,
@@ -175,10 +152,10 @@ async function consistentSnapshot(snapshotDirectory, dumpPath) {
         "--username", connection.user, "--dbname", connection.database],
       { ...process.env, PGPASSWORD: connection.password || "" }, 2 * 60 * 60 * 1000, dumpPath);
     const organizationCount = Number((await keeper.query("SELECT count(*)::int AS count FROM organizations")).rows[0].count);
-    const references = await collectReferencedFiles(keeper);
+    const metadata = await collectBackupMetadata(keeper);
     await keeper.query("COMMIT");
     keeperTransaction = false;
-    return { files, references, organizationCount };
+    return { files, metadata, organizationCount };
   } finally {
     if (inTransaction) await client.query("ROLLBACK").catch(() => {});
     if (keeperTransaction) await keeper.query("ROLLBACK").catch(() => {});
@@ -202,14 +179,18 @@ async function* archiveContents(manifest, files) {
   }
 }
 
-async function createPackage(password, archivePath, files, organizationCount) {
+async function createPackage(password, archivePath, files, organizationCount, issueCount, postgresMajor) {
   const indexed = [];
   for (const file of files) indexed.push({ ...file, ...await digestFile(file.absolutePath) });
   const manifest = {
-    format: 1,
+    format: 2,
     createdAt: new Date().toISOString(),
+    postgresMajor,
+    appRevision: process.env.SITOU_RELEASE_SHA ||
+      (spawnSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8", windowsHide: true }).stdout || "").trim() || null,
     organizationCount,
-    fileCount: indexed.length - 1,
+    fileCount: indexed.length - 2,
+    issueCount,
     files: indexed.map(({ path: relative, size, sha256 }) => ({ path: relative, size, sha256 })),
   };
   const salt = randomBytes(16);
@@ -229,25 +210,50 @@ async function mark(status, details = {}) {
     `UPDATE system_backup_jobs SET status=$2::varchar,started_at=COALESCE(started_at,now()),
       heartbeat_at=now(),
       organization_count=COALESCE($3,organization_count),file_count=COALESCE($4,file_count),
+      issue_count=COALESCE($11,issue_count),
       file_bytes=COALESCE($5,file_bytes),package_bytes=COALESCE($6,package_bytes),
       package_sha256=COALESCE($7,package_sha256),package_path=COALESCE($8,package_path),
       error_code=$9,error_message=$10,
-      completed_at=CASE WHEN $2::varchar IN ('ready','failed') THEN now() ELSE completed_at END,
-      expires_at=CASE WHEN $2::varchar='ready' THEN now()+interval '24 hours' ELSE expires_at END
+      completed_at=CASE WHEN $2::varchar IN ('ready','ready_with_warnings','failed') THEN now() ELSE completed_at END
      WHERE id=$1`,
     [jobId,status,details.organizationCount ?? null,details.fileCount ?? null,
       details.fileBytes ?? null,details.packageBytes ?? null,details.packageSha256 ?? null,
-      details.packagePath ?? null,details.errorCode ?? null,details.errorMessage ?? null],
+      details.packagePath ?? null,details.errorCode ?? null,details.errorMessage ?? null,
+      details.issueCount ?? null],
   );
+}
+
+async function saveIssues(issues) {
+  if (!issues.length) return;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (const issue of issues) await client.query(
+      `INSERT INTO system_backup_file_issues
+       (job_id,organization_id,organization_name,stored_file_id,employee_id,employee_name,
+        employee_no_masked,file_label,issue_type,priority,relationships)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)`,
+      [jobId,issue.organizationId,issue.organizationName,issue.storedFileId,issue.employeeId,
+        issue.employeeName,issue.employeeNoMasked,issue.fileLabel,issue.issueType,issue.priority,
+        JSON.stringify(issue.relationships)],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally { client.release(); }
 }
 
 let workDirectory;
 let archivePath;
+let currentPhase = "preparation";
 const heartbeat = setInterval(() => {
   pool.query(
     `UPDATE system_backup_jobs SET heartbeat_at=now() WHERE id=$1
      AND status IN ('queued','copying','securing','verifying')`, [jobId],
   ).catch(() => {});
+  pool.query(`UPDATE system_backup_artifacts SET updated_at=now()
+    WHERE job_id=$1 AND status='creating'`, [jobId]).catch(() => {});
 }, 30_000);
 heartbeat.unref();
 try {
@@ -268,47 +274,96 @@ try {
   const freeBytes = Number(disk.bavail) * Number(disk.bsize);
   if (freeBytes < databaseBytes * 2)
     throw new Error("Ruang penyimpanan backup tidak mencukupi.");
+  currentPhase = "version";
   const version = await runCommand(process.env.PG_DUMP_PATH || "pg_dump", ["--version"], process.env, 5000);
   const serverVersion = Number((await pool.query("SHOW server_version_num")).rows[0].server_version_num);
   const dumpMajor = Number(version.match(/(\d+)(?:\.\d+)?\s*$/)?.[1]);
   if (!Number.isFinite(dumpMajor) || dumpMajor < Math.floor(serverVersion / 10000))
     throw new Error("Versi pg_dump lebih lama daripada PostgreSQL server.");
   await mark("copying");
+  currentPhase = "snapshot";
   workDirectory = await mkdtemp(path.join(paths.snapshotRoot, `${jobId}-`));
   const uploadSnapshot = path.join(workDirectory, "uploads");
   const dumpPath = path.join(workDirectory, "database.dump");
-  const { files, references, organizationCount } = await consistentSnapshot(uploadSnapshot, dumpPath);
+  const { files, metadata, organizationCount } = await consistentSnapshot(uploadSnapshot, dumpPath,
+    (phase) => { currentPhase = phase; });
   if (freeBytes < databaseBytes + files.reduce((total, file) => total + file.size, 0))
     throw new Error("Ruang penyimpanan backup tidak mencukupi.");
-  await validateReferencedFiles(references, uploadSnapshot);
+  currentPhase = "validation";
+  const issues = await inspectBackupFiles(metadata, uploadSnapshot, files, digestFile);
+  await saveIssues(issues);
+  const reportPath = path.join(workDirectory, "backup-file-issues.json");
+  await writeFile(reportPath, JSON.stringify({ format: 1, jobId, issues }, null, 2),
+    { flag: "wx", mode: 0o600 });
   await mark("securing", { organizationCount, fileCount: files.length,
-    fileBytes: files.reduce((n, file) => n + file.size, 0) });
+    fileBytes: files.reduce((n, file) => n + file.size, 0), issueCount: issues.length });
   archivePath = packagePath(paths.backupRoot, jobId);
+  currentPhase = "package";
   const result = await createPackage(password, archivePath,
     [{ path: "database.dump", absolutePath: dumpPath },
-      ...files.map((file) => ({ ...file, path: `uploads/${file.path}` }))], organizationCount);
+      { path: "backup-file-issues.json", absolutePath: reportPath },
+      ...files.map((file) => ({ ...file, path: `uploads/${file.path}` }))], organizationCount, issues.length,
+    Math.floor(serverVersion / 10000));
   await mark("verifying");
+  currentPhase = "verify";
   if ((await stat(archivePath)).size !== result.size)
     throw new Error("Ukuran paket backup tidak sesuai.");
   await verifyArchive(archivePath, password);
-  await mark("ready", { packageBytes: result.size, packageSha256: result.sha256, packagePath: archivePath });
+  await mark(issues.length ? "ready_with_warnings" : "ready",
+    { packageBytes: result.size, packageSha256: result.sha256, packagePath: archivePath });
   await pool.query(
     `INSERT INTO audit_logs(actor_user_id,action,entity_type,entity_id,after_data,request_id)
-     SELECT requested_by_user_id,'system_backup.ready','system_backup_job',id::text,
-       jsonb_build_object('fileCount',file_count,'packageBytes',package_bytes),request_id
-     FROM system_backup_jobs WHERE id=$1`, [jobId]);
+     SELECT requested_by_user_id,$2,'system_backup_job',id::text,
+       jsonb_build_object('fileCount',file_count,'issueCount',issue_count,'packageBytes',package_bytes),request_id
+     FROM system_backup_jobs WHERE id=$1`, [jobId,
+      issues.length ? "system_backup.ready_with_warnings" : "system_backup.ready"]);
+  try {
+    for (const kind of ["database_zip", "uploads_zip"])
+      await pool.query(`INSERT INTO system_backup_artifacts(job_id,kind,status)
+        VALUES($1,$2,'pending') ON CONFLICT (job_id,kind) DO NOTHING`, [jobId, kind]);
+    const pairingPath = path.join(workDirectory, "backup-pairing.json");
+    await writeFile(pairingPath, JSON.stringify(pairedManifest(jobId, result.sha256, result.manifest), null, 2),
+      { flag: "wx", mode: 0o600 });
+    const fileHashes = new Map(result.manifest.files.map((file) => [file.path, file.sha256]));
+    for (const kind of ["database_zip", "uploads_zip"]) {
+      await pool.query(`UPDATE system_backup_artifacts SET status='creating',updated_at=now()
+        WHERE job_id=$1 AND kind=$2`, [jobId, kind]);
+      const destination = artifactPath(paths.backupRoot, jobId, kind);
+      const innerZip = path.join(workDirectory, "uploads-inner.zip");
+      try {
+        if (kind === "uploads_zip")
+          await createPlainZip(innerZip, files.map((file) => ({ name: `uploads/${file.path}`,
+            path: file.absolutePath, sha256: fileHashes.get(`uploads/${file.path}`) })));
+        const entries = kind === "database_zip"
+          ? [{ name: "database.dump", path: dumpPath, sha256: fileHashes.get("database.dump") },
+            { name: "backup-file-issues.json", path: reportPath },
+            { name: "backup-pairing.json", path: pairingPath }]
+          : [{ name: "uploads.zip", path: innerZip },
+            { name: "backup-file-issues.json", path: reportPath },
+            { name: "backup-pairing.json", path: pairingPath }];
+        const zipped = await createEncryptedZip(destination, password, entries);
+        await pool.query(`UPDATE system_backup_artifacts SET status='ready',size_bytes=$3,
+          sha256=$4,internal_path=$5,error_message=NULL,updated_at=now()
+          WHERE job_id=$1 AND kind=$2`, [jobId, kind, zipped.size, zipped.sha256, destination]);
+      } catch (error) {
+        await pool.query(`UPDATE system_backup_artifacts SET status='failed',
+          error_message='ZIP belum dapat dibuat. Coba lagi selama paket utama tersedia.',updated_at=now()
+          WHERE job_id=$1 AND kind=$2`, [jobId, kind]).catch(() => {});
+        console.error("[system_backup.artifact_failed]", { jobId, kind, code: error.code || "ZIP_FAILED" });
+      } finally {
+        if (kind === "uploads_zip") await rm(innerZip, { force: true }).catch(() => {});
+      }
+    }
+  } catch (error) {
+    await pool.query(`UPDATE system_backup_artifacts SET status='failed',
+      error_message='ZIP belum dapat dibuat. Coba lagi selama paket utama tersedia.',updated_at=now()
+      WHERE job_id=$1 AND status IN ('pending','creating')`, [jobId]).catch(() => {});
+    console.error("[system_backup.artifacts_failed]", { jobId, code: error.code || "ZIP_FAILED" });
+  }
 } catch (error) {
-  const message = /file.*digunakan|file.*berubah/i.test(error.message)
-    ? "Ada file yang masih digunakan tetapi hilang atau berubah. Periksa menu Penyimpanan File."
-    : /pg_dump|PostgreSQL/i.test(error.message)
-      ? "Pencadangan database gagal. Periksa pg_dump dan log server."
-      : /jeda|120/i.test(error.message)
-        ? "Jeda perubahan melebihi dua menit. Coba lagi saat sistem lebih sepi."
-        : /ruang penyimpanan/i.test(error.message)
-          ? "Ruang penyimpanan server tidak cukup untuk membuat backup."
-        : "Backup gagal. Periksa ruang penyimpanan dan log server.";
-  console.error("[system_backup.failed]", { jobId, code: error.code || "BACKUP_FAILED" });
-  await mark("failed", { errorCode: error.code || "BACKUP_FAILED", errorMessage: message }).catch(() => {});
+  const failure = describeBackupFailure(error, currentPhase);
+  console.error("[system_backup.failed]", { jobId, code: failure.code });
+  await mark("failed", { errorCode: failure.code, errorMessage: failure.message }).catch(() => {});
   await pool.query(
     `INSERT INTO audit_logs(actor_user_id,action,entity_type,entity_id,after_data,request_id)
      SELECT requested_by_user_id,'system_backup.failed','system_backup_job',id::text,

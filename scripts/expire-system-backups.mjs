@@ -2,21 +2,18 @@ import { readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import dotenv from "dotenv";
 import pg from "pg";
-import { backupPaths, packagePath } from "../lib/system-backup/paths.mjs";
+import { artifactPath, backupPaths, packagePath } from "../lib/system-backup/paths.mjs";
 
 dotenv.config({ path: process.env.ENV_FILE || (process.env.NODE_ENV === "production" ? ".env.production" : ".env.development"), quiet: true });
 const pool = new pg.Pool({ user: process.env.PGUSER, password: process.env.PGPASSWORD,
   host: process.env.PGHOST, database: process.env.PGDATABASE, port: Number(process.env.PGPORT || 5432) });
 
-/** Hanya nama paket yang diturunkan dari UUID internal boleh dihapus. */
+/** Backup siap tetap disimpan; worker hanya membersihkan sisa gagal/dihapus dan pekerjaan macet. */
 async function expire() {
   const { backupRoot, snapshotRoot } = backupPaths();
-  const result = await pool.query(
-    `SELECT id::text FROM system_backup_jobs WHERE status='ready' AND expires_at<=now() ORDER BY expires_at LIMIT 100`);
-  for (const job of result.rows) {
-    await rm(packagePath(backupRoot, job.id), { force: true });
-    await pool.query(`UPDATE system_backup_jobs SET status='expired',package_path=NULL WHERE id=$1 AND status='ready'`, [job.id]);
-  }
+  await pool.query(`UPDATE system_backup_artifacts SET status='failed',
+    error_message='Pembuatan ZIP terputus. Coba lagi.',updated_at=now()
+    WHERE status IN ('pending','creating') AND updated_at<now()-interval '30 minutes'`);
   await pool.query(
     `UPDATE system_backup_jobs SET status='failed',completed_at=now(),
       error_code='WORKER_INTERRUPTED',error_message='Proses backup terputus. Jalankan backup baru.'
@@ -32,8 +29,18 @@ async function expire() {
     const target = packagePath(backupRoot, match[1]);
     if (Date.now() - (await stat(target)).mtimeMs < 60 * 60 * 1000) continue;
     const job = (await pool.query(`SELECT status FROM system_backup_jobs WHERE id=$1`, [match[1]])).rows[0];
-    if (!job || ["failed", "expired"].includes(job.status))
+    if (!job || ["failed", "expired", "deleted"].includes(job.status))
       await rm(target, { force: true });
+  }
+  for (const entry of packages) {
+    const match = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-(database_zip|uploads_zip)\.zip$/i.exec(entry.name);
+    if (!entry.isFile() || !match) continue;
+    const target = artifactPath(backupRoot, match[1], match[2]);
+    if (Date.now() - (await stat(target)).mtimeMs < 60 * 60 * 1000) continue;
+    const artifact = (await pool.query(`SELECT a.status,j.status AS job_status FROM system_backup_artifacts a
+      JOIN system_backup_jobs j ON j.id=a.job_id WHERE a.job_id=$1 AND a.kind=$2`, [match[1],match[2]])).rows[0];
+    if (!artifact || ["failed", "expired", "deleted"].includes(artifact.status) ||
+        ["failed", "expired", "deleted"].includes(artifact.job_status)) await rm(target, { force: true });
   }
   // Snapshot yang ditinggal proses mati tidak boleh menyimpan hardlink privat selamanya.
   const entries = await readdir(snapshotRoot, { withFileTypes: true }).catch((error) => {
@@ -46,7 +53,7 @@ async function expire() {
     if (!target.startsWith(snapshotRoot + path.sep)) continue;
     if (Date.now() - (await stat(target)).mtimeMs <= 60 * 60 * 1000) continue;
     const job = (await pool.query(`SELECT status FROM system_backup_jobs WHERE id=$1`, [entry.name.slice(0, 36)])).rows[0];
-    if (!job || ["ready", "failed", "expired"].includes(job.status))
+    if (!job || ["ready", "ready_with_warnings", "failed", "expired", "deleted"].includes(job.status))
       await rm(target, { recursive: true, force: true });
   }
 }

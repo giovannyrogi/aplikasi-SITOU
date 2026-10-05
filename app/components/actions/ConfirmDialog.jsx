@@ -25,10 +25,10 @@ export default function ConfirmDialog({
       disableClose={loading}
       footer={
         <>
-          <Button onClick={onClose} disabled={loading}>
+          <Button onClick={onClose} disabled={loading} style={{ minHeight: 44 }}>
             Batal
           </Button>
-          <Button type="primary" danger={danger} loading={loading} onClick={onConfirm}>
+          <Button type="primary" danger={danger} loading={loading} onClick={onConfirm} style={{ minHeight: 44 }}>
             {confirmText}
           </Button>
         </>

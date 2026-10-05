@@ -88,3 +88,17 @@ dan **Tidak/Belum Tamat SD**. Kedua pilihan tidak memakai institusi, jurusan, ta
 kelulusan, atau ijazah dan otomatis menjadi pendidikan tertinggi. Constraint dibuat
 `NOT VALID` agar tidak mengubah data lama, tetapi langsung melindungi insert serta update
 baru. Terapkan sebelum deploy form dan validasi pendidikan baru.
+
+Migration `040` menambahkan status backup `ready_with_warnings`, jumlah temuan, dan tabel
+`system_backup_file_issues`. Terapkan setelah `038` dan `039`, sebelum deploy web dan
+worker backup yang mengizinkan paket dengan file hilang/berbeda. Temuan tetap tersedia
+setelah paket terenkripsi dihapus manual atau kedaluwarsa pada versi lama.
+
+Migration `041` menambahkan `system_backup_artifacts` untuk ZIP database dan ZIP semua
+file yang berasal dari snapshot backup yang sama. Terapkan setelah `040` sebelum deploy
+web dan worker backup. ZIP gagal dapat dicoba ulang dengan kata sandi paket utama.
+
+Migration `042` mengubah retensi backup siap menjadi manual. `expires_at` dibersihkan
+untuk backup yang masih siap, sedangkan riwayat yang sudah `expired` tidak dibangkitkan
+kembali. Status `deleted` dan identitas Superadmin penghapus disimpan; audit dan temuan
+tetap ada. Terapkan sebelum deploy web, worker backup, dan worker pemeliharaan versi baru.

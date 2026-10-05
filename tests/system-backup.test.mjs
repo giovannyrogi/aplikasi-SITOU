@@ -8,6 +8,54 @@ import { gzipSync } from "node:zlib";
 import { verifyArchive } from "../lib/system-backup/archive.mjs";
 import { backupPaths, packagePath } from "../lib/system-backup/paths.mjs";
 import { createBackupSchema } from "../lib/system-backup/validation.mjs";
+import { describeBackupFailure } from "../lib/system-backup/diagnostics.mjs";
+import { createEncryptedZip, pairedManifest } from "../lib/system-backup/artifacts.mjs";
+import { Uint8ArrayReader, TextWriter, ZipReader } from "@zip.js/zip.js";
+
+test("ZIP tambahan memakai AES-256, pasangan backup, dan kata sandi", async () => {
+  const temp = await mkdtemp(path.join(os.tmpdir(), "sitou-zip-test-"));
+  try {
+    const file = path.join(temp, "photo.jpg");
+    await writeFile(file, "sample-photo");
+    const zipPath = path.join(temp, "uploads.zip");
+    const result = await createEncryptedZip(zipPath, "rahasia", [{ name: "uploads/org_1/photo.jpg", path: file }]);
+    assert.equal(result.size > 0, true);
+    const reader = new ZipReader(new Uint8ArrayReader(await readFile(zipPath)));
+    try {
+      const entries = await reader.getEntries();
+      assert.equal(entries[0].encrypted, true);
+      assert.equal(entries[0].zipCrypto, false);
+      await assert.rejects(() => entries[0].getData(new TextWriter(), { password: "salah" }));
+      assert.equal(await entries[0].getData(new TextWriter(), { password: "rahasia" }), "sample-photo");
+    } finally { await reader.close(); }
+    const pair = pairedManifest("job", "a".repeat(64), { createdAt: "2026-10-04T00:00:00Z", issueCount: 1,
+      files: [{ path: "database.dump", sha256: "b".repeat(64) },
+        { path: "uploads/org_1/photo.jpg", sha256: "c".repeat(64), size: 12 }] });
+    assert.equal(pair.databaseSha256, "b".repeat(64));
+    assert.equal(pair.uploadCount, 1);
+    await assert.rejects(() => createEncryptedZip(path.join(temp, "bad.zip"), "rahasia",
+      [{ name: "../secret", path: file }]), /tidak aman/);
+  } finally { await rm(temp, { recursive: true, force: true }); }
+});
+
+test("diagnostik pg_dump membedakan path, izin, snapshot, dan menyamarkan lokasi", () => {
+  assert.equal(describeBackupFailure({ code: "ENOENT", source: "pg_dump" }).code, "PG_DUMP_NOT_FOUND");
+  assert.equal(describeBackupFailure({ code: "ENOENT", source: "backup_output" }).code,
+    "BACKUP_OUTPUT_UNAVAILABLE");
+  assert.equal(describeBackupFailure({ commandStderr: "pg_dump: error: permission denied for table employees" }).code,
+    "PG_DUMP_PERMISSION_DENIED");
+  assert.equal(describeBackupFailure({ commandStderr: "pg_dump: error: invalid snapshot identifier" }).code,
+    "PG_DUMP_SNAPSHOT_FAILED");
+  const result = describeBackupFailure({ commandStderr:
+    'pg_dump: error: could not open file "/srv/private/uploads/org_7/secret.pdf"' });
+  assert.equal(result.code, "PG_DUMP_FAILED");
+  assert.doesNotMatch(result.message, /\/srv|secret\.pdf|org_7/);
+  const sql = describeBackupFailure({ commandStderr:
+    "pg_dump: error: unexpected failure\npg_dump: detail: Command was: SELECT secret FROM employee_private" });
+  assert.doesNotMatch(sql.message, /SELECT|employee_private|secret/);
+  assert.match(describeBackupFailure({ commandStderr: "pg_dump: error: failed" }, "dump").message,
+    /Saat mencadangkan database/);
+});
 
 test("kata sandi backup pendek diterima tetapi tidak boleh kosong atau berbeda dari konfirmasi", () => {
   assert.equal(createBackupSchema.safeParse({ password: "abc", confirmPassword: "abc" }).success, true);

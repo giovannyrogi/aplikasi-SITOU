@@ -54,7 +54,9 @@ try {
     child.once("error", reject);
     child.once("close", (code) => code === 0 ? resolve() : reject(new Error("pg_restore tidak dapat membaca dump.")));
   });
-  console.log(`Paket valid: ${manifest.organizationCount} organisasi, ${manifest.fileCount} file upload.`);
+  console.log(`Paket valid: ${manifest.organizationCount} organisasi, ${manifest.fileCount} file upload, ${manifest.issueCount || 0} file perlu tindak lanjut.`);
+  if (manifest.format === 2 && requestedExtract)
+    console.log(`Daftar tindak lanjut: ${path.join(destination, "backup-file-issues.json")}`);
   if (requestedExtract) console.log(`File diekstrak ke ${destination}. Pulihkan hanya di lingkungan terpisah.`);
 } finally {
   if (temporary?.startsWith(path.resolve(os.tmpdir()) + path.sep))
