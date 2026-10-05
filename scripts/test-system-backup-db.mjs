@@ -9,6 +9,7 @@ import pg from "pg";
 import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from "@zip.js/zip.js";
 import { verifyArchive } from "../lib/system-backup/archive.mjs";
 import { artifactPath, packagePath } from "../lib/system-backup/paths.mjs";
+import { reconcileStalledBackups } from "../lib/system-backup/health.mjs";
 
 dotenv.config({ path: ".env.development", quiet: true });
 if (!process.env.PGDATABASE || /prod/i.test(process.env.PGDATABASE))
@@ -112,22 +113,31 @@ try {
   const password = randomBytes(24).toString("hex");
   const pgDumpPath = process.env.PG_DUMP_PATH ||
     (process.platform === "win32" ? "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe" : "pg_dump");
+  let sawWorkerStart = false;
   const workerLog = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["scripts/run-system-backup.mjs", jobId], {
-      cwd: process.cwd(), stdio: ["pipe", "ignore", "pipe"], windowsHide: true,
+      cwd: process.cwd(), stdio: ["pipe", "ignore", "pipe", "ipc"], windowsHide: true,
       env: { ...process.env, PGDATABASE: name, UPLOAD_ROOT: uploadRoot, BACKUP_ROOT: backupRoot,
         BACKUP_SNAPSHOT_ROOT: snapshotRoot, PG_DUMP_PATH: pgDumpPath },
     });
     let stderr = "";
     child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8").slice(0, 1000); });
+    child.on("message", (message) => { if (message?.type === "backup-started") sawWorkerStart = true; });
     child.stdin.end(password + "\n");
     child.once("error", reject);
     child.once("close", (code) => code === 0 ? resolve(stderr) : reject(new Error(stderr || `Worker exit ${code}`)));
   });
-  const status = (await database.query(`SELECT status,error_code,error_message,file_count,organization_count FROM system_backup_jobs WHERE id=$1`, [jobId])).rows[0];
+  assert(sawWorkerStart, "Worker harus mengonfirmasi proses benar-benar dimulai.");
+  const status = (await database.query(`SELECT status,error_code,error_message,file_count,organization_count,
+    progress_stage,progress_done,progress_total,progress_updated_at
+    FROM system_backup_jobs WHERE id=$1`, [jobId])).rows[0];
   assert.equal(status.status, "ready", `${status.error_message || status.error_code || "Belum diproses"}. ${workerLog}`);
   assert.equal(status.organization_count, 2);
   assert.equal(Number(status.file_count), 2);
+  assert.equal(status.progress_stage, "complete");
+  assert.equal(Number(status.progress_done), 1);
+  assert.equal(Number(status.progress_total), 1);
+  assert(status.progress_updated_at);
   const manifest = await verifyArchive(packagePath(backupRoot, jobId), password);
   assert.equal(manifest.fileCount, 2);
   assert.equal(manifest.format, 2);
@@ -135,9 +145,11 @@ try {
   assert.equal(manifest.files[1].path, "backup-file-issues.json");
   assert(manifest.files.some((file) => file.path.startsWith(`uploads/org_${organizationIds[0]}/branding/`)));
   assert(manifest.files.some((file) => file.path.startsWith(`uploads/.trash/storage-maintenance/quarantine/org_${organizationIds[1]}/`)));
-  const artifacts = (await database.query(`SELECT kind,status,size_bytes FROM system_backup_artifacts
+  const artifacts = (await database.query(`SELECT kind,status,size_bytes,progress_done,progress_total
+    FROM system_backup_artifacts
     WHERE job_id=$1 ORDER BY kind`, [jobId])).rows;
   assert.deepEqual(artifacts.map((item) => item.status), ["ready", "ready"], workerLog);
+  for (const item of artifacts) assert.equal(Number(item.progress_done), Number(item.progress_total));
   for (const item of artifacts) assert((await readFile(artifactPath(backupRoot, jobId, item.kind))).length > 0);
   const databaseZip = new ZipReader(new Uint8ArrayReader(await readFile(artifactPath(backupRoot, jobId, "database_zip"))));
   try {
@@ -177,6 +189,8 @@ try {
   });
   assert.equal((await database.query(`SELECT status FROM system_backup_artifacts
     WHERE job_id=$1 AND kind='uploads_zip'`, [jobId])).rows[0].status, "failed");
+  await database.query(`UPDATE system_backup_artifacts SET status='creating',progress_done=0,
+    progress_total=NULL,progress_updated_at=NULL WHERE job_id=$1 AND kind='uploads_zip'`, [jobId]);
   await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["scripts/retry-system-backup-artifact.mjs", jobId, "uploads_zip"], {
       cwd: process.cwd(), stdio: ["pipe", "ignore", "ignore"], windowsHide: true,
@@ -332,6 +346,26 @@ try {
     child.once("close", (code) => code === 0 ? resolve() : reject(new Error(`Worker kedaluwarsa exit ${code}`)));
   });
   assert.equal((await database.query(`SELECT status FROM system_backup_jobs WHERE id=$1`, [staleJobId])).rows[0].status, "failed");
+  const orphanJobId = randomUUID();
+  await database.query(`INSERT INTO system_backup_jobs(id,requested_by_user_id,request_id,created_at)
+    VALUES($1,$2,$3,now()-interval '2 minutes')`, [orphanJobId,actor,randomUUID()]);
+  assert.equal(await reconcileStalledBackups(database), 1);
+  const orphan = (await database.query(`SELECT status,error_code FROM system_backup_jobs WHERE id=$1`,
+    [orphanJobId])).rows[0];
+  assert.equal(orphan.status, "failed");
+  assert.equal(orphan.error_code, "WORKER_START_TIMEOUT");
+  await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ["scripts/run-system-backup.mjs", orphanJobId], {
+      cwd: process.cwd(), stdio: ["pipe", "ignore", "ignore"], windowsHide: true,
+      env: { ...process.env, PGDATABASE: name, UPLOAD_ROOT: uploadRoot, BACKUP_ROOT: backupRoot,
+        BACKUP_SNAPSHOT_ROOT: snapshotRoot, PG_DUMP_PATH: pgDumpPath },
+    });
+    child.stdin.end(password + "\n");
+    child.once("error", reject);
+    child.once("close", resolve);
+  });
+  assert.equal((await database.query(`SELECT status FROM system_backup_jobs WHERE id=$1`,
+    [orphanJobId])).rows[0].status, "failed", "Worker lama tidak boleh menghidupkan pekerjaan gagal.");
   console.log("Backup database dan dua organisasi berhasil dibuat serta diverifikasi.");
 } finally {
   if (database) await database.end().catch(() => {});

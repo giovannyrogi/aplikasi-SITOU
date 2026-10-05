@@ -10,7 +10,19 @@ import { backupPaths, packagePath } from "../lib/system-backup/paths.mjs";
 import { createBackupSchema } from "../lib/system-backup/validation.mjs";
 import { describeBackupFailure } from "../lib/system-backup/diagnostics.mjs";
 import { createEncryptedZip, pairedManifest } from "../lib/system-backup/artifacts.mjs";
+import { safeBackupCategory, stagePercent } from "../lib/system-backup/progress.mjs";
 import { Uint8ArrayReader, TextWriter, ZipReader } from "@zip.js/zip.js";
+
+test("progres hanya memberi persen saat total pasti dan kategori tidak membocorkan path", () => {
+  assert.equal(stagePercent(200, null), null);
+  assert.equal(stagePercent(0, 0), null);
+  assert.equal(stagePercent(99, 100), 99);
+  assert.equal(stagePercent(100, 100), 99);
+  assert.equal(stagePercent(100, 100, true), 100);
+  assert.equal(safeBackupCategory("uploads/org_1/pegawai/employee_7/identitas/ktp/secret.jpg"),
+    "Dokumen identitas");
+  assert.equal(safeBackupCategory("uploads/org_1/private-name.jpg"), "File lainnya");
+});
 
 test("ZIP tambahan memakai AES-256, pasangan backup, dan kata sandi", async () => {
   const temp = await mkdtemp(path.join(os.tmpdir(), "sitou-zip-test-"));

@@ -18,6 +18,7 @@ import useAppNotification from "@/app/hooks/useAppNotification";
 import AppIcon from "@/app/components/icons/AppIcon";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { normalizeRequestError, readApiResponse } from "@/lib/api/clientError";
+import BackupProgressPanel from "@/app/components/system-backup/BackupProgressPanel";
 
 const labels = {
   queued: "Menunggu", copying: "Menyalin data dan file", securing: "Mengamankan paket",
@@ -29,6 +30,16 @@ const tones = { queued: "info", copying: "info", securing: "info", verifying: "i
 const issueLabels = { missing: "File tidak ditemukan", size_mismatch: "Ukuran file berbeda",
   hash_mismatch: "Isi file berbeda" };
 const activeStatuses = new Set(["queued", "copying", "securing", "verifying"]);
+const phaseLabels = { preparing: "Menyiapkan backup", snapshot: "Menyiapkan file",
+  dump: "Mencadangkan database", inspect: "Memeriksa file",
+  package: "Mengemas paket", verify: "Memverifikasi paket" };
+const statusLabel = (job) => {
+  if (activeStatuses.has(job.status)) return phaseLabels[job.progress?.stage] || labels[job.status];
+  if (["ready", "ready_with_warnings"].includes(job.status) &&
+      Object.values(job.artifacts || {}).some((artifact) => ["pending", "creating"].includes(artifact.status)))
+    return "Paket siap, ZIP diproses";
+  return labels[job.status] || job.status;
+};
 /** Ukuran besar diringkas ke GB agar estimasi ruang mudah dibandingkan. */
 const formatBytes = (value) => {
   if (value == null) return "Belum tersedia";
@@ -91,8 +102,11 @@ export default function SystemBackupsPage() {
   const [deleteJob, setDeleteJob] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const createRequestId = useRef(null);
+  const polling = useRef(false);
 
   const reload = useCallback(async (signal, quiet = false) => {
+    if (quiet && polling.current) return;
+    if (quiet) polling.current = true;
     if (!quiet) setLoading(true);
     try {
       const data = quiet ? await fetchBackups(signal, true) :
@@ -106,7 +120,10 @@ export default function SystemBackupsPage() {
       }
     } catch (cause) {
       if (!signal?.aborted && !quiet) setError(normalizeRequestError(cause).message);
-    } finally { if (!signal?.aborted && !quiet) setLoading(false); }
+    } finally {
+      if (quiet) polling.current = false;
+      if (!signal?.aborted && !quiet) setLoading(false);
+    }
   }, [runWithLoadingBackdrop]);
 
   const loadMoreHistory = async () => {
@@ -191,6 +208,7 @@ export default function SystemBackupsPage() {
       setShowPassword(false); setShowConfirmation(false);
       createRequestId.current = null;
       showNotification(result.message, "success");
+      if (result.data) setSelected(result.data);
       await reload();
     } catch (cause) {
       const requestError = normalizeRequestError(cause);
@@ -334,8 +352,8 @@ export default function SystemBackupsPage() {
 
   const columns = [
     { title: "Dibuat", dataIndex: "created_at", render: formatDate },
-    { title: "Status", dataIndex: "status", render: (status) =>
-      <CompactInfoChip label={labels[status] || status} tone={tones[status]} /> },
+    { title: "Status", dataIndex: "status", render: (_, job) =>
+      <CompactInfoChip label={statusLabel(job)} tone={tones[job.status]} /> },
     { title: "Cakupan", render: (_, job) => job.organization_count == null ? "Seluruh organisasi" :
       `${job.organization_count} organisasi · ${job.file_count ?? "…"} file dalam paket` },
     { title: "Perlu tindak lanjut", dataIndex: "issue_count", render: (count) => Number(count || 0) },
@@ -378,7 +396,7 @@ export default function SystemBackupsPage() {
           renderCard={(job) => <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
               <Typography fontWeight={700}>{formatDate(job.created_at)}</Typography>
-              <CompactInfoChip label={labels[job.status] || job.status} tone={tones[job.status]} />
+              <CompactInfoChip label={statusLabel(job)} tone={tones[job.status]} />
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
               {job.organization_count ?? "Semua"} organisasi · {job.file_count ?? "…"} file dalam paket · {formatBytes(job.package_bytes)}
@@ -464,9 +482,14 @@ export default function SystemBackupsPage() {
       <AppModal open={Boolean(selected)} title="Detail backup" size="lg" onClose={() => setSelected(null)}
         footer={<Button onClick={() => setSelected(null)} style={{ minHeight: 44 }}>Tutup</Button>}>
         {selected ? <Box sx={{ display: "grid", gap: 1.5, overflowWrap: "anywhere" }}>
-          <Alert severity="info">Untuk mengambil gambar atau dokumen, unduh ZIP semua file, buka dengan kata sandi, lalu ekstrak uploads.zip di dalamnya.
+          <BackupProgressPanel job={selected} />
+          {!activeStatuses.has(selected.status) ? <Alert severity="info">Untuk mengambil gambar atau dokumen, unduh ZIP semua file, buka dengan kata sandi, lalu ekstrak uploads.zip di dalamnya.
             Untuk DBeaver, ekstrak ZIP database dan pilih database.dump. Restore penuh memakai paket lengkap di server.</Alert>
-          {[["ID pekerjaan", selected.id], ["Status", labels[selected.status]], ["Diminta", formatDate(selected.created_at)],
+            : null}
+          {(activeStatuses.has(selected.status) ?
+            [["ID pekerjaan", selected.id], ["Diminta", formatDate(selected.created_at)],
+              ["Mulai", formatDate(selected.started_at)]] :
+            [["ID pekerjaan", selected.id], ["Status", labels[selected.status]], ["Diminta", formatDate(selected.created_at)],
             ["Pemicu", selected.requested_by_name || "Superadmin"],
             ...(selected.status === "deleted" ? [["Dihapus oleh", selected.deleted_by_name || "Superadmin"]] : []),
             ["Mulai", formatDate(selected.started_at)], ["Selesai", formatDate(selected.completed_at)],
@@ -482,7 +505,7 @@ export default function SystemBackupsPage() {
             ["Penyimpanan", selected.status === "deleted" ? `Dihapus ${formatDate(selected.deleted_at)}` :
               selected.status === "expired" ? "Masa unduh habis" :
                 ["ready", "ready_with_warnings"].includes(selected.status) ? "Sampai dihapus" : "Belum tersedia"],
-            ["Masalah", selected.error_message || "Tidak ada masalah"]].map(([label, value]) =>
+            ["Masalah", selected.error_message || "Tidak ada masalah"]]).map(([label, value]) =>
             <Box key={label} sx={{ display: "grid", gridTemplateColumns: "minmax(100px, 34%) minmax(0, 1fr)", gap: 1 }}>
               <Typography variant="body2" color="text.secondary">{label}</Typography>
               <Typography variant="body2" fontWeight={600}>{value}</Typography>

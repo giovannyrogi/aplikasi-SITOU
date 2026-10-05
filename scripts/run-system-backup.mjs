@@ -13,6 +13,7 @@ import { createEncryptedZip, createPlainZip, pairedManifest } from "../lib/syste
 import { describeBackupFailure } from "../lib/system-backup/diagnostics.mjs";
 import { collectBackupMetadata, inspectBackupFiles } from "../lib/system-backup/file-issues.mjs";
 import { verifyArchive } from "../lib/system-backup/archive.mjs";
+import { safeBackupCategory } from "../lib/system-backup/progress.mjs";
 
 dotenv.config({
   path: process.env.ENV_FILE || (process.env.NODE_ENV === "production" ? ".env.production" : ".env.development"),
@@ -52,7 +53,7 @@ async function readPassword() {
   return value.slice(0, -1);
 }
 
-async function runCommand(binary, args, env, timeoutMs, outputPath) {
+async function runCommand(binary, args, env, timeoutMs, outputPath, onOutputBytes) {
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, { env, windowsHide: true, stdio: ["ignore", outputPath ? "pipe" : "pipe", "pipe"] });
     let stderr = "";
@@ -61,6 +62,7 @@ async function runCommand(binary, args, env, timeoutMs, outputPath) {
     const output = outputPath ? createWriteStream(outputPath, { flags: "wx", mode: 0o600 }) : null;
     if (output) {
       output.once("error", (error) => { error.source = "backup_output"; reject(error); });
+      if (onOutputBytes) child.stdout.on("data", (chunk) => onOutputBytes(chunk.length));
       child.stdout.pipe(output);
     }
     else child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8").slice(0, 200); });
@@ -115,17 +117,20 @@ async function digestFile(filePath) {
 }
 
 /** Membatasi seluruh mutasi PostgreSQL selama snapshot file dan dump dibuat. */
-async function consistentSnapshot(snapshotDirectory, dumpPath, onPhase) {
+let snapshotLockActive = false;
+async function consistentSnapshot(snapshotDirectory, dumpPath, onPhase, onDumpBytes) {
   const client = await pool.connect();
   let keeper;
   let inTransaction = false;
   let keeperTransaction = false;
+  let primaryReleased = false;
   try {
     const tables = await client.query(
       `SELECT quote_ident(n.nspname)||'.'||quote_ident(c.relname) AS name
        FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
        WHERE n.nspname='public' AND c.relkind IN ('r','p') ORDER BY name`,
     );
+    snapshotLockActive = true;
     await client.query("BEGIN");
     inTransaction = true;
     await client.query("SET LOCAL lock_timeout='120s'");
@@ -144,27 +149,32 @@ async function consistentSnapshot(snapshotDirectory, dumpPath, onPhase) {
     // Keeper memegang snapshot yang sama tanpa kunci tulis selama pg_dump berlangsung.
     await client.query("COMMIT");
     inTransaction = false;
-    onPhase("dump");
+    snapshotLockActive = false;
+    // Sediakan koneksi pool untuk pembaruan progres selama pg_dump; keeper tetap menahan snapshot.
+    client.release();
+    primaryReleased = true;
+    await onPhase("dump");
     const pgDump = process.env.PG_DUMP_PATH || "pg_dump";
     await runCommand(pgDump,
       ["--format=custom", "--no-owner", "--no-acl", `--snapshot=${stableSnapshotId}`,
         "--host", connection.host || "localhost", "--port", String(connection.port),
         "--username", connection.user, "--dbname", connection.database],
-      { ...process.env, PGPASSWORD: connection.password || "" }, 2 * 60 * 60 * 1000, dumpPath);
+      { ...process.env, PGPASSWORD: connection.password || "" }, 2 * 60 * 60 * 1000, dumpPath, onDumpBytes);
     const organizationCount = Number((await keeper.query("SELECT count(*)::int AS count FROM organizations")).rows[0].count);
     const metadata = await collectBackupMetadata(keeper);
     await keeper.query("COMMIT");
     keeperTransaction = false;
     return { files, metadata, organizationCount };
   } finally {
+    snapshotLockActive = false;
     if (inTransaction) await client.query("ROLLBACK").catch(() => {});
     if (keeperTransaction) await keeper.query("ROLLBACK").catch(() => {});
     keeper?.release();
-    client.release();
+    if (!primaryReleased) client.release();
   }
 }
 
-async function* archiveContents(manifest, files) {
+async function* archiveContents(manifest, files, onBytes) {
   yield Buffer.from(JSON.stringify(manifest) + "\n", "utf8");
   for (const file of files) {
     const check = createHash("sha256");
@@ -173,15 +183,18 @@ async function* archiveContents(manifest, files) {
       check.update(chunk);
       size += chunk.length;
       yield chunk;
+      if (onBytes) await onBytes(chunk.length, file.path);
     }
     if (size !== file.size || check.digest("hex") !== file.sha256)
       throw new Error("Isi file berubah saat paket dibuat.");
   }
 }
 
-async function createPackage(password, archivePath, files, organizationCount, issueCount, postgresMajor) {
+async function createPackage(password, archivePath, files, organizationCount, issueCount, postgresMajor, onProgress) {
   const indexed = [];
   for (const file of files) indexed.push({ ...file, ...await digestFile(file.absolutePath) });
+  const totalBytes = indexed.reduce((total, file) => total + file.size, 0);
+  await onProgress?.(0, totalBytes, null);
   const manifest = {
     format: 2,
     createdAt: new Date().toISOString(),
@@ -198,7 +211,11 @@ async function createPackage(password, archivePath, files, organizationCount, is
   const key = scryptSync(password, salt, 32, { N: 32768, maxmem: 64 * 1024 * 1024 });
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   await writeFile(archivePath, Buffer.concat([MAGIC, salt, iv]), { flag: "wx", mode: 0o600 });
-  await pipeline(Readable.from(archiveContents(manifest, indexed)), createGzip(), cipher,
+  let copiedBytes = 0;
+  await pipeline(Readable.from(archiveContents(manifest, indexed, async (count, filePath) => {
+    copiedBytes += count;
+    await onProgress?.(copiedBytes, totalBytes, safeBackupCategory(filePath));
+  })), createGzip(), cipher,
     createWriteStream(archivePath, { flags: "a", mode: 0o600 }));
   await appendFile(archivePath, cipher.getAuthTag());
   key.fill(0);
@@ -206,7 +223,7 @@ async function createPackage(password, archivePath, files, organizationCount, is
 }
 
 async function mark(status, details = {}) {
-  await pool.query(
+  const result = await pool.query(
     `UPDATE system_backup_jobs SET status=$2::varchar,started_at=COALESCE(started_at,now()),
       heartbeat_at=now(),
       organization_count=COALESCE($3,organization_count),file_count=COALESCE($4,file_count),
@@ -215,12 +232,45 @@ async function mark(status, details = {}) {
       package_sha256=COALESCE($7,package_sha256),package_path=COALESCE($8,package_path),
       error_code=$9,error_message=$10,
       completed_at=CASE WHEN $2::varchar IN ('ready','ready_with_warnings','failed') THEN now() ELSE completed_at END
-     WHERE id=$1`,
+     WHERE id=$1 AND status IN ('queued','copying','securing','verifying')`,
     [jobId,status,details.organizationCount ?? null,details.fileCount ?? null,
       details.fileBytes ?? null,details.packageBytes ?? null,details.packageSha256 ?? null,
       details.packagePath ?? null,details.errorCode ?? null,details.errorMessage ?? null,
       details.issueCount ?? null],
   );
+  if (result.rowCount !== 1) throw new Error("Pekerjaan backup sudah tidak aktif.");
+}
+
+let lastProgressWrite = 0;
+let lastProgressStage = "";
+async function reportProgress(stage, done = 0, total = null, unit = null, category = null, force = false) {
+  const now = Date.now();
+  if (!force && stage === lastProgressStage && now - lastProgressWrite < 1000) return;
+  const changed = stage !== lastProgressStage;
+  lastProgressStage = stage;
+  lastProgressWrite = now;
+  const result = await pool.query(`UPDATE system_backup_jobs SET
+    progress_stage=$2::varchar,progress_done=CASE WHEN progress_stage=$2::varchar
+      THEN GREATEST(progress_done,$3::bigint) ELSE $3::bigint END,
+    progress_total=$4::bigint,progress_unit=$5::varchar,progress_category=$6::varchar,
+    progress_updated_at=now(),heartbeat_at=now(),
+    started_at=COALESCE(started_at,now())
+    WHERE id=$1 AND status IN ('queued','copying','securing','verifying')`,
+  [jobId, stage, done, total, unit, category]);
+  if (result.rowCount !== 1) throw new Error("Pekerjaan backup sudah tidak aktif.");
+  if (changed) currentPhase = stage;
+}
+
+let lastArtifactWrite = 0;
+async function reportArtifact(kind, done, total, force = false) {
+  const now = Date.now();
+  if (!force && now - lastArtifactWrite < 1000) return;
+  lastArtifactWrite = now;
+  const result = await pool.query(`UPDATE system_backup_artifacts SET
+    progress_done=GREATEST(progress_done,$3),progress_total=$4,
+    progress_updated_at=now(),updated_at=now()
+    WHERE job_id=$1 AND kind=$2 AND status='creating'`, [jobId, kind, done, total]);
+  if (result.rowCount !== 1) throw new Error("Pembuatan ZIP sudah tidak aktif.");
 }
 
 async function saveIssues(issues) {
@@ -248,6 +298,7 @@ let workDirectory;
 let archivePath;
 let currentPhase = "preparation";
 const heartbeat = setInterval(() => {
+  if (snapshotLockActive) return;
   pool.query(
     `UPDATE system_backup_jobs SET heartbeat_at=now() WHERE id=$1
      AND status IN ('queued','copying','securing','verifying')`, [jobId],
@@ -258,6 +309,8 @@ const heartbeat = setInterval(() => {
 heartbeat.unref();
 try {
   const password = await readPassword();
+  await reportProgress("preparing", 0, null, null, null, true);
+  process.send?.({ type: "backup-started" });
   await mkdir(paths.uploadRoot, { recursive: true });
   await mkdir(paths.backupRoot, { recursive: true, mode: 0o700 });
   await mkdir(paths.snapshotRoot, { recursive: true, mode: 0o700 });
@@ -282,33 +335,49 @@ try {
     throw new Error("Versi pg_dump lebih lama daripada PostgreSQL server.");
   await mark("copying");
   currentPhase = "snapshot";
+  await reportProgress("snapshot", 0, null, "files", null, true);
   workDirectory = await mkdtemp(path.join(paths.snapshotRoot, `${jobId}-`));
   const uploadSnapshot = path.join(workDirectory, "uploads");
   const dumpPath = path.join(workDirectory, "database.dump");
+  let dumpBytes = 0;
+  let pendingDumpProgress = Promise.resolve();
   const { files, metadata, organizationCount } = await consistentSnapshot(uploadSnapshot, dumpPath,
-    (phase) => { currentPhase = phase; });
+    (phase) => reportProgress(phase, 0, null, "bytes", null, true),
+    (bytes) => {
+      dumpBytes += bytes;
+      pendingDumpProgress = pendingDumpProgress.then(() =>
+        reportProgress("dump", dumpBytes, null, "bytes")).catch(() => {});
+    });
+  await pendingDumpProgress;
+  await reportProgress("inspect", 0, null, "files", null, true);
   if (freeBytes < databaseBytes + files.reduce((total, file) => total + file.size, 0))
     throw new Error("Ruang penyimpanan backup tidak mencukupi.");
   currentPhase = "validation";
-  const issues = await inspectBackupFiles(metadata, uploadSnapshot, files, digestFile);
+  const issues = await inspectBackupFiles(metadata, uploadSnapshot, files, digestFile,
+    (done, total, filePath) => reportProgress("inspect", done, total, "files",
+      filePath ? safeBackupCategory(filePath) : null, done === total));
   await saveIssues(issues);
   const reportPath = path.join(workDirectory, "backup-file-issues.json");
   await writeFile(reportPath, JSON.stringify({ format: 1, jobId, issues }, null, 2),
     { flag: "wx", mode: 0o600 });
   await mark("securing", { organizationCount, fileCount: files.length,
     fileBytes: files.reduce((n, file) => n + file.size, 0), issueCount: issues.length });
+  await reportProgress("package", 0, null, "bytes", null, true);
   archivePath = packagePath(paths.backupRoot, jobId);
   currentPhase = "package";
   const result = await createPackage(password, archivePath,
     [{ path: "database.dump", absolutePath: dumpPath },
       { path: "backup-file-issues.json", absolutePath: reportPath },
       ...files.map((file) => ({ ...file, path: `uploads/${file.path}` }))], organizationCount, issues.length,
-    Math.floor(serverVersion / 10000));
+    Math.floor(serverVersion / 10000),
+    (done, total, category) => reportProgress("package", done, total, "bytes", category, done === total));
   await mark("verifying");
   currentPhase = "verify";
+  await reportProgress("verify", 0, null, null, null, true);
   if ((await stat(archivePath)).size !== result.size)
     throw new Error("Ukuran paket backup tidak sesuai.");
   await verifyArchive(archivePath, password);
+  await reportProgress("complete", 1, 1, "files", null, true);
   await mark(issues.length ? "ready_with_warnings" : "ready",
     { packageBytes: result.size, packageSha256: result.sha256, packagePath: archivePath });
   await pool.query(
@@ -328,12 +397,17 @@ try {
     for (const kind of ["database_zip", "uploads_zip"]) {
       await pool.query(`UPDATE system_backup_artifacts SET status='creating',updated_at=now()
         WHERE job_id=$1 AND kind=$2`, [jobId, kind]);
+      lastArtifactWrite = 0;
+      const uploadOffset = kind === "uploads_zip" ? files.length : 0;
+      const artifactTotal = uploadOffset + 3;
+      await reportArtifact(kind, 0, artifactTotal, true);
       const destination = artifactPath(paths.backupRoot, jobId, kind);
       const innerZip = path.join(workDirectory, "uploads-inner.zip");
       try {
         if (kind === "uploads_zip")
           await createPlainZip(innerZip, files.map((file) => ({ name: `uploads/${file.path}`,
-            path: file.absolutePath, sha256: fileHashes.get(`uploads/${file.path}`) })));
+            path: file.absolutePath, sha256: fileHashes.get(`uploads/${file.path}`) })),
+          (done) => reportArtifact(kind, done, artifactTotal, done === uploadOffset));
         const entries = kind === "database_zip"
           ? [{ name: "database.dump", path: dumpPath, sha256: fileHashes.get("database.dump") },
             { name: "backup-file-issues.json", path: reportPath },
@@ -341,7 +415,8 @@ try {
           : [{ name: "uploads.zip", path: innerZip },
             { name: "backup-file-issues.json", path: reportPath },
             { name: "backup-pairing.json", path: pairingPath }];
-        const zipped = await createEncryptedZip(destination, password, entries);
+        const zipped = await createEncryptedZip(destination, password, entries,
+          (done) => reportArtifact(kind, uploadOffset + done, artifactTotal, done === entries.length));
         await pool.query(`UPDATE system_backup_artifacts SET status='ready',size_bytes=$3,
           sha256=$4,internal_path=$5,error_message=NULL,updated_at=now()
           WHERE job_id=$1 AND kind=$2`, [jobId, kind, zipped.size, zipped.sha256, destination]);
@@ -363,8 +438,12 @@ try {
 } catch (error) {
   const failure = describeBackupFailure(error, currentPhase);
   console.error("[system_backup.failed]", { jobId, code: failure.code });
-  await mark("failed", { errorCode: failure.code, errorMessage: failure.message }).catch(() => {});
-  await pool.query(
+  let markedFailed = false;
+  try {
+    await mark("failed", { errorCode: failure.code, errorMessage: failure.message });
+    markedFailed = true;
+  } catch { /* Pekerjaan mungkin sudah ditutup pengawas; jangan tulis audit gagal kedua. */ }
+  if (markedFailed) await pool.query(
     `INSERT INTO audit_logs(actor_user_id,action,entity_type,entity_id,after_data,request_id)
      SELECT requested_by_user_id,'system_backup.failed','system_backup_job',id::text,
        jsonb_build_object('errorCode',error_code),request_id

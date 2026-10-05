@@ -224,6 +224,8 @@ Permission `system_backup.manage` hanya diberikan kepada Superadmin. Menu backup
 
 Migration 041 menambahkan ZIP database dan ZIP semua file berbasis AES-256. Kegagalan salah satu ZIP tidak membatalkan paket utama; status artefaknya dicatat terpisah. Path ZIP hanya disimpan di server. Migration 042 menghapus kedaluwarsa otomatis untuk paket yang masih siap, menambah status/pelaku/waktu penghapusan manual, dan mempertahankan data `expired` lama sebagai histori. Restore penuh tetap menggunakan paket utama melalui alat server, bukan unduhan ZIP terpisah.
 
+Migration 043 menambahkan tahap, jumlah/ukuran terproses, total terukur, kategori aman, dan waktu pembaruan progres pada pekerjaan serta ZIP. Persen hanya dihitung ketika total tahap diketahui; nama dan path file tidak masuk API progres. Backup yang tidak mulai atau kehilangan heartbeat menjadi gagal, bukan menunggu selamanya.
+
 ### Pemeliharaan penyimpanan file
 
 Menu Superadmin `Pemeliharaan Sistem > Penyimpanan File` memeriksa lifecycle sebenarnya: draft aktif, draft dibuang atau kedaluwarsa, file aktif yang direferensikan, orphan aktif setelah masa aman 24 jam, histori resmi, metadata dengan byte hilang, byte tanpa metadata, file `.tmp`, dan sisa `.trash`. UI tidak menerima `object_key`; byte tanpa metadata ditampilkan dengan label aman.

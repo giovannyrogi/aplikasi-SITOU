@@ -22,6 +22,17 @@ const pool = new pg.Pool({ user: process.env.PGUSER, password: process.env.PGPAS
   host: process.env.PGHOST, port: Number(process.env.PGPORT || 5432), database: process.env.PGDATABASE });
 let temporary;
 let stage = "verify";
+let lastProgressWrite = 0;
+async function reportProgress(done, total, force = false) {
+  const now = Date.now();
+  if (!force && now - lastProgressWrite < 1000) return;
+  lastProgressWrite = now;
+  const result = await pool.query(`UPDATE system_backup_artifacts SET
+    progress_done=GREATEST(progress_done,$3),progress_total=$4,
+    progress_updated_at=now(),updated_at=now()
+    WHERE job_id=$1 AND kind=$2 AND status='creating'`, [jobId, kind, done, total]);
+  if (result.rowCount !== 1) throw new Error("Pembuatan ZIP sudah tidak aktif.");
+}
 const heartbeat = setInterval(() => pool.query(`UPDATE system_backup_artifacts SET updated_at=now()
   WHERE job_id=$1 AND kind=$2 AND status='creating'`, [jobId, kind]).catch(() => {}), 30_000);
 heartbeat.unref();
@@ -40,10 +51,14 @@ try {
   const destination = artifactPath(backupRoot, jobId, kind);
   await rm(destination, { force: true });
   const innerZip = path.join(temporary, "uploads-inner.zip");
+  const uploads = verified.files.filter((file) => file.path.startsWith("uploads/"));
+  const offset = kind === "uploads_zip" ? uploads.length : 0;
+  const total = offset + 3;
+  await reportProgress(0, total, true);
   if (kind === "uploads_zip")
-    await createPlainZip(innerZip, verified.files.filter((file) => file.path.startsWith("uploads/"))
-      .map((file) => ({ name: file.path,
-        path: path.join(temporary, ...file.path.split("/")), sha256: file.sha256 })));
+    await createPlainZip(innerZip, uploads.map((file) => ({ name: file.path,
+      path: path.join(temporary, ...file.path.split("/")), sha256: file.sha256 })),
+    (done) => reportProgress(done, total, done === offset));
   const included = verified.files.filter((file) => kind === "database_zip"
     ? ["database.dump", "backup-file-issues.json"].includes(file.path)
     : file.path === "backup-file-issues.json");
@@ -51,7 +66,8 @@ try {
     ...included.map((file) => ({ name: file.path,
       path: path.join(temporary, ...file.path.split("/")), sha256: file.sha256 })),
     { name: "backup-pairing.json", path: pairingPath }];
-  const result = await createEncryptedZip(destination, password, entries);
+  const result = await createEncryptedZip(destination, password, entries,
+    (done) => reportProgress(offset + done, total, done === entries.length));
   if ((await stat(destination)).size !== result.size) throw new Error("ZIP tidak lengkap.");
   const current = (await pool.query(`SELECT status FROM system_backup_jobs WHERE id=$1`, [jobId])).rows[0];
   if (!current || !["ready", "ready_with_warnings"].includes(current.status)) {

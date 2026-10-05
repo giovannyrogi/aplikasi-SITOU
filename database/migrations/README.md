@@ -102,3 +102,7 @@ Migration `042` mengubah retensi backup siap menjadi manual. `expires_at` dibers
 untuk backup yang masih siap, sedangkan riwayat yang sudah `expired` tidak dibangkitkan
 kembali. Status `deleted` dan identitas Superadmin penghapus disimpan; audit dan temuan
 tetap ada. Terapkan sebelum deploy web, worker backup, dan worker pemeliharaan versi baru.
+
+Migration `043` menambahkan progres tahap dan jumlah terproses pada pekerjaan backup
+serta kedua ZIP tambahan. Terapkan setelah `042` sebelum deploy web dan worker backup
+yang menampilkan progres; metadata ini tidak berisi nama atau path file privat.

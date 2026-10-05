@@ -3,6 +3,7 @@ import path from "node:path";
 import dotenv from "dotenv";
 import pg from "pg";
 import { artifactPath, backupPaths, packagePath } from "../lib/system-backup/paths.mjs";
+import { reconcileStalledBackups } from "../lib/system-backup/health.mjs";
 
 dotenv.config({ path: process.env.ENV_FILE || (process.env.NODE_ENV === "production" ? ".env.production" : ".env.development"), quiet: true });
 const pool = new pg.Pool({ user: process.env.PGUSER, password: process.env.PGPASSWORD,
@@ -11,14 +12,10 @@ const pool = new pg.Pool({ user: process.env.PGUSER, password: process.env.PGPAS
 /** Backup siap tetap disimpan; worker hanya membersihkan sisa gagal/dihapus dan pekerjaan macet. */
 async function expire() {
   const { backupRoot, snapshotRoot } = backupPaths();
+  await reconcileStalledBackups(pool);
   await pool.query(`UPDATE system_backup_artifacts SET status='failed',
     error_message='Pembuatan ZIP terputus. Coba lagi.',updated_at=now()
     WHERE status IN ('pending','creating') AND updated_at<now()-interval '30 minutes'`);
-  await pool.query(
-    `UPDATE system_backup_jobs SET status='failed',completed_at=now(),
-      error_code='WORKER_INTERRUPTED',error_message='Proses backup terputus. Jalankan backup baru.'
-     WHERE status IN ('queued','copying','securing','verifying')
-       AND COALESCE(heartbeat_at,created_at)<now()-interval '10 minutes'`);
   const packages = await readdir(backupRoot, { withFileTypes: true }).catch((error) => {
     if (error.code === "ENOENT") return [];
     throw error;
