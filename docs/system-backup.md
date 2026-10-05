@@ -6,6 +6,10 @@ Setelah paket utama valid, pekerjaan yang sama juga membuat ZIP AES-256 **Databa
 
 ## Persiapan Windows dan Ubuntu
 
+Pemeriksaan versi membaca nomor tepat setelah `pg_dump (PostgreSQL)` dan menerima
+suffix paket Ubuntu/Debian. Versi yang tidak dikenali ditolak secara terpisah;
+versi major klien yang lebih lama daripada server tetap menggagalkan backup.
+
 - Instal PostgreSQL client dengan `pg_dump` dan `pg_restore` versi **tidak lebih tua** daripada PostgreSQL server pada lingkungan tersebut. Tambahkan binarinya ke `PATH`, atau atur `PG_DUMP_PATH` dan `PG_RESTORE_PATH` dengan path absolut.
 - Kode ZIP menggunakan `@zip.js/zip.js` dalam proses Node dan tidak menjalankan alat ZIP eksternal atau meletakkan kata sandi pada command line. Pada Windows/Ubuntu, uji pembukaan ZIP AES-256 dengan aplikasi ekstraksi yang mendukungnya; Explorer bawaan Windows tidak dijadikan acuan kompatibilitas.
 - Web dan worker harus menggunakan `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, serta `UPLOAD_ROOT` yang sama. `UPLOAD_ROOT` wajib privat dan persisten.

@@ -14,6 +14,7 @@ import { describeBackupFailure } from "../lib/system-backup/diagnostics.mjs";
 import { collectBackupMetadata, inspectBackupFiles } from "../lib/system-backup/file-issues.mjs";
 import { verifyArchive } from "../lib/system-backup/archive.mjs";
 import { safeBackupCategory } from "../lib/system-backup/progress.mjs";
+import { parsePgDumpMajorVersion } from "../lib/system-backup/postgres-version.mjs";
 
 dotenv.config({
   path: process.env.ENV_FILE || (process.env.NODE_ENV === "production" ? ".env.production" : ".env.development"),
@@ -330,8 +331,10 @@ try {
   currentPhase = "version";
   const version = await runCommand(process.env.PG_DUMP_PATH || "pg_dump", ["--version"], process.env, 5000);
   const serverVersion = Number((await pool.query("SHOW server_version_num")).rows[0].server_version_num);
-  const dumpMajor = Number(version.match(/(\d+)(?:\.\d+)?\s*$/)?.[1]);
-  if (!Number.isFinite(dumpMajor) || dumpMajor < Math.floor(serverVersion / 10000))
+  const dumpMajor = parsePgDumpMajorVersion(version);
+  if (dumpMajor === null)
+    throw new Error("Versi pg_dump tidak dapat dikenali. Periksa program pada PG_DUMP_PATH.");
+  if (dumpMajor < Math.floor(serverVersion / 10000))
     throw new Error("Versi pg_dump lebih lama daripada PostgreSQL server.");
   await mark("copying");
   currentPhase = "snapshot";

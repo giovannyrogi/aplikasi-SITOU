@@ -12,6 +12,15 @@ import { describeBackupFailure } from "../lib/system-backup/diagnostics.mjs";
 import { createEncryptedZip, pairedManifest } from "../lib/system-backup/artifacts.mjs";
 import { safeBackupCategory, stagePercent } from "../lib/system-backup/progress.mjs";
 import { Uint8ArrayReader, TextWriter, ZipReader } from "@zip.js/zip.js";
+import { parsePgDumpMajorVersion } from "../lib/system-backup/postgres-version.mjs";
+
+test("versi pg_dump Windows, Ubuntu, dan Debian dibaca dari versi PostgreSQL", () => {
+  for (const output of ["pg_dump (PostgreSQL) 18.0\n", "pg_dump (PostgreSQL) 18.1 (Ubuntu 18.1-1.pgdg24.04+1)\n", "pg_dump (PostgreSQL) 18.0 (Debian 18.0-1.pgdg12+1)\n"])
+    assert.equal(parsePgDumpMajorVersion(output), 18);
+  assert.equal(parsePgDumpMajorVersion("pg_dump (PostgreSQL) 16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)"), 16);
+  for (const output of ["", "error 18", "pg_dump 18", "pg_dump (PostgreSQL) unknown", "pg_dump (PostgreSQL) 18oops"])
+    assert.equal(parsePgDumpMajorVersion(output), null);
+});
 
 test("progres hanya memberi persen saat total pasti dan kategori tidak membocorkan path", () => {
   assert.equal(stagePercent(200, null), null);
