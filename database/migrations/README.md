@@ -106,3 +106,5 @@ tetap ada. Terapkan sebelum deploy web, worker backup, dan worker pemeliharaan v
 Migration `043` menambahkan progres tahap dan jumlah terproses pada pekerjaan backup
 serta kedua ZIP tambahan. Terapkan setelah `042` sebelum deploy web dan worker backup
 yang menampilkan progres; metadata ini tidak berisi nama atau path file privat.
+
+Migration `044` menambahkan snapshot `system_backup_jobs.time_zone`. Pekerjaan lama tetap UTC; permintaan baru menyimpan `BACKUP_TIME_ZONE` (default Asia/Makassar). Terapkan sebelum deploy web dan worker zona waktu backup.

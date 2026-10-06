@@ -5,7 +5,12 @@ import pool from "@/lib/dbConfig";
 import { writeAudit } from "@/lib/audit";
 import { requirePermission } from "@/lib/auth/permissions";
 import { errorResponse, getRequestId, handleRouteError } from "@/lib/api/routeHelpers";
-import { backupPaths, packagePath } from "@/lib/system-backup/paths.mjs";
+import {
+  backupPaths,
+  packagePath,
+  backupNames,
+  assertBackupJobDirectory,
+} from "@/lib/system-backup/paths.mjs";
 
 /** Range download diautentikasi ulang dan diaudit pada setiap permintaan. */
 export async function GET(request, { params }) {
@@ -17,23 +22,47 @@ export async function GET(request, { params }) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
       return errorResponse("BACKUP_ID_INVALID", "ID backup tidak valid.", 400, requestId);
     const result = await pool.query(
-      `SELECT id::text,status,package_path FROM system_backup_jobs WHERE id=$1::uuid`, [id]);
+      `SELECT id::text,status,package_path,created_at,time_zone FROM system_backup_jobs WHERE id=$1::uuid`,
+      [id],
+    );
     const job = result.rows[0];
     if (!job || !["ready", "ready_with_warnings"].includes(job.status))
-      return errorResponse("BACKUP_UNAVAILABLE", "Paket backup tidak tersedia atau telah dihapus.", 404, requestId);
-    const expected = packagePath(backupPaths().backupRoot, id);
+      return errorResponse(
+        "BACKUP_UNAVAILABLE",
+        "Paket backup tidak tersedia atau telah dihapus.",
+        404,
+        requestId,
+      );
+    const expected = packagePath(backupPaths().backupRoot, id, job.created_at, job.time_zone);
     if (job.package_path !== expected)
-      return errorResponse("BACKUP_PATH_INVALID", "Lokasi paket backup tidak valid.", 503, requestId);
+      return errorResponse(
+        "BACKUP_PATH_INVALID",
+        "Lokasi paket backup tidak valid.",
+        503,
+        requestId,
+      );
+    await assertBackupJobDirectory(backupPaths().backupRoot, id, job.created_at, {
+      timeZone: job.time_zone,
+    });
     let size;
     try {
       const file = await lstat(expected);
       if (!file.isFile())
-        return errorResponse("BACKUP_FILE_INVALID", "Paket backup tidak valid di server.", 503, requestId);
+        return errorResponse(
+          "BACKUP_FILE_INVALID",
+          "Paket backup tidak valid di server.",
+          503,
+          requestId,
+        );
       size = file.size;
-    }
-    catch (error) {
+    } catch (error) {
       if (error.code === "ENOENT")
-        return errorResponse("BACKUP_FILE_MISSING", "Paket backup tidak ditemukan di server. Buat backup baru.", 503, requestId);
+        return errorResponse(
+          "BACKUP_FILE_MISSING",
+          "Paket backup tidak ditemukan di server. Buat backup baru.",
+          503,
+          requestId,
+        );
       throw error;
     }
     const range = request.headers.get("range");
@@ -41,7 +70,8 @@ export async function GET(request, { params }) {
     let end = size - 1;
     if (range) {
       const match = /^bytes=(\d+)-(\d*)$/.exec(range);
-      if (!match) return errorResponse("RANGE_INVALID", "Rentang unduhan tidak valid.", 416, requestId);
+      if (!match)
+        return errorResponse("RANGE_INVALID", "Rentang unduhan tidak valid.", 416, requestId);
       start = Number(match[1]);
       end = match[2] ? Number(match[2]) : end;
       if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || end >= size)
@@ -50,16 +80,21 @@ export async function GET(request, { params }) {
     const client = await pool.connect();
     try {
       await writeAudit(client, {
-        actorUserId: user.id, action: "system_backup.downloaded",
-        entityType: "system_backup_job", entityId: id, requestId,
+        actorUserId: user.id,
+        action: "system_backup.downloaded",
+        entityType: "system_backup_job",
+        entityId: id,
+        requestId,
         afterData: { partial: Boolean(range) },
       });
-    } finally { client.release(); }
+    } finally {
+      client.release();
+    }
     return new Response(Readable.toWeb(createReadStream(expected, { start, end })), {
       status: range ? 206 : 200,
       headers: {
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": `attachment; filename="sitou-backup-${id}.sitou-backup"`,
+        "Content-Disposition": `attachment; filename="${backupNames(id, job.created_at, job.time_zone).package}"`,
         "Content-Length": String(end - start + 1),
         "Accept-Ranges": "bytes",
         ...(range ? { "Content-Range": `bytes ${start}-${end}/${size}` } : {}),

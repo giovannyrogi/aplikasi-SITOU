@@ -1,10 +1,27 @@
 # Backup seluruh sistem SITOU
 
-Menu **Pemeliharaan Sistem → Backup & Restore** hanya untuk Superadmin. Satu paket `.sitou-backup` berisi dump PostgreSQL custom (`database.dump`), seluruh file yang tersedia di `UPLOAD_ROOT` sebagai `uploads/...`, dan `backup-file-issues.json`: foto, dokumen aktif/histori, draft, karantina, serta file tanpa metadata. Ini bukan ekspor per organisasi. Paket terenkripsi AES-256-GCM dengan kunci dari scrypt dan kata sandi Superadmin; kata sandi tidak disimpan di database atau argumen proses.
+Menu **Pemeliharaan Sistem → Backup & Restore** hanya untuk Superadmin. Satu paket `.sitou-backup` berisi dump PostgreSQL custom (`sitou_db_backup_YYYYMMDD_HHmmss_WITA.dump`), seluruh file yang tersedia di `UPLOAD_ROOT` sebagai `uploads/...`, dan `backup-file-issues.json`: foto, dokumen aktif/histori, draft, karantina, serta file tanpa metadata. Ini bukan ekspor per organisasi. Paket terenkripsi AES-256-GCM dengan kunci dari scrypt dan kata sandi Superadmin; kata sandi tidak disimpan di database atau argumen proses.
 
-Setelah paket utama valid, pekerjaan yang sama juga membuat ZIP AES-256 **Database** (`database.dump`) dan ZIP AES-256 **Semua file**. ZIP Semua file berisi `uploads.zip` yang perlu diekstrak sekali lagi untuk memperoleh struktur `uploads/...`; lapisan luar mencegah path file privat terlihat pada header ZIP sebelum kata sandi dimasukkan. Keduanya memuat `backup-pairing.json` dengan ID pekerjaan dan hash paket utama; laporan file bermasalah ikut disertakan. ZIP dapat dibuka di 7-Zip/WinRAR yang mendukung ZIP AES-256. ZIP ini tidak menggantikan paket utama untuk restore otomatis; jangan memasangkan ZIP dari pekerjaan berbeda. Unduhan ZIP hanya untuk Superadmin dan diaudit. Paket utama dan kedua ZIP tetap tersedia di server sampai Superadmin menghapusnya; ZIP yang gagal dapat dibuat ulang dari paket utama dengan memasukkan kembali kata sandi.
+Paket baru menggunakan manifest format 3, dengan `databasePath` sebagai referensi dump bertanggal. Setelah paket utama valid, pekerjaan yang sama juga membuat ZIP AES-256 **Database** (`sitou_db_backup_YYYYMMDD_HHmmss_WITA.dump`) dan ZIP AES-256 **Semua file**. ZIP Semua file langsung berisi satu folder `uploads/`; cukup ekstrak sekali. Semua entri memakai AES-256, tetapi daftar path dapat terlihat sebelum kata sandi dimasukkan. Keduanya memuat `backup-pairing.json` dengan ID pekerjaan dan hash paket utama; laporan file bermasalah ikut disertakan. ZIP dapat dibuka di 7-Zip/WinRAR yang mendukung ZIP AES-256. ZIP ini tidak menggantikan paket utama untuk restore otomatis; jangan memasangkan ZIP dari pekerjaan berbeda. Unduhan ZIP hanya untuk Superadmin dan diaudit. Paket utama dan kedua ZIP tetap tersedia di server sampai Superadmin menghapusnya; ZIP yang gagal dapat dibuat ulang dari paket utama dengan memasukkan kembali kata sandi.
+
+## Tampilan waktu pengguna
+
+Diminta, Mulai, Selesai, dan Dihapus tetap bersumber dari waktu absolut server/database. Tampilan mengikuti pengaturan zona waktu browser pengguna, bukan jam perangkat sebagai sumber audit dan bukan lokasi fisik/GPS. Deteksi dilakukan setelah hydration dengan fallback UTC, serta diperbarui saat tab mendapat fokus/visibility berubah. Nama file dan path selalu mengikuti snapshot pekerjaan, tidak berubah ketika pengguna lain membuka atau mengunduh. API hanya menambahkan nama file aman `fileNames`, tanpa path penyimpanan privat. Detail menampilkan Waktu lokal Anda, Waktu pada nama backup, dan nama ZIP database/upload.
+
+## Folder hasil dan kata sandi
+
+Riwayat backup menampilkan maksimal 10 data per halaman pada desktop dan mobile.
+Navigasi Sebelumnya/Berikutnya memakai cursor server berdasarkan tanggal dan UUID,
+tanpa menumpuk baris. Nomor urut berlanjut pada halaman berikutnya. Polling memperbarui
+halaman yang sedang dibuka; Muat ulang kembali ke halaman pertama.
+
+Setiap pekerjaan baru menyimpan tiga artefak terenkripsi dalam satu folder `backup_YYYY-MM-DD_HH-mm-ss_WITA_<UUID>` di bawah `BACKUP_ROOT`. Nama file adalah `sitou_full_backup_YYYYMMDD_HHmmss_WITA.sitou-backup`, `sitou_db_backup_YYYYMMDD_HHmmss_WITA.zip`, dan `sitou_uploads_backup_YYYYMMDD_HHmmss_WITA.zip`. Timestamp berasal dari `system_backup_jobs.created_at` dan snapshot `time_zone`. Backup baru memakai `BACKUP_TIME_ZONE` (default `Asia/Makassar`, label WITA), nama artefak stabil walaupun timezone Windows, browser, dan Ubuntu berbeda. Tabel/detail menampilkan waktu lokal pengguna dengan label WIB/WITA/WIT atau offset UTC; detail mencantumkan waktu pada nama backup dan nama ZIP asli untuk pencocokan. Database tetap menyimpan waktu absolut; UUID lengkap membedakan pekerjaan pada detik yang sama. Retry ZIP memakai folder asal. Snapshot/byte sementara berada di lokasi terpisah. Penghapusan melepas akses dan mencatat audit, menghapus hanya tiga artefak dikenal, lalu menghapus folder kosong; file asing tetap dipertahankan. Worker menindaklanjuti kegagalan cleanup tanpa menyentuh folder lama di luar pola baru.
+
+Kata sandi pendek tetap diterima: tidak kosong/spasi saja, maksimal 128 karakter, tanpa baris baru, dan konfirmasi sama. Indikator Lemah/Sedang/Kuat memakai zxcvbn-ts lokal pada browser (common dan English), hanya dimuat saat modal dibuka. Indikator merupakan perkiraan dan tidak memblokir penyimpanan; kata sandi tidak dikirim ke layanan penilaian, log, analytics, atau storage browser. Paket lama tidak menjadi target kompatibilitas format 3 dan tidak dihapus otomatis.
 
 ## Persiapan Windows dan Ubuntu
+
+Terapkan migration `044` sebelum deploy kode zona waktu backup. Migration menambahkan snapshot `time_zone` dengan UTC untuk pekerjaan lama; file lama tidak dipindahkan. Backup baru dapat dikonfigurasi melalui `BACKUP_TIME_ZONE=Asia/Makassar` untuk WITA. Zona IANA tidak valid ditolak sebelum pekerjaan dibuat. Perubahan konfigurasi hanya berlaku pada permintaan baru.
 
 Pemeriksaan versi membaca nomor tepat setelah `pg_dump (PostgreSQL)` dan menerima
 suffix paket Ubuntu/Debian. Versi yang tidak dikenali ditolak secara terpisah;
@@ -33,6 +50,14 @@ Paket mempertahankan struktur folder relatif, bukan lokasi absolut VPS. Folder k
 
 ## Verifikasi dan latihan pemulihan
 
+Jika WinRAR menampilkan “Incorrect password”, periksa ZIP secara lokal tanpa
+mengekstrak isi atau mengirim kata sandi: `npm run backup:verify-zip -- "PATH_FILE.zip"`.
+Kata sandi diminta melalui terminal tanpa echo, bukan argumen proses. Alat memeriksa
+seluruh entri AES dan integritasnya, tanpa menampilkan nama/path di dalam arsip.
+Semua entri memakai DEFLATE dengan AES-256 dan ukuran sumber yang diketahui;
+ZIP64 otomatis hanya diaktifkan ketika ukuran atau jumlah entri memerlukannya.
+Pengaturan ini juga memastikan file kosong kompatibel dengan WinRAR/7-Zip.
+
 Tombol **Verifikasi** di dashboard membandingkan SHA-256 file yang dipilih pada browser dengan paket server. Ini membuktikan unduhan lengkap, **belum** membuktikan dump bisa direstore. Untuk membuka dan memeriksa semua isi paket pada Windows/Ubuntu, gunakan Node dan PostgreSQL client yang sudah terpasang:
 
 ```text
@@ -44,7 +69,7 @@ Kata sandi dikirim melalui stdin. Jangan menyertakannya pada command line atau l
 Untuk uji pemulihan berkala, gunakan server PostgreSQL dan direktori upload **terpisah dari produksi**:
 
 1. Buat database kosong dan role PostgreSQL dengan hak yang sesuai. Paket `pg_dump` satu database tidak mencakup role global, konfigurasi PostgreSQL, sertifikat, atau secret `.env`.
-2. Ekstrak paket ke staging privat, lalu jalankan `pg_restore --no-owner --no-acl --dbname=<database-staging> <folder-ekstraksi>/database.dump`.
+2. Ekstrak paket ke staging privat, lalu jalankan `pg_restore --no-owner --no-acl --dbname=<database-staging> <folder-ekstraksi>/sitou_db_backup_YYYYMMDD_HHmmss_WITA.dump`.
 3. Atur `UPLOAD_ROOT` staging ke `<folder-ekstraksi>/uploads`, sediakan secret/environment staging yang benar, lalu jalankan `npm run db:check` dan pemeriksaan beberapa foto/dokumen resmi dari lebih dari satu organisasi.
 4. Catat waktu pemulihan dan hasilnya. Jangan menjalankan restore dari dashboard atau menimpa produksi tanpa maintenance window, backup produksi tambahan, dan prosedur terpisah yang disetujui.
 
@@ -64,7 +89,7 @@ npm run backup:restore -- --package=/path/sitou.sitou-backup --env=.env.producti
 
 Kata sandi diminta melalui terminal tanpa echo. Alat memverifikasi paket, membuat database dan folder upload staging, menjalankan `pg_restore`, memeriksa jumlah organisasi, dan menolak cutover bila masih ada sesi database aktif. Setelah staging berhasil, database dan folder lama diganti dengan pasangan baru; keduanya tetap disimpan sementara dengan nama `sitou_before_*` dan `UPLOAD_ROOT.before-*` sebagai rollback. Jika cutover gagal, alat mencoba mengembalikan pasangan lama dan menyimpan jurnal pada folder `.sitou-restore-*` di samping `UPLOAD_ROOT`. Jika rollback otomatis juga gagal, **jangan hidupkan aplikasi** sebelum jurnal dan kedua pasangan diperiksa manual. Jangan hapus data rollback sebelum aplikasi, beberapa foto/dokumen, dan seluruh organisasi terverifikasi.
 
-Paket lama yang belum memuat revisi kode, atau paket dengan revisi berbeda dari checkout, memerlukan pemeriksaan kompatibilitas manual dan flag `--accept-version-mismatch`. Flag ini tidak memperbaiki perbedaan schema. Password, konfigurasi layanan, role PostgreSQL global, dan secret `.env` tidak ikut dipulihkan. Restore berperingatan mempertahankan `backup-file-issues.json`; file yang hilang saat backup tidak dibuat ulang. Dua ZIP tambahan dapat digunakan untuk pemulihan manual: ekstrak ZIP Database lalu pilih `database.dump` dalam DBeaver (format Custom), dan ekstrak ZIP Semua file lalu `uploads.zip` di dalamnya ke folder `UPLOAD_ROOT` yang sesuai **hanya setelah** memeriksa ID pasangan serta menghentikan layanan.
+Paket format 3 dengan revisi berbeda dari checkout, memerlukan pemeriksaan kompatibilitas manual dan flag `--accept-version-mismatch`. Flag ini tidak memperbaiki perbedaan schema. Password, konfigurasi layanan, role PostgreSQL global, dan secret `.env` tidak ikut dipulihkan. Restore berperingatan mempertahankan `backup-file-issues.json`; file yang hilang saat backup tidak dibuat ulang. Dua ZIP tambahan dapat digunakan untuk pemulihan manual: ekstrak ZIP Database lalu pilih `sitou_db_backup_YYYYMMDD_HHmmss_WITA.dump` dalam DBeaver (format Custom), dan ekstrak ZIP Semua file langsung ke folder `UPLOAD_ROOT` yang sesuai **hanya setelah** memeriksa ID pasangan serta menghentikan layanan.
 
 Pengujian lokal: `node --test tests/system-backup.test.mjs` memeriksa enkripsi, hash, dan path; `npm run test:system-backup:db` membuat database sementara dan menguji dua organisasi, file karantina, file hilang, retensi manual, serta kesesuaian migration dengan schema bootstrap. Tes database memerlukan izin membuat/menghapus database sementara dan `pg_dump` PostgreSQL 18.
 

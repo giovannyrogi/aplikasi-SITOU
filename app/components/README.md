@@ -4,6 +4,10 @@ Periksa katalog dan folder `app/components` sebelum membuat komponen baru. Nama 
 
 ## Layout dan Filter
 
+`forms/PasswordStrengthIndicator` menampilkan perkiraan Lemah/Sedang/Kuat untuk
+kata sandi backup. Estimator dimuat lokal saat modal aktif; indikator tidak
+memblokir kata sandi pendek dan tidak mengirim kata sandi ke layanan lain.
+
 | Komponen                           | Tujuan                                                                                                                 | Props penting                                                                              |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `layout/PageHeader`                | Paper header operasional dengan breadcrumb, identitas visual, metadata, judul, deskripsi, dan aksi utama.              | `title`, `description`, `action`, `leading`, `metadata`, `breadcrumbs`, `menuList`         |
@@ -191,3 +195,5 @@ memicu pemuatan ulang setelah foto diganti, bukan memilih file. Endpoint file um
 tetap memerlukan `private_files.read_sensitive`; Pegawai tidak memperoleh akses
 ke foto atau dokumen pegawai lain. Preview tetap diaudit dan tidak di-cache.
 
+
+`useBrowserTimeZone` mendeteksi zona perangkat dengan hydration aman dan fallback UTC. Backup memakai hook ini untuk tampilan waktu lokal, sedangkan nama artefak tetap mengikuti snapshot zona waktu pekerjaan.

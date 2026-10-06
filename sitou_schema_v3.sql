@@ -1388,6 +1388,7 @@ WHERE entity_type='employee' AND action='employee.create';
 
 CREATE TABLE system_backup_jobs (
   id uuid PRIMARY KEY,
+  time_zone varchar(80) NOT NULL DEFAULT 'UTC' CONSTRAINT ck_system_backup_time_zone CHECK (length(btrim(time_zone)) > 0),
   requested_by_user_id bigint NOT NULL REFERENCES users(id),
   request_id uuid NOT NULL UNIQUE,
   status varchar(24) NOT NULL DEFAULT 'queued'
@@ -1424,6 +1425,7 @@ CREATE TABLE system_backup_jobs (
 );
 CREATE UNIQUE INDEX uq_system_backup_active ON system_backup_jobs ((true))
 WHERE status IN ('queued','copying','securing','verifying');
+COMMENT ON COLUMN system_backup_jobs.time_zone IS 'Zona waktu snapshot pekerjaan untuk nama artefak dan tampilan; pekerjaan lama tetap UTC.';
 CREATE INDEX ix_system_backup_history ON system_backup_jobs(created_at DESC,id DESC);
 CREATE INDEX ix_system_backup_stale ON system_backup_jobs(heartbeat_at)
 WHERE status IN ('queued','copying','securing','verifying');

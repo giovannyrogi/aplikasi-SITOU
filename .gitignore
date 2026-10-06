@@ -38,6 +38,8 @@
 !/scripts/expire-system-backups.mjs
 !/scripts/verify-system-backup.mjs
 !/scripts/test-system-backup-db.mjs
+!/scripts/test-system-backup-http.mjs
+!/scripts/verify-system-backup-zip.mjs
 !/scripts/retry-system-backup-artifact.mjs
 !/scripts/restore-system-backup.mjs
 !/scripts/test-system-restore-db.mjs
