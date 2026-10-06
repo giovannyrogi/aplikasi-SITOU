@@ -670,7 +670,7 @@ export default function SystemBackupsPage() {
   return (
     <Box sx={{ display: "grid", gap: 3, minWidth: 0, pb: 4 }}>
       <PageHeader
-        title="Backup & Restore"
+        title="Backup Database"
         description="Cadangkan database dan seluruh file; pemulihan penuh dilakukan melalui alat server."
         action={
           <Button

@@ -187,7 +187,7 @@ const MENU_CONFIG = [
         roles: [ROLES.SUPERADMIN],
       },
       {
-        label: "Backup & Restore",
+        label: "Backup Database",
         value: "system-backup",
         path: "/system/backups",
         icon: <AppIcon icon="solar:database-bold-duotone" fontSize="20px" />,
