@@ -11,6 +11,8 @@ Diminta, Mulai, Selesai, dan Dihapus tetap bersumber dari waktu absolut server/d
 ## Folder hasil dan kata sandi
 
 Riwayat backup menampilkan maksimal 10 data per halaman pada desktop dan mobile.
+Pagination juga menampilkan total seluruh riwayat dari hitungan server, termasuk
+backup selesai, gagal, dan dihapus. Total bukan jumlah baris pada halaman aktif.
 Navigasi Sebelumnya/Berikutnya memakai cursor server berdasarkan tanggal dan UUID,
 tanpa menumpuk baris. Nomor urut berlanjut pada halaman berikutnya. Polling memperbarui
 halaman yang sedang dibuka; Muat ulang kembali ke halaman pertama.

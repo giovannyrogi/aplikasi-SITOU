@@ -7,6 +7,7 @@ import { Alert, Button, DatePicker, Input, Select, Tooltip } from "antd";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
+import { paginationTotalLabel } from "@/app/components/data-display/rowNumbers.mjs";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -580,6 +581,19 @@ export default function EmployeeReport({ kind }) {
               p: 2,
             }}
           >
+            <Typography
+              variant="body2"
+              role="status"
+              aria-live="polite"
+              sx={{
+                mr: { sm: "auto" },
+                flexBasis: { xs: "100%", sm: "auto" },
+                minWidth: 0,
+                color: "text.secondary",
+              }}
+            >
+              {paginationTotalLabel(!dateBlocked && !currentError ? report?.total : null)}
+            </Typography>
             <Button
               disabled={dateBlocked || pending || !input.cursor}
               onClick={() => {

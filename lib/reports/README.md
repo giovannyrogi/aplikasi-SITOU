@@ -21,6 +21,12 @@ ditampilkan sebagai ringkasan dan histori lengkap dimuat terpisah saat modal dib
 
 ## API dan ekspor
 
+Pagination kontrak, pensiun, dan sanksi menampilkan `Total: N data` dari field
+`total` API. Total mengikuti seluruh filter, organisasi, dan scope lokasi pengguna,
+serta tidak berkurang ketika berpindah halaman. Total sanksi adalah jumlah pegawai
+hasil filter, sedangkan total kontrak adalah jumlah baris kontrak. Filter tidak valid
+atau request gagal tidak boleh ditampilkan seolah-olah totalnya nol.
+
 GET `/api/reports/retirements` dan `/api/reports/expiring-contracts`, masing-masing mempunyai `/export`. Filter: organizationId, search, locationId, organizationUnitId, positionId, employmentTypeId, group, period, startDate, endDate, successor. Pagination menggunakan cursor opaque yang terikat filter, organisasi, scope, serta tanggal acuan. Ukuran halaman maksimum 50.
 
 GET `/api/reports/disciplinary-actions` dan `/export` menerima organizationId, search, locationId,

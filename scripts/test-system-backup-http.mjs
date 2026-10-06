@@ -170,6 +170,8 @@ try {
       assert.equal((await fetch(base + route, { headers: { Cookie: user.cookie } })).status, 403);
   }
   const headers = { Cookie: users[0].cookie, Origin: base };
+  const expectedTotal = (await db.query("SELECT count(*)::int AS total FROM system_backup_jobs"))
+    .rows[0].total;
   let historyCursor = null;
   const seen = [];
   for (let page = 0; page < 3; page++) {
@@ -179,12 +181,26 @@ try {
     );
     assert.equal(response.status, 200);
     const data = (await response.json()).data;
+    assert.equal(data.total, expectedTotal);
     assert.ok(data.jobs.length <= 10);
     seen.push(...data.jobs.map((job) => job.id));
     historyCursor = data.nextCursor;
   }
   assert.equal(new Set(seen).size, seen.length);
   assert.deepEqual(seen.slice(0, 25).sort(), paginationJobIds.toSorted());
+  const endCursor = Buffer.from(
+    JSON.stringify({
+      createdAt: "1900-01-01T00:00:00Z",
+      id: "00000000-0000-0000-0000-000000000000",
+    }),
+  ).toString("base64url");
+  const emptyPage = (
+    await (
+      await fetch(`${base}/api/system/backups?estimate=0&cursor=${endCursor}`, { headers })
+    ).json()
+  ).data;
+  assert.deepEqual(emptyPage.jobs, []);
+  assert.equal(emptyPage.total, expectedTotal);
   assert.equal((await fetch(`${base}/api/system/backups?cursor=invalid`, { headers })).status, 400);
   for (const [route, name] of [
     [paths[1], backupNames(jobId, createdAt, timeZone).package],
@@ -228,6 +244,11 @@ try {
     await page.goto(base + "/system/backups");
     const historyNavigation = page.getByRole("navigation", { name: "Halaman riwayat backup" });
     await historyNavigation.getByText(/Halaman 1 · 10 data/).waitFor();
+    assert.ok(
+      (await historyNavigation.innerText()).includes(
+        `Total: ${expectedTotal.toLocaleString("id-ID")} data`,
+      ),
+    );
     await historyNavigation.getByRole("button", { name: "Berikutnya" }).click();
     await historyNavigation.getByText(/Halaman 2 · 10 data/).waitFor();
     await historyNavigation.getByRole("button", { name: "Berikutnya" }).click();
@@ -308,6 +329,53 @@ try {
     await dialog.getByRole("button", { name: "Tutup modal" }).click();
     await page.getByRole("button", { name: /Buat backup/ }).click();
     assert.equal(await dialog.getByLabel("Kata sandi backup", { exact: true }).inputValue(), "");
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+  for (const width of [320, 1366]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    await context.addCookies([
+      { name: "sitou_session", value: users[0].cookie.slice("sitou_session=".length), url: base },
+    ]);
+    const page = await context.newPage(),
+      errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    let total = 1170;
+    await page.route("**/api/reports/**", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          data: {
+            rows: [],
+            total,
+            rowOffset: 0,
+            employeeCount: total,
+            organization: {
+              id: reference.organization_id,
+              name: "Organisasi Uji",
+              retirement_age: 58,
+            },
+            filters: {},
+            asOf: "2026-10-06",
+            generatedAt: createdAt.toISOString(),
+            nextCursor: null,
+          },
+        }),
+      }),
+    );
+    for (const kind of ["expiring-contracts", "retirements", "disciplinary-actions"]) {
+      total = 1170;
+      await page.goto(`${base}/reports/${kind}?organizationId=${reference.organization_id}`);
+      await page.getByText("Total: 1.170 data", { exact: true }).waitFor();
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+        false,
+      );
+      total = 0;
+      await page.reload();
+      await page.getByText("Total: 0 data", { exact: true }).waitFor();
+    }
     assert.deepEqual(errors, []);
     await context.close();
   }

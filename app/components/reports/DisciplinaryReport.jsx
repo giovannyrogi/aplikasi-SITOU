@@ -8,6 +8,7 @@ import { HistoryOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
+import { paginationTotalLabel } from "@/app/components/data-display/rowNumbers.mjs";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -357,10 +358,7 @@ export default function DisciplinaryReport() {
       width: 190,
       render: (_, row) => (
         <Box sx={{ display: "grid", gap: 0.75, justifyItems: "start" }}>
-          <CompactInfoChip
-            label={row.action_name_snapshot}
-            tone="danger"
-          />
+          <CompactInfoChip label={row.action_name_snapshot} tone="danger" />
           <CompactInfoChip
             label={ACTION_STATUS[row.action_status]?.[0] || row.action_status}
             tone={ACTION_STATUS[row.action_status]?.[1] || "neutral"}
@@ -516,10 +514,7 @@ export default function DisciplinaryReport() {
                       (EMPLOYEE_STATUS_PRESENTATION[row.employment_status] || [null, "neutral"])[1]
                     }
                   />
-                  <CompactInfoChip
-                    label={row.action_name_snapshot}
-                    tone="danger"
-                  />
+                  <CompactInfoChip label={row.action_name_snapshot} tone="danger" />
                   <CompactInfoChip
                     label={ACTION_STATUS[row.action_status]?.[0] || row.action_status}
                     tone={ACTION_STATUS[row.action_status]?.[1] || "neutral"}
@@ -539,9 +534,7 @@ export default function DisciplinaryReport() {
                     [
                       "Nomor surat",
                       row.letter_no ||
-                        (!row.requires_document_snapshot
-                          ? "Tidak diperlukan"
-                          : "Belum tersedia"),
+                        (!row.requires_document_snapshot ? "Tidak diperlukan" : "Belum tersedia"),
                     ],
                     ["Tanggal terbit", reportDate(row.issued_date)],
                     [
@@ -588,6 +581,19 @@ export default function DisciplinaryReport() {
               p: 2,
             }}
           >
+            <Typography
+              variant="body2"
+              role="status"
+              aria-live="polite"
+              sx={{
+                mr: { sm: "auto" },
+                flexBasis: { xs: "100%", sm: "auto" },
+                minWidth: 0,
+                color: "text.secondary",
+              }}
+            >
+              {paginationTotalLabel(!dateBlocked && !currentError ? report?.total : null)}
+            </Typography>
             <Button
               disabled={pending || !input.cursor}
               onClick={() => {

@@ -21,3 +21,9 @@ export function numberedColumns(columns, offset) {
     ...columns,
   ];
 }
+/** Total seluruh hasil filter, bukan jumlah baris pada halaman yang sedang dibuka. */
+export function paginationTotalLabel(total) {
+  if (total == null || !Number.isSafeInteger(Number(total)) || Number(total) < 0)
+    return "Total data belum tersedia";
+  return `Total: ${Number(total).toLocaleString("id-ID")} data`;
+}

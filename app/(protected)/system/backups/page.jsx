@@ -33,6 +33,7 @@ import PasswordStrengthIndicator from "@/app/components/forms/PasswordStrengthIn
 import BackupProgressPanel from "@/app/components/system-backup/BackupProgressPanel";
 import { formatBackupDate } from "@/lib/system-backup/timezone.mjs";
 import { BACKUP_HISTORY_PAGE_SIZE } from "@/lib/system-backup/pagination.mjs";
+import { paginationTotalLabel } from "@/app/components/data-display/rowNumbers.mjs";
 
 const alertTextSx = {
   borderRadius: 2,
@@ -131,6 +132,7 @@ export default function SystemBackupsPage() {
   const [jobs, setJobs] = useState([]);
   const [estimate, setEstimate] = useState(null);
   const [historyCursor, setHistoryCursor] = useState(null);
+  const [historyTotal, setHistoryTotal] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyPage, setHistoryPage] = useState(0);
   const historyNavigation = useRef({ page: 0, cursors: [null] });
@@ -195,6 +197,7 @@ export default function SystemBackupsPage() {
             setHistoryPage(0);
           }
           setHistoryCursor(data.nextCursor);
+          setHistoryTotal(data.total ?? null);
           if (data.estimate) setEstimate(data.estimate);
           setError("");
         }
@@ -234,6 +237,7 @@ export default function SystemBackupsPage() {
         setHistoryPage(targetPage);
         setJobs(data.jobs);
         setHistoryCursor(data.nextCursor);
+        setHistoryTotal(data.total ?? null);
         setError("");
       }
     } catch (cause) {
@@ -803,8 +807,7 @@ export default function SystemBackupsPage() {
           }}
         >
           <FontStyle fontSize={13} color="text.secondary" role="status" aria-live="polite">
-            Halaman {historyPage + 1} · {jobs.length} data · Maksimal {BACKUP_HISTORY_PAGE_SIZE} per
-            halaman
+            Halaman {historyPage + 1} · {jobs.length} data · {paginationTotalLabel(historyTotal)}
           </FontStyle>
           <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
             <Button
