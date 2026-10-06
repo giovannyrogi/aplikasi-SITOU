@@ -928,15 +928,17 @@ export default function SystemBackupsPage() {
                   }}
                 >
                   <FontStyle fontSize={14} variant="body2" fontWeight={700}>
-                    Ruang sementara dibutuhkan
+                    Perkiraan ruang backup
                   </FontStyle>
                   <FontStyle fontSize={14} variant="body2" fontWeight={700} color="primary.main">
                     {formatBytes(estimate.requiredTemporaryBytes)}
                   </FontStyle>
                 </Box>
                 <FontStyle fontSize={12} variant="caption" color="text.secondary">
-                  Tersedia {formatBytes(estimate.freeBytes)} di server · untuk paket lengkap dan dua
-                  ZIP.
+                  Termasuk hasil backup, file sementara, dan cadangan ruang.
+                </FontStyle>
+                <FontStyle fontSize={12} variant="caption" color="text.secondary">
+                  Ruang tersedia di server: {formatBytes(estimate.freeBytes)}.
                 </FontStyle>
               </Box>
             </Box>
