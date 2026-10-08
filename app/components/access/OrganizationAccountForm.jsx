@@ -12,6 +12,10 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { PASSWORD_FORM_RULES } from "@/app/utils/passwordRules";
 import { ROLES } from "@/app/constants/roles";
+import PackageAccessFields from "./PackageAccessFields";
+import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
+import useFormModalClose from "@/app/hooks/useFormModalClose";
+import { grantKey } from "@/lib/access/packagePolicy.mjs";
 
 /** Form mengunci pembuatan HRD ke akun Pegawai; Superadmin tetap mengelola role organisasi. */
 export default function OrganizationAccountForm({
@@ -25,7 +29,17 @@ export default function OrganizationAccountForm({
   const user = useAuthenticatedUser();
   const [form] = Form.useForm();
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
-  const [options, setOptions] = useState({ employees: [], locations: [] });
+  const [options, setOptions] = useState({
+    employees: [],
+    locations: [],
+    packages: [],
+    warehouses: [],
+    inventoryEnabled: false,
+    canGrantAll: false,
+  });
+  const dirtyRef = useRef(false);
+  const closeGuard = useFormModalClose(form, onClose, () => dirtyRef.current);
+  const [pending, setPending] = useState(null);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsReady, setOptionsReady] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -42,6 +56,7 @@ export default function OrganizationAccountForm({
 
   useEffect(() => {
     if (!open) return;
+    dirtyRef.current = false;
     form.resetFields();
     form.setFieldsValue({
       organizationId: organizationId || user.organization_id,
@@ -49,6 +64,7 @@ export default function OrganizationAccountForm({
       locationScopeMode: "all",
       locationIds: [],
       isActive: true,
+      packageAccess: [],
       ...(item
         ? {
             employeeId: item.employee_id,
@@ -57,6 +73,11 @@ export default function OrganizationAccountForm({
             locationScopeMode: item.location_scope_mode,
             locationIds: item.location_ids,
             isActive: item.is_active,
+            packageAccess: (item.packageAccess || []).map((grant) => ({
+              packageCode: grant.packageCode,
+              scopeMode: grant.scopeMode,
+              warehouseIds: grant.warehouseIds,
+            })),
           }
         : {}),
     });
@@ -64,7 +85,7 @@ export default function OrganizationAccountForm({
 
   /** Hanya memuat profil bebas dan profil milik akun yang sedang diedit. */
   useEffect(() => {
-    const target = targetOrganizationId || organizationId || user.organization_id;
+    const target = targetOrganizationId;
     if (!open || !target) return;
     const controller = new AbortController();
     const query = new URLSearchParams({ organizationId: String(target) });
@@ -72,7 +93,14 @@ export default function OrganizationAccountForm({
     Promise.resolve()
       .then(() => {
         if (controller.signal.aborted) return null;
-        setOptions({ employees: [], locations: [] });
+        setOptions({
+          employees: [],
+          locations: [],
+          packages: [],
+          warehouses: [],
+          inventoryEnabled: false,
+          canGrantAll: false,
+        });
         setOptionsReady(false);
         setOptionsLoading(true);
         return fetch(`/api/access/accounts/reference-options?${query}`, {
@@ -86,6 +114,11 @@ export default function OrganizationAccountForm({
         setOptions({
           employees: body.data?.employees || [],
           locations: body.data?.locations || [],
+          packages: body.data?.packages || [],
+          warehouses: body.data?.warehouses || [],
+          inventoryEnabled: Boolean(body.data?.inventoryEnabled),
+          canGrantAll: Boolean(body.data?.canGrantAll),
+          lockedPackageCodes: body.data?.lockedPackageCodes || [],
         });
         setOptionsReady(true);
       })
@@ -125,6 +158,7 @@ export default function OrganizationAccountForm({
             },
           );
           const body = await readApiResponse(response);
+          window.dispatchEvent(new Event("sitou:access-changed"));
           await onSaved(body.message);
         },
         { message: "Menyimpan akun organisasi..." },
@@ -137,162 +171,214 @@ export default function OrganizationAccountForm({
       setSaving(false);
     }
   };
+  const confirmSubmit = (values) => {
+    const reduced = (item?.packageAccess || []).some(
+      (old) => !(values.packageAccess || []).some((grant) => grantKey(old) === grantKey(grant)),
+    );
+    if (reduced) setPending(values);
+    else void submit(values);
+  };
 
   return (
-    <AppModal
-      open={open}
-      title={
-        editing ? "Edit akun organisasi" : isHrd ? "Tambah akun Pegawai" : "Tambah akun organisasi"
-      }
-      description={
-        isHrd
-          ? "Akun otomatis menggunakan role Pegawai dan wajib ditautkan ke profil pegawai."
-          : "Buat kredensial akses; identitas bersumber dari profil pegawai yang ditautkan."
-      }
-      size="lg"
-      onClose={onClose}
-      footer={
-        <>
-          <Button onClick={onClose}>Batal</Button>
-          <Button
-            type="primary"
-            loading={saving}
-            disabled={!optionsReady || optionsLoading}
-            onClick={() => form.submit()}
-          >
-            Simpan akun
-          </Button>
-        </>
-      }
-    >
-      <Form form={form} layout="vertical" onFinish={submit}>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-            gap: { sm: "0 16px" },
+    <>
+      <AppModal
+        open={open}
+        title={
+          editing
+            ? "Edit akun organisasi"
+            : isHrd
+              ? "Tambah akun Pegawai"
+              : "Tambah akun organisasi"
+        }
+        description={
+          isHrd
+            ? "Akun otomatis menggunakan role Pegawai dan wajib ditautkan ke profil pegawai."
+            : "Buat kredensial akses; identitas bersumber dari profil pegawai yang ditautkan."
+        }
+        size="lg"
+        onClose={closeGuard.requestClose}
+        disableClose={saving}
+        footer={
+          <>
+            <Button onClick={closeGuard.requestClose} disabled={saving}>
+              Batal
+            </Button>
+            <Button
+              type="primary"
+              loading={saving}
+              disabled={!optionsReady || optionsLoading}
+              onClick={() => form.submit()}
+            >
+              Simpan akun
+            </Button>
+          </>
+        }
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onValuesChange={() => {
+            dirtyRef.current = true;
+          }}
+          onFinish={confirmSubmit}
+          onFinishFailed={({ errorFields }) => {
+            onError("Periksa kembali isian akun dan paket akses.");
+            if (errorFields[0]) form.scrollToField(errorFields[0].name, { focus: true });
           }}
         >
-          <Box sx={{ gridColumn: "1 / -1" }}>
-            <OrganizationScopeField disabled={editing} />
-          </Box>
-          {isHrd ? (
-            <Form.Item name="roleCode" hidden>
-              <Input />
-            </Form.Item>
-          ) : (
-            <Form.Item name="roleCode" label="Role" rules={[{ required: true }]}>
-              <Select
-                options={[
-                  { value: "hrd", label: "HRD" },
-                  { value: "leader", label: "Pimpinan" },
-                  { value: "employee", label: "Pegawai" },
-                ]}
-              />
-            </Form.Item>
-          )}
-          <Form.Item
-            name="employeeId"
-            label={roleCode === "employee" ? "Profil pegawai" : "Profil pegawai (opsional)"}
-            rules={[
-              {
-                validator: (_, value) =>
-                  roleCode !== "employee" || value
-                    ? Promise.resolve()
-                    : Promise.reject(new Error("Profil pegawai wajib dipilih untuk akun Pegawai.")),
-              },
-            ]}
-            extra={
-              roleCode === "employee"
-                ? "Akun Pegawai harus terhubung ke profil dan penempatan aktif."
-                : "Kosongkan untuk membuat akun akses tanpa profil pegawai."
-            }
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" },
+              minWidth: 0,
+              "& .ant-form-item": { minWidth: 0 },
+              gap: { sm: "0 16px" },
+            }}
           >
-            <Select
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              placeholder="Pilih profil bila diperlukan"
-              loading={optionsLoading}
-              disabled={optionsLoading || saving}
-              options={options.employees.map((value) => ({
-                value: value.id,
-                label: `${value.employee_no} - ${value.full_name}`,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item
-            name="username"
-            label="Username"
-            rules={[{ required: true, min: 3 }]}
-            style={!isHrd ? { gridColumn: "1 / -1" } : undefined}
-          >
-            <Input maxLength={80} autoComplete="off" />
-          </Form.Item>
-          {!editing ? (
-            <>
-              <Form.Item name="password" label="Password" rules={PASSWORD_FORM_RULES}>
-                <Input.Password autoComplete="new-password" />
+            <Box sx={{ gridColumn: "1 / -1" }}>
+              <OrganizationScopeField disabled={editing} />
+            </Box>
+            {isHrd ? (
+              <Form.Item name="roleCode" hidden>
+                <Input />
               </Form.Item>
-              <Form.Item
-                name="confirmPassword"
-                label="Konfirmasi password"
-                dependencies={["password"]}
-                rules={[
-                  { required: true, message: "Konfirmasi password wajib diisi." },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      return !value || getFieldValue("password") === value
-                        ? Promise.resolve()
-                        : Promise.reject(new Error("Konfirmasi password tidak sama."));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password autoComplete="new-password" />
-              </Form.Item>
-            </>
-          ) : null}
-        </Box>
-        {!isHrd && roleCode === "hrd" ? (
-          <>
-            <Form.Item name="locationScopeMode" label="Cakupan lokasi">
-              <Segmented
-                block
-                options={[
-                  { value: "all", label: "Seluruh lokasi" },
-                  { value: "selected", label: "Lokasi tertentu" },
-                ]}
-              />
-            </Form.Item>
-            {scopeMode === "selected" ? (
-              <Form.Item
-                name="locationIds"
-                label="Lokasi yang dapat dikelola"
-                rules={[{ required: true, type: "array", min: 1 }]}
-              >
+            ) : (
+              <Form.Item name="roleCode" label="Role" rules={[{ required: true }]}>
                 <Select
-                  mode="multiple"
-                  showSearch
-                  optionFilterProp="label"
-                  options={options.locations.map((value) => ({
-                    value: value.id,
-                    label: value.name,
-                  }))}
+                  options={[
+                    { value: "hrd", label: "HRD" },
+                    { value: "leader", label: "Pimpinan" },
+                    { value: "employee", label: "Pegawai" },
+                  ]}
                 />
               </Form.Item>
+            )}
+            <Form.Item
+              name="employeeId"
+              label={roleCode === "employee" ? "Profil pegawai" : "Profil pegawai (opsional)"}
+              rules={[
+                {
+                  validator: (_, value) =>
+                    roleCode !== "employee" || value
+                      ? Promise.resolve()
+                      : Promise.reject(
+                          new Error("Profil pegawai wajib dipilih untuk akun Pegawai."),
+                        ),
+                },
+              ]}
+              extra={
+                roleCode === "employee"
+                  ? "Akun Pegawai harus terhubung ke profil dan penempatan aktif."
+                  : "Kosongkan untuk membuat akun akses tanpa profil pegawai."
+              }
+            >
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="Pilih profil bila diperlukan"
+                loading={optionsLoading}
+                disabled={optionsLoading || saving}
+                options={options.employees.map((value) => ({
+                  value: value.id,
+                  label: `${value.employee_no} - ${value.full_name}`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item
+              name="username"
+              label="Username"
+              rules={[{ required: true, min: 3 }]}
+              style={!isHrd ? { gridColumn: "1 / -1" } : undefined}
+            >
+              <Input maxLength={80} autoComplete="off" />
+            </Form.Item>
+            {!editing ? (
+              <>
+                <Form.Item name="password" label="Password" rules={PASSWORD_FORM_RULES}>
+                  <Input.Password autoComplete="new-password" />
+                </Form.Item>
+                <Form.Item
+                  name="confirmPassword"
+                  label="Konfirmasi password"
+                  dependencies={["password"]}
+                  rules={[
+                    { required: true, message: "Konfirmasi password wajib diisi." },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        return !value || getFieldValue("password") === value
+                          ? Promise.resolve()
+                          : Promise.reject(new Error("Konfirmasi password tidak sama."));
+                      },
+                    }),
+                  ]}
+                >
+                  <Input.Password autoComplete="new-password" />
+                </Form.Item>
+              </>
             ) : null}
-          </>
-        ) : null}
-        <FormSettingsGroup sx={{ mt: 1 }}>
-          <FormSettingSwitch
-            name="isActive"
-            title="Akun dapat digunakan untuk masuk"
-            description="Nonaktifkan jika akses akun perlu dihentikan tanpa menghapus data dan riwayatnya."
-          />
-        </FormSettingsGroup>
-      </Form>
-    </AppModal>
+          </Box>
+          {!isHrd && roleCode === "hrd" ? (
+            <>
+              <Form.Item name="locationScopeMode" label="Cakupan lokasi">
+                <Segmented
+                  block
+                  options={[
+                    { value: "all", label: "Seluruh lokasi" },
+                    { value: "selected", label: "Lokasi tertentu" },
+                  ]}
+                />
+              </Form.Item>
+              {scopeMode === "selected" ? (
+                <Form.Item
+                  name="locationIds"
+                  label="Lokasi yang dapat dikelola"
+                  rules={[{ required: true, type: "array", min: 1 }]}
+                >
+                  <Select
+                    mode="multiple"
+                    showSearch
+                    optionFilterProp="label"
+                    options={options.locations.map((value) => ({
+                      value: value.id,
+                      label: value.name,
+                    }))}
+                  />
+                </Form.Item>
+              ) : null}
+            </>
+          ) : null}
+          <PackageAccessFields form={form} options={options} existing={item?.packageAccess} />
+          <FormSettingsGroup sx={{ mt: 1 }}>
+            <FormSettingSwitch
+              name="isActive"
+              title="Akun dapat digunakan untuk masuk"
+              description="Nonaktifkan jika akses akun perlu dihentikan tanpa menghapus data dan riwayatnya."
+            />
+          </FormSettingsGroup>
+        </Form>
+      </AppModal>
+      <ConfirmDialog
+        open={Boolean(pending)}
+        title="Ubah cakupan akses?"
+        message="Paket atau cakupan lama akan dicabut sesuai pilihan baru. Perubahan berlaku pada permintaan berikutnya meskipun akun masih login."
+        confirmText="Simpan perubahan"
+        onClose={() => setPending(null)}
+        onConfirm={() => {
+          const values = pending;
+          setPending(null);
+          void submit(values);
+        }}
+      />
+      <ConfirmDialog
+        open={closeGuard.confirmCloseOpen}
+        title="Tutup tanpa menyimpan?"
+        message="Perubahan akun dan paket akses belum disimpan."
+        confirmText="Tutup"
+        onClose={closeGuard.keepEditing}
+        onConfirm={closeGuard.discardChanges}
+      />
+    </>
   );
 }
 

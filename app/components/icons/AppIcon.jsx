@@ -41,6 +41,11 @@ import {
   ScheduleOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
+  SwapOutlined,
+  InboxOutlined,
+  NodeIndexOutlined,
+  TagsOutlined,
+  ShopOutlined,
   SolutionOutlined,
   TeamOutlined,
   UnorderedListOutlined,
@@ -54,6 +59,12 @@ import {
 } from "@ant-design/icons";
 
 const ICONS = {
+  "navigation:inventory": AppstoreOutlined,
+  "navigation:inventory-stock": InboxOutlined,
+  "navigation:inventory-transactions": SwapOutlined,
+  "navigation:inventory-reports": NodeIndexOutlined,
+  "navigation:inventory-master": TagsOutlined,
+  "inventory:warehouse": ShopOutlined,
   "navigation:dashboard": DashboardOutlined,
   "navigation:master-data": DatabaseOutlined,
   "navigation:organization": BankOutlined,
@@ -134,15 +145,7 @@ const ICONS = {
   "solar:gallery-wide-bold-duotone": PictureOutlined,
 };
 
-export default function AppIcon({
-  icon,
-  width,
-  height,
-  fontSize,
-  color,
-  style,
-  ...props
-}) {
+export default function AppIcon({ icon, width, height, fontSize, color, style, ...props }) {
   const IconComponent = ICONS[icon] || QuestionCircleOutlined;
   const size = fontSize ?? width ?? height;
   return (

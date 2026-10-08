@@ -24,7 +24,41 @@ export default function ProtectedShell({ user, children }) {
   const [notification, setNotification] = useState({ open: false, message: "", severity: "error" });
   const [sessionExpired, setSessionExpired] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(5);
-  const menus = useMemo(() => getMenusByRole(MENU_CONFIG, user.role_code), [user.role_code]);
+  const [access, setAccess] = useState(user.access);
+  const menus = useMemo(
+    () => getMenusByRole(MENU_CONFIG, user.role_code, access),
+    [user.role_code, access],
+  );
+  useEffect(() => {
+    const controller = new AbortController();
+    const refresh = async () => {
+      try {
+        const response = await fetch("/api/access/me", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (response.status === 401) {
+          setSessionExpired(true);
+          return;
+        }
+        if (!response.ok) return;
+        const body = await response.json();
+        setAccess(body.data);
+        if (pathname.startsWith("/inventory") && !body.data.inventoryVisible)
+          router.replace("/dashboard");
+      } catch (error) {
+        if (error.name !== "AbortError") setAccess(null);
+      }
+    };
+    void refresh();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("sitou:access-changed", refresh);
+    return () => {
+      controller.abort();
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("sitou:access-changed", refresh);
+    };
+  }, [pathname, router]);
 
   useEffect(() => {
     finishNavigationLoading();
@@ -182,7 +216,9 @@ export default function ProtectedShell({ user, children }) {
               }
             />
           </Box>
-          <AuthenticatedUserProvider user={user}>{children}</AuthenticatedUserProvider>
+          <AuthenticatedUserProvider user={{ ...user, access }}>
+            {children}
+          </AuthenticatedUserProvider>
         </Box>
       </Box>
 

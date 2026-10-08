@@ -1,12 +1,18 @@
-export const getMenusByRole = (menus, roleCode) => {
+export const getMenusByRole = (menus, roleCode, access = null) => {
   return menus
     .map((menu) => {
       // cek role menu utama
-      const hasMenuAccess = menu?.roles?.includes(roleCode);
+      const hasMenuAccess = menu.permission
+        ? roleCode === "superadmin" || access?.permissions?.includes(menu.permission)
+        : menu?.roles?.includes(roleCode);
 
       // filter submenu
       const filteredSubmenu = menu?.submenu
-        ? menu.submenu.filter((sub) => sub?.roles.includes(roleCode))
+        ? menu.submenu.filter((sub) =>
+            sub.permission
+              ? roleCode === "superadmin" || access?.permissions?.includes(sub.permission)
+              : sub?.roles.includes(roleCode),
+          )
         : [];
 
       // jika punya submenu

@@ -108,3 +108,16 @@ serta kedua ZIP tambahan. Terapkan setelah `042` sebelum deploy web dan worker b
 yang menampilkan progres; metadata ini tidak berisi nama atau path file privat.
 
 Migration `044` menambahkan snapshot `system_backup_jobs.time_zone`. Pekerjaan lama tetap UTC; permintaan baru menyimpan `BACKUP_TIME_ZONE` (default Asia/Makassar). Terapkan sebelum deploy web dan worker zona waktu backup.
+
+Migration `045` menyediakan modul/paket akses per membership organisasi dan gudang
+minimal Inventaris. Terapkan satu kali setelah `044`, sebelum deploy web baru,
+melalui prosedur migration environment terkait. Tidak mengaktifkan modul atau
+memberi paket kepada akun lama. Schema bootstrap telah menyertakan tabel dan seed.
+Setelah penerapan, Superadmin memakai aksi Modul organisasi untuk aktivasi,
+menyiapkan gudang, lalu HRD memberikan paket pada akun Pegawai uji. Uji migration
+upgrade serta bootstrap penuh dijalankan oleh `npm run test:inventory:http` di
+database terpisah; jangan menjalankan SQL schema bootstrap untuk memperbarui VPS.
+
+Migration `046` mempertahankan penanda kunci lokasi gudang setelah pernah digunakan
+dalam scope paket, termasuk jika cakupan kemudian diubah atau dicabut. Terapkan
+setelah `045` sebelum deploy web; tidak mengubah saldo atau membentuk transaksi stok.

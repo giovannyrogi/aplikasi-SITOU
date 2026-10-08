@@ -120,6 +120,7 @@ export default function AppModal({
             {resolvedDescription ? (
               <FontStyle
                 id={descriptionId}
+                explanation
                 fontSize={12.5}
                 sx={{ mt: 0.5, color: theme.ui.mutedText, lineHeight: 1.6 }}
               >

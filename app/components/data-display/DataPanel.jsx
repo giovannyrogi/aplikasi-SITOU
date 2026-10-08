@@ -48,6 +48,7 @@ export default function DataPanel({
             ) : null}
             {description ? (
               <FontStyle
+                explanation
                 component="div"
                 fontSize={11.5}
                 sx={{ mt: 0.5, color: theme.ui.mutedText }}

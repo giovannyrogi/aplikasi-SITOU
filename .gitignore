@@ -96,6 +96,8 @@
 /ecosystem.config.js
 
 # debug
+!/tests/inventory-access.test.mjs
+!/scripts/test-inventory-http.mjs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

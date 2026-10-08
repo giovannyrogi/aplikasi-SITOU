@@ -43,6 +43,7 @@
     "test:account-identity:db": "node scripts/test-account-identity-db.mjs",
     "test:account-linking:http": "node scripts/test-account-linking-http.mjs",
     "test:employee-dashboard:http": "node scripts/test-employee-dashboard-http.mjs",
+    "test:inventory:http": "node scripts/test-inventory-http.mjs",
     "test:employee-age-contract:http": "node scripts/test-employee-age-contract-http.mjs",
     "db:migrate": "node scripts/apply-development-migration.mjs",
     "files:scan-malware": "node scripts/scan-stored-files-malware.mjs",

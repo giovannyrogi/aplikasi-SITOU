@@ -2,16 +2,16 @@
 
 import { useCallback, useState } from "react";
 
-export default function useFormModalClose(form, onClose) {
+export default function useFormModalClose(form, onClose, isDirty) {
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
   const requestClose = useCallback(() => {
-    if (form.isFieldsTouched()) {
+    if (isDirty ? isDirty() : form.isFieldsTouched()) {
       setConfirmCloseOpen(true);
       return;
     }
     onClose();
-  }, [form, onClose]);
+  }, [form, onClose, isDirty]);
 
   const discardChanges = useCallback(() => {
     setConfirmCloseOpen(false);

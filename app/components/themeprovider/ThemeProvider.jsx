@@ -171,16 +171,35 @@ export default function AppThemeProvider({ children }) {
     <ThemeProvider theme={appTheme}>
       <GlobalStyles
         styles={{
-          ...Object.fromEntries(Object.entries(ACTION_TONES).map(([name, tone]) => [
-            `.ant-btn[data-action-tone="${name}"]:not(:disabled):not(.ant-btn-disabled)`,
-            {
-              backgroundColor: tone.main, borderColor: tone.main, color: BRAND_COLORS.onPrimary,
-              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-              minHeight: 44, minWidth: 44, boxShadow: "none",
-              "&:hover, &:active": { backgroundColor: tone.hover, borderColor: tone.hover, color: BRAND_COLORS.onPrimary },
-              "&:focus-visible": { outline: `2px solid ${tone.main}`, outlineOffset: 3 },
-            },
-          ])),
+          ".ant-form-item-extra": {
+            textAlign: "justify",
+            textAlignLast: "auto",
+            wordBreak: "normal",
+            overflowWrap: "break-word",
+          },
+          ...Object.fromEntries(
+            Object.entries(ACTION_TONES).map(([name, tone]) => [
+              `.ant-btn[data-action-tone="${name}"]:not(:disabled):not(.ant-btn-disabled)`,
+              {
+                backgroundColor: tone.main,
+                borderColor: tone.main,
+                color: BRAND_COLORS.onPrimary,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                minHeight: 44,
+                minWidth: 44,
+                boxShadow: "none",
+                "&:hover, &:active": {
+                  backgroundColor: tone.hover,
+                  borderColor: tone.hover,
+                  color: BRAND_COLORS.onPrimary,
+                },
+                "&:focus-visible": { outline: `2px solid ${tone.main}`, outlineOffset: 3 },
+              },
+            ]),
+          ),
           ":root": {
             "--sitou-brand-primary": BRAND_COLORS.primary,
             "--sitou-scrollbar-thumb": BRAND_COLORS.primary,

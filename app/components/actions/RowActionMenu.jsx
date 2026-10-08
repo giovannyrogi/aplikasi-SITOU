@@ -3,9 +3,11 @@
 import { Button, Dropdown } from "antd";
 import { MenuOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
+import { useState } from "react";
 
 export default function RowActionMenu({ items }) {
   const theme = useTheme();
+  const [open, setOpen] = useState(false);
   const menuItems = (items || []).flatMap((item, index) => {
     const previous = items[index - 1];
     const needsDangerDivider =
@@ -17,7 +19,9 @@ export default function RowActionMenu({ items }) {
 
   return (
     <Dropdown
-      menu={{ items: menuItems }}
+      open={open}
+      onOpenChange={setOpen}
+      menu={{ items: menuItems, onClick: () => setOpen(false) }}
       trigger={["click"]}
       placement="bottomRight"
       popupRender={(menu) => (

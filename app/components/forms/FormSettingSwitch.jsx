@@ -59,6 +59,7 @@ export default function FormSettingSwitch({
           {helpText ? (
             <FontStyle
               id={descriptionId}
+              explanation
               component="div"
               fontSize={12.5}
               color="text.secondary"

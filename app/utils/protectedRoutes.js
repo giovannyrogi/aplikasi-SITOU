@@ -5,6 +5,7 @@ export const PUBLIC_PATHS = ["/login", "/forgot-password"];
 export const PUBLIC_PATH_PREFIXES = ["/verify"];
 
 export const PROTECTED_ROUTES = [
+  { path: "/inventory", roles: ALL_ROLE_CODES },
   {
     path: "/reports",
     roles: [ROLES.SUPERADMIN, ROLES.HRD, ROLES.LEADER],

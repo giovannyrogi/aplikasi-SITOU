@@ -1,6 +1,13 @@
 import { Typography } from "@mui/material";
 
-const FontStyle = ({ children, fontWeight = 500, fontSize = 12, sx = {}, ...props }) => {
+const FontStyle = ({
+  children,
+  fontWeight = 500,
+  fontSize = 12,
+  explanation = false,
+  sx = {},
+  ...props
+}) => {
   return (
     <Typography
       {...props}
@@ -12,6 +19,14 @@ const FontStyle = ({ children, fontWeight = 500, fontSize = 12, sx = {}, ...prop
         wordBreak: "break-word",
         overflowWrap: "anywhere",
         letterSpacing: 0,
+        ...(explanation
+          ? {
+              textAlign: props.textAlign || "justify",
+              textAlignLast: "auto",
+              wordBreak: "normal",
+              overflowWrap: "break-word",
+            }
+          : {}),
         ...sx,
       }}
     >

@@ -99,16 +99,24 @@ export default function OrganizationAccountsPage() {
       ),
     },
     {
-      title: "Cakupan",
+      title: "Cakupan role",
       key: "scope",
       render: (_, item) => (
         <CompactInfoChip
           label={
-            item.role_code !== "hrd" || item.location_scope_mode === "all"
-              ? "Seluruh lokasi"
-              : `${item.locations.length} lokasi`
+            item.role_code === "employee"
+              ? "Profil sendiri"
+              : item.role_code !== "hrd" || item.location_scope_mode === "all"
+                ? "Seluruh lokasi"
+                : `${item.locations.length} lokasi`
           }
-          tone={item.location_scope_mode === "selected" ? "warning" : "success"}
+          tone={
+            item.role_code === "employee"
+              ? "neutral"
+              : item.location_scope_mode === "selected"
+                ? "warning"
+                : "success"
+          }
         />
       ),
     },
@@ -116,6 +124,28 @@ export default function OrganizationAccountsPage() {
       title: "Status",
       dataIndex: "is_active",
       render: (value) => <CompactInfoChip status={value ? "active" : "inactive"} />,
+    },
+    {
+      title: "Paket akses",
+      key: "packages",
+      render: (_, item) => (
+        <Box sx={{ display: "grid", gap: 1 }}>
+          {item.packageAccess?.length ? (
+            item.packageAccess.map((grant) => (
+              <Box key={grant.packageCode}>
+                <CompactInfoChip label={grant.name} tone="info" />
+                <FontStyle fontSize={11.5} sx={{ mt: 0.75, color: "text.secondary" }}>
+                  {grant.scopeMode === "all"
+                    ? "Seluruh gudang"
+                    : grant.warehouses.map((w) => w.name).join(", ")}
+                </FontStyle>
+              </Box>
+            ))
+          ) : (
+            <FontStyle fontSize={12}>Tanpa paket tambahan</FontStyle>
+          )}
+        </Box>
+      ),
     },
     {
       title: "Aksi",
@@ -142,6 +172,13 @@ export default function OrganizationAccountsPage() {
       <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
         <CompactInfoChip label={item.role_name} tone={roleTone[item.role_code]} />
         <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
+        {(item.packageAccess || []).map((grant) => (
+          <CompactInfoChip
+            key={grant.packageCode}
+            label={`${grant.name} · ${grant.scopeMode === "all" ? "Seluruh gudang" : `${grant.warehouseIds.length} gudang`}`}
+            tone="info"
+          />
+        ))}
       </Box>
     </Box>
   );

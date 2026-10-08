@@ -4,6 +4,15 @@ Periksa katalog dan folder `app/components` sebelum membuat komponen baru. Nama 
 
 ## Layout dan Filter
 
+`FontStyle explanation` adalah gaya paragraf penjelasan/informasi: justify,
+baris terakhir normal, serta pemenggalan kata yang wajar. Deskripsi PageHeader,
+DataPanel, AppModal, dan FormSettingSwitch menerapkannya otomatis. ConfirmDialog
+memakai justify secara default; `messageAlign="center"` tetap mempertahankan
+desain pesan utama seperti modal hapus backup. Judul, label, angka, dan metadata
+tidak memakai gaya paragraf ini. Tulis penjelasan sederhana dalam 1–3 kalimat.
+Bantuan field AntD (`Form.Item extra`) mengikuti alignment paragraf yang sama
+melalui theme terpusat. Override center yang eksplisit tetap digunakan sesuai konteks.
+
 `forms/PasswordStrengthIndicator` menampilkan perkiraan Lemah/Sedang/Kuat untuk
 kata sandi backup. Estimator dimuat lokal saat modal aktif; indikator tidak
 memblokir kata sandi pendek dan tidak mengirim kata sandi ke layanan lain.
@@ -197,3 +206,13 @@ ke foto atau dokumen pegawai lain. Preview tetap diaudit dan tidak di-cache.
 
 
 `useBrowserTimeZone` mendeteksi zona perangkat dengan hydration aman dan fallback UTC. Backup memakai hook ini untuk tampilan waktu lokal, sedangkan nama artefak tetap mengikuti snapshot zona waktu pekerjaan.
+
+## Fondasi Inventaris dan akses fitur
+
+- `navigation/DetailTabs` menerima `embedded` (default false) untuk tab pada halaman dengan DataPanel agar tidak membentuk panel bertumpuk. Kontrak lama tetap berlaku.
+- `useFormModalClose(form, onClose, isDirty?)` menerima pembanding dirty opsional; default tetap isFieldsTouched untuk pemakai lama. Form akses/gudang/modul membedakan inisialisasi server dari perubahan pengguna.
+- `access/PackageAccessFields` menyusun Form.List, paket dan scope gudang dari reference-options server; props form/options/existing. Field disimpan bersama form akun, bukan mutation terpisah.
+- `access/OrganizationModulesModal` menyusun AppModal/FormSettingSwitch/ConfirmDialog untuk aktivasi modul organisasi oleh Superadmin.
+- `inventory/InventoryWorkspace` menyusun PageHeader, scope organisasi, dan DetailTabs. `WarehousePanel` menyusun DataPanel/ResponsiveDataView; `WarehouseForm` menyusun AppModal/ConfirmDialog. Tidak ada shell, tabel, badge, atau dropzone baru.
+- Resolver menu menerima snapshot permission tambahan; sidebar desktop/mobile memakai konfigurasi yang sama. Snapshot dari `/api/access/me` hanya untuk UI; page/API tetap memeriksa authorization server.
+- RowActionMenu menutup popup ketika aksi dipilih sebelum modal dibuka, agar menu lama tidak menutupi form. DetailTabs embedded memakai dua kolom pada mobile dan susunan horizontal pada layar lebih besar.

@@ -64,6 +64,7 @@ export default function PageHeader({
             </FontStyle>
             {description ? (
               <FontStyle
+                explanation
                 fontSize={12.5}
                 sx={{
                   mt: 0.75,

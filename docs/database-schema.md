@@ -240,6 +240,18 @@ Cleanup manual terkonfirmasi memeriksa organisasi, semua referensi termasuk vers
 - Mengecek definisi view atau fungsi PostgreSQL.
 - Menjalankan query plan atau debugging database sungguhan.
 
+## Fondasi Inventaris
+
+Fondasi Inventaris tahap 1 (migration 045–046) menambahkan katalog sistem
+`access_modules`, `access_packages`, `access_package_permissions`; tabel bisnis
+`organization_modules`, `inventory_warehouses`, `user_access_packages`, dan
+`user_package_warehouse_scopes`. Seluruh relasi bisnis memakai organisasi dan
+composite FK. Modul dan grant default nonaktif/tidak tersedia. Paket per membership
+memiliki scope all/selected sendiri; izin dan gudang harus dievaluasi sebagai
+pasangan. Gudang bukan saldo stok atau aset. Semua mutasi diaudit dan memakai
+version check; permission efektif tidak disimpan dalam token. Lihat
+[rancangan Inventaris](inventory-stock-design.md) untuk DTO, delegasi, dan batas tahap.
+
 ## Usia dan tanggal akhir kontrak
 
 Usia pada Ringkasan diturunkan sebagai tahun, bulan, dan hari dari tanggal lahir, memakai `organization_today` dari waktu database dalam zona organisasi. Pegawai meninggal memakai tanggal meninggal. Data kosong/invalid tidak dianggap usia nol. Tidak ada kolom usia tersimpan.

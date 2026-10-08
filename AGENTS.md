@@ -102,7 +102,7 @@ await db.transaction(async (tx) => {
 - Tahap sekarang dapat dibuat tanpa akun aktif.
 - Tahap mobile/web lanjutan: melihat data sendiri, absensi, mengajukan izin/cuti, dan mengunggah lampiran.
 - Tidak pernah boleh memilih `employee_id` milik orang lain.
-- Permission self-service wajib memakai kode dan endpoint `*_self` yang memetakan pegawai dari session. Dilarang memberikan permission baca generik modul organisasi kepada Pegawai sebelum endpoint self-service tersedia.
+- Permission self-service wajib memakai kode dan endpoint `*_self` yang memetakan pegawai dari session. Dilarang memberikan permission HRIS generik organisasi kepada Pegawai sebelum endpoint self-service tersedia. Akses operasional Inventaris hanya diperoleh melalui paket organisasi dan scope gudang eksplisit, terpisah dari self-service.
 
 Semua aksi diperiksa di backend. Menyembunyikan tombol di frontend bukan kontrol keamanan.
 
@@ -428,6 +428,9 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 
 ## 21. UI/UX
 
+- Teks penjelasan/informasi memakai Bahasa Indonesia yang sederhana, singkat, dan langsung menjelaskan fungsi atau dampak aksi. Utamakan 1–3 kalimat; hindari pengulangan, istilah teknis yang tidak diperlukan, dan paragraf bertele-tele. Detail lanjutan ditempatkan pada dokumentasi atau konteks yang relevan.
+- Paragraf penjelasan/informasi memakai alignment justify dengan baris terakhir mengikuti perilaku paragraf normal. Gunakan `FontStyle explanation` atau komponen deskripsi terpusat; jangan menerapkan justify pada judul, label field, angka, metadata, atau tabel. Penjelasan yang sengaja didesain center, seperti pesan utama modal hapus backup, tetap center melalui override eksplisit. Uji pada mobile agar kata, jarak, dan lebar paragraf tetap mudah dibaca.
+
 - Seluruh antarmuka Bahasa Indonesia dan dapat dipahami pengguna nonteknis.
 - Label, judul, tombol, bantuan, dan pesan validasi wajib menyebut isi atau tindakan dengan bahasa kerja yang langsung dipahami pengguna, sesuai fungsi kontrolnya. Hindari istilah struktur data atau label abstrak seperti "Nama jenis", "Jenis aktif", dan kode teknis ketika pengguna sebenarnya diminta memberi nama pilihan atau menentukan apakah pilihan tersebut tersedia. Gunakan pola yang konsisten, misalnya "Nama cuti atau izin", "Kelompok", "Kurangi jatah pegawai", dan "Tersedia untuk digunakan". Istilah teknis tetap boleh dipakai pada schema, kode program, dan dokumentasi pengembang, tetapi tidak ditampilkan sebagai beban input pengguna.
 - Locale tanggal dan waktu wajib dipasang terpusat melalui `app/components/approvider/AppProviders.jsx`. Seluruh DatePicker/Calendar AntD memakai locale `id_ID` dan Day.js locale `id`, sedangkan MUI date picker memakai adapter locale `id`; dilarang mengatur nama bulan, hari, placeholder, atau tombol kalender per halaman secara manual.
@@ -579,3 +582,16 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## 26. Inventaris, paket akses, dan cakupan gudang
+
+- Role dasar per membership organisasi tetap berlaku. Paket adalah kumpulan permission fitur, bukan role baru atau paket langganan. Inventaris tidak memberikan akses HRD, platform, atau self-service milik orang lain.
+- Aktivasi modul organisasi terpisah dari grant akun; default nonaktif dan tanpa paket otomatis. Modul nonaktif memblokir operasi tanpa menghapus grant/gudang; pengaktifan kembali memulihkan grant yang masih berlaku.
+- Permission dan scope diperiksa dari grant yang sama. Dilarang membuat union semua permission dikalikan semua gudang. Scope selected kosong selalu ditolak; all harus eksplisit dan mencakup gudang baru. Penempatan pegawai tidak otomatis memberi atau mengubah scope paket.
+- Superadmin mengaktifkan modul dan memberi paket pada akun organisasi secara eksplisit serta diaudit. HRD yang memiliki permission delegasi tetap mengelola akun Pegawai sesuai service akun saat ini, hanya pada organisasi/profil/lokasi yang berizin; selected HRD tidak dapat memberi all atau scope di luar lokasi. Paket sendiri tidak memberi permission delegasi.
+- HRD tidak boleh meningkatkan akses sendiri atau mengubah grant lama di luar kewenangannya. Grant yang tidak diubah dapat dipertahankan ketika field akun lain dikoreksi. Akun/profil/membership dan paket disimpan atomik dengan version check; perubahan/pencabutan diaudit dan berlaku pada request berikutnya.
+- Sidebar, page, API, daftar, laporan, export, dan file harus memakai pemeriksaan permission/scope server yang sama. Token/browser hanya identitas atau tampilan, bukan sumber hak akses. Jangan melemahkan izin HRIS lama untuk membuka Inventaris.
+- Inventaris memakai empat submenu Stok Barang, Transaksi Barang, Laporan Distribusi, dan Data Master. Gudang berada di tab Data Master; Kartu Stok berada di detail barang per gudang. Barang masuk/keluar menyusun form/use case transaksi bersama, bukan pencatatan ganda.
+- Tahap 1 hanya paket/modul, gudang minimal, dan header halaman lain; Dashboard Pegawai tetap header kosong. Jangan membangun barang, ledger stok, transaksi, lampiran Inventaris, request/approval, atau aset sampai tahapnya diminta.
+- Gudang memiliki organisasi/lokasi, kode uppercase unik, status dan versi. Gudang berreferensi tidak dihapus fisik; lokasi terkunci setelah direferensikan paket. Gudang nonaktif tetap dapat dibaca/dipulihkan oleh pengelola berizin tetapi tidak dipilih untuk grant baru atau transaksi stok nanti.
+- Kartu stok nantinya menunjukkan masuk/keluar/saldo satu barang-gudang. Laporan Distribusi merangkum penyaluran lintas transaksi dan tidak membuktikan sisa stok penerima. Permintaan tetap manual; request, approval, dan pemenuhan kelak memiliki permission terpisah tanpa posting stok dua kali.

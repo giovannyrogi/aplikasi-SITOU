@@ -18,6 +18,8 @@ import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import OrganizationForm from "./OrganizationForm";
 import SubscriptionModal from "./SubscriptionModal";
+import OrganizationModulesModal from "@/app/components/access/OrganizationModulesModal";
+import AppIcon from "@/app/components/icons/AppIcon";
 
 /** Memformat tanggal database menjadi tanggal pendek yang mudah dipindai pengguna. */
 const fmt = (value) =>
@@ -44,6 +46,7 @@ export default function OrganizationsPage() {
   const [form, setForm] = useState({ open: false, item: null });
   const [confirm, setConfirm] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  const [moduleOrganization, setModuleOrganization] = useState(null);
   const handleSubscriptionChanged = useCallback(
     async (message) => {
       showNotification(message);
@@ -79,6 +82,12 @@ export default function OrganizationsPage() {
     }
   };
   const actions = (item) => [
+    {
+      key: "modules",
+      icon: <AppIcon icon="navigation:inventory" />,
+      label: "Modul organisasi",
+      onClick: () => setModuleOrganization(item),
+    },
     {
       key: "edit",
       icon: <EditOutlined />,
@@ -268,6 +277,16 @@ export default function OrganizationsPage() {
         onClose={() => setForm({ open: false, item: null })}
         onSaved={saved}
         onError={(m) => showNotification(m, "error")}
+      />
+      <OrganizationModulesModal
+        organization={moduleOrganization}
+        onClose={() => setModuleOrganization(null)}
+        onSaved={async (message) => {
+          setModuleOrganization(null);
+          showNotification(message);
+          await list.refresh();
+        }}
+        onError={(message) => showNotification(message, "error")}
       />
       <SubscriptionModal
         open={Boolean(subscription)}
