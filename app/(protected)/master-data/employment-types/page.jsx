@@ -99,7 +99,7 @@ export default function EmploymentTypesPage() {
       dataIndex: "requires_end_date",
       render: (value) => (
         <CompactInfoChip
-          label={value ? "Tanggal akhir wajib" : "Tanggal akhir opsional"}
+          label={value ? "Menggunakan tanggal akhir" : "Tanpa tanggal akhir"}
           tone={value ? "warning" : "info"}
         />
       ),
@@ -141,7 +141,7 @@ export default function EmploymentTypesPage() {
       <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
         <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
         <CompactInfoChip
-          label={item.requires_end_date ? "Tanggal akhir wajib" : "Tanggal akhir opsional"}
+          label={item.requires_end_date ? "Menggunakan tanggal akhir" : "Tanpa tanggal akhir"}
           tone={item.requires_end_date ? "warning" : "info"}
         />
       </Box>

@@ -471,6 +471,10 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
     [references.employmentTypes, selectedEmploymentTypeId],
   );
   const contractRequiresEndDate = Boolean(selectedEmploymentType?.requires_end_date);
+  useEffect(() => {
+    if (selectedEmploymentType?.requires_end_date === false)
+      form.setFieldValue(["contract", "endDate"], null);
+  }, [selectedEmploymentType?.requires_end_date, selectedEmploymentTypeId, form]);
 
   /** Mengubah dayjs menjadi tanggal ISO sebelum draft disimpan atau data difinalisasi. */
   const serialize = (values) => {
@@ -505,7 +509,10 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
             contract: {
               ...values.contract,
               startDate: formatDate(values.contract?.startDate),
-              endDate: contractRequiresEndDate ? formatDate(values.contract?.endDate) : null,
+              endDate:
+                selectedEmploymentType?.requires_end_date === false
+                  ? null
+                  : formatDate(values.contract?.endDate),
             },
           }),
     };
@@ -663,6 +670,12 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
 
   /** Menyimpan edit lama atau memfinalisasi draft baru yang telah lengkap. */
   const submit = async (values) => {
+    if (!editing && !selectedEmploymentType) {
+      reportError(
+        "Data jenis kepegawaian belum tersedia. Tunggu data selesai dimuat lalu pilih jenis kepegawaian.",
+      );
+      return;
+    }
     try {
       await runWithLoadingBackdrop(
         async () => {
@@ -1309,7 +1322,10 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                         const employmentType = (references.employmentTypes || []).find(
                           (option) => String(option.id) === String(value),
                         );
-                        if (!employmentType?.requires_end_date)
+                        if (
+                          employmentType?.requires_end_date === false ||
+                          selectedEmploymentType?.requires_end_date === false
+                        )
                           form.setFieldValue(["contract", "endDate"], null);
                       }}
                       options={(references.employmentTypes || []).map((value) => ({
@@ -1333,6 +1349,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                     <Form.Item
                       name={["contract", "endDate"]}
                       label="Tanggal akhir"
+                      preserve={false}
                       rules={required("Tanggal akhir wajib diisi untuk jenis kepegawaian ini.")}
                     >
                       <DatePicker style={{ width: "100%" }} />

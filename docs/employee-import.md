@@ -75,3 +75,11 @@ Semua endpoint memerlukan permission import dan isolasi organisasi. File sumber 
   `YYYY-MM-DD`, misalnya `1994-02-21`. Nilai tanggal native Excel juga tetap diterima. Template tidak
   memakai macro atau add-in.
 - Tahun kelulusan hanya menerima angka tahun dari 1900 sampai tahun berjalan.
+
+## Usia dan tanggal akhir kontrak
+
+Usia pada Ringkasan diturunkan sebagai tahun, bulan, dan hari dari tanggal lahir, memakai `organization_today` dari waktu database dalam zona organisasi. Pegawai meninggal memakai tanggal meninggal. Data kosong/invalid tidak dianggap usia nol. Tidak ada kolom usia tersimpan.
+
+`employment_types.requires_end_date=true` berarti tanggal kedaluwarsa kontrak wajib; false berarti tidak digunakan. API detail menyediakan `contract_requires_end_date`; histori kontrak menyediakan `requires_end_date`. Form baru, pendaftaran/draft, dan koreksi menyembunyikan tanggal akhir serta mengirim null untuk jenis tanpa akhir. Request aktif/new dengan tanggal berisi ditolak sebagai `CONTRACT_END_NOT_APPLICABLE` dan field error. Histori tertutup tetap mempertahankan tanggal penutupannya, dengan label Tanggal penutupan periode. Tidak ada backfill atau penghapusan otomatis pada data/file lama.
+
+Import menerapkan aturan yang sama pada validasi dan pemeriksaan ulang saat commit; tanggal penutupan histori resmi tetap dapat dicatat. Laporan/indikator kedaluwarsa hanya menghitung jenis yang menggunakan akhir. Export mempertahankan kolom dan memakai Tidak berlaku untuk kedaluwarsa yang tidak digunakan, sambil mempertahankan penutupan histori.

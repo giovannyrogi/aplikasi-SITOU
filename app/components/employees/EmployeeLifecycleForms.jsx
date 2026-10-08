@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button, DatePicker, Form, Input, Select } from "antd";
-import { Box } from "@mui/material";
+import { Box, Alert } from "@mui/material";
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -319,9 +319,21 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
   const references = useEmployeeReferences(open, employee?.organization_id, onError);
   const [documentFile, setDocumentFile] = useState(null);
   const selectedStartDate = Form.useWatch("startDate", form);
+  const selectedEmploymentTypeId = Form.useWatch("employmentTypeId", form);
+  const selectedEmploymentType =
+    (references.employmentTypes || []).find(
+      (type) => String(type.id) === String(selectedEmploymentTypeId),
+    ) ||
+    (String(contract?.employment_type_id) === String(selectedEmploymentTypeId) &&
+    typeof contract?.requires_end_date === "boolean"
+      ? { requires_end_date: contract.requires_end_date }
+      : null);
+  const contractRequiresEndDate = selectedEmploymentType?.requires_end_date === true;
   const contractStartDate = contract?.start_date;
   const employeeContractStartDate = employee?.contract_start_date;
-  const employeeContractEndDate = employee?.contract_end_date;
+  const employeeContractEndDate = employee?.contract_requires_end_date
+    ? employee?.contract_end_date
+    : null;
   const minimumContractDate = useMemo(
     () =>
       contractStartDate
@@ -354,7 +366,17 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
       });
     }
   }, [contract, employee, form, minimumContractDate, open]);
+  useEffect(() => {
+    if (open && selectedEmploymentType?.requires_end_date === false)
+      form.setFieldValue("endDate", null);
+  }, [open, selectedEmploymentTypeId, selectedEmploymentType?.requires_end_date, form]);
   const submit = async (values) => {
+    if (!selectedEmploymentType) {
+      onError(
+        "Data jenis kepegawaian belum tersedia. Pilih jenis kepegawaian setelah data selesai dimuat.",
+      );
+      return;
+    }
     if (!contract && !documentFile) {
       onError("Dokumen kontrak wajib diunggah sebelum data disimpan.");
       return;
@@ -365,7 +387,7 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
           const payload = {
             ...values,
             startDate: values.startDate.format("YYYY-MM-DD"),
-            endDate: values.endDate?.format("YYYY-MM-DD") || null,
+            endDate: contractRequiresEndDate ? values.endDate?.format("YYYY-MM-DD") || null : null,
             documentFileId: documentFile?.id || null,
             ...(contract ? { version: new Date(contract.updated_at).toISOString() } : {}),
           };
@@ -406,7 +428,7 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
       footer={
         <>
           <Button onClick={onClose}>Batal</Button>
-          <Button type="primary" onClick={() => form.submit()}>
+          <Button type="primary" onClick={() => form.submit()} disabled={!selectedEmploymentType}>
             {contract ? "Simpan koreksi" : "Simpan kontrak"}
           </Button>
         </>
@@ -420,6 +442,16 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
           <Select
             showSearch
             optionFilterProp="label"
+            onChange={(id) => {
+              const next = (references.employmentTypes || []).find(
+                (type) => String(type.id) === String(id),
+              );
+              if (
+                next?.requires_end_date === false ||
+                selectedEmploymentType?.requires_end_date === false
+              )
+                form.setFieldValue("endDate", null);
+            }}
             options={(references.employmentTypes || []).map((value) => ({
               value: value.id,
               label: value.name,
@@ -453,15 +485,37 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
               }
             />
           </Form.Item>
-          <Form.Item name="endDate" label="Tanggal akhir">
-            <DatePicker
-              style={{ width: "100%" }}
-              disabledDate={(current) =>
-                Boolean(selectedStartDate) && current.isBefore(selectedStartDate, "day")
-              }
-            />
-          </Form.Item>
+          {contractRequiresEndDate ? (
+            <Form.Item
+              name="endDate"
+              label="Tanggal akhir"
+              rules={[
+                {
+                  required: true,
+                  message: "Tanggal akhir wajib diisi untuk jenis kepegawaian ini.",
+                },
+              ]}
+              preserve={false}
+            >
+              <DatePicker
+                style={{ width: "100%" }}
+                disabledDate={(current) =>
+                  Boolean(selectedStartDate) && current.isBefore(selectedStartDate, "day")
+                }
+              />
+            </Form.Item>
+          ) : null}
         </Box>
+        {contract &&
+        contract.end_date &&
+        selectedEmploymentType &&
+        !contractRequiresEndDate &&
+        !["renewed", "expired", "terminated"].includes(contract.status) ? (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Tanggal akhir yang tercatat akan dihapus saat koreksi disimpan karena jenis ini tanpa
+            tanggal akhir. Periode tetap diperiksa terhadap kontrak lain.
+          </Alert>
+        ) : null}
         <Form.Item name="status" hidden>
           <Input />
         </Form.Item>

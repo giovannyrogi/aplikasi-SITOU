@@ -621,7 +621,7 @@ CREATE TABLE employment_types (
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi; memungkinkan istilah berbeda per organisasi.
   code varchar(30) NOT NULL, -- Kode PKWTT/PKWT/PHL/THL/dll.
   name varchar(100) NOT NULL, -- Nama tampilan.
-  requires_end_date boolean NOT NULL DEFAULT false, -- Kontrak wajib punya akhir atau tidak.
+  requires_end_date boolean NOT NULL DEFAULT false, -- True: tanggal kedaluwarsa wajib; false: tidak digunakan. Penutupan histori tetap dipertahankan.
   is_active boolean NOT NULL DEFAULT true, -- Status master.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu diubah.

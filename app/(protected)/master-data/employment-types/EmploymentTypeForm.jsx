@@ -119,8 +119,8 @@ export default function EmploymentTypeForm({
               <FormSettingsGroup sx={{ mt: 1 }}>
                 <FormSettingSwitch
                   name="requiresEndDate"
-                  title="Kontrak harus memiliki tanggal akhir"
-                  description="Aktifkan untuk hubungan kerja yang wajib memiliki tanggal berakhir."
+                  title="Menggunakan tanggal akhir kontrak"
+                  description="Aktifkan jika kontrak memiliki tanggal berakhir."
                 />
                 <FormSettingSwitch
                   name="isActive"

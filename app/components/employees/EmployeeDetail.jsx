@@ -65,12 +65,10 @@ import {
   formatLeaveUnits,
 } from "@/app/components/leave/leaveLabels";
 import { getEmployeeStatusPresentation, isFinalEmploymentStatus } from "./employeeStatus";
+import { calculateEmployeeAge } from "@/lib/employees/age.mjs";
+import { contractEndPresentation } from "@/lib/employees/contractEndPolicy.mjs";
 import { calculateEmployeeTenure } from "@/lib/employees/tenure";
-import {
-  ACTION_STATUS,
-  CASE_STATUS,
-  SEVERITY,
-} from "@/app/components/discipline/disciplineLabels";
+import { ACTION_STATUS, CASE_STATUS, SEVERITY } from "@/app/components/discipline/disciplineLabels";
 
 const CHANGE_TYPE_LABELS = {
   initial: "Penempatan awal",
@@ -795,6 +793,12 @@ export default function EmployeeDetail({ employeeId }) {
   // Enum backend diterjemahkan sebelum tab dibentuk agar Ringkasan selalu memakai status berbahasa Indonesia.
   const status = getEmployeeStatusPresentation(employee.employment_status);
   const finalEmploymentStatus = isFinalEmploymentStatus(employee.employment_status);
+  const age = calculateEmployeeAge({
+    birthDate: employee.birth_date,
+    today: employee.organization_today,
+    employmentStatus: employee.employment_status,
+    terminationDate: employee.termination_date,
+  });
   const tenure = calculateEmployeeTenure({
     joinedDate: employee.joined_date,
     terminationDate: employee.termination_date,
@@ -814,10 +818,13 @@ export default function EmployeeDetail({ employeeId }) {
         contract_no: employee.contract_no,
         start_date: employee.contract_start_date,
         end_date: employee.contract_end_date,
+        status: employee.contract_status,
+        requires_end_date: employee.contract_requires_end_date,
       }
     : finalEmploymentStatus
       ? latestContract
       : null;
+  const relationshipEnd = contractEndPresentation(relationshipContract);
   const identifiers = state.profile.identifiers || [];
   const ktpIdentifier = identifiers.find((item) => item.identifier_type === "ktp");
   const familyCardIdentifier = identifiers.find((item) => item.identifier_type === "family_card");
@@ -884,6 +891,7 @@ export default function EmployeeDetail({ employeeId }) {
                   <InfoField label="NIK" value={employee.national_id} />
                   <InfoField label="Tempat lahir" value={employee.birth_place} />
                   <InfoField label="Tanggal lahir" value={formatDate(employee.birth_date)} />
+                  <InfoField label={age.label} value={age.valid ? age.duration : age.message} />
                   <InfoField
                     label="Jenis kelamin"
                     value={GENDER_LABELS[employee.gender] || employee.gender}
@@ -988,10 +996,7 @@ export default function EmployeeDetail({ employeeId }) {
                 ) : null
               }
             >
-              <InfoField
-                label="TMT bergabung"
-                value={formatDate(employee.joined_date)}
-              />
+              <InfoField label="TMT bergabung" value={formatDate(employee.joined_date)} />
               <InfoField label="Masa kerja" value={tenureText} />
               {finalEmploymentStatus ? (
                 <>
@@ -1014,15 +1019,15 @@ export default function EmployeeDetail({ employeeId }) {
                 value={relationshipContract?.contract_no}
               />
               <InfoField
-                label={
-                  finalEmploymentStatus ? "TMT kontrak terakhir" : "TMT kontrak"
-                }
+                label={finalEmploymentStatus ? "TMT kontrak terakhir" : "TMT kontrak"}
                 value={formatDate(relationshipContract?.start_date)}
               />
-              <InfoField
-                label={finalEmploymentStatus ? "Akhir kontrak terakhir" : "Akhir kontrak"}
-                value={formatDate(relationshipContract?.end_date, "Tanpa batas akhir")}
-              />
+              {relationshipEnd ? (
+                <InfoField
+                  label={relationshipEnd.label}
+                  value={formatDate(relationshipEnd.value, "Tanggal akhir belum diisi")}
+                />
+              ) : null}
             </SummarySection>
             <EmployeeRelatedSummary profile={state.profile} embedded />
           </Box>
@@ -1277,7 +1282,9 @@ export default function EmployeeDetail({ employeeId }) {
                           fontSize={12.5}
                           sx={{ mt: 0.35, color: theme.ui.mutedText, lineHeight: 1.5 }}
                         >
-                          sampai {formatDate(item.end_date, "tanpa batas akhir")}
+                          {contractEndPresentation(item)
+                            ? `${contractEndPresentation(item).label}: ${formatDate(contractEndPresentation(item).value, "Tanggal akhir belum diisi")}`
+                            : "Tanpa tanggal akhir"}
                         </FontStyle>
                       </Box>
                     </Box>
@@ -2057,10 +2064,12 @@ export default function EmployeeDetail({ employeeId }) {
               label="Tanggal mulai kontrak"
               value={formatDate(relationshipContract?.start_date)}
             />
-            <InfoField
-              label="Akhir kontrak"
-              value={formatDate(relationshipContract?.end_date, "Tanpa batas akhir")}
-            />
+            {relationshipEnd ? (
+              <InfoField
+                label={relationshipEnd.label}
+                value={formatDate(relationshipEnd.value, "Tanggal akhir belum diisi")}
+              />
+            ) : null}
           </SummarySection>
         </Box>
       </AppModal>

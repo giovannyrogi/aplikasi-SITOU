@@ -46,6 +46,7 @@
 !/scripts/test-employee-creator-filter-http.mjs
 !/scripts/test-account-linking-http.mjs
 !/scripts/test-employee-dashboard-http.mjs
+!/scripts/test-employee-age-contract-http.mjs
 !/scripts/test-reports-db.mjs
 !/scripts/test-reports-http.mjs
 !/scripts/test-reports-ui.mjs
@@ -85,6 +86,7 @@
 !/tests/dependent-contact-migration.test.mjs
 !/tests/employee-export.test.mjs
 !/tests/employee-dashboard-access.test.mjs
+!/tests/employee-age-contract-end.test.mjs
 !/tests/self-profile-photo.test.mjs
 !/tests/employee-completeness.test.mjs
 !/tests/employee-identity-conflict.test.mjs
