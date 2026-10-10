@@ -1,4 +1,5 @@
-import InventoryPage from "@/app/components/inventory/InventoryPage";
-export default function Page(props) {
-  return <InventoryPage {...props} section="master-data" />;
+import { redirect } from "next/navigation";
+import { inventoryLegacyDestination } from "@/lib/inventory/navigation.mjs";
+export default async function Page({ searchParams }) {
+  redirect(inventoryLegacyDestination("master-data", await searchParams));
 }

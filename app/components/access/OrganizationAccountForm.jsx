@@ -12,10 +12,11 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { PASSWORD_FORM_RULES } from "@/app/utils/passwordRules";
 import { ROLES } from "@/app/constants/roles";
-import PackageAccessFields from "./PackageAccessFields";
+import FeatureAccessFields from "./FeatureAccessFields";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
-import useFormModalClose from "@/app/hooks/useFormModalClose";
+import usePrerequisiteNavigation from "@/app/hooks/usePrerequisiteNavigation";
 import { grantKey } from "@/lib/access/packagePolicy.mjs";
+import { accountFeatureGroups } from "@/lib/access/accessDescriptions.mjs";
 
 /** Form mengunci pembuatan HRD ke akun Pegawai; Superadmin tetap mengelola role organisasi. */
 export default function OrganizationAccountForm({
@@ -38,7 +39,11 @@ export default function OrganizationAccountForm({
     canGrantAll: false,
   });
   const dirtyRef = useRef(false);
-  const closeGuard = useFormModalClose(form, onClose, () => dirtyRef.current);
+  const { close: closeGuard, navigate: navigatePrerequisite } = usePrerequisiteNavigation(
+    form,
+    onClose,
+    () => dirtyRef.current,
+  );
   const [pending, setPending] = useState(null);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsReady, setOptionsReady] = useState(false);
@@ -51,8 +56,15 @@ export default function OrganizationAccountForm({
   const targetOrganizationId = Form.useWatch("organizationId", form);
   const roleCode = Form.useWatch("roleCode", form);
   const scopeMode = Form.useWatch("locationScopeMode", form);
+  const fullAdmin = Form.useWatch("isHrisAdmin", form);
+  useEffect(() => {
+    if (fullAdmin) {
+      form.setFieldValue("locationScopeMode", "all");
+      form.setFieldValue("locationIds", []);
+    }
+  }, [fullAdmin, form]);
   const editing = Boolean(item);
-  const isHrd = user.role_code === ROLES.HRD;
+  const isHrd = user.role_code === ROLES.HRD && !user.access?.hris?.fullAdmin;
 
   useEffect(() => {
     if (!open) return;
@@ -65,10 +77,24 @@ export default function OrganizationAccountForm({
       locationIds: [],
       isActive: true,
       packageAccess: [],
+      isHrisAdmin: false,
+      hrisMenuAccess: [],
+      expandedHrisGroups: ["Kepegawaian"],
+      expandedFeatureSections: item
+        ? [
+            accountFeatureGroups(item).find((feature) => feature.key === "hris")?.key ||
+              accountFeatureGroups(item)[0]?.key,
+          ].filter(Boolean)
+        : [],
+      hrisAccountAccess: "none",
+      featureModules: item ? accountFeatureGroups(item).map((feature) => feature.key) : [],
       ...(item
         ? {
             employeeId: item.employee_id,
             username: item.username,
+            isHrisAdmin: Boolean(item.hrisAccess?.fullAdmin),
+            hrisMenuAccess: item.hrisAccess?.grants || [],
+            hrisAccountAccess: item.hrisAccess?.accountAccess || "none",
             roleCode: item.role_code,
             locationScopeMode: item.location_scope_mode,
             locationIds: item.location_ids,
@@ -119,7 +145,17 @@ export default function OrganizationAccountForm({
           inventoryEnabled: Boolean(body.data?.inventoryEnabled),
           canGrantAll: Boolean(body.data?.canGrantAll),
           lockedPackageCodes: body.data?.lockedPackageCodes || [],
+          canSetHrisAdmin: Boolean(body.data?.canSetHrisAdmin),
+          canGrantHris: Boolean(body.data?.canGrantHris),
+          canDelegateNonHris: Boolean(body.data?.canDelegateNonHris),
+          hrisConfigured: Boolean(body.data?.hrisConfigured),
+          hrisPolicyVersion: body.data?.hrisPolicyVersion || 0,
+          needsFirstHrisAdmin: Boolean(body.data?.needsFirstHrisAdmin),
         });
+        if (!item && body.data?.needsFirstHrisAdmin && body.data?.canSetHrisAdmin) {
+          form.setFieldValue("isHrisAdmin", true);
+          form.setFieldValue("expandedFeatureSections", ["hris"]);
+        }
         setOptionsReady(true);
       })
       .catch((error) => {
@@ -130,10 +166,18 @@ export default function OrganizationAccountForm({
         if (!controller.signal.aborted) setOptionsLoading(false);
       });
     return () => controller.abort();
-  }, [item?.id, open, organizationId, targetOrganizationId, user.organization_id]);
+  }, [item, form, open, organizationId, targetOrganizationId, user.organization_id]);
 
   /** Backend memvalidasi password dan konfirmasinya; confirmPassword tidak pernah disimpan. */
   const submit = async (values) => {
+    // Pertahankan pencabutan eksplisit dari section yang dilepas atau dilipat.
+    values = { ...form.getFieldsValue(true), ...values };
+    const {
+      featureModules: _featureModules,
+      expandedFeatureSections: _expandedFeatureSections,
+      expandedHrisGroups: _expandedHrisGroups,
+      ...accountValues
+    } = values;
     if (savingRef.current || !optionsReady) return;
     savingRef.current = true;
     setSaving(true);
@@ -146,13 +190,26 @@ export default function OrganizationAccountForm({
               method: editing ? "PATCH" : "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                ...values,
+                ...accountValues,
                 roleCode: isHrd ? ROLES.EMPLOYEE : values.roleCode,
                 locationIds:
                   !isHrd && values.roleCode === "hrd" && values.locationScopeMode === "selected"
                     ? values.locationIds
                     : [],
                 locationScopeMode: isHrd ? "all" : values.locationScopeMode,
+                ...(values.roleCode === "hrd" && options.canGrantHris
+                  ? {
+                      hrisMenuAccess: values.hrisMenuAccess || [],
+                      isHrisAdmin: values.isHrisAdmin,
+                      hrisPolicyVersion: options.hrisPolicyVersion || 0,
+                      hrisAccountAccess: values.hrisAccountAccess,
+                    }
+                  : {
+                      hrisMenuAccess: undefined,
+                      isHrisAdmin: undefined,
+                      hrisAccountAccess: undefined,
+                    }),
+                packageAccess: options.canDelegateNonHris ? values.packageAccess : undefined,
                 ...(editing ? { version: item.updated_at } : {}),
               }),
             },
@@ -165,17 +222,62 @@ export default function OrganizationAccountForm({
       );
     } catch (error) {
       applyApiFieldErrors(form, error);
+      revealAccessErrors(
+        Object.keys(error.fieldErrors || {}).map((name) => ({ name: name.split(".") })),
+      );
       onError(error.message);
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
   };
+  /** Membuka section error sebelum memfokuskan field, tanpa mengubah hak akses. */
+  const revealAccessErrors = (fields) => {
+    const names = fields.map((field) =>
+      Array.isArray(field.name) ? field.name[0] : String(field.name).split(".")[0],
+    );
+    const sections = [...(form.getFieldValue("expandedFeatureSections") || [])];
+    if (names.includes("packageAccess")) sections.push("inventory");
+    if (
+      names.some((name) => ["hrisMenuAccess", "hrisAccountAccess", "isHrisAdmin"].includes(name))
+    ) {
+      sections.push("hris");
+      form.setFieldValue("expandedHrisGroups", [
+        "Data Master",
+        "Kepegawaian",
+        "Laporan",
+        "Pengaturan Organisasi",
+        "Akun & Akses",
+      ]);
+    }
+    form.setFieldValue("expandedFeatureSections", [...new Set(sections)]);
+    if (fields[0]) requestAnimationFrame(() => form.scrollToField(fields[0].name, { focus: true }));
+  };
   const confirmSubmit = (values) => {
+    values = { ...form.getFieldsValue(true), ...values };
     const reduced = (item?.packageAccess || []).some(
       (old) => !(values.packageAccess || []).some((grant) => grantKey(old) === grantKey(grant)),
     );
-    if (reduced) setPending(values);
+    const hrisReduced = (item?.hrisAccess?.grants || []).some(
+      (old) =>
+        !(values.hrisMenuAccess || []).some(
+          (grant) =>
+            grant.key === old.key && (grant.level === old.level || grant.level === "manage"),
+        ),
+    );
+    const accountReduced =
+      item?.hrisAccess?.accountAccess &&
+      item.hrisAccess.accountAccess !== "none" &&
+      (values.hrisAccountAccess === "none" ||
+        (item.hrisAccess.accountAccess === "manage_and_delegate" &&
+          values.hrisAccountAccess === "manage"));
+    if (
+      reduced ||
+      hrisReduced ||
+      accountReduced ||
+      (values.isHrisAdmin && !item?.hrisAccess?.fullAdmin)
+    )
+      setPending(values);
     else void submit(values);
   };
 
@@ -222,8 +324,8 @@ export default function OrganizationAccountForm({
           }}
           onFinish={confirmSubmit}
           onFinishFailed={({ errorFields }) => {
-            onError("Periksa kembali isian akun dan paket akses.");
-            if (errorFields[0]) form.scrollToField(errorFields[0].name, { focus: true });
+            onError("Periksa kembali isian akun dan akses fitur.");
+            revealAccessErrors(errorFields);
           }}
         >
           <Box
@@ -322,6 +424,7 @@ export default function OrganizationAccountForm({
             <>
               <Form.Item name="locationScopeMode" label="Cakupan lokasi">
                 <Segmented
+                  disabled={Boolean(fullAdmin)}
                   block
                   options={[
                     { value: "all", label: "Seluruh lokasi" },
@@ -348,7 +451,18 @@ export default function OrganizationAccountForm({
               ) : null}
             </>
           ) : null}
-          <PackageAccessFields form={form} options={options} existing={item?.packageAccess} />
+          <FeatureAccessFields
+            form={form}
+            roleCode={roleCode}
+            item={item}
+            options={options}
+            optionsReady={optionsReady}
+            organizationId={targetOrganizationId}
+            onNavigate={navigatePrerequisite}
+            onDirty={() => {
+              dirtyRef.current = true;
+            }}
+          />
           <FormSettingsGroup sx={{ mt: 1 }}>
             <FormSettingSwitch
               name="isActive"
@@ -360,8 +474,16 @@ export default function OrganizationAccountForm({
       </AppModal>
       <ConfirmDialog
         open={Boolean(pending)}
-        title="Ubah cakupan akses?"
-        message="Paket atau cakupan lama akan dicabut sesuai pilihan baru. Perubahan berlaku pada permintaan berikutnya meskipun akun masih login."
+        title={
+          pending?.isHrisAdmin && !item?.hrisAccess?.fullAdmin
+            ? "Tetapkan admin HRD penuh?"
+            : "Ubah cakupan akses?"
+        }
+        message={
+          pending?.isHrisAdmin && !item?.hrisAccess?.fullAdmin
+            ? "Akun ini menjadi satu-satunya admin HRD penuh. Admin sebelumnya mengikuti hak menu yang tersimpan. Inventaris tetap terpisah."
+            : "Hak menu dan cakupan diganti sesuai pilihan baru. Perubahan berlaku pada permintaan berikutnya, termasuk akun yang masih login."
+        }
         confirmText="Simpan perubahan"
         onClose={() => setPending(null)}
         onConfirm={() => {
@@ -373,7 +495,7 @@ export default function OrganizationAccountForm({
       <ConfirmDialog
         open={closeGuard.confirmCloseOpen}
         title="Tutup tanpa menyimpan?"
-        message="Perubahan akun dan paket akses belum disimpan."
+        message="Perubahan akun dan akses fitur belum disimpan."
         confirmText="Tutup"
         onClose={closeGuard.keepEditing}
         onConfirm={closeGuard.discardChanges}

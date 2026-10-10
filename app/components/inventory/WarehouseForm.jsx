@@ -6,9 +6,13 @@ import AppModal from "@/app/components/modals/AppModal";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
-import useFormModalClose from "@/app/hooks/useFormModalClose";
+import usePrerequisiteNavigation from "@/app/hooks/usePrerequisiteNavigation";
+import PrerequisiteHint from "@/app/components/forms/PrerequisiteHint";
+import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 export default function WarehouseForm({ open, item, organizationId, onClose, onSaved, onError }) {
+  const user = useAuthenticatedUser();
+  const canManageLocations = ["superadmin", "hrd"].includes(user.role_code);
   const [form] = Form.useForm();
   const [locations, setLocations] = useState([]);
   const [ready, setReady] = useState(false);
@@ -17,7 +21,7 @@ export default function WarehouseForm({ open, item, organizationId, onClose, onS
   const [pending, setPending] = useState(null);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const dirtyRef = useRef(false);
-  const close = useFormModalClose(form, onClose, () => dirtyRef.current);
+  const { close, navigate } = usePrerequisiteNavigation(form, onClose, () => dirtyRef.current);
   const errorRef = useRef(onError);
   useEffect(() => {
     errorRef.current = onError;
@@ -161,15 +165,31 @@ export default function WarehouseForm({ open, item, organizationId, onClose, onS
             label="Lokasi operasional"
             rules={[{ required: true, message: "Lokasi wajib dipilih." }]}
             extra={
-              item?.location_locked
-                ? "Lokasi terkunci karena gudang telah digunakan dalam cakupan paket."
-                : undefined
+              item?.location_locked ? (
+                "Lokasi terkunci karena gudang sudah digunakan dalam pengaturan akses fitur."
+              ) : ready && !locations.some((location) => !location.disabled) ? (
+                <PrerequisiteHint
+                  text={
+                    canManageLocations
+                      ? "Belum ada lokasi aktif yang dapat dipilih. Tambahkan atau aktifkan melalui Data Master → Lokasi."
+                      : "Belum ada lokasi aktif yang dapat dipilih. Minta HRD atau Superadmin menyiapkan lokasi melalui Data Master → Lokasi."
+                  }
+                  href={
+                    canManageLocations
+                      ? `/master-data/locations?organizationId=${organizationId}`
+                      : undefined
+                  }
+                  onNavigate={navigate}
+                  linkLabel="Buka Lokasi"
+                />
+              ) : undefined
             }
           >
             <Select
               showSearch
               optionFilterProp="label"
               options={locations}
+              notFoundContent={ready ? "Tidak ada lokasi yang sesuai." : "Memuat lokasi..."}
               disabled={!ready || item?.location_locked}
             />
           </Form.Item>
@@ -186,7 +206,7 @@ export default function WarehouseForm({ open, item, organizationId, onClose, onS
       <ConfirmDialog
         open={Boolean(pending)}
         title="Nonaktifkan gudang?"
-        message="Gudang tidak dapat dipilih untuk akses baru atau transaksi stok. Cakupan paket dan riwayat tetap tersimpan."
+        message="Gudang tidak dapat dipilih untuk akses baru atau transaksi stok. Pengaturan akses fitur dan riwayat tetap tersimpan."
         danger
         confirmText="Nonaktifkan"
         onClose={() => setPending(null)}

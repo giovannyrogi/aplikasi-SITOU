@@ -95,7 +95,7 @@ CREATE TABLE stored_files (
   malware_scanned_at timestamptz, -- Waktu pemeriksaan antivirus terakhir.
   malware_scan_engine varchar(80), -- Engine dan versi antivirus.
   malware_signature text, -- Nama signature bila ancaman ditemukan.
-  category varchar(40) NOT NULL CONSTRAINT ck_stored_files_category CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','leave_attachment','contract','assignment_decree','discipline_letter','identity','education','employee_import_source','other')), -- Kelompok kegunaan file.
+  category varchar(40) NOT NULL CONSTRAINT ck_stored_files_category CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','leave_attachment','contract','assignment_decree','discipline_letter','identity','education','employee_import_source','other','inventory_item_photo')), -- Kelompok kegunaan file.
   is_confidential boolean NOT NULL DEFAULT true, -- Menandai file membutuhkan izin sensitif.
   uploaded_by_user_id bigint, -- User pengunggah; FK ditambahkan setelah tabel users.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu file diregistrasikan.
@@ -1902,3 +1902,129 @@ ALTER TABLE inventory_warehouses ADD COLUMN location_locked boolean NOT NULL DEF
 UPDATE inventory_warehouses warehouse SET location_locked=true
 WHERE EXISTS(SELECT 1 FROM user_package_warehouse_scopes scope WHERE scope.organization_id=warehouse.organization_id AND scope.warehouse_id=warehouse.id)
    OR EXISTS(SELECT 1 FROM user_access_packages grant_record WHERE grant_record.organization_id=warehouse.organization_id AND grant_record.scope_mode='all');
+
+-- Migration 047: katalog dan gudang.
+CREATE TABLE inventory_categories (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, organization_id bigint NOT NULL REFERENCES organizations(id),
+ code varchar(40) NOT NULL CHECK(code=upper(trim(code)) AND code ~ '^[A-Z0-9_-]+$'),
+ name varchar(100) NOT NULL CHECK(length(trim(name))>0), notes text, is_active boolean NOT NULL DEFAULT true,
+ version integer NOT NULL DEFAULT 1 CHECK(version>0), created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(organization_id,id),UNIQUE(organization_id,code)
+);
+CREATE UNIQUE INDEX uq_inventory_category_name ON inventory_categories(organization_id,lower(trim(name)));
+CREATE TABLE inventory_units (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, organization_id bigint NOT NULL REFERENCES organizations(id),
+ code varchar(40) NOT NULL CHECK(code=upper(trim(code)) AND code ~ '^[A-Z0-9_-]+$'),
+ name varchar(100) NOT NULL CHECK(length(trim(name))>0), notes text, allows_fractional boolean NOT NULL DEFAULT false,
+ is_active boolean NOT NULL DEFAULT true,version integer NOT NULL DEFAULT 1 CHECK(version>0),created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(organization_id,id),UNIQUE(organization_id,code)
+);
+CREATE UNIQUE INDEX uq_inventory_unit_name ON inventory_units(organization_id,lower(trim(name)));
+CREATE TABLE inventory_items (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,organization_id bigint NOT NULL REFERENCES organizations(id),
+ code varchar(40) NOT NULL CHECK(code=upper(trim(code)) AND code ~ '^[A-Z0-9_-]+$'),name varchar(160) NOT NULL CHECK(length(trim(name))>0),
+ category_id bigint NOT NULL,unit_id bigint NOT NULL,photo_file_id bigint,notes text,is_active boolean NOT NULL DEFAULT true,
+ version integer NOT NULL DEFAULT 1 CHECK(version>0),created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(organization_id,id),UNIQUE(organization_id,code),
+ FOREIGN KEY(organization_id,category_id) REFERENCES inventory_categories(organization_id,id),
+ FOREIGN KEY(organization_id,unit_id) REFERENCES inventory_units(organization_id,id),
+ FOREIGN KEY(organization_id,photo_file_id) REFERENCES stored_files(organization_id,id)
+);
+CREATE TABLE inventory_item_warehouses (
+ organization_id bigint NOT NULL,item_id bigint NOT NULL,warehouse_id bigint NOT NULL,
+ minimum_stock numeric(18,3) NOT NULL DEFAULT 0 CHECK(minimum_stock>=0),is_active boolean NOT NULL DEFAULT true,
+ version integer NOT NULL DEFAULT 1 CHECK(version>0),updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(organization_id,item_id,warehouse_id),
+ FOREIGN KEY(organization_id,item_id) REFERENCES inventory_items(organization_id,id),
+ FOREIGN KEY(organization_id,warehouse_id) REFERENCES inventory_warehouses(organization_id,id)
+);
+CREATE INDEX ix_inventory_items_category ON inventory_items(organization_id,category_id,id);
+CREATE INDEX ix_inventory_items_unit ON inventory_items(organization_id,unit_id,id);
+CREATE INDEX ix_inventory_item_warehouses_scope ON inventory_item_warehouses(organization_id,warehouse_id,item_id);
+COMMENT ON TABLE inventory_items IS 'Katalog bersama organisasi; tidak menyimpan saldo stok atau aset.';
+COMMENT ON TABLE inventory_item_warehouses IS 'Ketersediaan katalog dan batas minimum per gudang; saldo berasal dari ledger pada tahap transaksi berikutnya.';
+INSERT INTO permissions(code,description) VALUES
+ ('inventory.catalog.read','Membaca katalog bersama organisasi'),('inventory.catalog.create','Menambah katalog dengan cakupan seluruh gudang'),
+ ('inventory.catalog.update','Mengubah katalog dengan cakupan seluruh gudang'),('inventory.item_warehouses.update','Mengatur barang dan stok minimum gudang berizin');
+INSERT INTO access_package_permissions(package_code,permission_id)
+ SELECT package.code,permission.id FROM access_packages package CROSS JOIN permissions permission
+ WHERE package.module_code='inventory' AND permission.code IN ('inventory.catalog.read','inventory.catalog.create','inventory.catalog.update','inventory.item_warehouses.update')
+ AND (package.code='inventory_manager' OR permission.code='inventory.catalog.read');
+INSERT INTO role_permissions(role_id,permission_id) SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
+ WHERE role.code='superadmin' AND permission.code IN ('inventory.catalog.read','inventory.catalog.create','inventory.catalog.update','inventory.item_warehouses.update');
+
+-- Migration 049: master Inventaris hanya bagi Pengelola.
+-- Lihat Saja tetap membaca data operasional, tetapi tidak membuka master Inventaris.
+DELETE FROM access_package_permissions mapping
+USING permissions permission
+WHERE mapping.permission_id=permission.id
+  AND mapping.package_code='inventory_reader'
+  AND permission.code='inventory.master.read';
+UPDATE access_packages SET name='Lihat Saja Persediaan' WHERE code='inventory_reader';
+
+-- Migration 050: akses master organisasi terpisah dari gudang operasional.
+-- Pisahkan master organisasi dari operasional gudang tanpa memberi grant baru otomatis.
+INSERT INTO access_packages(code,module_code,name)
+VALUES('inventory_master','inventory','Pengelola Master Inventaris');
+UPDATE access_packages SET name='Pengelola Gudang' WHERE code='inventory_manager';
+DELETE FROM access_package_permissions mapping USING permissions permission
+WHERE mapping.permission_id=permission.id AND mapping.package_code='inventory_manager'
+  AND permission.code IN ('inventory.master.read','inventory.catalog.create','inventory.catalog.update',
+    'inventory.warehouses.create','inventory.warehouses.update');
+INSERT INTO access_package_permissions(package_code,permission_id)
+SELECT 'inventory_master',id FROM permissions WHERE code IN (
+  'inventory.master.read','inventory.catalog.read','inventory.catalog.create','inventory.catalog.update',
+  'inventory.warehouses.read','inventory.warehouses.create','inventory.warehouses.update');
+ALTER TABLE user_access_packages ADD CONSTRAINT ck_inventory_master_organization_scope
+CHECK(package_code <> 'inventory_master' OR scope_mode='all');
+
+-- Migration 051: hak menu HRIS dan satu admin penuh organisasi.
+-- Konfigurasi eksplisit HRD; organisasi lama tetap legacy sampai Superadmin menetapkan admin.
+CREATE TABLE organization_hris_access_policies (
+ organization_id bigint PRIMARY KEY REFERENCES organizations(id),
+ enabled boolean NOT NULL DEFAULT false, primary_membership_id bigint,
+ version integer NOT NULL DEFAULT 1, updated_at timestamptz NOT NULL DEFAULT now(),
+ updated_by_user_id bigint REFERENCES users(id),
+ CHECK(NOT enabled OR primary_membership_id IS NOT NULL),
+ FOREIGN KEY(organization_id,primary_membership_id) REFERENCES user_organization_roles(organization_id,id)
+);
+CREATE TABLE hris_menu_definitions (
+ code varchar(80) PRIMARY KEY, label varchar(120) NOT NULL, group_label varchar(80) NOT NULL,
+ route_path varchar(160) NOT NULL UNIQUE, can_manage boolean NOT NULL
+);
+INSERT INTO hris_menu_definitions(code,label,group_label,route_path,can_manage) VALUES
+ ('dashboard','Dashboard','Dashboard','/dashboard',false),
+ ('master-locations','Lokasi','Data Master','/master-data/locations',true),
+ ('master-organization-unit-types','Jenis Unit Organisasi','Data Master','/master-data/organization-unit-types',true),
+ ('master-organization-units','Divisi & Unit','Data Master','/master-data/organization-units',true),
+ ('master-positions','Jabatan','Data Master','/master-data/positions',true),
+ ('master-employment-types','Jenis Kepegawaian','Data Master','/master-data/employment-types',true),
+ ('employees','Data Pegawai','Kepegawaian','/employees',true),
+ ('leave-requests','Cuti & Izin','Kepegawaian','/leave-requests',true),
+ ('expiring-contracts-report','Kontrak Akan Berakhir','Laporan','/reports/expiring-contracts',false),
+ ('retirement-report','Proyeksi Pensiun','Laporan','/reports/retirements',false),
+ ('disciplinary-actions-report','Sanksi Pegawai','Laporan','/reports/disciplinary-actions',false),
+ ('leave-settings','Aturan Cuti & Izin','Pengaturan Organisasi','/organization-settings/leave-types',true),
+ ('disciplinary-action-settings','Pengaturan Sanksi','Pengaturan Organisasi','/organization-settings/disciplinary-actions',true),
+ ('retirement-policy','Kebijakan Pensiun','Pengaturan Organisasi','/organization-settings/retirement',true);
+CREATE TABLE user_hris_menu_grants (
+ organization_id bigint NOT NULL REFERENCES organizations(id), membership_id bigint NOT NULL,
+ menu_code varchar(80) NOT NULL REFERENCES hris_menu_definitions(code),
+ access_level varchar(10) NOT NULL CHECK(access_level IN ('read','manage')),
+ PRIMARY KEY(organization_id,membership_id,menu_code),
+ FOREIGN KEY(organization_id,membership_id) REFERENCES user_organization_roles(organization_id,id)
+);
+CREATE TABLE user_hris_access_settings (
+ organization_id bigint NOT NULL REFERENCES organizations(id), membership_id bigint NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT now(), updated_by_user_id bigint REFERENCES users(id),
+ PRIMARY KEY(organization_id,membership_id),
+ FOREIGN KEY(organization_id,membership_id) REFERENCES user_organization_roles(organization_id,id)
+);
+
+-- Migration 052: delegasi akun Pegawai dan fitur non-HRIS.
+-- Delegasi akun Pegawai terpisah dari penggunaan fitur dan administrasi HRIS penuh.
+ALTER TABLE user_hris_access_settings
+ ADD COLUMN can_manage_employee_accounts boolean NOT NULL DEFAULT false,
+ ADD COLUMN can_delegate_employee_features boolean NOT NULL DEFAULT false,
+ ADD CONSTRAINT hris_delegation_requires_account_management
+ CHECK (NOT can_delegate_employee_features OR can_manage_employee_accounts);

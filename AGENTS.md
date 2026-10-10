@@ -83,12 +83,12 @@ await db.transaction(async (tx) => {
 
 ### HRD
 
-- CRUD data pegawai dan master organisasi.
+- CRUD data pegawai dan master organisasi sesuai submenu Lihat Saja/Kelola setelah konfigurasi hak HRIS diaktifkan; organisasi lama tetap mengikuti rollout pada bagian 27.
 - Data Master HRD memakai halaman/API yang sama dengan Superadmin, tetapi `organization_id` selalu dikunci dari session. HRD dapat mengelola lokasi, jenis unit organisasi, Divisi & Unit, jabatan, serta jenis kepegawaian organisasinya; identitas organisasi, masa akses, dan Admin/HRD pertama tetap khusus Superadmin.
 - Mengelola kontrak, penempatan, shift, absensi, izin, dokumen, kasus, dan sanksi.
 - Menjadi satu-satunya approver cuti/izin.
 - Mengunggah dokumen sanksi dan mengubah status tindakan.
-- Mengelola akun HRD, Pimpinan, dan Pegawai organisasinya. Tautan profil pegawai bersifat opsional untuk HRD/Pimpinan dan wajib untuk Pegawai; HRD tidak boleh memberi role Superadmin, menonaktifkan akun sendiri, atau menonaktifkan HRD aktif terakhir.
+- Setelah konfigurasi HRIS aktif, admin HRD penuh mengelola akun HRD, Pimpinan, dan Pegawai serta delegasi HRIS. HRD terdelegasi hanya mengelola akun Pegawai sesuai dua kewenangan pada bagian 28. Tautan profil pegawai opsional untuk HRD/Pimpinan dan wajib untuk Pegawai; dilarang memberi role Superadmin atau menonaktifkan diri. Admin penuh wajib dialihkan melalui Superadmin sebelum dinonaktifkan; guard HRD aktif terakhir tetap berlaku.
 - Cakupan HRD selalu eksplisit melalui `location_scope_mode=all|selected`; ketiadaan baris scope tidak boleh ditafsirkan sebagai akses penuh ketika mode `selected`.
 
 ### Pimpinan
@@ -428,6 +428,9 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 
 ## 21. UI/UX
 
+- Seluruh label/pesan yang dibaca pengguna untuk akses modul memakai istilah **Fitur**, **Akses fitur**, dan **Fitur dan izin**, bukan Paket. Aktivasi organisasi memakai **Fitur organisasi** dan label **Fitur Inventaris**; pilihan izin memakai **Fitur Inventaris — Lihat Saja/Pengelola Gudang/Pengelola Master Inventaris**. Identifier teknis seperti `packageCode`, `packageAccess`, tabel paket, serta kode permission tetap menjadi kontrak internal/API. Istilah paket backup tetap berlaku untuk arsip backup, karena merupakan domain berbeda.
+- Daftar organisasi Superadmin menampilkan **Fitur aktif** dari konfigurasi server, termasuk pada kartu mobile. Belum ada aktivasi ditampilkan sebagai **Belum ada fitur tambahan**; jangan menebak dari role akun atau menyamakan aktivasi fitur dengan izin semua pengguna. Form akses fitur menjelaskan tempat membuat gudang: Data Master → Gudang.
+
 - Teks penjelasan/informasi memakai Bahasa Indonesia yang sederhana, singkat, dan langsung menjelaskan fungsi atau dampak aksi. Utamakan 1–3 kalimat; hindari pengulangan, istilah teknis yang tidak diperlukan, dan paragraf bertele-tele. Detail lanjutan ditempatkan pada dokumentasi atau konteks yang relevan.
 - Paragraf penjelasan/informasi memakai alignment justify dengan baris terakhir mengikuti perilaku paragraf normal. Gunakan `FontStyle explanation` atau komponen deskripsi terpusat; jangan menerapkan justify pada judul, label field, angka, metadata, atau tabel. Penjelasan yang sengaja didesain center, seperti pesan utama modal hapus backup, tetap center melalui override eksplisit. Uji pada mobile agar kata, jarak, dan lebar paragraf tetap mudah dibaca.
 
@@ -569,7 +572,7 @@ Pekerjaan selesai hanya jika:
 - Query agregasi dashboard wajib dikelompokkan tanpa N+1, memakai parameter SQL, cache singkat bila sesuai, dan diuji pada dataset representatif sebelum optimasi melalui index atau materialized view.
 - Komposisi jenis kelamin, status pegawai, masa kerja, jenis kepegawaian, lokasi, dan unit adalah snapshot kondisi saat ini tanpa filter tanggal. Kasus disiplin resmi dan aktivitas terbaru maksimal lima item tanpa batas rentang tanggal; prioritas maksimal lima item terpenting. Seluruh data tetap mengikuti role, organisasi, serta cakupan lokasi actor di backend.
 - Grafik dinamika pegawai tidak boleh mengulang snapshot status aktif. Gunakan arus pegawai baru dan pegawai keluar per periode, sedangkan kondisi aktif, masa percobaan, dan cuti tetap berada pada visual Status Pegawai.
-- Dataset organisasi non-sensitif yang sudah tersedia pada dashboard ditampilkan konsisten untuk HRD dan Pimpinan. Perbedaan role hanya diterapkan pada mutation, cakupan data, serta data draft/sensitif yang memang dilarang dikirim kepada role tertentu.
+- Dataset Dashboard dengan kewenangan yang sama ditampilkan konsisten untuk HRD dan Pimpinan. HRD terbatas hanya menerima domain/submenu yang diberikan; organisasi, cakupan lokasi, draft dan data sensitif tetap diperiksa di backend.
 - Adapter ApexCharts wajib menormalkan kategori kosong dan nilai nonnumerik sebelum render. Label `NaN`, `undefined`, atau sumbu kategori kosong dilarang tampil kepada pengguna.
 - Item prioritas disiplin wajib menavigasi ke detail pegawai pada tab Disiplin melalui LoadingBackdrop dan mempertahankan scope organisasi Superadmin. Chip prioritas ditempatkan dekat nama data dengan jarak aman, sedangkan aksi detail memakai ikon mata, tooltip, dan aria-label yang jelas. Data tindakan draft tetap tidak boleh dikirim kepada Pimpinan.
 
@@ -591,7 +594,84 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Superadmin mengaktifkan modul dan memberi paket pada akun organisasi secara eksplisit serta diaudit. HRD yang memiliki permission delegasi tetap mengelola akun Pegawai sesuai service akun saat ini, hanya pada organisasi/profil/lokasi yang berizin; selected HRD tidak dapat memberi all atau scope di luar lokasi. Paket sendiri tidak memberi permission delegasi.
 - HRD tidak boleh meningkatkan akses sendiri atau mengubah grant lama di luar kewenangannya. Grant yang tidak diubah dapat dipertahankan ketika field akun lain dikoreksi. Akun/profil/membership dan paket disimpan atomik dengan version check; perubahan/pencabutan diaudit dan berlaku pada request berikutnya.
 - Sidebar, page, API, daftar, laporan, export, dan file harus memakai pemeriksaan permission/scope server yang sama. Token/browser hanya identitas atau tampilan, bukan sumber hak akses. Jangan melemahkan izin HRIS lama untuk membuka Inventaris.
-- Inventaris memakai empat submenu Stok Barang, Transaksi Barang, Laporan Distribusi, dan Data Master. Gudang berada di tab Data Master; Kartu Stok berada di detail barang per gudang. Barang masuk/keluar menyusun form/use case transaksi bersama, bukan pencatatan ganda.
-- Tahap 1 hanya paket/modul, gudang minimal, dan header halaman lain; Dashboard Pegawai tetap header kosong. Jangan membangun barang, ledger stok, transaksi, lampiran Inventaris, request/approval, atau aset sampai tahapnya diminta.
+- Data Master memuat Barang Persediaan, Kategori Barang, Satuan Barang, dan Gudang sebagai halaman terpisah berizin Inventaris. Inventaris hanya memuat Stok Barang dan Transaksi Barang; Laporan memuat Distribusi Barang sesuai permission fitur. Parent tampil bila ada submenu berizin; Pegawai tidak memperoleh akses master/laporan HRIS. Kartu Stok kelak berada di detail barang per gudang pada Stok Barang; pencatatan masuk/keluar memakai use case bersama.
+- Tahap 1–2 menyediakan akses, gudang, katalog Barang/Kategori/Satuan, foto privat opsional, dan batas minimum barang-gudang. Halaman stok/transaksi/distribusi serta Dashboard Pegawai tetap header saja. Jangan membangun ledger, saldo awal, transaksi, request/approval, atau aset pada tahap penataan navigasi ini.
+- Katalog barang/kategori/satuan dan metadata gudang digunakan bersama organisasi. Hanya Superadmin atau Pengelola Master Inventaris boleh menambah/edit/nonaktifkan master dan membuat gudang. Pengelola Gudang (all maupun selected) tidak membuka halaman master atau mengubah metadata master. Pengaturan barang/minimum serta operasional stok memakai permission dan scope grant gudang asalnya. Batas minimum bukan saldo stok.
+- Foto barang memakai stored_files kategori inventory_item_photo dan folder privat org_{organizationId}/inventaris/foto_barang/{tahun}/{UUID}.{ext}; MIME nyata JPEG/PNG/WebP maksimal 5 MB, scan/hash serta pipeline temp/atomic move yang sama. Simpan hanya saat form barang berhasil, bersihkan byte baru pada rollback, dan antrekan purge foto yang diganti/dilepas secara transaksional. Registry pemeliharaan/backup wajib melindungi foto barang yang masih dirujuk, termasuk barang nonaktif. API foto memeriksa akses Inventaris serta referensi nyata tanpa memberikan permission HRIS generik.
+- Master persediaan canonical memakai /master-data/inventory-items|inventory-categories|inventory-units|inventory-warehouses; Distribusi Barang memakai /reports/inventory-distribution. Route lama /inventory/catalog dan /inventory/master-data diarahkan menurut tab, default Barang Persediaan; /inventory/reports diarahkan ke Distribusi Barang. Pertahankan organisasi valid dan pemeriksaan server. Tombol tambah di PageHeader, pemilih organisasi Superadmin di toolbar filter; wajib satu organisasi sebelum membaca/membuat. Gunakan ikon semantik lokal, reusable tabel/kartu/modal, pagination+total. Referensi tidak dihapus fisik; perubahan diaudit dan memakai version. Aturan pecahan/satuan dasar terkunci setelah dipakai.
 - Gudang memiliki organisasi/lokasi, kode uppercase unik, status dan versi. Gudang berreferensi tidak dihapus fisik; lokasi terkunci setelah direferensikan paket. Gudang nonaktif tetap dapat dibaca/dipulihkan oleh pengelola berizin tetapi tidak dipilih untuk grant baru atau transaksi stok nanti.
-- Kartu stok nantinya menunjukkan masuk/keluar/saldo satu barang-gudang. Laporan Distribusi merangkum penyaluran lintas transaksi dan tidak membuktikan sisa stok penerima. Permintaan tetap manual; request, approval, dan pemenuhan kelak memiliki permission terpisah tanpa posting stok dua kali.
+- Kartu stok nantinya menunjukkan masuk/keluar/saldo satu barang-gudang. Distribusi Barang merangkum penyaluran lintas transaksi dan tidak membuktikan sisa stok penerima. Permintaan tetap manual; request, approval, dan pemenuhan kelak memiliki permission terpisah tanpa posting stok dua kali.
+
+### Arahan prasyarat fitur
+
+- Field/alur yang membutuhkan data lain wajib menjelaskan apa yang diperlukan, menu tempat membuatnya, dan langkah singkat sesuai hak akses pengguna. Gunakan 1–2 kalimat sederhana, dekat field, dengan `FontStyle explanation`; jangan hanya mengandalkan dropdown kosong.
+- Tampilkan arahan setelah referensi berhasil dimuat. Bedakan data belum tersedia, nonaktif, hasil pencarian kosong, keterbatasan cakupan, dan kegagalan pemuatan. Jangan menyimpulkan seluruh organisasi kosong dari daftar scope pengguna.
+- Tautan prasyarat hanya bagi pengguna berizin, mempertahankan organisasi dan memakai lifecycle loading serta dirty-state warning. Pengguna tanpa izin diarahkan meminta pihak berwenang; field wajib tetap divalidasi. Tidak membuat form bertingkat untuk prasyarat.
+
+### Satuan tanpa kode input dan chip master persediaan
+
+Satuan Barang tidak meminta atau menampilkan kode. API menerima kode opsional untuk
+kompatibilitas klien lama; create tanpa kode membuat kode internal UUID di server,
+edit tanpa kode mempertahankan nilai lama. Tidak ada perubahan schema atau backfill.
+Nama satuan wajib dan unik per organisasi; konflik ditampilkan pada field nama.
+Kode barang/kategori/gudang tampil sebagai CompactInfoChip tone info di bawah nama
+pada kolom identitas yang sama dan pada kartu mobile. Kategori, satuan, aturan
+pecahan, dan status memakai chip semantik yang sudah tersedia; nama dan uraian
+bebas tetap teks agar penanda penting tidak tenggelam dalam terlalu banyak chip.
+
+### Tingkat akses Inventaris
+
+- Label akses fitur: Lihat Saja, Pengelola Gudang, Pengelola Master Inventaris. Kode inventory_reader/inventory_manager dipertahankan; kode baru inventory_master. Cakupan selected ditampilkan Pilih Gudang; master selalu organisasi (scope_mode=all, warehouseIds kosong) dan bukan akses operasional seluruh gudang.
+- Lihat Saja membuka Stok Barang, Transaksi Barang, dan Distribusi Barang secara baca sesuai scope. Jangan menampilkan master Inventaris; URL langsung master wajib ditolak di server. Metadata baca katalog/gudang tetap dapat digunakan API operasional/file berizin tanpa membuka halaman master.
+- Pengelola Gudang (inventory_manager) hanya operasional pada gudang all/selected. Pengelola Master Inventaris (inventory_master) hanya master bersama organisasi; tidak otomatis mempunyai akses stok/transaksi/distribusi atau pengaturan minimum. Satu akun boleh menerima ketiganya, tetap satu role dasar. Menonaktifkan data mempertahankan histori/referensi, bukan menghapus fisik.
+- Form pemberian fitur wajib menjelaskan kemampuan pilihan tepat di bawah field serta batas membuat gudang di field cakupan. Role Pegawai/HRD tidak membatasi kemampuan Inventaris yang sah dan tidak memberikan izin otomatis.
+
+### Jarak informasi pada field
+
+- Teks bantuan `Form.Item extra` memakai spacing terpusat: minimal 8px dari control,
+  line-height 1.6, serta 4px padding bawah sebelum margin antar-field. PrerequisiteHint
+  memakai gap 8px antara penjelasan dan tautan; target sentuh tetap minimal 44px.
+- Jangan menempelkan teks bantuan ke border input/dropdown atau memberi margin negatif.
+  Pertahankan jarak antar-field dan uji informasi panjang pada desktop/mobile.
+  Gunakan token/style reusable; jangan menambah override spacing per halaman.
+
+### Delegasi dan kompatibilitas master Inventaris
+
+- Hak master tidak diberikan otomatis kepada akun lama. Migration 050 memindahkan hak metadata/master dari inventory_manager ke inventory_master; grant lama tetap operasional dengan scope asalnya. Berikan fitur master secara eksplisit bila diperlukan.
+- Superadmin atau HRD dengan cakupan seluruh lokasi boleh mendelegasikan master kepada akun yang dapat dikelolanya. HRD lokasi terpilih tidak boleh memberi/mengubah/mencabut master organisasi; grant lama yang tidak berubah dapat dipertahankan pada edit field lain.
+- Scope master tidak meminta gudang, valid walau gudang belum tersedia. Akses master tidak menjadi referensi scope operasional gudang dan tidak mengunci lokasi gudang sendirian. Kunci dari referensi operasional/histori tetap utuh.
+
+## 27. Hak akses submenu HRIS
+
+- Role dasar tetap satu. HRIS administratif hanya role HRD; Pegawai tidak mendapat permission HRIS organisasi. Inventaris/self-service tetap terpisah.
+- Superadmin menetapkan/mengalihkan satu admin HRD penuh aktif per organisasi. Admin ini selalu seluruh lokasi dan satu-satunya pemberi HRIS selain Superadmin. HRD lain dapat mengelola akun Pegawai dan fitur non-HRIS hanya jika diberi kewenangan eksplisit pada bagian 28. HRD terbatas mengikuti submenu Lihat Saja/Kelola; cakupan lokasi tetap per akun.
+- Katalog tertutup HRIS_MENUS menentukan hak yang tersedia. Fitur baru termasuk payroll tidak mendapat akses otomatis dari role/admin penuh. Laporan/Dashboard hanya baca; Data Pegawai termasuk identitas/rekening/dokumen dan harus dijelaskan pada form. Cuti serta akun di detail tetap berizin terpisah.
+- Guard wajib pada halaman/API/file, bukan tombol saja. Context path/method selalu ditimpa Proxy; grant dibaca dari database terbaru. File kategori memisahkan identitas, foto referensi, surat sanksi dan lampiran izin.
+- Migration 051 tidak mengubah hak organisasi lama langsung. Aktivasi pertama mempertahankan hak menu bisnis sebagai grant eksplisit bagi HRD yang belum ditinjau; admin meninjaunya kemudian. Omission mempertahankan grant, array kosong mencabut. Transaksi akun/grant/admin memakai version, lock organisasi dan audit.
+- Admin penuh wajib dialihkan oleh Superadmin sebelum dinonaktifkan, diturunkan role/cakupan, atau diproses akhir hubungan kerja. Guard ini disetujui pengguna; jangan mengubah perhitungan/alur inti HRIS lain tanpa keputusan baru.
+- Pembagian submenu menggunakan satu bagian Akses fitur bersama Inventaris. Tabel menampilkan satu chip fitur dan +N fitur lainnya; rincian melalui Aksi → Lihat hak akses. Dilarang menumpuk submenu, grant gudang, atau tautan rincian pada kolom Akses fitur.
+- Rancangan, rollout dan kontrak API: docs/hris-access-design.md. Uji regresi akses, scope, session aktif, file privat, transfer dan guard pada database terpisah.
+
+## 28. Penyatuan fitur dan delegasi akun Pegawai
+
+- Satu blok per fitur HRIS/Inventaris di OrganizationAccountForm. Pilihan HRIS hanya untuk actor Superadmin/admin HRD penuh dan target HRD. Role Pegawai tidak menerima administrasi HRIS. Identitas role/admin tetap terpisah dari izin operasional.
+- Dua kewenangan eksplisit: Kelola akun Pegawai (CRUD/status/profil/reset password tanpa perubahan fitur) dan Kelola akun Pegawai & akses fitur (ditambah delegasi non-HRIS). Delegator tidak wajib menggunakan Inventaris; tetap mengikuti modul aktif, organisasi dan cakupan lokasi/gudang. Tidak dapat mengelola HRD/Pimpinan/diri, memberi HRIS, atau menaikkan kewenangannya sendiri.
+- Omission mempertahankan kewenangan/grant, none/array kosong mencabut eksplisit. Backend menerima grant identik pada koreksi akun tanpa hak delegasi; perubahan grant tetap ditolak. Pencabutan berlaku pada request berikutnya dan audit/version/rollback tetap wajib.
+- Setiap fitur, izin, submenu dan cakupan wajib mempunyai uraian terpusat tentang kemampuan/batas. Tampilkan 1–2 kalimat sederhana dekat field aktif, minimal 8px dari control, justify dan line-height konsisten. Jangan hanya memakai tooltip/dropdown; jangan menjanjikan kemampuan yang belum ada. Jelaskan prasyarat kosong vs gagal dimuat sesuai izin.
+- Ringkasan menghitung fitur sekali, bukan jumlah izin/gudang: satu chip +N fitur lainnya tanpa interaksi. Aksi Lihat hak akses membuka AppModal di level halaman agar pergantian tabel/kartu tidak menutupnya. Ikon semantik, chip selebar isi, gap 12–16px antarbaris dan 24px antarsection, status berlabel serta loading/error/kosong wajib tersedia.
+- Migration 052 default flag nonaktif dan tidak mengubah rollout organisasi lama. Rekonsiliasi snapshot/menu/API membaca akses server terkini. Proses inti HRIS dan admin tunggal tidak berubah.
+
+### Presentasi menu dan informasi hak akses
+
+- Hak Akun Organisasi tampil dalam kelompok Akun & Akses di editor HRIS, dengan checkbox aktivasi. Saat aktif pilih Kelola akun Pegawai atau Kelola akun Pegawai & akses fitur; saat dinonaktifkan simpan none. Pengaktifan kembali default Kelola akun Pegawai, bukan delegasi fitur. Kontrak dan authority backend tetap.
+- Menu tanpa CRUD seperti Laporan tidak memakai dropdown tingkat akses. Tampilkan label Hanya baca; checkbox memberikan/mencabut grant read. Dashboard adalah halaman dasar tanpa kontrol grant. Gunakan divider antarbaris dan uraian batas izin singkat.
+- Login tetap /dashboard. Konten mengikuti izin domain/submenu, bukan grant dashboard lama. Tanpa hak data tampil header saja; API mengirim DTO kosong tanpa dataset terlarang. Navigasi menu berizin tetap tersedia.
+
+### Dashboard dasar dan katalog menu bersama
+
+- Dashboard selalu halaman awal autentikasi, bukan grant statistik. Hapus pilihan Dashboard dari editor/rincian; kode lama kompatibel tetapi tidak memberi data. Isi Dashboard wajib sesuai hak domain/submenu, organisasi dan scope server. Pegawai serta akun tanpa hak data tetap header saja.
+- Data Pegawai memberi ringkasan Pegawai/penempatan/kelengkapan/perkembangan/komposisi/ulang tahun. Ringkasan kontrak/pensiun/disiplin boleh untuk Data Pegawai atau laporan terkait; cuti memerlukan Cuti & Izin. Prioritas/aktivitas/link juga mengikuti izin. Jangan menambah statistik Inventaris sebelum fiturnya tersedia.
+- Query hanya untuk section berizin; payload dilarang membawa section tak berizin atau nol palsu. Cache wajib memuat fingerprint izin efektif dan scope, termasuk saat pencabutan session aktif.
+- menuCatalog.mjs menjadi katalog deklaratif sidebar/editor/evaluator; setiap menu baru wajib melengkapi jenis izin, scope, delegasi, penjelasan dan pengujian registrasi. Tidak memberi hak otomatis kepada akun terbatas.
+- Form akses vertikal: nama menu → dropdown jika perlu → batas izin singkat. Tidak memakai section Informasi menu. Track minmax(0,1fr), min-width:0, popup wrap dan max-width:100% wajib diuji dengan pilihan terpanjang dan zoom 200%.
+- Section fitur dapat dilipat independen, header kanan untuk buka/tutup; cabut akses di bawah setelah divider, tombol merah solid. Melipat tidak mencabut, tidak menghapus nilai/dirty, dan error membuka section sebelum fokus. Fitur baru terbuka; edit membuka HRIS atau fitur pertama.

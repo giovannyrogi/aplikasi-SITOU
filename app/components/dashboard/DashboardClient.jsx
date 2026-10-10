@@ -1,4 +1,5 @@
 "use client";
+import { dashboardSectionsFor } from "@/lib/dashboard/accessPolicy.mjs";
 
 import { readApiResponse } from "@/lib/api/clientError";
 
@@ -32,7 +33,12 @@ const DASHBOARD_TITLE = "Dashboard monitoring";
 /** Pegawai hanya mendapat header; komponen data organisasi tidak dipasang. */
 export default function DashboardClient() {
   const user = useAuthenticatedUser();
-  if (user.role_code === ROLES.EMPLOYEE) return <PageHeader title={DASHBOARD_TITLE} />;
+  if (
+    user.role_code === ROLES.EMPLOYEE ||
+    (user.role_code === "hrd" &&
+      !(user.access?.dashboardSections || dashboardSectionsFor(user)).length)
+  )
+    return <PageHeader title={DASHBOARD_TITLE} />;
   return <OrganizationDashboard />;
 }
 
@@ -125,7 +131,13 @@ function buildChartDefinitions(data) {
       icon: "solar:shield-warning-bold-duotone",
       Component: HorizontalBarChart,
     },
-  ];
+  ].filter((chart) =>
+    chart.key === "retirement"
+      ? Boolean(data.retirementSummary)
+      : chart.key === "discipline"
+        ? Array.isArray(data.recentDiscipline)
+        : Object.hasOwn(data.charts || {}, chart.key),
+  );
 }
 
 /** Dashboard utama yang mengubah data dan hierarchy visual berdasarkan role session. */
@@ -312,11 +324,16 @@ function OrganizationDashboard() {
             ))}
           </Box>
 
-          {!isSuperadmin || organizationId ? (
+          {(state.loading || state.data?.birthdaySummary) && (!isSuperadmin || organizationId) ? (
             <BirthdaySpotlight data={state.data?.birthdaySummary} loading={state.loading} />
           ) : null}
 
-          <EmployeeCompositionSummary data={state.data?.employeeSummary} loading={state.loading} />
+          {state.loading || state.data?.employeeSummary ? (
+            <EmployeeCompositionSummary
+              data={state.data?.employeeSummary}
+              loading={state.loading}
+            />
+          ) : null}
 
           <Box
             component="section"
@@ -381,13 +398,17 @@ function OrganizationDashboard() {
               gap: { xs: 2, md: 3 },
             }}
           >
-            <DashboardAttentionList
-              items={state.data?.attentionItems}
-              loading={state.loading}
-              organizationId={organizationId}
-              isSuperadmin={isSuperadmin}
-            />
-            <DashboardActivityList items={state.data?.activities} loading={state.loading} />
+            {state.loading || state.data?.attentionItems ? (
+              <DashboardAttentionList
+                items={state.data?.attentionItems}
+                loading={state.loading}
+                organizationId={organizationId}
+                isSuperadmin={isSuperadmin}
+              />
+            ) : null}
+            {state.loading || state.data?.activities ? (
+              <DashboardActivityList items={state.data?.activities} loading={state.loading} />
+            ) : null}
           </Box>
         </>
       )}

@@ -17,3 +17,6 @@ export function useAuthenticatedUser() {
   if (!user) throw new Error("useAuthenticatedUser harus digunakan di dalam ProtectedShell.");
   return user;
 }
+
+/** Komponen reusable di halaman publik boleh membaca konteks kosong tanpa exception. */
+export function useOptionalAuthenticatedUser() {return useContext(AuthenticatedUserContext);}

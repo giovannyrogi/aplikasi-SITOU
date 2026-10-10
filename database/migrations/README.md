@@ -121,3 +121,48 @@ database terpisah; jangan menjalankan SQL schema bootstrap untuk memperbarui VPS
 Migration `046` mempertahankan penanda kunci lokasi gudang setelah pernah digunakan
 dalam scope paket, termasuk jika cakupan kemudian diubah atau dicabut. Terapkan
 setelah `045` sebelum deploy web; tidak mengubah saldo atau membentuk transaksi stok.
+
+Migration 047–048 melengkapi katalog organisasi: kategori, satuan dasar, barang,
+foto privat opsional, serta konfigurasi barang/minimum per gudang. Terapkan setelah
+046 sebelum web baru. Tidak menambah saldo atau transaksi stok. Permission baru
+masuk ke akses Pembaca/Pengelola sesuai tindakan; katalog bersama hanya ditulis
+oleh pengelola all. Uji upgrade/bootstrap dan HTTP dengan test:inventory:http.
+
+## 049 — Tingkat akses Inventaris
+
+Jalankan 20261009_049_inventory_access_levels.sql setelah 048 sebelum deploy web.
+Migration mengubah label katalog akses Lihat Saja dan mencabut master.read dari
+paket reader; grant tetap tersimpan. Bootstrap sitou_schema_v3.sql sudah memuat
+perubahan yang sama. Pengelola selected kini dapat mengelola katalog bersama;
+pembuatan gudang tetap all. Uji script test:inventory:http pada database terpisah.
+
+## 050 — Master Inventaris terpisah
+
+Terapkan 20261009_050_inventory_master_access.sql setelah 049 dan sebelum web baru.
+Migration menambah inventory_master serta CHECK cakupan organisasi, memindahkan
+permission master dari inventory_manager tanpa memberikan grant baru otomatis.
+Akun manager lama menjadi Pengelola Gudang dan kehilangan menu/aksi master sampai
+master diberikan secara eksplisit. Bootstrap sitou_schema_v3.sql mencerminkan ini.
+Uji upgrade/bootstrap, tiga kombinasi akses, scope, delegasi HRD, dan pencabutan
+melalui npm run test:inventory:http pada database sementara sebelum penerapan.
+
+## 051 — Hak akses menu HRIS
+
+Terapkan 20261009_051_hris_menu_access.sql setelah 050 sebelum web baru. Tambahan
+policy admin tunggal, katalog 14 submenu, grant read/manage dan penanda review
+menggunakan composite FK organisasi/membership. Schema bootstrap memuat perubahan
+sama. Tidak mengaktifkan konfigurasi atau mengubah hak akun lama melalui migration.
+Superadmin menetapkan admin penuh melalui form akun, lalu admin meninjau grant lama.
+Uji upgrade/bootstrap, delegasi, version/rollback, session aktif dan lifecycle guard
+melalui test:inventory:http pada database terpisah. Lihat docs/hris-access-design.md.
+
+## 052 — Delegasi akun Pegawai dan fitur
+
+20261009_052_hris_account_delegation.sql diterapkan setelah 051 sebelum web baru.
+Menambah dua flag default false pada user_hris_access_settings dan CHECK delegasi
+memerlukan pengelolaan akun. Tidak memberikan akses otomatis atau mengubah rollout
+legacy. Schema bootstrap memuat ALTER yang sama. API hrisAccountAccess memakai
+none/manage/manage_and_delegate; omission mempertahankan. Uji upgrade/bootstrap,
+CRUD vs delegasi, scope, rollback/audit/session aktif melalui test:inventory:http
+pada database terpisah. npm run db:migrate adalah runner khusus development;
+produksi memakai prosedur migration lingkungan yang berlaku.

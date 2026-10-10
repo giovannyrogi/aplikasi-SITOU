@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
+import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import DataToolbar from "@/app/components/filters/DataToolbar";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
@@ -14,9 +15,12 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import WarehouseForm from "./WarehouseForm";
-export default function WarehousePanel({ organizationId }) {
+export default function WarehousePanel({ organizationId, organizationFilter }) {
   const user = useAuthenticatedUser();
-  const list = useDataList("/api/inventory/warehouses", { initialFilters: { organizationId } });
+  const list = useDataList("/api/inventory/warehouses", {
+    requiredFilter: "organizationId",
+    initialFilters: { organizationId },
+  });
   const { notification, showNotification, closeNotification } = useAppNotification();
   const [form, setForm] = useState({ open: false, item: null });
   const refresh = list.refresh;
@@ -45,9 +49,9 @@ export default function WarehousePanel({ organizationId }) {
       render: (_, row) => (
         <Box>
           <FontStyle fontWeight={700}>{row.name}</FontStyle>
-          <FontStyle fontSize={12} sx={{ mt: 0.75, color: "text.secondary" }}>
-            {row.code}
-          </FontStyle>
+          <Box sx={{ mt: 0.75 }}>
+            <CompactInfoChip label={row.code} tone="info" />
+          </Box>
         </Box>
       ),
     },
@@ -72,9 +76,9 @@ export default function WarehousePanel({ organizationId }) {
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 2 }}>
         <Box>
           <FontStyle fontWeight={700}>{row.name}</FontStyle>
-          <FontStyle fontSize={12} sx={{ mt: 0.75, color: "text.secondary" }}>
-            {row.code}
-          </FontStyle>
+          <Box sx={{ mt: 0.75 }}>
+            <CompactInfoChip label={row.code} tone="info" />
+          </Box>
         </Box>
         {actions(row)}
       </Box>
@@ -85,7 +89,26 @@ export default function WarehousePanel({ organizationId }) {
     </Box>
   );
   return (
-    <Box sx={{ minWidth: 0 }}>
+    <Box sx={{ minWidth: 0, display: "grid", gap: 3 }}>
+      <PageHeader
+        title="Gudang"
+        description={
+          organizationId
+            ? "Kelola tempat penyimpanan barang sesuai cakupan akses."
+            : "Pilih organisasi pada filter untuk membuka gudang."
+        }
+        action={
+          organizationId && !list.loading && !list.error && user.access?.canCreateWarehouse ? (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setForm({ open: true, item: null })}
+            >
+              Tambah gudang
+            </Button>
+          ) : null
+        }
+      />
       <DataPanel
         title="Daftar gudang"
         description={
@@ -101,17 +124,7 @@ export default function WarehousePanel({ organizationId }) {
             status={list.status}
             onStatusChange={list.setStatus}
             onRefresh={list.refresh}
-            filters={
-              user.access?.canCreateWarehouse ? (
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setForm({ open: true, item: null })}
-                >
-                  Tambah gudang
-                </Button>
-              ) : undefined
-            }
+            filters={organizationFilter}
           />
         }
       >
@@ -121,6 +134,9 @@ export default function WarehousePanel({ organizationId }) {
           renderCard={card}
           loading={list.loading}
           error={list.error}
+          emptyDescription={
+            !organizationId ? "Pilih organisasi pada filter untuk menampilkan data." : undefined
+          }
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}

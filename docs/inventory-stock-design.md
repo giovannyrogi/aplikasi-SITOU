@@ -1,10 +1,11 @@
 # Rancangan Persediaan & Stok dan Manajemen Aset SITOU
 
-Status: tahap 1 menyediakan paket akses, aktivasi modul, gudang minimal, dan
-navigasi Inventaris. Barang, transaksi stok, kartu stok, laporan operasional,
-permintaan/approval, serta Manajemen Aset belum diimplementasikan.
+Status: tahap 1–2 menyediakan akses fitur, aktivasi organisasi, serta master
+Barang Persediaan/Kategori Barang/Satuan Barang/Gudang, foto privat opsional, dan batas minimum.
+Transaksi/saldo stok, kartu stok, laporan operasional, permintaan/approval serta
+Manajemen Aset belum diimplementasikan.
 
-Pembaruan keputusan: 8 Oktober 2026. Pengembangan pertama berfokus pada
+Pembaruan keputusan: 9 Oktober 2026. Pengembangan pertama berfokus pada
 Persediaan & Stok; Manajemen Aset tetap pengembangan berikutnya.
 
 ## Keputusan tahap pertama
@@ -47,7 +48,7 @@ organisasi/session mengikuti kemampuan sistem dan memerlukan rancangan tersendir
 - Modul aktif pada organisasi dan pemberian paket kepada akun merupakan dua
   pengaturan terpisah. Modul aktif tidak otomatis membuka akses semua akun.
 - Setiap pemberian paket memiliki scope sendiri. Pengelola Persediaan untuk
-  Gudang Bersehati dapat digabung dengan Pembaca Persediaan untuk Gudang Pusat.
+  Gudang Bersehati dapat digabung dengan Lihat Saja Persediaan untuk Gudang Pusat.
   Permission dan gudang harus diperiksa sebagai pasangan; jangan menggabungkan
   seluruh permission dengan seluruh gudang sehingga akses meluas tanpa sengaja.
 - Gudang berada dalam satu organisasi dan terhubung ke lokasi operasional.
@@ -79,15 +80,16 @@ ditambah paket merupakan keputusan desain SITOU, bukan ketentuan universal produ
 
 ## Navigasi yang disepakati
 
-Inventaris memiliki empat submenu: **Stok Barang**, **Transaksi Barang**,
-**Laporan Distribusi**, dan **Data Master**. Tidak ada submenu terpisah untuk
-Barang Masuk, Barang Keluar, Gudang, atau Kartu Stok. Data Master memakai tab
-Barang/Kategori/Satuan/Gudang; tahap 1 membuka tab Gudang secara default, tab lain
-masih kosong. Ketiga halaman operasional hanya menampilkan header. Dashboard
-Pegawai tetap kosong dengan header Dashboard monitoring.
+Keputusan navigasi terbaru: Data Master memuat **Barang Persediaan**, **Kategori
+Barang**, **Satuan Barang**, dan **Gudang** sebagai halaman terpisah. Inventaris
+memuat **Stok Barang** dan **Transaksi Barang**; Laporan memuat **Distribusi Barang**.
+Setiap submenu memakai permission fitur dan scope organisasi yang sama; parent
+hanya tampil bila ada anak berizin. Tidak ada tab Katalog & Gudang lagi.
+Tombol tambah berada pada header, filter organisasi Superadmin pada toolbar daftar.
+Wajib memilih satu organisasi; Dashboard Pegawai tetap header saja.
 
 Kartu Stok nantinya berada di detail satu barang pada satu gudang, menampilkan
-masuk, keluar, dan saldo setelah setiap transaksi. Laporan Distribusi merangkum
+masuk, keluar, dan saldo setelah setiap transaksi. Distribusi Barang merangkum
 penyaluran lintas transaksi menurut periode, barang, gudang, dan divisi/unit tujuan.
 Keduanya berasal dari transaksi yang sama, bukan pencatatan terpisah. Laporan
 distribusi tidak membuktikan sisa stok divisi. Pencatatan dari Stok Barang dan
@@ -99,7 +101,7 @@ Transaksi Barang kelak menyusun form/use case yang sama.
 
 Petakan evaluator permission, session, scope, akun, file, audit, dan menu yang ada.
 Susun matriks permission serta rancangan migration paket akses organisasi, lalu
-implementasikan paket Pembaca Persediaan dan Pengelola Persediaan beserta delegasi
+implementasikan akses Lihat Saja, Pengelola Gudang dan Pengelola Master Inventaris beserta delegasi
 HRD/Superadmin. Pertahankan akses HRD/Pimpinan/Pegawai yang sudah berjalan.
 Bangun fondasi yang dapat diperluas, tetapi hanya aktifkan permission Persediaan.
 Tidak membuat paket, tabel bisnis, atau menu Manajemen Aset pada tahap ini.
@@ -115,13 +117,13 @@ Implementasi tahap 1:
   aktivasi `organization_modules`; grant `user_access_packages` dan
   `user_package_warehouse_scopes`; master `inventory_warehouses`.
 - Modul awalnya nonaktif, tanpa grant otomatis. Superadmin mengaktifkan lewat
-  aksi **Modul organisasi** pada Data Master → Organisasi, lalu menyiapkan gudang.
+  aksi **Kelola fitur** pada Data Master → Organisasi, lalu menyiapkan gudang.
 - Superadmin memberikan paket kepada HRD/Pimpinan/Pegawai. HRD tetap hanya
   mengelola akun Pegawai sesuai service akun saat ini. Permission delegasi berasal
   dari role HRD, tidak memerlukan paket pengelolaan stok. HRD scope selected hanya
   mendelegasikan gudang di lokasi yang diizinkan dan tidak dapat memberikan all.
-- Paket Pembaca membaca halaman dan gudang. Pengelola juga mengedit gudang
-  dalam scope; pembuatan gudang memerlukan scope all. Tidak ada izin transaksi
+- Paket Lihat Saja membaca halaman operasional tanpa menu master. Pengelola Gudang
+  bekerja dalam scope gudang; Pengelola Master Inventaris mengelola katalog/metadata gudang bersama organisasi. Tidak ada izin transaksi
   atau approval sebelum fiturnya dikembangkan. Self-service tetap terpisah.
 - Scope selected wajib berisi gudang aktif pada pemberian baru; all eksplisit
   mencakup gudang baru. Penempatan tidak menjadi sumber scope paket. Gudang nonaktif
@@ -191,20 +193,28 @@ total sesuai filter/scope, dan ekspor yang diaudit.
 
 ### Uji coba pengguna
 
-1. Superadmin membuka Data Master → Organisasi → menu aksi → Modul organisasi,
+1. Superadmin membuka Data Master → Organisasi → menu aksi → Kelola fitur,
    kemudian mengaktifkan Inventaris pada organisasi target.
-2. Superadmin membuka Inventaris → Data Master, memilih organisasi, lalu membuat
-   gudang pada tab Gudang.
+2. Superadmin membuka Data Master → Gudang, memilih organisasi pada filter, lalu
+   menekan Tambah gudang.
 3. HRD membuka Akun & Akses → Akun Organisasi dan menambah/mengedit akun Pegawai.
-   Isi Paket akses fitur serta gudang dalam kewenangannya. Superadmin juga dapat
+   Isi Akses fitur serta gudang dalam kewenangannya. Superadmin juga dapat
    memberikan paket melalui halaman yang sama.
 4. Login memakai akun Pegawai. Dashboard tetap kosong; Inventaris menampilkan
-   empat submenu. Pembaca hanya membaca; Pengelola terpilih mengedit gudang;
-   Pengelola all dapat membuat gudang.
+   menu sesuai izin pada Data Master, Inventaris, dan Laporan. Lihat Saja hanya membaca; Pengelola Gudang bekerja dalam scope;
+   Pengelola Master Inventaris mengelola master serta membuat gudang.
 5. Cabut paket atau nonaktifkan modul, lalu pastikan API/page langsung ditolak
    dan sidebar diperbarui ketika kembali fokus/navigasi.
 
 ### Endpoint
+
+Istilah UI adalah **Fitur**, bukan Paket: Fitur organisasi, Fitur Inventaris,
+Akses fitur, dan Fitur dan izin. Pilihan izin ditampilkan sebagai Fitur Inventaris
+— Lihat Saja/Pengelola Gudang/Pengelola Master Inventaris. Kode/tabel paket dan payload API tetap kompatibel. Daftar
+organisasi menyediakan `active_features` dari konfigurasi organisasi di server;
+kolom/kartu Fitur aktif menampilkan labelnya atau Belum ada fitur tambahan.
+Gudang dibuat di Data Master → Gudang oleh Superadmin atau
+Pengelola Master Inventaris, sebelum digunakan pada pilihan akses.
 
 - `GET /api/access/me`: permission menu efektif dan kemampuan membuat gudang;
   tidak menjadi sumber authorization backend atau token login.
@@ -216,6 +226,93 @@ total sesuai filter/scope, dan ekspor yang diaudit.
   DTO gudang berizin, pagination+total; `options=1` mengembalikan pilihan lokasi
   untuk form. Mutation memakai validasi bersama, organisasi server, scope, audit,
   request ID, serta versi integer gudang.
-- `/inventory/stock`, `/inventory/transactions`, `/inventory/reports`,
-  `/inventory/master-data?tab=warehouses`: menu/page dijaga server. Tidak ada API
-  stok, request, approval, upload inventaris, atau aset pada tahap ini.
+- Halaman master persediaan pada `/master-data/inventory-*`, `/inventory/stock`,
+  `/inventory/transactions`, dan `/reports/inventory-distribution` dijaga server.
+  Stok, request, approval, dan aset belum mempunyai API pada tahap ini.
+
+## Tahap 2 — Master Persediaan (9 Oktober 2026)
+
+Halaman Barang Persediaan, Kategori Barang, Satuan Barang dan Gudang sudah operasional, dengan pencarian,
+status, pagination/total, tambah/edit, version check, konfirmasi nonaktif dan audit.
+Superadmin memilih organisasi pada filter; petunjuk tampil pada header.
+Tautan /inventory/master-data dan /inventory/catalog diarahkan ke master baru.
+
+Katalog dan metadata gudang bersama diubah Superadmin/Pengelola Master Inventaris.
+Pengelola Gudang tidak membuka master; pengaturan minimum dan operasional tetap
+mengikuti scope grant gudang yang sesuai.
+Kategori/satuan/kode terisolasi per organisasi. Satuan dapat memakai pecahan sampai
+3 desimal, sementara satuan bulat menolak pecahan. Aturan pecahan dan satuan dasar
+terkunci setelah dipakai. Data nonaktif tetap dibaca, bukan dihapus.
+
+Foto opsional memakai file privat, scan, MIME dan hash; pemilihan hanya preview
+lokal, penyimpanan mengikuti commit barang. Rollback menghapus byte baru; foto
+lama yang diganti/dilepas masuk antrean purge transaksional. Registry pemeliharaan
+serta backup melindungi referensi foto termasuk barang nonaktif. Tidak ada object
+key dikirim ke browser; preview /api/uploads/:fileId memeriksa fitur dan referensi.
+
+API /api/inventory/catalog/:kind (items/categories/units) mendukung list/create,
+PATCH /:kind/:id, dan options=1; pengaturan gudang GET/PUT
+/api/inventory/catalog/items/:id/warehouses memakai versi per barang-gudang.
+minimumStock adalah batas peringatan, bukan saldo. Migration 047–048 diperlukan.
+Konversi kemasan, saldo awal, transaksi, peringatan saldo nyata, kartu stok,
+permintaan/approval, laporan operasional serta aset tetap tahap berikutnya.
+
+## Arahan prasyarat dan tautan lama
+
+Modal Barang menampilkan petunjuk dekat Kategori/Satuan ketika belum ada pilihan
+aktif: siapkan melalui Data Master → Kategori Barang/Satuan Barang → Tambah.
+Gudang memerlukan lokasi aktif; pengguna tanpa izin Lokasi meminta HRD/Superadmin.
+Pemilih gudang menjelaskan ketiadaan gudang dalam cakupan, bukan seluruh organisasi.
+Arahan singkat mengikuti AGENTS.md, disertai tautan berizin, konteks organisasi,
+loading navigasi, dan konfirmasi bila isian belum disimpan.
+
+Canonical master: /master-data/inventory-items, /master-data/inventory-categories,
+/master-data/inventory-units, /master-data/inventory-warehouses. Laporan:
+/reports/inventory-distribution. /inventory/catalog dan /inventory/master-data
+redirect menurut tab lama (default items); /inventory/reports redirect ke laporan
+baru. Hanya organizationId positif valid yang dipertahankan. API/database tidak
+berubah. Penataan ini tidak mengimplementasikan saldo/transaksi/Kartu Stok/laporan.
+
+### Satuan tanpa kode input dan chip master persediaan
+
+Satuan Barang tidak meminta atau menampilkan kode. API menerima kode opsional untuk
+kompatibilitas klien lama; create tanpa kode membuat kode internal UUID di server,
+edit tanpa kode mempertahankan nilai lama. Tidak ada perubahan schema atau backfill.
+Nama satuan wajib dan unik per organisasi; konflik ditampilkan pada field nama.
+Kode barang/kategori/gudang tampil sebagai CompactInfoChip tone info di bawah nama
+pada kolom identitas yang sama dan pada kartu mobile. Kategori, satuan, aturan
+pecahan, dan status memakai chip semantik yang sudah tersedia; nama dan uraian
+bebas tetap teks agar penanda penting tidak tenggelam dalam terlalu banyak chip.
+
+## Penyesuaian tingkat akses (9 Oktober 2026)
+
+Fitur Inventaris — Lihat Saja (kode inventory_reader) tidak membuka empat master
+Inventaris, termasuk melalui URL langsung. Stok/Transaksi/Distribusi tetap dapat
+dibuka tanpa mutasi; isi operasionalnya masih tahap pengembangan berikutnya.
+Fitur Inventaris — Pengelola boleh menambah/edit/nonaktifkan barang, kategori,
+dan satuan bersama organisasi meskipun memilih gudang tertentu. Perubahan ini
+berlaku untuk seluruh katalog organisasi; bukan membuat katalog per gudang.
+Gudang terpilih hanya boleh dikelola sesuai grant; gudang baru memerlukan all.
+Form menampilkan penjelasan kemampuan dan batas scope dekat field. Migration 049
+mencabut inventory.master.read dari paket reader tanpa menghapus grant lama.
+
+## Pemisahan master dan operasional — migration 050
+
+- Lihat Saja (inventory_reader): baca Stok Barang/Transaksi Barang/Distribusi Barang, scope gudang all/selected; tidak membuka atau mengubah master.
+- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Transaksi stok/ledger belum diimplementasikan; permission transaksi mutasi ditambahkan bersama fitur berikutnya.
+- Pengelola Master Inventaris (inventory_master): baca/tambah/edit/nonaktifkan Barang/Kategori/Satuan/Gudang, termasuk membuat gudang. Cakupan organisasi, disimpan scope_mode=all dan warehouseIds kosong. Tidak memberi akses operasional stok/transaksi/laporan/minimum; bukan seluruh gudang operasional.
+
+Satu akun dapat menerima tiga pilihan tersebut secara independen. Form master
+menampilkan Cakupan akses organisasi tanpa pemilih gudang; pergantian kembali ke
+akses operasional mereset scope selected dan gudang kosong. Izin master hanya
+didelegasikan Superadmin/HRD seluruh lokasi; HRD selected tidak boleh mengubahnya.
+Master tidak mengunci lokasi gudang tanpa referensi operasional. Semua permission
+masih dipasangkan dengan scope grant asalnya, memakai module/membership aktif,
+version check, transaksi dan audit. Data organisasi lain serta permission HRIS
+atau self-service tidak diberikan.
+
+Akun Pengelola lama tetap operasional dengan scope semula, tidak otomatis mendapat
+master. Migration 050 mengubah mapping permission, menambah katalog akses dan
+CHECK scope master; grant/histori dipertahankan. Schema bootstrap memuat perubahan.
+Berikan master secara eksplisit bila diperlukan. Keputusan ini menggantikan izin
+master bagi inventory_manager pada tahap 049.

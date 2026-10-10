@@ -1,5 +1,8 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import { useOptionalAuthenticatedUser } from "../auth/AuthenticatedUserProvider";
+import { hrisPageMenu, hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import { Button, Dropdown } from "antd";
 import { MenuOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
@@ -8,8 +11,22 @@ import { useState } from "react";
 export default function RowActionMenu({ items }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
-  const menuItems = (items || []).flatMap((item, index) => {
-    const previous = items[index - 1];
+  const user = useOptionalAuthenticatedUser();
+  const menu = hrisPageMenu(usePathname());
+  const readOnly =
+    user?.role_code === "hrd" &&
+    user.access?.hris?.configured &&
+    menu?.canManage &&
+    hrisLevel(user, menu.key) !== "manage";
+  const visibleItems = readOnly
+    ? (items || []).filter(
+        (item) =>
+          item.readOnly ||
+          ["view", "detail", "preview", "download", "history", "audit"].includes(item.key),
+      )
+    : items || [];
+  const menuItems = visibleItems.flatMap((item, index) => {
+    const previous = visibleItems[index - 1];
     const needsDangerDivider =
       item?.danger && index > 0 && !previous?.danger && previous?.type !== "divider";
     return needsDangerDivider
@@ -17,6 +34,7 @@ export default function RowActionMenu({ items }) {
       : [item];
   });
 
+  if (!menuItems.length) return null;
   return (
     <Dropdown
       open={open}

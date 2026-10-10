@@ -52,6 +52,7 @@ test("registry referensi mencakup seluruh pemilik stored_files pada schema saat 
       "employees.profile_photo_file_id",
       "employment_contract_document_versions.file_id",
       "employment_contracts.document_file_id",
+      "inventory_items.photo_file_id",
       "leave_request_attachments.file_id",
       "locations.logo_file_id",
       "organization_branding.logo_file_id",
@@ -172,7 +173,10 @@ test("service API membuang NIP mentah dan mapper publik tidak membocorkan path a
     "utf8",
   );
   assert.match(source, /employee_no: employeeNumber/);
-  const mapper = source.slice(source.indexOf("const mapItem"), source.indexOf("async function ensureOrganization"));
+  const mapper = source.slice(
+    source.indexOf("const mapItem"),
+    source.indexOf("async function ensureOrganization"),
+  );
   assert.doesNotMatch(mapper, /row\.(object_key|sha256|quarantine_object_key)/);
 });
 
@@ -227,7 +231,10 @@ test("temuan integritas memakai modal hubungan dan tidak mengarahkan Superadmin 
     new URL("../lib/storage-maintenance/service.js", import.meta.url),
     "utf8",
   );
-  const mapper = service.slice(service.indexOf("const mapItem"), service.indexOf("async function ensureOrganization"));
+  const mapper = service.slice(
+    service.indexOf("const mapItem"),
+    service.indexOf("async function ensureOrganization"),
+  );
   assert.match(mapper, /availableActions\.unshift\("view_relationships"\)/);
   assert.doesNotMatch(mapper, /open_employee/);
   assert.match(mapper, /metadata_status_invalid/);
@@ -257,7 +264,9 @@ test("pemulihan byte hilang memverifikasi hash, MIME, ukuran, dan ClamAV", async
     ),
     "utf8",
   );
-  const recovery = service.slice(service.indexOf("export async function recoverMaintenanceItemContent"));
+  const recovery = service.slice(
+    service.indexOf("export async function recoverMaintenanceItemContent"),
+  );
   assert.match(recovery, /active_content_missing/);
   assert.match(recovery, /currentHash !== expectedHash/);
   assert.match(recovery, /detectedMime !== expectedMime/);

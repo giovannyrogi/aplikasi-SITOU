@@ -242,6 +242,14 @@ Cleanup manual terkonfirmasi memeriksa organisasi, semua referensi termasuk vers
 
 ## Fondasi Inventaris
 
+Migration 047–048 menambahkan inventory_categories, inventory_units,
+inventory_items, dan inventory_item_warehouses, beserta kategori stored_files
+inventory_item_photo. Semua FK bisnis memakai organization_id; kode uppercase
+unik per organisasi. Keterkaitan barang-gudang hanya menyimpan minimum_stock,
+status, dan versi, bukan saldo. Foto direferensikan ID privat dan dikenal registry
+pemeliharaan/backup. Katalog bersama diubah oleh Pengelola Master Inventaris, sedangkan pengaturan
+minimum terikat gudang dari grant yang mengandung permission terkait.
+
 Fondasi Inventaris tahap 1 (migration 045–046) menambahkan katalog sistem
 `access_modules`, `access_packages`, `access_package_permissions`; tabel bisnis
 `organization_modules`, `inventory_warehouses`, `user_access_packages`, dan
@@ -259,3 +267,85 @@ Usia pada Ringkasan diturunkan sebagai tahun, bulan, dan hari dari tanggal lahir
 `employment_types.requires_end_date=true` berarti tanggal kedaluwarsa kontrak wajib; false berarti tidak digunakan. API detail menyediakan `contract_requires_end_date`; histori kontrak menyediakan `requires_end_date`. Form baru, pendaftaran/draft, dan koreksi menyembunyikan tanggal akhir serta mengirim null untuk jenis tanpa akhir. Request aktif/new dengan tanggal berisi ditolak sebagai `CONTRACT_END_NOT_APPLICABLE` dan field error. Histori tertutup tetap mempertahankan tanggal penutupannya, dengan label Tanggal penutupan periode. Tidak ada backfill atau penghapusan otomatis pada data/file lama.
 
 Import menerapkan aturan yang sama pada validasi dan pemeriksaan ulang saat commit; tanggal penutupan histori resmi tetap dapat dicatat. Laporan/indikator kedaluwarsa hanya menghitung jenis yang menggunakan akhir. Export mempertahankan kolom dan memakai Tidak berlaku untuk kedaluwarsa yang tidak digunakan, sambil mempertahankan penutupan histori.
+
+### Navigasi master persediaan
+
+Barang Persediaan, Kategori Barang, Satuan Barang, dan Gudang berada pada Data Master
+(`/master-data/inventory-items|inventory-categories|inventory-units|inventory-warehouses`).
+Distribusi Barang berada pada Laporan (`/reports/inventory-distribution`).
+Navigasi ini tidak mengubah schema/API: permission catalog.read, warehouses.read,
+reports.read tetap diperiksa dengan organisasi, aktivasi modul, serta scope grant.
+Snapshot GET /api/access/me kini juga menyertakan inventory.catalog.read.
+
+### Satuan tanpa kode input dan chip master persediaan
+
+Satuan Barang tidak meminta atau menampilkan kode. API menerima kode opsional untuk
+kompatibilitas klien lama; create tanpa kode membuat kode internal UUID di server,
+edit tanpa kode mempertahankan nilai lama. Tidak ada perubahan schema atau backfill.
+Nama satuan wajib dan unik per organisasi; konflik ditampilkan pada field nama.
+Kode barang/kategori/gudang tampil sebagai CompactInfoChip tone info di bawah nama
+pada kolom identitas yang sama dan pada kartu mobile. Kategori, satuan, aturan
+pecahan, dan status memakai chip semantik yang sudah tersedia; nama dan uraian
+bebas tetap teks agar penanda penting tidak tenggelam dalam terlalu banyak chip.
+
+### Tingkat akses Inventaris — migration 049
+
+inventory_reader tampil sebagai Lihat Saja. Mapping inventory.master.read dicabut
+agar sidebar/page master tidak terbuka; permission baca operasional/katalog/file
+berizin dipertahankan. inventory_manager selected boleh menambah/edit/nonaktifkan
+katalog bersama organisasi. Gudang dan minimum tetap dibatasi scope, create gudang
+hanya all. Tidak ada perubahan tabel/grant atau backfill data bisnis.
+
+## Pemisahan master dan operasional — migration 050
+
+- Lihat Saja (inventory_reader): baca Stok Barang/Transaksi Barang/Distribusi Barang, scope gudang all/selected; tidak membuka atau mengubah master.
+- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Transaksi stok/ledger belum diimplementasikan; permission transaksi mutasi ditambahkan bersama fitur berikutnya.
+- Pengelola Master Inventaris (inventory_master): baca/tambah/edit/nonaktifkan Barang/Kategori/Satuan/Gudang, termasuk membuat gudang. Cakupan organisasi, disimpan scope_mode=all dan warehouseIds kosong. Tidak memberi akses operasional stok/transaksi/laporan/minimum; bukan seluruh gudang operasional.
+
+Satu akun dapat menerima tiga pilihan tersebut secara independen. Form master
+menampilkan Cakupan akses organisasi tanpa pemilih gudang; pergantian kembali ke
+akses operasional mereset scope selected dan gudang kosong. Izin master hanya
+didelegasikan Superadmin/HRD seluruh lokasi; HRD selected tidak boleh mengubahnya.
+Master tidak mengunci lokasi gudang tanpa referensi operasional. Semua permission
+masih dipasangkan dengan scope grant asalnya, memakai module/membership aktif,
+version check, transaksi dan audit. Data organisasi lain serta permission HRIS
+atau self-service tidak diberikan.
+
+Akun Pengelola lama tetap operasional dengan scope semula, tidak otomatis mendapat
+master. Migration 050 mengubah mapping permission, menambah katalog akses dan
+CHECK scope master; grant/histori dipertahankan. Schema bootstrap memuat perubahan.
+Berikan master secara eksplisit bila diperlukan. Keputusan ini menggantikan izin
+master bagi inventory_manager pada tahap 049.
+
+## HRIS menu access — migration 051
+
+organization_hris_access_policies menyimpan satu primary_membership_id, enabled,
+version serta actor/waktu per organisasi. user_hris_menu_grants memetakan membership
+ke hris_menu_definitions dengan level read/manage; user_hris_access_settings mencatat
+peninjauan eksplisit termasuk grant kosong. Composite FK mengunci organisasi.
+Katalog sistem bersama berisi 14 submenu, tidak otomatis mengizinkan fitur baru.
+Role/scope dan proses HRIS lama tetap; guard admin tunggal ditambahkan pada lifecycle.
+DTO akun/reference-options/access-me menambah konfigurasi HRIS. Detail field,
+kompatibilitas, authority, sensitivitas dan rollout: docs/hris-access-design.md.
+
+## Delegasi akun HRD — migration 052
+
+user_hris_access_settings menambah can_manage_employee_accounts dan
+can_delegate_employee_features, default false; CHECK delegasi memerlukan manage.
+Composite FK membership organisasi tetap. Mode API hrisAccountAccess opsional
+none/manage/manage_and_delegate; update omission mempertahankan flag tersimpan.
+DTO hrisAccess memuat accountAccess dan kedua flag; snapshot/reference-options
+memuat canManageAccounts, canDelegateNonHris, canGrantHris, canManageAllAccountRoles.
+Admin penuh/Superadmin tetap authority HRIS. HRD terdelegasi hanya akun Pegawai,
+fitur non-HRIS dan scope lokasi lama; hak penggunaan Inventaris bukan syarat
+untuk delegasi. Audit hris.account_access.update mencatat sebelum/sesudah. Schema
+bootstrap memuat migration sama, tanpa mengubah proses/kolom inti HRIS.
+
+## Dashboard menurut izin
+
+Dashboard adalah halaman dasar. /api/access/me menambah dashboardDefault dan
+dashboardSections; /api/dashboard/summary menambah sections dan dataset opsional
+menurut hak domain, tanpa field untuk data yang dilarang. Grant dashboard lama
+kompatibel tetapi tidak memberi statistik. Scope organisasi/lokasi dan rumus
+agregasi tetap. Cache memakai fingerprint seluruh izin/capability. Tidak ada
+perubahan tabel atau migration untuk penyesuaian Dashboard/editor ini.

@@ -44,7 +44,7 @@ export async function PATCH(request) {
   try {
     const org = resolvePermissionOrganization(user, parsed.data.organizationId);
     return successResponse(await updateModule(org, parsed.data, user, requestId), {
-      message: "Pengaturan modul berhasil diperbarui.",
+      message: "Pengaturan fitur berhasil diperbarui.",
     });
   } catch (error) {
     return handleRouteError("access.modules.update", error, requestId);

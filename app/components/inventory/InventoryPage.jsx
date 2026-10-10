@@ -19,7 +19,12 @@ export default async function InventoryPage({ searchParams, section }) {
     redirect("/dashboard");
   }
   if (organizationId) {
-    const permission = `inventory.${section === "master-data" ? "master" : section}.read`;
+    // Hak baca operasional tidak membuka halaman Data Master bagi akses Lihat Saja.
+    if (["items", "categories", "units", "warehouses"].includes(section)) {
+      const masterScope = await readPermissionScope(user, organizationId, "inventory.master.read");
+      if (masterScope !== null && !masterScope.length) redirect("/dashboard");
+    }
+    const permission = `inventory.${["items", "categories", "units"].includes(section) ? "catalog" : section}.read`;
     const scope = await readPermissionScope(user, organizationId, permission);
     if (scope !== null && !scope.length) redirect("/dashboard");
   }

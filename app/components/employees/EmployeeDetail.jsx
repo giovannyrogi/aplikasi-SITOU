@@ -1,4 +1,5 @@
 "use client";
+import { hrisLevel, accountCapabilities } from "@/lib/access/hrisPolicy.mjs";
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "antd";
@@ -692,10 +693,19 @@ export default function EmployeeDetail({ employeeId }) {
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
   const organizationId = searchParams.get("organizationId") || user.organization_id;
-  const readOnly = user.role_code === ROLES.LEADER;
+  const readOnly =
+    user.role_code === ROLES.LEADER ||
+    (user.role_code === "hrd" && hrisLevel(user, "employees") !== "manage");
+  const canReadLeave = Boolean(hrisLevel(user, "leave-requests"));
+  const canManageAccounts = accountCapabilities(user).canManageAccounts;
   const requestedTab = normalizeDetailTab(searchParams.get("tab"));
   const initialTab =
-    VALID_TABS.includes(requestedTab) && !(readOnly && ["account", "bank"].includes(requestedTab))
+    VALID_TABS.includes(requestedTab) &&
+    !(
+      (requestedTab === "leave" && !canReadLeave) ||
+      (requestedTab === "account" && !canManageAccounts) ||
+      (requestedTab === "bank" && user.role_code === ROLES.LEADER)
+    )
       ? requestedTab
       : "summary";
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -741,7 +751,14 @@ export default function EmployeeDetail({ employeeId }) {
             fetch(`/api/employees/${employeeId}/discipline-history${query}`),
             fetch(`/api/employees/${employeeId}/documents${query}`),
             fetch(`/api/employees/${employeeId}/profile${query}`),
-            fetch(`/api/employees/${employeeId}/leave-summary${query}`),
+            canReadLeave
+              ? fetch(`/api/employees/${employeeId}/leave-summary${query}`)
+              : Promise.resolve({
+                  ok: true,
+                  json: async () => ({
+                    data: { year: new Date().getFullYear(), balances: [], requests: [] },
+                  }),
+                }),
           ]);
           const bodies = await Promise.all(responses.map((response) => response.json()));
           const failedIndex = responses.findIndex((response) => !response.ok);
@@ -760,7 +777,7 @@ export default function EmployeeDetail({ employeeId }) {
     } catch (error) {
       showNotification(error.message, "error");
     }
-  }, [employeeId, organizationId, runWithLoadingBackdrop, showNotification]);
+  }, [employeeId, organizationId, canReadLeave, runWithLoadingBackdrop, showNotification]);
 
   useEffect(() => {
     void load();
@@ -771,14 +788,19 @@ export default function EmployeeDetail({ employeeId }) {
     const syncFromHistory = () => {
       const tab = normalizeDetailTab(new URLSearchParams(window.location.search).get("tab"));
       setActiveTab(
-        VALID_TABS.includes(tab) && !(readOnly && ["account", "bank"].includes(tab))
+        VALID_TABS.includes(tab) &&
+          !(
+            (tab === "leave" && !canReadLeave) ||
+            (tab === "account" && !canManageAccounts) ||
+            (tab === "bank" && user.role_code === ROLES.LEADER)
+          )
           ? tab
           : "summary",
       );
     };
     window.addEventListener("popstate", syncFromHistory);
     return () => window.removeEventListener("popstate", syncFromHistory);
-  }, [readOnly]);
+  }, [canManageAccounts, canReadLeave, user.role_code]);
 
   /** Mengubah URL tab tanpa memicu request halaman atau loading global. */
   const changeTab = (nextTab) => {
@@ -809,7 +831,9 @@ export default function EmployeeDetail({ employeeId }) {
     : tenure.message;
   const canManageEmployee = !readOnly && !finalEmploymentStatus;
   const canManageLeave =
-    canManageEmployee && ["active", "probation"].includes(employee.employment_status);
+    hrisLevel(user, "leave-requests") === "manage" &&
+    !finalEmploymentStatus &&
+    ["active", "probation"].includes(employee.employment_status);
   // Pegawai berstatus final tidak lagi memiliki kontrak aktif, sehingga ringkasan memakai histori terakhir.
   const latestContract = state.history.contracts?.[0] || null;
   const relationshipContract = employee.contract_id
@@ -1580,7 +1604,7 @@ export default function EmployeeDetail({ employeeId }) {
         </Box>
       ),
     },
-    ...(!readOnly
+    ...(user.role_code !== ROLES.LEADER
       ? [
           {
             key: "bank",
@@ -1598,206 +1622,211 @@ export default function EmployeeDetail({ employeeId }) {
           },
         ]
       : []),
-    {
-      key: "leave",
-      label: <TabLabel icon={<CalendarOutlined />}>Cuti & Izin</TabLabel>,
-      children: (
-        <Box sx={contentSx}>
-          <TabSectionHeader
-            title="Cuti, izin, dan saldo"
-            description="Lihat saldo tahun berjalan, periode yang sedang berlangsung, serta seluruh histori keputusan pegawai."
-            action={
-              canManageLeave ? (
-                <ResponsiveActionButton
-                  type="primary"
-                  label="Catat cuti/izin"
-                  icon={<PlusOutlined />}
-                  onClick={() => setModal("leave")}
+    ...(canReadLeave
+      ? [
+          {
+            key: "leave",
+            label: <TabLabel icon={<CalendarOutlined />}>Cuti & Izin</TabLabel>,
+            children: (
+              <Box sx={contentSx}>
+                <TabSectionHeader
+                  title="Cuti, izin, dan saldo"
+                  description="Lihat saldo tahun berjalan, periode yang sedang berlangsung, serta seluruh histori keputusan pegawai."
+                  action={
+                    canManageLeave ? (
+                      <ResponsiveActionButton
+                        type="primary"
+                        label="Catat cuti/izin"
+                        icon={<PlusOutlined />}
+                        onClick={() => setModal("leave")}
+                      />
+                    ) : null
+                  }
                 />
-              ) : null
-            }
-          />
-          <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
-          <FontStyle component="h3" fontSize={14} fontWeight={700}>
-            Saldo {state.leave.year}
-          </FontStyle>
-          {state.leave.balances.length ? (
-            <Box
-              sx={{
-                mt: 1.5,
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2,minmax(0,1fr))",
-                  xl: "repeat(3,minmax(0,1fr))",
-                },
-                gap: 1.5,
-              }}
-            >
-              {state.leave.balances.map((balance) => (
-                <Box
-                  key={balance.id}
-                  sx={{
-                    p: 2,
-                    border: `1px solid ${theme.ui.panelBorderSubtle}`,
-                    borderRadius: 2,
-                    bgcolor: theme.ui.panelSubtleBg,
-                  }}
-                >
+                <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
+                <FontStyle component="h3" fontSize={14} fontWeight={700}>
+                  Saldo {state.leave.year}
+                </FontStyle>
+                {state.leave.balances.length ? (
                   <Box
                     sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 1,
-                      alignItems: "flex-start",
+                      mt: 1.5,
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        sm: "repeat(2,minmax(0,1fr))",
+                        xl: "repeat(3,minmax(0,1fr))",
+                      },
+                      gap: 1.5,
                     }}
                   >
-                    <Box>
-                      <FontStyle fontSize={12.5} fontWeight={700}>
-                        {balance.name}
-                      </FontStyle>
-                      <FontStyle fontSize={22} fontWeight={700} sx={{ mt: 0.75 }}>
-                        {formatLeaveUnits(balance.balance)}{" "}
-                        <Box component="span" sx={{ fontSize: 12, fontWeight: 600 }}>
-                          {LEAVE_UNIT[balance.unit]}
+                    {state.leave.balances.map((balance) => (
+                      <Box
+                        key={balance.id}
+                        sx={{
+                          p: 2,
+                          border: `1px solid ${theme.ui.panelBorderSubtle}`,
+                          borderRadius: 2,
+                          bgcolor: theme.ui.panelSubtleBg,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 1,
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <Box>
+                            <FontStyle fontSize={12.5} fontWeight={700}>
+                              {balance.name}
+                            </FontStyle>
+                            <FontStyle fontSize={22} fontWeight={700} sx={{ mt: 0.75 }}>
+                              {formatLeaveUnits(balance.balance)}{" "}
+                              <Box component="span" sx={{ fontSize: 12, fontWeight: 600 }}>
+                                {LEAVE_UNIT[balance.unit]}
+                              </Box>
+                            </FontStyle>
+                            <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
+                              Jatah awal {formatLeaveUnits(balance.annual_allowance)}{" "}
+                              {LEAVE_UNIT[balance.unit]}
+                            </FontStyle>
+                            <Box sx={{ mt: 0.75 }}>
+                              <CompactInfoChip
+                                label={
+                                  Number(balance.balance) <= 0
+                                    ? "Saldo habis"
+                                    : Number(balance.balance) <=
+                                        Math.max(1, Number(balance.annual_allowance || 0) * 0.25)
+                                      ? "Hampir habis"
+                                      : "Saldo mencukupi"
+                                }
+                                tone={
+                                  Number(balance.balance) <= 0
+                                    ? "danger"
+                                    : Number(balance.balance) <=
+                                        Math.max(1, Number(balance.annual_allowance || 0) * 0.25)
+                                      ? "warning"
+                                      : "success"
+                                }
+                              />
+                            </Box>
+                          </Box>
+                          {canManageLeave ? (
+                            <ResponsiveActionButton
+                              label="Kelola saldo"
+                              icon={<EditOutlined />}
+                              onClick={() => setLeaveBalance(balance)}
+                            />
+                          ) : null}
                         </Box>
-                      </FontStyle>
-                      <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-                        Jatah awal {formatLeaveUnits(balance.annual_allowance)}{" "}
-                        {LEAVE_UNIT[balance.unit]}
-                      </FontStyle>
-                      <Box sx={{ mt: 0.75 }}>
-                        <CompactInfoChip
-                          label={
-                            Number(balance.balance) <= 0
-                              ? "Saldo habis"
-                              : Number(balance.balance) <=
-                                  Math.max(1, Number(balance.annual_allowance || 0) * 0.25)
-                                ? "Hampir habis"
-                                : "Saldo mencukupi"
-                          }
-                          tone={
-                            Number(balance.balance) <= 0
-                              ? "danger"
-                              : Number(balance.balance) <=
-                                  Math.max(1, Number(balance.annual_allowance || 0) * 0.25)
-                                ? "warning"
-                                : "success"
-                          }
-                        />
                       </Box>
-                    </Box>
-                    {canManageLeave ? (
-                      <ResponsiveActionButton
-                        label="Kelola saldo"
-                        icon={<EditOutlined />}
-                        onClick={() => setLeaveBalance(balance)}
-                      />
-                    ) : null}
+                    ))}
                   </Box>
-                </Box>
-              ))}
-            </Box>
-          ) : (
-            <Box sx={{ mt: 1.5 }}>
-              <EmptyState description="Belum ada saldo yang terbentuk. Saldo dibuat saat aturan yang mengurangi jatah pertama kali digunakan." />
-            </Box>
-          )}
-          <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
-          <FontStyle component="h3" fontSize={14} fontWeight={700}>
-            Histori cuti & izin
-          </FontStyle>
-          {state.leave.requests.length ? (
-            <Box sx={{ mt: 1.5, display: "grid", gap: 1.25 }}>
-              {state.leave.requests.map((request) => (
-                <Box
-                  key={request.id}
-                  sx={{
-                    p: 2,
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      md: "minmax(180px,.7fr) minmax(220px,1fr) auto",
-                    },
-                    gap: 2,
-                    alignItems: "center",
-                    border: `1px solid ${theme.ui.panelBorderSubtle}`,
-                    borderLeft: `3px solid ${request.status === "approved" ? theme.status.success.main : theme.ui.border}`,
-                    borderRadius: 2,
-                    bgcolor:
-                      request.status === "approved"
-                        ? alpha(theme.status.success.main, 0.035)
-                        : theme.ui.panelBg,
-                  }}
-                >
-                  <Box>
-                    <FontStyle fontSize={12.5} fontWeight={700}>
-                      {formatLeaveDate(request.start_date)} - {formatLeaveDate(request.end_date)}
-                    </FontStyle>
-                    <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-                      {formatLeaveUnits(request.requested_units)} {LEAVE_UNIT[request.unit]} ·{" "}
-                      {request.request_no}
-                    </FontStyle>
+                ) : (
+                  <Box sx={{ mt: 1.5 }}>
+                    <EmptyState description="Belum ada saldo yang terbentuk. Saldo dibuat saat aturan yang mengurangi jatah pertama kali digunakan." />
                   </Box>
-                  <Box>
-                    <FontStyle fontSize={13} fontWeight={700}>
-                      {request.leave_type_name}
-                    </FontStyle>
-                    <FontStyle
-                      fontSize={11.5}
-                      sx={{
-                        mt: 0.5,
-                        color: theme.ui.mutedText,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {request.reason}
-                    </FontStyle>
-                    <Box sx={{ mt: 0.75, display: "flex", gap: 0.75 }}>
-                      <CompactInfoChip
-                        label={LEAVE_CATEGORY[request.category]?.[0]}
-                        tone={LEAVE_CATEGORY[request.category]?.[1]}
-                      />
-                      <CompactInfoChip
-                        label={LEAVE_STATUS[request.status]?.[0]}
-                        tone={LEAVE_STATUS[request.status]?.[1]}
-                      />
-                    </Box>
+                )}
+                <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
+                <FontStyle component="h3" fontSize={14} fontWeight={700}>
+                  Histori cuti & izin
+                </FontStyle>
+                {state.leave.requests.length ? (
+                  <Box sx={{ mt: 1.5, display: "grid", gap: 1.25 }}>
+                    {state.leave.requests.map((request) => (
+                      <Box
+                        key={request.id}
+                        sx={{
+                          p: 2,
+                          display: "grid",
+                          gridTemplateColumns: {
+                            xs: "1fr",
+                            md: "minmax(180px,.7fr) minmax(220px,1fr) auto",
+                          },
+                          gap: 2,
+                          alignItems: "center",
+                          border: `1px solid ${theme.ui.panelBorderSubtle}`,
+                          borderLeft: `3px solid ${request.status === "approved" ? theme.status.success.main : theme.ui.border}`,
+                          borderRadius: 2,
+                          bgcolor:
+                            request.status === "approved"
+                              ? alpha(theme.status.success.main, 0.035)
+                              : theme.ui.panelBg,
+                        }}
+                      >
+                        <Box>
+                          <FontStyle fontSize={12.5} fontWeight={700}>
+                            {formatLeaveDate(request.start_date)} -{" "}
+                            {formatLeaveDate(request.end_date)}
+                          </FontStyle>
+                          <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
+                            {formatLeaveUnits(request.requested_units)} {LEAVE_UNIT[request.unit]} ·{" "}
+                            {request.request_no}
+                          </FontStyle>
+                        </Box>
+                        <Box>
+                          <FontStyle fontSize={13} fontWeight={700}>
+                            {request.leave_type_name}
+                          </FontStyle>
+                          <FontStyle
+                            fontSize={11.5}
+                            sx={{
+                              mt: 0.5,
+                              color: theme.ui.mutedText,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {request.reason}
+                          </FontStyle>
+                          <Box sx={{ mt: 0.75, display: "flex", gap: 0.75 }}>
+                            <CompactInfoChip
+                              label={LEAVE_CATEGORY[request.category]?.[0]}
+                              tone={LEAVE_CATEGORY[request.category]?.[1]}
+                            />
+                            <CompactInfoChip
+                              label={LEAVE_STATUS[request.status]?.[0]}
+                              tone={LEAVE_STATUS[request.status]?.[1]}
+                            />
+                          </Box>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            gap: 1,
+                            justifyContent: { xs: "flex-start", md: "flex-end" },
+                          }}
+                        >
+                          <ResponsiveActionButton
+                            label="Lihat"
+                            icon={<EyeOutlined />}
+                            onClick={() => setLeaveDetail(request)}
+                          />
+                          {canManageLeave && request.status === "approved" ? (
+                            <ResponsiveActionButton
+                              danger
+                              label="Batalkan"
+                              icon={<CloseCircleOutlined />}
+                              onClick={() => setLeaveToCancel(request)}
+                            />
+                          ) : null}
+                        </Box>
+                      </Box>
+                    ))}
                   </Box>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      justifyContent: { xs: "flex-start", md: "flex-end" },
-                    }}
-                  >
-                    <ResponsiveActionButton
-                      label="Lihat"
-                      icon={<EyeOutlined />}
-                      onClick={() => setLeaveDetail(request)}
-                    />
-                    {canManageLeave && request.status === "approved" ? (
-                      <ResponsiveActionButton
-                        danger
-                        label="Batalkan"
-                        icon={<CloseCircleOutlined />}
-                        onClick={() => setLeaveToCancel(request)}
-                      />
-                    ) : null}
+                ) : (
+                  <Box sx={{ mt: 1.5 }}>
+                    <EmptyState description="Belum ada cuti atau izin yang tercatat untuk pegawai ini." />
                   </Box>
-                </Box>
-              ))}
-            </Box>
-          ) : (
-            <Box sx={{ mt: 1.5 }}>
-              <EmptyState description="Belum ada cuti atau izin yang tercatat untuk pegawai ini." />
-            </Box>
-          )}
-        </Box>
-      ),
-    },
+                )}
+              </Box>
+            ),
+          },
+        ]
+      : []),
     {
       key: "discipline",
       label: <TabLabel icon={<SafetyCertificateOutlined />}>Disiplin</TabLabel>,
@@ -1838,7 +1867,7 @@ export default function EmployeeDetail({ employeeId }) {
         </Box>
       ),
     },
-    ...(!readOnly
+    ...(canManageAccounts
       ? [
           {
             key: "account",

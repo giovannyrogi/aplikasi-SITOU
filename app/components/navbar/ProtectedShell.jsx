@@ -1,5 +1,6 @@
 "use client";
 
+import { canUseHrisRoute } from "@/lib/access/hrisPolicy.mjs";
 import { useEffect, useMemo, useState } from "react";
 import { Box, useTheme } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
@@ -44,10 +45,27 @@ export default function ProtectedShell({ user, children }) {
         if (!response.ok) return;
         const body = await response.json();
         setAccess(body.data);
-        if (pathname.startsWith("/inventory") && !body.data.inventoryVisible)
+        if (
+          !canUseHrisRoute(
+            { role_code: user.role_code, hrisContext: body.data.hris },
+            pathname,
+            "GET",
+          )
+        )
+          router.replace("/dashboard");
+        const pagePermission = MENU_CONFIG.flatMap((menu) => menu.submenu || [menu]).find(
+          (entry) => entry.path === pathname,
+        )?.permission;
+        // Menu Inventaris dapat berada di Data Master/Laporan; pencabutan mengikuti permission halaman.
+        if (
+          user.role_code !== "superadmin" &&
+          pagePermission &&
+          !body.data.permissions?.includes(pagePermission)
+        )
           router.replace("/dashboard");
       } catch (error) {
-        if (error.name !== "AbortError") setAccess(null);
+        // Kegagalan jaringan mempertahankan snapshot terakhir; jangan kembali ke izin role legacy.
+        if (error.name === "AbortError") return;
       }
     };
     void refresh();
@@ -58,7 +76,7 @@ export default function ProtectedShell({ user, children }) {
       window.removeEventListener("focus", refresh);
       window.removeEventListener("sitou:access-changed", refresh);
     };
-  }, [pathname, router]);
+  }, [pathname, router, user.role_code]);
 
   useEffect(() => {
     finishNavigationLoading();

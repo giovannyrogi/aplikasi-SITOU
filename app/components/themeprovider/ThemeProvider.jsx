@@ -172,10 +172,14 @@ export default function AppThemeProvider({ children }) {
       <GlobalStyles
         styles={{
           ".ant-form-item-extra": {
+            paddingTop: 8,
+            paddingBottom: 4,
+            lineHeight: 1.6,
             textAlign: "justify",
             textAlignLast: "auto",
             wordBreak: "normal",
             overflowWrap: "break-word",
+            "&:empty": { padding: 0, minHeight: 0 },
           },
           ...Object.fromEntries(
             Object.entries(ACTION_TONES).map(([name, tone]) => [

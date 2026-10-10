@@ -29,6 +29,7 @@ import {
   reportDate,
 } from "./ReportEmployeeFields";
 import { EyeOutlined } from "@ant-design/icons";
+import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 
 /** Dua laporan memakai interaksi filter, daftar, dan ekspor yang sama. */
 export default function EmployeeReport({ kind }) {
@@ -344,16 +345,17 @@ export default function EmployeeReport({ kind }) {
       `/employees/${row.employee_id}?organizationId=${organizationId}&tab=${retirement ? "summary" : "contracts"}`,
     );
   }
-  const detailAction = (row) => (
-    <Tooltip title={retirement ? "Lihat pegawai" : "Lihat kontrak"}>
-      <Button
-        aria-label={`Lihat detail ${row.full_name}`}
-        icon={<EyeOutlined style={{ fontSize: 20 }} />}
-        onClick={() => detail(row)}
-        style={{ width: 44, height: 44, flexShrink: 0 }}
-      />
-    </Tooltip>
-  );
+  const detailAction = (row) =>
+    hrisLevel(user, "employees") ? (
+      <Tooltip title={retirement ? "Lihat pegawai" : "Lihat kontrak"}>
+        <Button
+          aria-label={`Lihat detail ${row.full_name}`}
+          icon={<EyeOutlined style={{ fontSize: 20 }} />}
+          onClick={() => detail(row)}
+          style={{ width: 44, height: 44, flexShrink: 0 }}
+        />
+      </Tooltip>
+    ) : null;
   const successorChip = (row) => (
     <Tooltip
       title={

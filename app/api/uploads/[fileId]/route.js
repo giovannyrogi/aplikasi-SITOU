@@ -21,9 +21,14 @@ import {
   softDeleteStoredFile,
 } from "@/lib/files/storage";
 import { canViewDraftDisciplinaryActions } from "@/lib/discipline/visibility.mjs";
+import { requireAuthenticatedUser } from "@/app/utils/auth";
+import { canUseHrisFile } from "@/lib/access/hrisPolicy.mjs";
+import { requireInventoryAccess } from "@/lib/inventory/service";
 
 /** Memeriksa scope pegawai untuk HRD dengan akses lokasi tertentu. */
 async function enforceFileScope(user, file) {
+  if (file.category !== "inventory_item_photo" && !canUseHrisFile(user,file.category))
+    throw new ServiceError("FILE_FORBIDDEN","Akses ke jenis dokumen ini belum diberikan.",403);
   const categoryPermissions = {
     employee_import_source: "employee_import.read",
     discipline_letter: "discipline.read",
@@ -70,7 +75,7 @@ async function enforceFileScope(user, file) {
 /** Melakukan stream file privat berdasarkan ID setelah authorization dan audit. */
 export async function GET(request, { params }) {
   const requestId = getRequestId(request);
-  const { user, response } = await requirePermission("private_files.read_sensitive");
+  const { user, response } = await requireAuthenticatedUser();
   if (response) return response;
   try {
     const { fileId } = await params;
@@ -78,7 +83,38 @@ export async function GET(request, { params }) {
       user,
       new URL(request.url).searchParams.get("organizationId"),
     );
+    const sensitive = await actorHasPermission(user, "private_files.read_sensitive");
+    if (!sensitive) {
+      await requireInventoryAccess(user, organizationId, "inventory.catalog.read");
+      if (!/^\d+$/.test(fileId))
+        throw new ServiceError(
+          "FILE_FORBIDDEN",
+          "Anda tidak memiliki akses ke file tersebut.",
+          403,
+        );
+      const photo = await pool.query(
+        "SELECT 1 FROM inventory_items WHERE organization_id=$1 AND photo_file_id=$2 LIMIT 1",
+        [organizationId, fileId],
+      );
+      if (!photo.rowCount)
+        throw new ServiceError(
+          "FILE_FORBIDDEN",
+          "Anda tidak memiliki akses ke file tersebut.",
+          403,
+        );
+    }
     const file = await getStoredFile(fileId, organizationId);
+    if (request.method === "DELETE" && !canUseHrisFile(user,file.category,true)) throw new ServiceError("FILE_FORBIDDEN","Pengubahan lampiran ini belum diberikan.",403);
+    if (file.category === "inventory_item_photo") {
+      await requireInventoryAccess(user, organizationId, "inventory.catalog.read");
+      const referenced = await pool.query(
+        "SELECT 1 FROM inventory_items WHERE organization_id=$1 AND photo_file_id=$2 LIMIT 1",
+        [organizationId, file.id],
+      );
+      if (!referenced.rowCount)
+        throw new ServiceError("FILE_FORBIDDEN", "Foto tidak digunakan oleh katalog barang.", 403);
+    } else if (!sensitive)
+      throw new ServiceError("FILE_FORBIDDEN", "Anda tidak memiliki akses ke file tersebut.", 403);
     await enforceFileScope(user, file);
     await assertStoredFileAvailable(file);
     const mode =
@@ -121,8 +157,15 @@ export async function DELETE(request, { params }) {
       new URL(request.url).searchParams.get("organizationId"),
     );
     const file = await getStoredFile(fileId, organizationId);
+    if (request.method === "DELETE" && !canUseHrisFile(user,file.category,true)) throw new ServiceError("FILE_FORBIDDEN","Pengubahan lampiran ini belum diberikan.",403);
     await enforceFileScope(user, file);
-    if (["employee_photo", "identity", "education"].includes(file.category))
+    if (file.category === "inventory_item_photo")
+      throw new ServiceError(
+        "INVENTORY_FILE_COMPOSITE_REQUIRED",
+        "Hapus foto melalui form barang lalu simpan perubahan.",
+        409,
+      );
+    if (["employee_photo", "identity", "education", "inventory_item_photo"].includes(file.category))
       throw new ServiceError(
         "PROFILE_FILE_COMPOSITE_REQUIRED",
         "Hapus file profil melalui form data pegawai atau profil lengkap lalu simpan perubahan.",

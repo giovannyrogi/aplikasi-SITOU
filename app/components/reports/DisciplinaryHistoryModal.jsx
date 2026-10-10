@@ -39,7 +39,8 @@ export default function DisciplinaryHistoryModal({
     .flatMap((disciplineCase) => disciplineCase.actions || [])
     .sort(
       (left, right) =>
-        String(right.issued_date).localeCompare(String(left.issued_date)) || Number(right.id) - Number(left.id),
+        String(right.issued_date).localeCompare(String(left.issued_date)) ||
+        Number(right.id) - Number(left.id),
     )[0]?.id;
 
   useEffect(() => {
@@ -73,9 +74,11 @@ export default function DisciplinaryHistoryModal({
       footer={
         <>
           <Button onClick={onClose}>Tutup</Button>
-          <Button type="primary" onClick={() => onOpenEmployee?.(employee)}>
-            Buka detail pegawai
-          </Button>
+          {onOpenEmployee ? (
+            <Button type="primary" onClick={() => onOpenEmployee(employee)}>
+              Buka detail pegawai
+            </Button>
+          ) : null}
         </>
       }
     >
@@ -128,10 +131,7 @@ export default function DisciplinaryHistoryModal({
                   </Box>
                   <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
                     <CompactInfoChip label={severity[0]} tone={severity[1]} />
-                    <CompactInfoChip
-                      label={action.action_name_snapshot}
-                      tone="danger"
-                    />
+                    <CompactInfoChip label={action.action_name_snapshot} tone="danger" />
                     {String(action.id) === String(latestActionId) ? (
                       <CompactInfoChip label={status[0]} tone={status[1]} />
                     ) : null}

@@ -209,10 +209,121 @@ ke foto atau dokumen pegawai lain. Preview tetap diaudit dan tidak di-cache.
 
 ## Fondasi Inventaris dan akses fitur
 
+Istilah produk memakai Fitur organisasi, Fitur Inventaris, Akses fitur, serta
+Fitur dan izin. Label nama fitur/izin terpusat pada `lib/access/featureLabels.mjs`;
+kode dan kontrak API paket tetap dipertahankan. Form akses menjelaskan lokasi
+pembuatan gudang dan daftar organisasi menampilkan Fitur aktif dari server.
+
 - `navigation/DetailTabs` menerima `embedded` (default false) untuk tab pada halaman dengan DataPanel agar tidak membentuk panel bertumpuk. Kontrak lama tetap berlaku.
 - `useFormModalClose(form, onClose, isDirty?)` menerima pembanding dirty opsional; default tetap isFieldsTouched untuk pemakai lama. Form akses/gudang/modul membedakan inisialisasi server dari perubahan pengguna.
 - `access/PackageAccessFields` menyusun Form.List, paket dan scope gudang dari reference-options server; props form/options/existing. Field disimpan bersama form akun, bukan mutation terpisah.
 - `access/OrganizationModulesModal` menyusun AppModal/FormSettingSwitch/ConfirmDialog untuk aktivasi modul organisasi oleh Superadmin.
-- `inventory/InventoryWorkspace` menyusun PageHeader, scope organisasi, dan DetailTabs. `WarehousePanel` menyusun DataPanel/ResponsiveDataView; `WarehouseForm` menyusun AppModal/ConfirmDialog. Tidak ada shell, tabel, badge, atau dropzone baru.
+- `inventory/InventoryWorkspace` menyusun scope organisasi URL dan panel master terpisah. `WarehousePanel` menyusun DataPanel/ResponsiveDataView; `WarehouseForm` menyusun AppModal/ConfirmDialog. Tidak ada shell, tabel, badge, atau dropzone baru.
 - Resolver menu menerima snapshot permission tambahan; sidebar desktop/mobile memakai konfigurasi yang sama. Snapshot dari `/api/access/me` hanya untuk UI; page/API tetap memeriksa authorization server.
 - RowActionMenu menutup popup ketika aksi dipilih sebelum modal dibuka, agar menu lama tidak menutupi form. DetailTabs embedded memakai dua kolom pada mobile dan susunan horizontal pada layar lebih besar.
+
+`inventory/CatalogPanel` menyusun DataPanel/ResponsiveDataView untuk Barang,
+Kategori dan Satuan, AppModal untuk edit, serta pengaturan minimum per gudang.
+Foto memakai PrivateFileUpload deferred dan ImagePreviewModal; byte disimpan
+bersama transaksi form, bukan saat dipilih. InventoryWorkspace menampilkan master terpisah pada Data Master; setiap panel memiliki
+header dan filter organisasi sendiri.
+
+### Master Inventaris dan prasyarat
+
+- CatalogPanel / WarehousePanel menyediakan PageHeader dengan aksi tambah berizin,
+  DataPanel, serta organizationFilter pada toolbar. organizationId wajib sebelum
+  request; remount per organisasi membersihkan daftar/options/form. Tidak memakai tab.
+- PrerequisiteHint menerima text, href, onNavigate, linkLabel. Teks justify dekat
+  field; tautan hanya diberikan ketika berizin. Pemilik form memakai
+  usePrerequisiteNavigation untuk dirty-state confirmation sebelum route berubah.
+- Barang/Kategori/Satuan/Gudang berada di Data Master; Distribusi Barang di Laporan.
+
+PackageAccessFields menerima optionsReady agar arahan gudang kosong/nonaktif tidak
+ditampilkan sebelum reference-options berhasil dimuat. OrganizationAccountForm
+menyediakan navigasi prasyarat dengan penjagaan isian.
+
+### Satuan tanpa kode input dan chip master persediaan
+
+Satuan Barang tidak meminta atau menampilkan kode. API menerima kode opsional untuk
+kompatibilitas klien lama; create tanpa kode membuat kode internal UUID di server,
+edit tanpa kode mempertahankan nilai lama. Tidak ada perubahan schema atau backfill.
+Nama satuan wajib dan unik per organisasi; konflik ditampilkan pada field nama.
+Kode barang/kategori/gudang tampil sebagai CompactInfoChip tone info di bawah nama
+pada kolom identitas yang sama dan pada kartu mobile. Kategori, satuan, aturan
+pecahan, dan status memakai chip semantik yang sudah tersedia; nama dan uraian
+bebas tetap teks agar penanda penting tidak tenggelam dalam terlalu banyak chip.
+
+Tingkat akses Inventaris: PackageAccessFields menampilkan accessFeatureDescription
+tepat di bawah pemilih fitur serta batas scope gudang. Lihat Saja tidak mempunyai
+submenu master; Pengelola all/selected mempunyai aksi katalog. canManageCatalog
+berasal dari permission backend, bukan role atau mode all pada browser.
+
+Spacing bantuan field diatur AppThemeProvider untuk `.ant-form-item-extra`:
+8px atas, line-height 1.6, 4px bawah; extra kosong tidak menambah ruang.
+PrerequisiteHint memakai gap 8px dan line-height 1.6 dengan tautan target 44px.
+Tidak perlu margin tambahan pada pemanggil agar spacing tidak berlipat.
+
+## Pemisahan master dan operasional — migration 050
+
+- Lihat Saja (inventory_reader): baca Stok Barang/Transaksi Barang/Distribusi Barang, scope gudang all/selected; tidak membuka atau mengubah master.
+- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Transaksi stok/ledger belum diimplementasikan; permission transaksi mutasi ditambahkan bersama fitur berikutnya.
+- Pengelola Master Inventaris (inventory_master): baca/tambah/edit/nonaktifkan Barang/Kategori/Satuan/Gudang, termasuk membuat gudang. Cakupan organisasi, disimpan scope_mode=all dan warehouseIds kosong. Tidak memberi akses operasional stok/transaksi/laporan/minimum; bukan seluruh gudang operasional.
+
+Satu akun dapat menerima tiga pilihan tersebut secara independen. Form master
+menampilkan Cakupan akses organisasi tanpa pemilih gudang; pergantian kembali ke
+akses operasional mereset scope selected dan gudang kosong. Izin master hanya
+didelegasikan Superadmin/HRD seluruh lokasi; HRD selected tidak boleh mengubahnya.
+Master tidak mengunci lokasi gudang tanpa referensi operasional. Semua permission
+masih dipasangkan dengan scope grant asalnya, memakai module/membership aktif,
+version check, transaksi dan audit. Data organisasi lain serta permission HRIS
+atau self-service tidak diberikan.
+
+Akun Pengelola lama tetap operasional dengan scope semula, tidak otomatis mendapat
+master. Migration 050 mengubah mapping permission, menambah katalog akses dan
+CHECK scope master; grant/histori dipertahankan. Schema bootstrap memuat perubahan.
+Berikan master secara eksplisit bila diperlukan. Keputusan ini menggantikan izin
+master bagi inventory_manager pada tahap 049.
+
+CatalogPanel Kategori menampilkan field notes sebagai Catatan pada tabel desktop
+(dash jika kosong) dan section Catatan pada kartu mobile hanya jika berisi.
+Form kategori memakai label Catatan (opsional), kontrak API notes tetap sama.
+Teks catatan dibungkus aman dan justify dengan line-height 1.6.
+
+## Komponen hak akses HRIS
+
+HrisAccessFields menyusun kelompok menu utama, checkbox submenu dan tingkat
+Lihat Saja/Kelola dalam OrganizationAccountForm yang sama dengan Inventaris.
+Penetapan admin penuh hanya Superadmin; cakupan lokasi tetap field akun yang ada.
+AccountAccessSummary menampilkan satu chip fitur +N fitur lainnya. AccountAccessDetails
+dibuka melalui Aksi → Lihat hak akses dan memuat DTO/scope terbaru tanpa mutation. PageHeader dan
+RowActionMenu memakai snapshot HRIS untuk menyembunyikan aksi perubahan pada mode
+baca; permission tetap wajib diperiksa server. Detail: docs/hris-access-design.md.
+
+## Form fitur dan rincian — migration 052
+
+FeatureAccessFields menyatukan blok HRIS/Inventaris serta pemilih Tambahkan fitur;
+field featureModules hanya state presentasi dan tidak dikirim sebagai kontrak API.
+HrisAccessFields memakai Collapse kelompok, uraian submenu/level dan pemilih hak
+Akun Organisasi. PackageAccessFields mendukung embedded dan onDirty serta beberapa
+izin dalam satu blok Inventaris. Teks terpusat di lib/access/accessDescriptions.mjs
+serta featureLabels.mjs dipakai form/rincian.
+AccountAccessSummary hanya satu chip fitur +N fitur lainnya, tanpa tombol/link.
+AccountAccessDetails diekspor terpisah dan dibuka melalui RowActionMenu pada level
+halaman. Ikon, status, kemampuan dan scope berkelompok; chip selebar isi, gap aman,
+loading/error/kosong dan modal stabil saat breakpoint berubah.
+
+AccessExplanation adalah anotasi kemampuan/batas hak akses, dipakai editor HRIS,
+field izin Inventaris dan rincian modal. Komposisi ikon informasi, heading singkat,
+permukaan netral, teks justify dan padding/gap mengikuti token yang sudah ada.
+HrisAccessFields memasukkan Akun Organisasi ke Collapse Akun & Akses dengan
+checkbox + dua mode aktif; field hidden tetap hrisAccountAccess. Submenu readonly
+menggunakan chip Hanya baca, bukan dropdown. Divider memisahkan setiap submenu.
+
+FeatureAccessFields memakai Collapse per fitur, expandedFeatureSections hanya UI;
+HrisAccessFields memakai expandedHrisGroups. OrganizationAccountForm mengeluarkan
+kedua field dari payload, membuka section error lalu memfokuskan field. Tombol
+cabut merah solid berada di footer section. Panel submenu vertikal dan popup wrap
+menggantikan dua kolom, tanpa Informasi menu. Dashboard dasar tidak diatur grant;
+sidebar/editor memakai metadata menuCatalog.mjs bersama dan validator registrasi.
+DashboardClient menampilkan section dari DTO parsial; absence tidak menjadi nol
+atau kartu kosong. Link Pegawai pada prioritas/pensiun mengikuti izin Data Pegawai.

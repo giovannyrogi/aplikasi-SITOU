@@ -35,6 +35,7 @@ import {
   getEmployeeCompletenessOption,
 } from "@/lib/employees/completenessOptions";
 import EmployeeAvatar from "./EmployeeAvatar";
+import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import EmployeeForm from "./EmployeeForm";
 import EmployeeImportModal from "./EmployeeImportModal";
 import EmployeeTerminationForm from "./EmployeeTerminationForm";
@@ -46,8 +47,8 @@ export default function EmployeeDirectory() {
   const router = useRouter();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
-  const readOnly = user.role_code === ROLES.LEADER;
-  const canExport = [ROLES.SUPERADMIN, ROLES.HRD].includes(user.role_code);
+  const readOnly = user.role_code === ROLES.LEADER || hrisLevel(user, "employees") !== "manage";
+  const canExport = hrisLevel(user, "employees") === "manage";
   const list = useDataList("/api/employees", {
     requiredFilter: isSuperadmin ? "organizationId" : undefined,
     initialFilters: !isSuperadmin ? { organizationId: String(user.organization_id) } : {},

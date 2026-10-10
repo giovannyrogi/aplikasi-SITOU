@@ -5,6 +5,12 @@ export const PUBLIC_PATHS = ["/login", "/forgot-password"];
 export const PUBLIC_PATH_PREFIXES = ["/verify"];
 
 export const PROTECTED_ROUTES = [
+  // Halaman server memeriksa permission; master/laporan HRIS tetap mengikuti role lama.
+  ...["items", "categories", "units", "warehouses"].map((kind) => ({
+    path: `/master-data/inventory-${kind}`,
+    roles: ALL_ROLE_CODES,
+  })),
+  { path: "/reports/inventory-distribution", roles: ALL_ROLE_CODES },
   { path: "/inventory", roles: ALL_ROLE_CODES },
   {
     path: "/reports",

@@ -37,7 +37,7 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
           form.setFieldsValue({ isEnabled: body.data.is_enabled });
         }
       },
-      { message: "Memuat modul organisasi..." },
+      { message: "Memuat fitur organisasi..." },
     ).catch((error) => {
       if (error.name !== "AbortError") callbacks.current.onError(error.message);
     });
@@ -63,7 +63,7 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
           window.dispatchEvent(new Event("sitou:access-changed"));
           await callbacks.current.onSaved(body.message);
         },
-        { message: "Menyimpan modul organisasi..." },
+        { message: "Menyimpan fitur organisasi..." },
       );
     } catch (error) {
       applyApiFieldErrors(form, error);
@@ -76,7 +76,7 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
     <>
       <AppModal
         open={Boolean(organization)}
-        title="Modul organisasi"
+        title="Fitur organisasi"
         description={organization?.name}
         icon="navigation:inventory"
         size="sm"
@@ -93,7 +93,7 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
               disabled={!module}
               onClick={() => form.submit()}
             >
-              Simpan modul
+              Simpan fitur
             </Button>
           </>
         }
@@ -111,16 +111,16 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
         >
           <FormSettingSwitch
             name="isEnabled"
-            title="Inventaris"
-            description="Aktifkan Inventaris untuk akun yang diberi akses. Saat nonaktif, gudang dan paket tetap tersimpan. Akses pulih setelah modul diaktifkan kembali."
+            title="Fitur Inventaris"
+            description="Aktifkan untuk akun yang diberi akses. Saat nonaktif, gudang dan pengaturan akses tetap tersimpan. Aktifkan kembali untuk memulihkan akses."
           />
         </Form>
       </AppModal>
       <ConfirmDialog
         open={Boolean(pending)}
-        title="Nonaktifkan Inventaris?"
-        message="Seluruh akun organisasi akan kehilangan akses Inventaris. Gudang dan pemberian paket tetap tersimpan."
-        confirmText="Nonaktifkan modul"
+        title="Nonaktifkan Fitur Inventaris?"
+        message="Akses Inventaris akan ditutup untuk seluruh akun organisasi. Gudang dan pengaturan akses tetap tersimpan."
+        confirmText="Nonaktifkan fitur"
         danger
         onClose={() => setPending(null)}
         onConfirm={() => {
@@ -132,7 +132,7 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
       <ConfirmDialog
         open={close.confirmCloseOpen}
         title="Tutup tanpa menyimpan?"
-        message="Perubahan modul belum disimpan."
+        message="Perubahan fitur belum disimpan."
         confirmText="Tutup"
         onClose={close.keepEditing}
         onConfirm={close.discardChanges}

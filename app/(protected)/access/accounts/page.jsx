@@ -1,8 +1,16 @@
 "use client";
 
+import AccountAccessSummary, {
+  AccountAccessDetails,
+} from "@/app/components/access/AccountAccessSummary";
 import { useEffect, useState } from "react";
 import { Button } from "antd";
-import { EditOutlined, KeyOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  KeyOutlined,
+  PlusOutlined,
+  SafetyCertificateOutlined,
+} from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
@@ -40,11 +48,21 @@ export default function OrganizationAccountsPage() {
   const { notification, showNotification, closeNotification } = useAppNotification();
   const [form, setForm] = useState({ open: false, item: null });
   const [passwordItem, setPasswordItem] = useState(null);
+  // Modal berada di halaman agar pergantian tabel/kartu tidak menutup rincian.
+  const [accessDetail, setAccessDetail] = useState(null);
   const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
   const roleTone = { hrd: "info", leader: "warning", employee: "neutral" };
-  const canManage = (item) => isSuperadmin || item.role_code === ROLES.EMPLOYEE;
-  const actions = (item) =>
-    canManage(item)
+  const canManage = (item) =>
+    isSuperadmin || user.access?.hris?.fullAdmin || item.role_code === ROLES.EMPLOYEE;
+  const actions = (item) => [
+    {
+      key: "access-details",
+      readOnly: true,
+      icon: <SafetyCertificateOutlined />,
+      label: "Lihat hak akses",
+      onClick: () => setAccessDetail(item),
+    },
+    ...(canManage(item)
       ? [
           {
             key: "edit",
@@ -59,7 +77,8 @@ export default function OrganizationAccountsPage() {
             onClick: () => setPasswordItem(item),
           },
         ]
-      : [];
+      : []),
+  ];
   const columns = [
     {
       title: "Akun",
@@ -126,26 +145,9 @@ export default function OrganizationAccountsPage() {
       render: (value) => <CompactInfoChip status={value ? "active" : "inactive"} />,
     },
     {
-      title: "Paket akses",
+      title: "Akses fitur",
       key: "packages",
-      render: (_, item) => (
-        <Box sx={{ display: "grid", gap: 1 }}>
-          {item.packageAccess?.length ? (
-            item.packageAccess.map((grant) => (
-              <Box key={grant.packageCode}>
-                <CompactInfoChip label={grant.name} tone="info" />
-                <FontStyle fontSize={11.5} sx={{ mt: 0.75, color: "text.secondary" }}>
-                  {grant.scopeMode === "all"
-                    ? "Seluruh gudang"
-                    : grant.warehouses.map((w) => w.name).join(", ")}
-                </FontStyle>
-              </Box>
-            ))
-          ) : (
-            <FontStyle fontSize={12}>Tanpa paket tambahan</FontStyle>
-          )}
-        </Box>
-      ),
+      render: (_, item) => <AccountAccessSummary account={item} />,
     },
     {
       title: "Aksi",
@@ -172,13 +174,7 @@ export default function OrganizationAccountsPage() {
       <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
         <CompactInfoChip label={item.role_name} tone={roleTone[item.role_code]} />
         <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
-        {(item.packageAccess || []).map((grant) => (
-          <CompactInfoChip
-            key={grant.packageCode}
-            label={`${grant.name} · ${grant.scopeMode === "all" ? "Seluruh gudang" : `${grant.warehouseIds.length} gudang`}`}
-            tone="info"
-          />
-        ))}
+        <AccountAccessSummary account={item} />
       </Box>
     </Box>
   );
@@ -195,7 +191,9 @@ export default function OrganizationAccountsPage() {
         description={
           isSuperadmin
             ? "Kelola akun HRD, Pimpinan, dan Pegawai pada organisasi yang dipilih."
-            : "Buat dan kelola akun Pegawai yang terhubung dengan profil pegawai."
+            : user.access?.hris?.fullAdmin
+              ? "Kelola akun dan hak akses dalam organisasi Anda."
+              : "Buat dan kelola akun Pegawai yang terhubung dengan profil pegawai."
         }
         action={
           <Button
@@ -213,7 +211,9 @@ export default function OrganizationAccountsPage() {
         description={
           isSuperadmin
             ? "Role Superadmin tidak dapat diberikan melalui menu ini."
-            : "Daftar hanya menampilkan akun Pegawai yang dapat Anda kelola."
+            : user.access?.hris?.fullAdmin
+              ? "Kelola akun dan pembagian akses dalam organisasi Anda."
+              : "Daftar hanya menampilkan akun Pegawai yang dapat Anda kelola."
         }
         toolbar={
           <DataToolbar
@@ -270,6 +270,9 @@ export default function OrganizationAccountsPage() {
         />
       ) : null}
       <Notification {...notification} onClose={closeNotification} />
+      {accessDetail ? (
+        <AccountAccessDetails account={accessDetail} onClose={() => setAccessDetail(null)} />
+      ) : null}
     </Box>
   );
 }

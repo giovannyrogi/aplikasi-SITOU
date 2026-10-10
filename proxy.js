@@ -40,10 +40,15 @@ export async function proxy(request) {
   const contentSecurityPolicy = buildContentSecurityPolicy(nonce);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
+  // Header konteks selalu ditimpa server; browser tidak dapat memilih pemilik izin.
+  requestHeaders.set("x-sitou-path", pathname);
+  requestHeaders.set("x-sitou-method", request.method);
   // Next.js reads the request CSP to attach this nonce to its generated scripts.
   requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
   const next = () => NextResponse.next({ request: { headers: requestHeaders } });
   const redirect = (target) => NextResponse.redirect(new URL(target, request.url));
+
+  if (pathname.startsWith("/api/")) return securityHeaders(next(), contentSecurityPolicy);
 
   if (pathname === "/")
     return securityHeaders(
@@ -62,10 +67,7 @@ export async function proxy(request) {
   }
 
   if (!session)
-    return securityHeaders(
-      clearSessionCookie(redirect("/login")),
-      contentSecurityPolicy,
-    );
+    return securityHeaders(clearSessionCookie(redirect("/login")), contentSecurityPolicy);
 
   const allowedRoles = getAllowedRolesForPath(pathname);
   if (!allowedRoles.includes(session.roleCode))
@@ -79,6 +81,7 @@ export async function proxy(request) {
 
 export const config = {
   matcher: [
+    "/api/:path*",
     "/((?!_next|api|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|webp|ico|css|js|doc|docx|pdf)).*)",
   ],
 };

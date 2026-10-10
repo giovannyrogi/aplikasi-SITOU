@@ -85,7 +85,7 @@ export default function OrganizationsPage() {
     {
       key: "modules",
       icon: <AppIcon icon="navigation:inventory" />,
-      label: "Modul organisasi",
+      label: "Kelola fitur",
       onClick: () => setModuleOrganization(item),
     },
     {
@@ -110,6 +110,18 @@ export default function OrganizationsPage() {
       onClick: () => setConfirm(item),
     },
   ];
+  const featureInfo = (item) =>
+    item.active_features?.length ? (
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+        {item.active_features.map((feature) => (
+          <CompactInfoChip key={feature.code} label={feature.name} tone="success" />
+        ))}
+      </Box>
+    ) : (
+      <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
+        Belum ada fitur tambahan
+      </FontStyle>
+    );
   const columns = [
     {
       title: "Organisasi",
@@ -180,6 +192,7 @@ export default function OrganizationsPage() {
         <CompactInfoChip status={item.is_active ? item.subscription_status : "inactive"} />
       ),
     },
+    { title: "Fitur aktif", key: "active_features", render: (_, item) => featureInfo(item) },
     {
       title: "Aksi",
       key: "action",
@@ -228,6 +241,12 @@ export default function OrganizationsPage() {
           }
           tone={getRemainingTone(item.days_remaining)}
         />
+      </Box>
+      <Box sx={{ mt: 2, display: "grid", gap: 1 }}>
+        <FontStyle fontSize={12} fontWeight={600}>
+          Fitur aktif
+        </FontStyle>
+        {featureInfo(item)}
       </Box>
     </Box>
   );

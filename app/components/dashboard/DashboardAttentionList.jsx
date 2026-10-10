@@ -111,7 +111,8 @@ export default function DashboardAttentionList({
                 </FontStyle>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-                {["discipline", "contract"].includes(item.type) ? (
+                {item.canOpenEmployee !== false &&
+                ["discipline", "contract"].includes(item.type) ? (
                   <Tooltip
                     title={item.type === "contract" ? "Lihat kontrak" : "Lihat detail sanksi"}
                     arrow

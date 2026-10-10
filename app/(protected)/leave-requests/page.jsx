@@ -1,4 +1,5 @@
 "use client";
+import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -55,7 +56,9 @@ export default function LeaveRequestsPage() {
     timeZone: user.organization_timezone || "Asia/Makassar",
   }).format(new Date());
   const DEFAULTS = { requestStatus: "all", startDate: `${year}-01-01`, endDate: `${year}-12-31` };
-  const canManage = [ROLES.SUPERADMIN, ROLES.HRD].includes(user.role_code);
+  const canManage =
+    [ROLES.SUPERADMIN, ROLES.HRD].includes(user.role_code) &&
+    hrisLevel(user, "leave-requests") === "manage";
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
   const list = useDataList("/api/leave-requests", {
     requiredFilter: isSuperadmin ? "organizationId" : undefined,

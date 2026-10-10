@@ -100,18 +100,20 @@ export default function RetirementSummary({ data, loading }) {
                     </Typography>
                     <ReportDeadline row={row} retirement />
                   </Box>
-                  <Tooltip title="Lihat pegawai">
-                    <Button
-                      icon={<EyeOutlined />}
-                      aria-label={`Lihat pegawai ${row.full_name}`}
-                      style={{ width: 44, height: 44 }}
-                      onClick={() =>
-                        navigate(
-                          `/employees/${row.employee_id}?organizationId=${row.organization_id}&tab=summary`,
-                        )
-                      }
-                    />
-                  </Tooltip>
+                  {group?.canOpenEmployee !== false ? (
+                    <Tooltip title="Lihat pegawai">
+                      <Button
+                        icon={<EyeOutlined />}
+                        aria-label={`Lihat pegawai ${row.full_name}`}
+                        style={{ width: 44, height: 44 }}
+                        onClick={() =>
+                          navigate(
+                            `/employees/${row.employee_id}?organizationId=${row.organization_id}&tab=summary`,
+                          )
+                        }
+                      />
+                    </Tooltip>
+                  ) : null}
                 </Box>
               ))}
             </Box>

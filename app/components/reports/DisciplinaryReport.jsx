@@ -28,6 +28,7 @@ import { formatDisciplinaryValidityPeriod } from "@/lib/discipline/presentation.
 import { EMPLOYEE_STATUS_PRESENTATION } from "@/app/components/employees/employeeStatus";
 import { ReportIdentity, ReportCardFields, reportDate } from "./ReportEmployeeFields";
 import DisciplinaryHistoryModal from "./DisciplinaryHistoryModal";
+import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 
 const ALL = "all";
 
@@ -627,7 +628,7 @@ export default function DisciplinaryReport() {
         employee={historyEmployee}
         organizationId={organizationId}
         onClose={() => setHistoryEmployee(null)}
-        onOpenEmployee={openEmployee}
+        onOpenEmployee={hrisLevel(user, "employees") ? openEmployee : undefined}
       />
       <ImagePreviewModal
         open={Boolean(photoPreview)}

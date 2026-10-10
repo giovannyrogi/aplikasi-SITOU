@@ -1,35 +1,21 @@
+import { accountCapabilities } from "@/lib/access/hrisPolicy.mjs";
 export const getMenusByRole = (menus, roleCode, access = null) => {
+  const visible = (menu) => {
+    if (menu.permission)
+      return roleCode === "superadmin" || access?.permissions?.includes(menu.permission);
+    if (roleCode === "hrd" && access?.hris?.configured) {
+      if (menu.value === "dashboard") return true;
+      if (menu.value === "organization-accounts")
+        return accountCapabilities({ role_code: roleCode, access }).canManageAccounts;
+      return access.hris.grants.some((grant) => grant.key === menu.value);
+    }
+    return menu.roles?.includes(roleCode);
+  };
   return menus
     .map((menu) => {
-      // cek role menu utama
-      const hasMenuAccess = menu.permission
-        ? roleCode === "superadmin" || access?.permissions?.includes(menu.permission)
-        : menu?.roles?.includes(roleCode);
-
-      // filter submenu
-      const filteredSubmenu = menu?.submenu
-        ? menu.submenu.filter((sub) =>
-            sub.permission
-              ? roleCode === "superadmin" || access?.permissions?.includes(sub.permission)
-              : sub?.roles.includes(roleCode),
-          )
-        : [];
-
-      // jika punya submenu
-      if (menu.submenu) {
-        // tampilkan parent hanya jika ada submenu yg boleh
-        if (filteredSubmenu.length === 0) return null;
-
-        return {
-          ...menu,
-          submenu: filteredSubmenu,
-        };
-      }
-
-      // menu tanpa submenu
-      if (!hasMenuAccess) return null;
-
-      return menu;
+      if (!menu.submenu) return visible(menu) ? menu : null;
+      const submenu = menu.submenu.filter(visible);
+      return submenu.length ? { ...menu, submenu } : null;
     })
     .filter(Boolean);
 };

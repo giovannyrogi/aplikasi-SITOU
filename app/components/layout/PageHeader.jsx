@@ -1,5 +1,8 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import { useOptionalAuthenticatedUser } from "../auth/AuthenticatedUserProvider";
+import { hrisPageMenu, hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import { Box, Paper, useTheme } from "@mui/material";
 import AppBreadcrumbs from "../navigation/AppBreadcrumbs";
 import FontStyle from "../font-style/FontStyle";
@@ -15,6 +18,14 @@ export default function PageHeader({
   metadata,
 }) {
   const theme = useTheme();
+  const user = useOptionalAuthenticatedUser();
+  const menu = hrisPageMenu(usePathname());
+  const readOnly =
+    user?.role_code === "hrd" &&
+    user.access?.hris?.configured &&
+    menu?.canManage &&
+    hrisLevel(user, menu.key) !== "manage";
+  const visibleAction = readOnly ? null : action;
 
   return (
     <Paper
@@ -82,7 +93,7 @@ export default function PageHeader({
             ) : null}
           </Box>
         </Box>
-        {action ? (
+        {visibleAction ? (
           <Box
             sx={{
               flexShrink: 0,
@@ -90,7 +101,7 @@ export default function PageHeader({
               "& .ant-btn": { width: { xs: "100%", sm: "auto" }, minHeight: 44 },
             }}
           >
-            {action}
+            {visibleAction}
           </Box>
         ) : null}
       </Box>

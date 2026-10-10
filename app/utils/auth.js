@@ -1,4 +1,6 @@
-import { cookies } from "next/headers";
+import { readActorHris } from "@/lib/access/hrisRepository";
+import { canUseHrisRoute } from "@/lib/access/hrisPolicy.mjs";
+import { cookies, headers } from "next/headers";
 import { findActiveSessionUser } from "@/lib/auth/userRepository";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
 import { resolveOrganizationScope } from "@/lib/auth/organizationScope.mjs";
@@ -17,7 +19,12 @@ export async function getAuthenticatedUser() {
     organizationId: session.organizationId,
     credentialVersion: Number(session.credentialVersion),
   });
-  return user ? { ...user, session_expires_at: Number(session.expiresAt) } : null;
+  if (!user) return null;
+  return {
+    ...user,
+    hrisContext: user.role_code === "hrd" ? await readActorHris(user) : null,
+    session_expires_at: Number(session.expiresAt),
+  };
 }
 
 export function unauthorizedResponse() {
@@ -32,12 +39,31 @@ export function unauthorizedResponse() {
 }
 
 export function forbiddenResponse(message = "Anda tidak memiliki akses untuk aksi ini.") {
-  return Response.json({ success: false, code: "FORBIDDEN", message }, { status: 403 });
+  return Response.json(
+    { success: false, code: "FORBIDDEN", message, requestId: crypto.randomUUID() },
+    {
+      status: 403,
+      headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" },
+    },
+  );
 }
 
 export async function requireAuthenticatedUser() {
   const user = await getAuthenticatedUser();
-  return user ? { user, response: null } : { user: null, response: unauthorizedResponse() };
+  if (!user) return { user: null, response: unauthorizedResponse() };
+  const context = await headers();
+  if (
+    !canUseHrisRoute(
+      user,
+      context.get("x-sitou-path") || "",
+      context.get("x-sitou-method") || "GET",
+    )
+  )
+    return {
+      user,
+      response: forbiddenResponse("Akses menu atau tindakan ini belum diberikan kepada akun Anda."),
+    };
+  return { user, response: null };
 }
 
 export async function requireRole(allowedRoleCodes = []) {

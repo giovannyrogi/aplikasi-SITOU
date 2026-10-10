@@ -1,12 +1,28 @@
 "use client";
-import { Button, Form, Select } from "antd";
+import { Button, Form, Select, Input } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
+import PrerequisiteHint from "@/app/components/forms/PrerequisiteHint";
+import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
+import { accessFeatureDescription } from "@/lib/access/featureLabels.mjs";
 import FontStyle from "@/app/components/font-style/FontStyle";
+import AccessExplanation from "./AccessExplanation";
+import { SCOPE_DESCRIPTIONS, FEATURE_DESCRIPTIONS } from "@/lib/access/accessDescriptions.mjs";
 
-function PackageRow({ field, form, options, existing, onRemove }) {
+function PackageRow({
+  field,
+  form,
+  options,
+  existing,
+  onRemove,
+  organizationId,
+  onNavigate,
+  canReadWarehouses,
+  optionsReady,
+}) {
   const scopeMode = Form.useWatch(["packageAccess", field.name, "scopeMode"], form);
   const grants = Form.useWatch("packageAccess", form) || [];
+  const isMaster = grants[field.name]?.packageCode === "inventory_master";
   const locked = options.lockedPackageCodes?.includes(grants[field.name]?.packageCode);
   const warehouseOptions = [...options.warehouses];
   for (const grant of existing || [])
@@ -38,52 +54,103 @@ function PackageRow({ field, form, options, existing, onRemove }) {
       >
         <Form.Item
           name={[field.name, "packageCode"]}
-          label="Paket akses"
-          rules={[{ required: true, message: "Pilih paket akses." }]}
+          label="Fitur dan izin"
+          extra={
+            optionsReady ? (
+              <AccessExplanation title="Kemampuan dan batas izin">
+                {accessFeatureDescription(grants[field.name]?.packageCode) ||
+                  "Pilih izin sesuai tugas akun: Lihat Saja, Pengelola Gudang, atau Pengelola Master Inventaris."}
+              </AccessExplanation>
+            ) : undefined
+          }
+          rules={[{ required: true, message: "Pilih fitur dan izin pengguna." }]}
         >
           <Select
-            disabled={!options.inventoryEnabled || locked}
+            disabled={!optionsReady || !options.inventoryEnabled || locked}
+            onChange={(code) => {
+              if (code === "inventory_master") {
+                form.setFieldValue(["packageAccess", field.name, "scopeMode"], "all");
+                form.setFieldValue(["packageAccess", field.name, "warehouseIds"], []);
+              } else if (isMaster) {
+                form.setFieldValue(["packageAccess", field.name, "scopeMode"], "selected");
+                form.setFieldValue(["packageAccess", field.name, "warehouseIds"], []);
+              }
+            }}
             options={options.packages.map((p) => ({
               value: p.code,
               label: p.name,
-              disabled: grants.some(
-                (grant, index) => index !== field.name && grant?.packageCode === p.code,
-              ),
+              disabled:
+                p.disabled ||
+                grants.some(
+                  (grant, index) => index !== field.name && grant?.packageCode === p.code,
+                ),
             }))}
           />
         </Form.Item>
-        <Form.Item
-          name={[field.name, "scopeMode"]}
-          label="Cakupan gudang"
-          rules={[{ required: true }]}
-          extra={
-            scopeMode === "all"
-              ? "Mencakup seluruh gudang sekarang dan gudang baru berikutnya."
-              : undefined
-          }
-        >
-          <Select
-            disabled={!options.inventoryEnabled || locked}
-            onChange={(mode) => {
-              if (mode === "all")
-                form.setFieldValue(["packageAccess", field.name, "warehouseIds"], []);
-            }}
-            options={[
-              { value: "selected", label: "Gudang terpilih" },
-              { value: "all", label: "Seluruh gudang organisasi", disabled: !options.canGrantAll },
-            ]}
-          />
-        </Form.Item>
+        {isMaster ? (
+          <>
+            <Form.Item name={[field.name, "scopeMode"]} hidden>
+              <Input />
+            </Form.Item>
+            <Form.Item label="Cakupan akses">
+              <FontStyle explanation fontSize={12}>
+                {SCOPE_DESCRIPTIONS.master}
+              </FontStyle>
+            </Form.Item>
+          </>
+        ) : (
+          <Form.Item
+            name={[field.name, "scopeMode"]}
+            label="Cakupan gudang"
+            rules={[{ required: true }]}
+            extra={
+              <FontStyle explanation fontSize={12}>
+                {SCOPE_DESCRIPTIONS[scopeMode] || "Pilih cakupan gudang untuk akses ini."}
+              </FontStyle>
+            }
+          >
+            <Select
+              disabled={!optionsReady || !options.inventoryEnabled || locked}
+              onChange={(mode) => {
+                if (mode === "all")
+                  form.setFieldValue(["packageAccess", field.name, "warehouseIds"], []);
+              }}
+              options={[
+                { value: "selected", label: "Pilih Gudang" },
+                {
+                  value: "all",
+                  label: "Seluruh gudang organisasi",
+                  disabled: !options.canGrantAll,
+                },
+              ]}
+            />
+          </Form.Item>
+        )}
       </Box>
-      {scopeMode === "selected" ? (
+      {!isMaster && scopeMode === "selected" ? (
         <Form.Item
           name={[field.name, "warehouseIds"]}
           label="Gudang yang dapat diakses"
+          extra={
+            optionsReady && !options.warehouses.length ? (
+              <PrerequisiteHint
+                text="Belum ada gudang aktif dalam cakupan pemberian akses Anda. Minta Superadmin atau Pengelola Master Inventaris menyiapkannya melalui Data Master → Gudang."
+                href={
+                  canReadWarehouses && organizationId
+                    ? `/master-data/inventory-warehouses?organizationId=${organizationId}`
+                    : undefined
+                }
+                onNavigate={onNavigate}
+                linkLabel="Buka Gudang"
+              />
+            ) : undefined
+          }
           rules={[{ required: true, type: "array", min: 1, message: "Pilih minimal satu gudang." }]}
         >
           <Select
             mode="multiple"
-            disabled={!options.inventoryEnabled || locked}
+            notFoundContent="Tidak ada gudang yang sesuai."
+            disabled={!optionsReady || !options.inventoryEnabled || locked}
             showSearch
             optionFilterProp="label"
             options={warehouseOptions.map((w) => ({
@@ -96,8 +163,7 @@ function PackageRow({ field, form, options, existing, onRemove }) {
       ) : null}
       {locked ? (
         <FontStyle explanation fontSize={12} sx={{ color: "text.secondary" }}>
-          Hanya Superadmin dapat mengubah paket ini karena cakupannya berada di luar kewenangan
-          Anda.
+          Akses ini di luar kewenangan Anda. Minta Superadmin atau HRD seluruh lokasi mengubahnya.
         </FontStyle>
       ) : null}
       <Button
@@ -107,24 +173,53 @@ function PackageRow({ field, form, options, existing, onRemove }) {
         onClick={onRemove}
         style={{ justifySelf: "start" }}
       >
-        Cabut paket
+        Hapus izin Inventaris
       </Button>
     </Box>
   );
 }
-export default function PackageAccessFields({ form, options, existing }) {
+export default function PackageAccessFields({
+  form,
+  options,
+  existing,
+  organizationId,
+  onNavigate,
+  optionsReady,
+  embedded = false,
+  onDirty,
+}) {
+  const user = useAuthenticatedUser();
+  const assigned = Form.useWatch("packageAccess", form) || [];
+  const canReadWarehouses =
+    user.role_code === "superadmin" ||
+    (user.access?.permissions?.includes("inventory.master.read") &&
+      user.access?.permissions?.includes("inventory.warehouses.read"));
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 2, my: 3, minWidth: 0 }}>
-      <FontStyle component="h3" fontWeight={700}>
-        Paket akses fitur
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0,1fr)",
+        gap: 2,
+        my: embedded ? 0 : 3,
+        minWidth: 0,
+      }}
+    >
+      {!embedded ? (
+        <FontStyle component="h3" fontWeight={700}>
+          Akses fitur
+        </FontStyle>
+      ) : null}
+      <FontStyle explanation fontSize={12} sx={{ color: "text.secondary" }}>
+        {FEATURE_DESCRIPTIONS.inventory}
       </FontStyle>
       <FontStyle explanation fontSize={12} sx={{ color: "text.secondary" }}>
-        Role dasar tetap berlaku. Paket hanya menambahkan akses Inventaris sesuai cakupan gudang.
+        Gudang disiapkan melalui Data Master → Gudang oleh Superadmin atau Pengelola Master
+        Inventaris.
       </FontStyle>
-      {!options.inventoryEnabled ? (
+      {optionsReady && !options.inventoryEnabled ? (
         <FontStyle explanation fontSize={12}>
-          Modul Inventaris belum aktif. Hubungi Superadmin untuk mengaktifkannya. Paket tersimpan
-          tetap dipertahankan.
+          Fitur Inventaris belum aktif. Minta Superadmin mengaktifkannya. Pengaturan akses
+          sebelumnya tetap tersimpan.
         </FontStyle>
       ) : null}
       <Form.List name="packageAccess">
@@ -134,20 +229,33 @@ export default function PackageAccessFields({ form, options, existing }) {
               <PackageRow
                 key={field.key}
                 field={field}
+                organizationId={organizationId}
+                onNavigate={onNavigate}
+                canReadWarehouses={canReadWarehouses}
+                optionsReady={optionsReady}
                 form={form}
                 options={options}
                 existing={existing}
-                onRemove={() => remove(field.name)}
+                onRemove={() => {
+                  remove(field.name);
+                  onDirty?.();
+                }}
               />
             ))}
-            {fields.length < 2 ? (
+            {options.packages.some(
+              (option) =>
+                !option.disabled && !assigned.some((grant) => grant?.packageCode === option.code),
+            ) ? (
               <Button
                 icon={<PlusOutlined />}
-                disabled={!options.inventoryEnabled}
-                onClick={() => add({ scopeMode: "selected", warehouseIds: [] })}
+                disabled={!optionsReady || !options.inventoryEnabled}
+                onClick={() => {
+                  add({ scopeMode: "selected", warehouseIds: [] });
+                  onDirty?.();
+                }}
                 style={{ justifySelf: "start" }}
               >
-                Tambahkan paket
+                Tambahkan izin Inventaris
               </Button>
             ) : null}
           </Box>
