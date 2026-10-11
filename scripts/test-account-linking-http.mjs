@@ -165,6 +165,7 @@ try {
       ...input("scoped", null, "hrd"),
       locationScopeMode: "selected",
       locationIds: [String(assignment.location_id)],
+      hrisAccountAccess: "manage",
       version: scoped.updated_at,
     }),
     200,
@@ -274,6 +275,14 @@ try {
   await db.query("DELETE FROM employees WHERE id=ANY($1::bigint[])", [employeeIds]);
   await db.query(
     "DELETE FROM user_location_scopes WHERE user_organization_role_id IN (SELECT id FROM user_organization_roles WHERE user_id=ANY($1::bigint[]))",
+    [ids],
+  );
+  await db.query(
+    "DELETE FROM user_hris_menu_grants WHERE membership_id IN (SELECT id FROM user_organization_roles WHERE user_id=ANY($1::bigint[]))",
+    [ids],
+  );
+  await db.query(
+    "DELETE FROM user_hris_access_settings WHERE membership_id IN (SELECT id FROM user_organization_roles WHERE user_id=ANY($1::bigint[]))",
     [ids],
   );
   await db.query("DELETE FROM user_organization_roles WHERE user_id=ANY($1::bigint[])", [ids]);

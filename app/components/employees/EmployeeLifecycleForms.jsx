@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button, DatePicker, Form, Input, Select } from "antd";
-import { Box, Alert } from "@mui/material";
+import { Box } from "@mui/material";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -511,10 +512,10 @@ export function ContractForm({ open, employee, contract = null, onClose, onSaved
         selectedEmploymentType &&
         !contractRequiresEndDate &&
         !["renewed", "expired", "terminated"].includes(contract.status) ? (
-          <Alert severity="warning" sx={{ mb: 2 }}>
+          <AppNotice tone="warning" sx={{ mb: 2 }}>
             Tanggal akhir yang tercatat akan dihapus saat koreksi disimpan karena jenis ini tanpa
             tanggal akhir. Periode tetap diperiksa terhadap kontrak lain.
-          </Alert>
+          </AppNotice>
         ) : null}
         <Form.Item name="status" hidden>
           <Input />

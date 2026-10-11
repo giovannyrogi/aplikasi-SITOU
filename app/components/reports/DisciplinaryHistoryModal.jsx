@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, Button, Skeleton } from "antd";
+import { Button, Skeleton } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import { DownloadOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
 import { Box, Divider, useTheme } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
@@ -89,9 +90,9 @@ export default function DisciplinaryHistoryModal({
           ))}
         </Box>
       ) : state.error ? (
-        <Alert type="error" title={state.error} showIcon />
+        <AppNotice tone="danger" title={state.error} />
       ) : state.data.length === 0 ? (
-        <Alert type="info" title="Belum ada tindakan disiplin resmi untuk pegawai ini." showIcon />
+        <AppNotice tone="info" title="Belum ada tindakan disiplin resmi untuk pegawai ini." />
       ) : (
         <Box sx={{ display: "grid", gap: 2 }}>
           {state.data.map((disciplineCase) => {

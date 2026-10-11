@@ -20,7 +20,6 @@ import {
   WarningOutlined,
 } from "@ant-design/icons";
 import {
-  Alert,
   alpha,
   Box,
   Divider,
@@ -33,6 +32,7 @@ import { readApiResponse, normalizeRequestError } from "@/lib/api/clientError";
 import FileUploadField from "@/app/components/forms/FileUploadField";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import ModernTableFrame from "@/app/components/data-display/ModernTableFrame";
 import EmptyState from "@/app/components/data-display/EmptyState";
 import ErrorState from "@/app/components/data-display/ErrorState";
@@ -1383,8 +1383,8 @@ export default function StorageMaintenancePage() {
       </Paper>
 
       {connectionError ? (
-        <Alert
-          severity="error"
+        <AppNotice
+          tone="danger"
           sx={{ alignItems: "center" }}
           action={
             <Button
@@ -1400,26 +1400,18 @@ export default function StorageMaintenancePage() {
           }
         >
           {connectionError}
-        </Alert>
+        </AppNotice>
       ) : null}
       <>
         {hasActiveRun ? (
-          <Alert
-            severity="info"
+          <AppNotice
+            tone="info"
             sx={{
               alignItems: "center",
               py: 1.5,
-              "& .MuiAlert-icon": {
-                alignSelf: "center",
-                alignItems: "center",
-                py: 0,
-                lineHeight: 0,
-              },
-              "& .MuiAlert-icon svg": { display: "block" },
-              "& .MuiAlert-message": {
+              "& > div": {
                 minWidth: 0,
                 width: "100%",
-                py: 0,
               },
             }}
           >
@@ -1452,7 +1444,7 @@ export default function StorageMaintenancePage() {
                 </Box>
               ) : null}
             </Box>
-          </Alert>
+          </AppNotice>
         ) : null}
 
         <Paper
@@ -1619,10 +1611,10 @@ export default function StorageMaintenancePage() {
                 ))}
               </Box>
             ) : (
-              <Alert severity="info" sx={{ mt: 0.75 }}>
+              <AppNotice tone="info" sx={{ mt: 0.75 }}>
                 Tidak ada referensi pada pemeriksaan terakhir. Jalankan pemeriksaan untuk
                 memperbarui kondisi file.
-              </Alert>
+              </AppNotice>
             )}
           </Box>
 
@@ -1642,9 +1634,9 @@ export default function StorageMaintenancePage() {
             </Box>
           </Box>
 
-          <Alert severity="warning">
+          <AppNotice tone="warning">
             Tindakan berikutnya: {relationshipItem?.recommended_action}
-          </Alert>
+          </AppNotice>
 
           <Box
             sx={{
@@ -1815,10 +1807,10 @@ export default function StorageMaintenancePage() {
             <FontStyle sx={{ color: theme.ui.mutedText }}>Total ukuran</FontStyle>
             <FontStyle fontWeight={650}>{formatBytes(selectedBytes)}</FontStyle>
           </Box>
-          <Alert severity="warning">
+          <AppNotice tone="warning">
             Kondisi setiap file diperiksa ulang sebelum dihapus. File yang kembali aktif atau
             memiliki referensi akan dilewati.
-          </Alert>
+          </AppNotice>
           <Checkbox
             checked={confirmationAccepted}
             onChange={(event) => setConfirmationAccepted(event.target.checked)}
@@ -1919,13 +1911,13 @@ export default function StorageMaintenancePage() {
           ) : null}
           {["purge_now", "stage_cleanup", "finalize_cleanup"].includes(actionDialog?.action) ? (
             <>
-              <Alert severity={actionDialog?.action === "purge_now" ? "error" : "warning"}>
+              <AppNotice tone={actionDialog?.action === "purge_now" ? "danger" : "warning"}>
                 {actionDialog?.action === "purge_now"
                   ? "File dihapus permanen. Catatan dan audit tetap disimpan."
                   : actionDialog?.action === "stage_cleanup"
                     ? "File dilepas dari status aktif dan memasuki masa aman sebelum dapat dihapus."
                     : "Metadata akan ditandai selesai karena server memastikan file fisik sudah tidak ada."}
-              </Alert>
+              </AppNotice>
               <Checkbox
                 checked={actionConfirmed}
                 onChange={(event) => setActionConfirmed(event.target.checked)}

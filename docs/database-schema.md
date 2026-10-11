@@ -323,6 +323,9 @@ organization_hris_access_policies menyimpan satu primary_membership_id, enabled,
 version serta actor/waktu per organisasi. user_hris_menu_grants memetakan membership
 ke hris_menu_definitions dengan level read/manage; user_hris_access_settings mencatat
 peninjauan eksplisit termasuk grant kosong. Composite FK mengunci organisasi.
+Migration 053 membekukan hak efektif akun HRD lama yang belum diatur menjadi grant
+seluruh menu dan flag Akun & Akses yang setara. Setelah itu tidak ada fallback
+role lama: grant/flag tersimpan langsung berlaku meski admin penuh belum ditetapkan.
 Katalog sistem bersama berisi 14 submenu, tidak otomatis mengizinkan fitur baru.
 Role/scope dan proses HRIS lama tetap; guard admin tunggal ditambahkan pada lifecycle.
 DTO akun/reference-options/access-me menambah konfigurasi HRIS. Detail field,

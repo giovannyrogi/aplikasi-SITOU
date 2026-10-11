@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Col, DatePicker, Form, Input, InputNumber, Row, Select } from "antd";
+import { Button, Col, DatePicker, Form, Input, InputNumber, Row, Select } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import AppModal from "@/app/components/modals/AppModal";
 import EmployeeSelect from "@/app/components/selects/EmployeeSelect";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
@@ -234,9 +235,8 @@ export default function LeaveRequestForm({
           </>
         }
       >
-        <Alert
-          type="info"
-          showIcon
+        <AppNotice
+          tone="info"
           title="Periksa data sebelum menyimpan"
           description="Data yang tersimpan tidak dapat diedit atau dihapus. Jika ada kesalahan, batalkan pencatatan dengan alasan, lalu catat ulang. Saldo yang terpotong akan dikembalikan saat pembatalan."
           style={{ marginBottom: 20 }}
@@ -277,10 +277,9 @@ export default function LeaveRequestForm({
             </Col>
             {selectedType ? (
               <Col xs={24}>
-                <Alert
-                  showIcon
+                <AppNotice
                   style={{ marginBottom: 16, lineHeight: 1.6, overflowWrap: "anywhere" }}
-                  type={balanceBlocked && balanceReady ? "warning" : "info"}
+                  tone={balanceBlocked && balanceReady ? "warning" : "info"}
                   title={
                     usesBalance ? `Saldo ${selectedType.name} · ${year}` : "Tidak menggunakan saldo"
                   }

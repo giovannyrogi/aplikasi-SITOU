@@ -3,8 +3,9 @@ export const getMenusByRole = (menus, roleCode, access = null) => {
   const visible = (menu) => {
     if (menu.permission)
       return roleCode === "superadmin" || access?.permissions?.includes(menu.permission);
-    if (roleCode === "hrd" && access?.hris?.configured) {
+    if (roleCode === "hrd") {
       if (menu.value === "dashboard") return true;
+      if (!access?.hris) return false;
       if (menu.value === "organization-accounts")
         return accountCapabilities({ role_code: roleCode, access }).canManageAccounts;
       return access.hris.grants.some((grant) => grant.key === menu.value);

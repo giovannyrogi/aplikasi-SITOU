@@ -29,15 +29,19 @@ memblokir kata sandi pendek dan tidak mengirim kata sandi ke layanan lain.
 
 ## Data Display
 
-| Komponen                          | Tujuan                                                                                    | Props penting                                                                     |
-| --------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `data-display/DataPanel`          | Satu paper untuk judul daftar, ringkasan, toolbar embedded, data view, dan pagination.    | `title`, `description`, `toolbar`, `children`                                     |
-| `data-display/ResponsiveDataView` | AntD Table pada tablet/desktop dan card list dengan loading serta pagination pada mobile. | `data`, `columns`, `renderCard`, `pagination`, `onPageChange`, `loading`, `error` |
-| `data-display/EmptyState`         | Empty/no-result state umum.                                                               | `title`, `description`                                                            |
-| `data-display/ErrorState`         | Error state dengan aksi retry.                                                            | `message`, `onRetry`                                                              |
-| `chips/CompactInfoChip`           | Satu-satunya chip untuk metadata dan status, dengan tone semantik, ikon, dan label.       | `label`, `status`, `tone`, `icon`, `color`, `sx`                                  |
+| Komponen                          | Tujuan                                                                                          | Props penting                                                                                                        |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `data-display/DataPanel`          | Satu paper untuk judul daftar, ringkasan, toolbar embedded, data view, dan pagination.          | `title`, `description`, `toolbar`, `children`                                                                        |
+| `data-display/ResponsiveDataView` | AntD Table pada tablet/desktop dan card list dengan loading serta pagination pada mobile.       | `data`, `columns`, `renderCard`, `pagination`, `onPageChange`, `loading`, `error`                                    |
+| `data-display/PhotoAvatar`        | Avatar foto privat yang dapat diperbesar; inisial saat tidak ada foto atau gambar gagal dimuat. | `name`, `photoUrl`, `photoLabel`, `previewTitle`, `size`, `onPreview`                                                |
+| `data-display/EmptyState`         | Empty/no-result state umum.                                                                     | `title`, `description`                                                                                               |
+| `data-display/ErrorState`         | Error state dengan aksi retry.                                                                  | `message`, `onRetry`                                                                                                 |
+| `data-display/AppNotice`          | Panel informasi tetap pada halaman/modal, dengan warna dan ikon semantik terpusat.              | `tone=info/warning/success/danger`, `title`, `description`/`children`, `descriptionAlign`, `action`, `compact`, `sx` |
+| `chips/CompactInfoChip`           | Satu-satunya chip untuk metadata dan status, dengan tone semantik, ikon, dan label.             | `label`, `status`, `tone`, `icon`, `color`, `sx`                                                                     |
 
 Area daftar operasional wajib memeriksa `DataPanel` sebelum membuat wrapper baru. Hindari paper tambahan untuk toolbar atau tabel di dalam panel; card hanya dipakai sebagai item berulang pada mobile. `CompactInfoChip` menangani metadata sekaligus status agar tidak ada reusable badge kedua dengan fungsi sama. Chip dipakai untuk data yang perlu ditonjolkan, bukan seluruh teks tabel.
+
+Gunakan `AppNotice` untuk arahan atau peringatan yang tetap terlihat, termasuk di dalam `AppModal` dan penjelasan hak akses. Info biru, peringatan kuning, keberhasilan hijau, dan kegagalan merah. Paragraf isi rata kiri-kanan secara default; judul dan tombol tidak. Untuk pesan yang memang didesain rata tengah, tetapkan `descriptionAlign="center"` secara eksplisit. Teks harus menyebut dampak serta tindakan berikutnya tanpa mengandalkan warna saja. `Notification` tetap untuk pesan sementara; jangan menggantinya dengan panel tetap.
 
 `OperationalFilterSection` membatasi `wideColumns` maksimal 4: desktop >=1200px empat kolom, 900-1199px tiga, 600-899px dua, dan mobile satu. Field tambahan masuk baris berikutnya.
 
@@ -50,13 +54,13 @@ unduhan tetap ditangani endpoint modul. Ekspor tersedia pada laporan terkait dan
 
 ## Actions dan Modal
 
-| Komponen                     | Tujuan                                                                                                                                       | Props penting                                                                                                         |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `actions/RowActionMenu`      | Menu aksi per baris/kartu dengan target sentuh yang aman.                                                                                    | `items`                                                                                                               |
-| `actions/ConfirmDialog`      | Konfirmasi risiko yang menyusun `AppModal`.                                                                                                  | `open`, `title`, `message`, `confirmText`, `danger`, `onConfirm`, `illustration`, `heading`, `children`, `messageAlign`                                                      |
-| `modals/AppModal`            | Satu-satunya modal shell umum untuk form, detail, konfirmasi, dan konten React. Properti ikon menerima nama Iconify atau elemen React lokal. | `open`, `onClose`, `title`, `description`, `icon`, `size`, `width`, `component`, `onSubmit`, `footer`, close controls |
-| `modals/ExpiredSessionModal` | Feedback sesi kedaluwarsa, countdown, progress, dan redirect login.                                                                          | `open`, `secondsRemaining`, `onLogout`                                                                                |
-| `modals/ImagePreviewModal`   | Preview endpoint privat/blob/file lokal dengan loading, error, alt text, dan zoom.                                                           | `imageUrl`, `alt`, `title`, `open`, `onClose`                                                                         |
+| Komponen                     | Tujuan                                                                                                                                       | Props penting                                                                                                           |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `actions/RowActionMenu`      | Menu aksi per baris/kartu dengan target sentuh yang aman.                                                                                    | `items`                                                                                                                 |
+| `actions/ConfirmDialog`      | Konfirmasi risiko yang menyusun `AppModal`.                                                                                                  | `open`, `title`, `message`, `confirmText`, `danger`, `onConfirm`, `illustration`, `heading`, `children`, `messageAlign` |
+| `modals/AppModal`            | Satu-satunya modal shell umum untuk form, detail, konfirmasi, dan konten React. Properti ikon menerima nama Iconify atau elemen React lokal. | `open`, `onClose`, `title`, `description`, `icon`, `size`, `width`, `component`, `onSubmit`, `footer`, close controls   |
+| `modals/ExpiredSessionModal` | Feedback sesi kedaluwarsa, countdown, progress, dan redirect login.                                                                          | `open`, `secondsRemaining`, `onLogout`                                                                                  |
+| `modals/ImagePreviewModal`   | Preview endpoint privat/blob/file lokal dengan loading, error, alt text, dan zoom.                                                           | `imageUrl`, `alt`, `title`, `open`, `onClose`                                                                           |
 
 `LoadingBackdrop` dan `Notification` dikontrol parent. Modal fitur wajib menyusun `AppModal`; dilarang membuat modal shell lain.
 
@@ -104,6 +108,7 @@ Seluruh aksi lihat gambar wajib memakai `modals/ImagePreviewModal`; jangan membu
 | Komponen                               | Tujuan                                                                                                              | Props penting                                                              |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `dashboard/DashboardMetric`            | Panel KPI dengan aksen status, angka lokal, ikon, dan dukungan microtrend.                                          | `metric`, `loading`                                                        |
+| `dashboard/DashboardCardPlaceholder`   | Kartu HRD terkunci atau data belum tersedia; dekorasi sintetis tanpa dataset sensitif.                              | `title`, `kind`, `locked`                                                  |
 | `dashboard/DashboardChart`             | Shell grafik dengan header, tinggi stabil, loading, empty state, dan hover yang halus.                              | `title`, `description`, `icon`, `loading`                                  |
 | `dashboard/AreaTrendChart`             | Grafik area untuk membandingkan arus perubahan berdasarkan periode.                                                 | `data`                                                                     |
 | `dashboard/HorizontalBarChart`         | Grafik batang horizontal untuk label kategori yang panjang.                                                         | `data`, `percent`                                                          |
@@ -112,6 +117,9 @@ Seluruh aksi lihat gambar wajib memakai `modals/ImagePreviewModal`; jangan membu
 | `dashboard/MetricSparkline`            | Grafik mini tanpa sumbu untuk tren pada KPI.                                                                        | `data`, `color`                                                            |
 | `dashboard/DashboardAttentionList`     | Daftar prioritas operasional dengan tingkat urgensi.                                                                | `items`, `loading`                                                         |
 | `dashboard/EmployeeCompositionSummary` | Satu panel snapshot komposisi jenis kelamin, status, masa kerja, dan jenis kepegawaian.                             | `data`, `loading`                                                          |
+| `dashboard/DashboardCardPlaceholder`   | Siluet sintetis untuk kartu HRD terkunci; jenisnya harus mengikuti konten asli dan tidak menerima data tanpa izin.  | `title`, `kind`, `locked`                                                  |
+| `modals/AccessChangedModal`            | Modal perubahan izin yang memakai `AppModal` dan `AppNotice`; form aktif ditutup atau halaman dialihkan.            | `mode`, `secondsRemaining`, `onContinue`                                   |
+| `modals/AccessCountdownPanel`          | Panel hitungan mundur responsif untuk perubahan izin dan sesi berakhir.                                             | `secondsRemaining`, `destination`, `description`, `label`, `icon`          |
 | `dashboard/DashboardActivityList`      | Aktivitas organisasi dengan pelaku, tindakan, nama/NIP pegawai, dan waktu organisasi; tanpa payload audit sensitif. | `items` (`label`, `actor`, `subject`, `occurredAt`, `timezone`), `loading` |
 | `dashboard/chartAdapter`               | Sumber konfigurasi ApexCharts untuk theme, format Indonesia, responsive behavior, tooltip, dan animasi.             | `createChartOptions`, `formatChartCategory`                                |
 
@@ -192,9 +200,10 @@ Lebar panel `AppModal` dibatasi oleh kolom grid yang dapat menyusut sesuai viewp
 
 - Footer `AppModal` menjaga jarak minimal 12px antar tombol, termasuk saat tombol membungkus pada layar kecil.
 
-- `ConfirmDialog.messageAlign` mengatur alignment paragraf utama (default `left`); konfirmasi hapus backup memakai `center` tanpa mengubah alignment konten rincian.
+- `ConfirmDialog.messageAlign` mengatur alignment paragraf utama (default `justify`); konfirmasi hapus backup memakai `center` tanpa mengubah alignment konten rincian.
 
 - Form akun memakai `/api/access/accounts/reference-options`, bukan referensi pegawai umum. Profil yang tertaut ke akun lain (termasuk akun nonaktif) tidak ditawarkan; edit tetap menawarkan profil akun sendiri. Backend memeriksa organisasi/cakupan lokasi, mengunci profil dalam transaksi, dan mempertahankan constraint unik `employees.user_id`. Konflik penautan ditampilkan pada field profil. Daftar akun dimuat ulang saat jendela kembali aktif agar perubahan role oleh pengelola lain dapat terlihat.
+
 # Pas foto sidebar Pegawai
 
 Sidebar desktop dan mobile membaca pas foto Pegawai melalui `/api/uploads/profile_self`
@@ -203,7 +212,6 @@ referensi pas foto aktif pada profil akun sendiri. Parameter `photoVersion` hany
 memicu pemuatan ulang setelah foto diganti, bukan memilih file. Endpoint file umum
 tetap memerlukan `private_files.read_sensitive`; Pegawai tidak memperoleh akses
 ke foto atau dokumen pegawai lain. Preview tetap diaudit dan tidak di-cache.
-
 
 `useBrowserTimeZone` mendeteksi zona perangkat dengan hydration aman dan fallback UTC. Backup memakai hook ini untuk tampilan waktu lokal, sedangkan nama artefak tetap mengikuti snapshot zona waktu pekerjaan.
 
@@ -224,6 +232,9 @@ pembuatan gudang dan daftar organisasi menampilkan Fitur aktif dari server.
 
 `inventory/CatalogPanel` menyusun DataPanel/ResponsiveDataView untuk Barang,
 Kategori dan Satuan, AppModal untuk edit, serta pengaturan minimum per gudang.
+Daftar barang menampilkan batas minimum per gudang yang berizin, bukan saldo stok;
+dua gudang pertama tampak langsung dan sisanya dapat dibuka di AppModal.
+Penjelasan ambang stok dan dampak status barang-gudang memakai AppNotice.
 Foto memakai PrivateFileUpload deferred dan ImagePreviewModal; byte disimpan
 bersama transaksi form, bukan saat dipilih. InventoryWorkspace menampilkan master terpisah pada Data Master; setiap panel memiliki
 header dan filter organisasi sendiri.
@@ -233,8 +244,8 @@ header dan filter organisasi sendiri.
 - CatalogPanel / WarehousePanel menyediakan PageHeader dengan aksi tambah berizin,
   DataPanel, serta organizationFilter pada toolbar. organizationId wajib sebelum
   request; remount per organisasi membersihkan daftar/options/form. Tidak memakai tab.
-- PrerequisiteHint menerima text, href, onNavigate, linkLabel. Teks justify dekat
-  field; tautan hanya diberikan ketika berizin. Pemilik form memakai
+- PrerequisiteHint menerima text, href, onNavigate, linkLabel. Arahan ditampilkan
+  melalui AppNotice warning dengan teks justify dan tautan hanya ketika berizin. Pemilik form memakai
   usePrerequisiteNavigation untuk dirty-state confirmation sebelum route berubah.
 - Barang/Kategori/Satuan/Gudang berada di Data Master; Distribusi Barang di Laporan.
 
@@ -314,7 +325,8 @@ loading/error/kosong dan modal stabil saat breakpoint berubah.
 
 AccessExplanation adalah anotasi kemampuan/batas hak akses, dipakai editor HRIS,
 field izin Inventaris dan rincian modal. Komposisi ikon informasi, heading singkat,
-permukaan netral, teks justify dan padding/gap mengikuti token yang sudah ada.
+permukaan netral, teks justify dan jarak minimal 16px dari dropdown mengikuti
+token komponen bersama.
 HrisAccessFields memasukkan Akun Organisasi ke Collapse Akun & Akses dengan
 checkbox + dua mode aktif; field hidden tetap hrisAccountAccess. Submenu readonly
 menggunakan chip Hanya baca, bukan dropdown. Divider memisahkan setiap submenu.

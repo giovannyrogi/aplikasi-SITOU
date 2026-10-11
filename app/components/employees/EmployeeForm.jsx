@@ -4,7 +4,8 @@ import { readApiResponse } from "@/lib/api/clientError";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Checkbox, DatePicker, Form, Input, Select, Steps } from "antd";
+import { Button, Checkbox, DatePicker, Form, Input, Select, Steps } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
@@ -962,9 +963,8 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               </Button>
             </Box>
             {draftStatus === "error" ? (
-              <Alert
-                type="error"
-                showIcon
+              <AppNotice
+                tone="danger"
                 title="Draft belum aman tersimpan"
                 description="Periksa field yang ditandai atau koneksi, lalu simpan draft kembali."
                 style={{ marginBottom: 16 }}

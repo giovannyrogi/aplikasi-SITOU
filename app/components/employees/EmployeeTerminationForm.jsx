@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, Button, DatePicker, Form, Input, Select } from "antd";
+import { Button, DatePicker, Form, Input, Select } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import { CalendarOutlined, UserDeleteOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import dayjs from "dayjs";
@@ -189,9 +190,8 @@ export default function EmployeeTerminationForm({
             </Box>
           </Box>
 
-          <Alert
-            type="warning"
-            showIcon
+          <AppNotice
+            tone="warning"
             title="Dampak pengakhiran"
             description="Penempatan dan kontrak aktif akan ditutup, akun login tertaut dinonaktifkan, dan seluruh histori tetap tersimpan."
           />

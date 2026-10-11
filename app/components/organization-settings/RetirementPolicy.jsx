@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Box, useTheme } from "@mui/material";
-import { Alert, Button, Tooltip } from "antd";
+import { Button, Tooltip } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import {
   EditOutlined,
   ReloadOutlined,
@@ -117,11 +118,10 @@ export default function RetirementPolicy() {
         </DataPanel>
       )}
       {!organizationId ? (
-        <Alert showIcon type="info" title="Pilih organisasi untuk melihat kebijakan pensiun." />
+        <AppNotice tone="info" title="Pilih organisasi untuk melihat kebijakan pensiun." />
       ) : error ? (
-        <Alert
-          showIcon
-          type="error"
+        <AppNotice
+          tone="danger"
           title={error}
           action={<Button onClick={() => load()}>Coba lagi</Button>}
         />

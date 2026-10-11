@@ -18,6 +18,56 @@ export async function verifyHrisAccess({
   employeeProfile,
   screenshots,
 }) {
+  const cookieFor = async (id) =>
+    "sitou_session=" +
+    (await createSessionToken({
+      userId: id,
+      roleCode: "hrd",
+      organizationId: org.id,
+      credentialVersion: 1,
+      expiresAt: Date.now() + 600000,
+    }));
+  const explicitlyLimited = expect(
+    await req("/api/access/accounts", superadmin.cookie, "POST", {
+      organizationId: org.id,
+      username: "qa_explicit_before_rollout",
+      roleCode: "hrd",
+      password,
+      confirmPassword: password,
+      hrisMenuAccess: [{ key: "master-positions", level: "read" }],
+      hrisAccountAccess: "none",
+    }),
+    201,
+  );
+  assert.equal(explicitlyLimited.hrisAccess.configured, true);
+  assert.deepEqual(explicitlyLimited.hrisAccess.grants, [
+    { key: "master-positions", level: "read" },
+  ]);
+  const explicitlyLimitedCookie = await cookieFor(explicitlyLimited.id);
+  expect(await req("/api/positions", explicitlyLimitedCookie), 200);
+  expect(await req("/api/employees", explicitlyLimitedCookie), 403);
+  expect(await req("/api/access/accounts", explicitlyLimitedCookie), 403);
+  const deniedAccountPage = await fetch(base + "/access/accounts", {
+    headers: { Cookie: explicitlyLimitedCookie },
+    redirect: "manual",
+  });
+  assert.ok([307, 308].includes(deniedAccountPage.status));
+  assert.match(deniedAccountPage.headers.get("location"), /dashboard/);
+  const noGrants = expect(
+    await req("/api/access/accounts", superadmin.cookie, "POST", {
+      organizationId: org.id,
+      username: "qa_new_without_grants",
+      roleCode: "hrd",
+      password,
+      confirmPassword: password,
+    }),
+    201,
+  );
+  assert.equal(noGrants.hrisAccess.configured, true);
+  assert.equal(noGrants.hrisAccess.grants.length, 0);
+  const noGrantsCookie = await cookieFor(noGrants.id);
+  expect(await req("/api/employees", noGrantsCookie), 403);
+  expect(await req("/api/access/accounts", noGrantsCookie), 403);
   const legacy = expect(
     await req("/api/access/accounts", superadmin.cookie, "POST", {
       organizationId: org.id,
@@ -29,6 +79,11 @@ export async function verifyHrisAccess({
     }),
     201,
   );
+  assert.equal(legacy.hrisAccess.configured, true);
+  assert.equal(legacy.hrisAccess.grants.length, 0);
+  const accountOnlyCookie = await cookieFor(legacy.id);
+  expect(await req("/api/access/accounts", accountOnlyCookie), 200);
+  expect(await req("/api/employees", accountOnlyCookie), 403);
   let primary = expect(
     await req(`/api/access/accounts/${hrd.id}?organizationId=${org.id}`, superadmin.cookie),
     200,
@@ -53,7 +108,7 @@ export async function verifyHrisAccess({
       await req(`/api/access/accounts/${legacy.id}?organizationId=${org.id}`, superadmin.cookie),
       200,
     ).hrisAccess.grants.length,
-    14,
+    0,
   );
   assert.equal(primary.location_scope_mode, "all");
   assert.equal(expect(await req("/api/access/me", hrd.cookie), 200).hris.fullAdmin, true);
@@ -72,15 +127,6 @@ export async function verifyHrisAccess({
       201,
     );
   let limited = await createHrd("qa_hris_limited", [{ key: "master-positions", level: "read" }]);
-  const cookieFor = async (id) =>
-    "sitou_session=" +
-    (await createSessionToken({
-      userId: id,
-      roleCode: "hrd",
-      organizationId: org.id,
-      credentialVersion: 1,
-      expiresAt: Date.now() + 600000,
-    }));
   const cookie = await cookieFor(limited.id);
   expect(await req("/api/positions", cookie), 200);
   expect(
@@ -193,6 +239,39 @@ export async function verifyHrisAccess({
     }),
     201,
   );
+  const operatorUiContext = await browser.newContext();
+  try {
+    await operatorUiContext.addCookies([
+      { name: "sitou_session", value: operatorCookie.slice(14), url: base },
+    ]);
+    const operatorPage = await operatorUiContext.newPage();
+    await operatorPage.goto(base + "/access/accounts");
+    await operatorPage.getByRole("row").filter({ hasText: "qa_hris_worker" }).waitFor();
+    await operatorPage
+      .getByRole("row")
+      .filter({ hasText: "qa_hris_worker" })
+      .getByRole("button", { name: "Buka menu aksi" })
+      .click();
+    await operatorPage
+      .locator(".ant-dropdown-menu-item")
+      .filter({ hasText: /^Edit$/ })
+      .click();
+    const workerDialog = operatorPage.getByRole("dialog", { name: "Edit akun organisasi" });
+    await workerDialog.getByRole("button", { name: "Simpan akun" }).waitFor({ state: "visible" });
+    await operatorPage.waitForFunction(() =>
+      [...document.querySelectorAll('[role="dialog"] button')].some(
+        (button) => button.textContent?.includes("Simpan akun") && !button.disabled,
+      ),
+    );
+    assert.equal(await workerDialog.getByText("Akses fitur", { exact: true }).count(), 0);
+    assert.equal(
+      await workerDialog.getByText("Akun ini belum memiliki akses fitur tambahan.").count(),
+      0,
+    );
+    assert.equal(await workerDialog.getByLabel("Username", { exact: true }).count(), 1);
+  } finally {
+    await operatorUiContext.close();
+  }
   const warehouse = (
     await db.query(
       "SELECT id::text FROM inventory_warehouses WHERE organization_id=$1 AND location_id=$2 AND is_active ORDER BY id LIMIT 1",
@@ -245,6 +324,76 @@ export async function verifyHrisAccess({
   );
   assert.equal(reference.canGrantHris, false);
   assert.equal(reference.canDelegateNonHris, true);
+  const moduleBeforeNotice = expect(
+    await req(`/api/access/modules?organizationId=${org.id}`, superadmin.cookie),
+    200,
+  );
+  let moduleForNotice = expect(
+    await req("/api/access/modules", superadmin.cookie, "PATCH", {
+      organizationId: org.id,
+      isEnabled: false,
+      version: moduleBeforeNotice.version,
+    }),
+    200,
+  );
+  const noticeContext = await browser.newContext({ viewport: { width: 1366, height: 950 } });
+  try {
+    await noticeContext.addCookies([
+      { name: "sitou_session", value: operatorCookie.slice(14), url: base },
+    ]);
+    const noticePage = await noticeContext.newPage();
+    await noticePage.goto(base + "/access/accounts");
+    await noticePage.getByRole("row").filter({ hasText: "qa_hris_worker" }).waitFor();
+    await noticePage
+      .getByRole("row")
+      .filter({ hasText: "qa_hris_worker" })
+      .getByRole("button", { name: "Buka menu aksi" })
+      .click();
+    await noticePage
+      .locator(".ant-dropdown-menu-item")
+      .filter({ hasText: /^Edit$/ })
+      .click();
+    const warning = noticePage.getByRole("status").filter({
+      hasText: "Inventaris belum aktif untuk organisasi ini",
+    });
+    await warning.waitFor();
+    assert.match(await warning.innerText(), /Data Master.*Organisasi.*Kelola fitur/);
+    assert.equal(
+      await noticePage
+        .getByRole("dialog", { name: "Edit akun organisasi" })
+        .locator(".ant-collapse")
+        .count(),
+      0,
+    );
+    await noticePage.setViewportSize({ width: 375, height: 950 });
+    await noticePage.screenshot({
+      path: path.join(screenshots, "inventory-inactive-notice-375.png"),
+    });
+    assert.equal(
+      await noticePage
+        .getByRole("dialog", { name: "Edit akun organisasi" })
+        .evaluate((element) => element.scrollWidth > element.clientWidth),
+      false,
+    );
+    await noticePage.getByLabel("Tambahkan fitur", { exact: true }).click();
+    assert.equal(
+      await noticePage
+        .locator(".ant-select-item-option-disabled")
+        .filter({ hasText: "Inventaris" })
+        .count(),
+      1,
+    );
+  } finally {
+    await noticeContext.close();
+    moduleForNotice = expect(
+      await req("/api/access/modules", superadmin.cookie, "PATCH", {
+        organizationId: org.id,
+        isEnabled: true,
+        version: moduleForNotice.version,
+      }),
+      200,
+    );
+  }
   worker = expect(
     await req(
       `/api/access/accounts/${worker.id}`,
@@ -362,7 +511,15 @@ export async function verifyHrisAccess({
     .locator(".ant-select-item-option-content")
     .filter({ hasText: /^HRIS$/ })
     .click();
-  await formDialog.getByRole("checkbox", { name: "Data Pegawai", exact: true }).check();
+  const employeeMenuCheckbox = formDialog.getByRole("checkbox", {
+    name: "Data Pegawai",
+    exact: true,
+  });
+  await employeeMenuCheckbox.click();
+  await page.waitForFunction(
+    (element) => element.checked,
+    await employeeMenuCheckbox.elementHandle(),
+  );
   await formDialog.getByLabel("Tingkat akses Data Pegawai", { exact: true }).click();
   await page
     .locator(".ant-select-item-option-content")
@@ -539,6 +696,206 @@ export async function verifyHrisAccess({
     expect(await req(`/api/dashboard/summary?organizationId=${other.id}`, session), 403);
     dashboards.push({ row, session });
   }
+  for (const [name, session, lockedCount] of [
+    ["without-access", dashboards[5].session, 16],
+    ["leave-only", dashboards[4].session, 13],
+    ["employee-data", dashboards[0].session, 1],
+    ["full-admin", hrd.cookie, 0],
+  ]) {
+    const dashboardContext = await browser.newContext({ viewport: { width: 375, height: 850 } });
+    try {
+      await dashboardContext.addCookies([
+        { name: "sitou_session", value: session.slice(14), url: base },
+      ]);
+      const dashboardPage = await dashboardContext.newPage();
+      await dashboardPage.goto(base + "/dashboard");
+      await dashboardPage.waitForFunction(
+        (expected) =>
+          document.querySelectorAll('[aria-label="Indikator utama"] > div').length === 6 &&
+          !document.querySelector('[aria-label="Indikator utama"] .MuiSkeleton-root') &&
+          document.querySelectorAll('[data-dashboard-locked="true"]').length === expected,
+        lockedCount,
+      );
+      assert.equal(
+        await dashboardPage.locator('[data-dashboard-locked="true"]').count(),
+        lockedCount,
+      );
+      assert.equal(
+        await dashboardPage.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+        false,
+      );
+      if (name === "without-access") {
+        await dashboardPage.getByText("Akses dashboard terbatas").first().waitFor();
+        assert.equal(await dashboardPage.getByText("Operasional stabil").count(), 0);
+        assert.equal(await dashboardPage.getByText("Fitur terkunci", { exact: true }).count(), 16);
+        assert.equal(await dashboardPage.getByText("Anda tidak memiliki akses.").count(), 16);
+        assert.equal(
+          await dashboardPage
+            .locator('[data-dashboard-locked="true"]')
+            .getByText(/Minta Superadmin atau admin HRD/)
+            .count(),
+          0,
+        );
+        assert.equal(await dashboardPage.locator("canvas").count(), 0);
+        for (const [title, shape] of [
+          ["Perkembangan pegawai", "area"],
+          ["Sebaran per lokasi", "horizontal"],
+          ["Kontrak berakhir per bulan", "stacked"],
+          ["Proyeksi pensiun", "retirement"],
+          ["Ringkasan komposisi pegawai", "composition"],
+          ["Ulang tahun pegawai", "birthday"],
+        ]) {
+          assert.equal(
+            await dashboardPage
+              .locator(`[data-dashboard-shape="${shape}"]`)
+              .filter({ has: dashboardPage.getByRole("heading", { name: title }) })
+              .count(),
+            1,
+          );
+        }
+      }
+      if (name === "leave-only") {
+        assert.equal(
+          await dashboardPage.locator('[aria-label="Indikator utama"] > div').count(),
+          6,
+        );
+      }
+      await dashboardPage.screenshot({
+        path: path.join(screenshots, `dashboard-locked-${name}-375.png`),
+        fullPage: name === "leave-only",
+      });
+      if (["without-access", "leave-only"].includes(name)) {
+        await dashboardPage.setViewportSize({ width: 1366, height: 900 });
+        assert.equal(
+          await dashboardPage.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+          false,
+        );
+        await dashboardPage.screenshot({
+          path: path.join(screenshots, `dashboard-locked-${name}-1366.png`),
+        });
+      }
+    } finally {
+      await dashboardContext.close();
+    }
+  }
+  // Hak yang berubah dari sesi Superadmin harus tercermin pada tab HRD yang tetap terbuka.
+  const liveContext = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+  try {
+    await liveContext.addCookies([
+      { name: "sitou_session", value: dashboards[5].session.slice(14), url: base },
+    ]);
+    const livePage = await liveContext.newPage();
+    await livePage.goto(base + "/dashboard");
+    await livePage.waitForFunction(
+      () => document.querySelectorAll('[data-dashboard-locked="true"]').length === 16,
+    );
+    await livePage.evaluate(() => {
+      window.__dashboardStayedOpen = true;
+    });
+    let changed = expect(
+      await req(
+        `/api/access/accounts/${dashboards[5].row.id}`,
+        superadmin.cookie,
+        "PATCH",
+        updateInput(dashboards[5].row, { hrisMenuAccess: [{ key: "employees", level: "read" }] }),
+      ),
+      200,
+    );
+    await livePage.waitForFunction(
+      () => document.querySelectorAll('[data-dashboard-locked="true"]').length === 1,
+      null,
+      { timeout: 20000 },
+    );
+    assert.equal(await livePage.evaluate(() => window.__dashboardStayedOpen), true);
+    changed = expect(
+      await req(
+        `/api/access/accounts/${changed.id}`,
+        superadmin.cookie,
+        "PATCH",
+        updateInput(changed, { hrisMenuAccess: [] }),
+      ),
+      200,
+    );
+    await livePage.waitForFunction(
+      () => document.querySelectorAll('[data-dashboard-locked="true"]').length === 16,
+      null,
+      { timeout: 20000 },
+    );
+    assert.equal(await livePage.evaluate(() => window.__dashboardStayedOpen), true);
+  } finally {
+    await liveContext.close();
+  }
+  // Form aktif ditutup saat hak Kelola dicabut; hak Lihat yang dicabut menyembunyikan halaman.
+  const liveFormAccount = await createHrd("qa_live_form_access", [
+    { key: "master-positions", level: "manage" },
+  ]);
+  const liveFormContext = await browser.newContext({ viewport: { width: 375, height: 850 } });
+  try {
+    const liveFormCookie = await cookieFor(liveFormAccount.id);
+    await liveFormContext.addCookies([
+      { name: "sitou_session", value: liveFormCookie.slice(14), url: base },
+    ]);
+    const page = await liveFormContext.newPage();
+    const loaded = page.waitForResponse(
+      (response) => response.url().includes("/api/positions") && response.status() === 200,
+    );
+    await page.goto(base + "/master-data/positions");
+    await loaded;
+    await page.getByRole("button", { name: "Tambah jabatan" }).click();
+    await page
+      .getByRole("dialog", { name: "Tambah jabatan" })
+      .waitFor({ timeout: 5000 })
+      .catch(async () => {
+        throw new Error(
+          `Form jabatan tidak terbuka: halaman=${page.url()}, modal=${JSON.stringify(await page.locator('[role="dialog"]').allTextContents())}`,
+        );
+      });
+    let changed = expect(
+      await req(
+        `/api/access/accounts/${liveFormAccount.id}`,
+        hrd.cookie,
+        "PATCH",
+        updateInput(liveFormAccount, {
+          hrisMenuAccess: [{ key: "master-positions", level: "read" }],
+        }),
+      ),
+      200,
+    );
+    const readOnlyDialog = page.getByRole("dialog", { name: "Akses mengelola dicabut" });
+    await readOnlyDialog.waitFor({ timeout: 20000 });
+    const noticeBox = await readOnlyDialog.getByRole("status").boundingBox();
+    const countdownBox = await readOnlyDialog.getByTestId("access-countdown-panel").boundingBox();
+    assert.ok(countdownBox.y - (noticeBox.y + noticeBox.height) >= 23);
+    assert.equal(await page.getByRole("dialog", { name: "Tambah jabatan" }).count(), 0);
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await page.screenshot({ path: path.join(screenshots, "access-revoked-readonly-375.png") });
+    await page.getByRole("button", { name: "Lanjut membaca" }).click();
+    assert.match(page.url(), /\/master-data\/positions/);
+    assert.equal(await page.getByRole("button", { name: "Tambah jabatan" }).count(), 0);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    changed = expect(
+      await req(
+        `/api/access/accounts/${changed.id}`,
+        hrd.cookie,
+        "PATCH",
+        updateInput(changed, { hrisMenuAccess: [] }),
+      ),
+      200,
+    );
+    await page.getByRole("dialog", { name: "Akses halaman dicabut" }).waitFor({ timeout: 20000 });
+    assert.equal(await page.getByRole("heading", { name: "Jabatan" }).count(), 0);
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await page.screenshot({ path: path.join(screenshots, "access-revoked-redirect-1366.png") });
+    await page.waitForURL("**/dashboard", { timeout: 10000 });
+  } finally {
+    await liveFormContext.close();
+  }
   const dataCached = expect(await req("/api/dashboard/summary", dashboards[0].session), 200);
   const leaveCached = expect(await req("/api/dashboard/summary", dashboards[4].session), 200);
   assert.ok(dataCached.employeeSummary);
@@ -668,7 +1025,8 @@ export async function verifyHrisAccess({
     200,
   );
   assert.equal(expect(await req("/api/access/me", hrd.cookie), 200).hris.fullAdmin, false);
-  expect(await req("/api/access/accounts", hrd.cookie), 403);
+  // Migration 053 mempertahankan kewenangan Akun & Akses lama saat admin penuh dialihkan.
+  expect(await req("/api/access/accounts", hrd.cookie), 200);
   assert.equal(
     (
       await db.query(

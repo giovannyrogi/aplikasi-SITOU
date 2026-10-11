@@ -4,6 +4,7 @@ import { DeleteOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import AppIcon from "@/app/components/icons/AppIcon";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import HrisAccessFields from "./HrisAccessFields";
 import PackageAccessFields from "./PackageAccessFields";
 import { accountFeatureGroups, accessScopeSummary } from "@/lib/access/accessDescriptions.mjs";
@@ -57,6 +58,8 @@ export default function FeatureAccessFields({
       : []),
   ];
   const saved = accountFeatureGroups(item || {});
+  if (!canHris && !canInventory && !saved.length && (optionsReady || roleCode === "employee"))
+    return null;
   return (
     <Box sx={{ display: "grid", gap: 3, my: 3, minWidth: 0, "& > .ant-form-item": { mb: 0 } }}>
       <Form.Item name="featureModules" hidden>
@@ -88,7 +91,7 @@ export default function FeatureAccessFields({
             !optionsReady
               ? "Referensi fitur sedang dimuat."
               : !options.inventoryEnabled
-                ? "Inventaris belum aktif. Minta Superadmin mengaktifkannya."
+                ? undefined
                 : canHris
                   ? "HRIS mengatur administrasi Pegawai. Inventaris mengatur persediaan dan gudang."
                   : "Inventaris mengatur persediaan dan gudang sesuai izin yang diberikan."
@@ -104,88 +107,97 @@ export default function FeatureAccessFields({
           />
         </Form.Item>
       ) : null}
+      {optionsReady && canInventory && !options.inventoryEnabled ? (
+        <AppNotice
+          tone="warning"
+          title="Inventaris belum aktif untuk organisasi ini"
+          description="Pilihan Inventaris belum dapat diberikan. Minta Superadmin membuka Data Master → Organisasi, pilih Kelola fitur pada organisasi ini, lalu aktifkan Fitur Inventaris. Setelah disimpan, buka ulang modal akun."
+        />
+      ) : null}
       <Form.Item name="expandedFeatureSections" hidden>
         <FeatureValue />
       </Form.Item>
-      <Collapse
-        style={{ width: "100%", minWidth: 0 }}
-        activeKey={expanded}
-        onChange={(keys) => form.setFieldValue("expandedFeatureSections", keys)}
-        expandIconPlacement="end"
-        items={[
-          ...(showHris ? [{ code: "hris", label: "HRIS", icon: "navigation:employees" }] : []),
-          ...(showInventory
-            ? [{ code: "inventory", label: "Inventaris", icon: "navigation:inventory" }]
-            : []),
-        ].map((feature) => ({
-          key: feature.code,
-          forceRender: true,
-          label: (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                minWidth: 0,
-                flexWrap: "wrap",
-              }}
-            >
-              <AppIcon icon={feature.icon} fontSize="22px" />
-              <Box sx={{ minWidth: 0 }}>
-                <FontStyle component="h4" fontWeight={700}>
-                  {feature.label}
-                </FontStyle>
-                <FontStyle fontSize={12} color="text.secondary">
-                  {feature.code === "hris"
-                    ? full
-                      ? "Admin HRD penuh"
-                      : `${hrisGrants.filter((grant) => grant.key !== "dashboard").length + (accountMode !== "none" ? 1 : 0)} menu dipilih`
-                    : `${inventoryGrants.length} izin Inventaris`}
-                </FontStyle>
-              </Box>
-            </Box>
-          ),
-          children: (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0,1fr)",
-                gap: 3,
-                minWidth: 0,
-                maxWidth: "100%",
-              }}
-            >
-              {feature.code === "hris" ? (
-                <HrisAccessFields form={form} item={item} options={options} onDirty={onDirty} />
-              ) : (
-                <PackageAccessFields
-                  form={form}
-                  options={options}
-                  optionsReady={optionsReady}
-                  existing={item?.packageAccess}
-                  organizationId={organizationId}
-                  onNavigate={onNavigate}
-                  onDirty={onDirty}
-                  embedded
-                />
-              )}
-              {!(feature.code === "hris" && full) ? (
-                <Box sx={{ pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
-                  <Button
-                    type="primary"
-                    danger
-                    icon={<DeleteOutlined />}
-                    aria-label={`Cabut fitur ${feature.label}`}
-                    onClick={() => removeFeature(feature.code)}
-                  >
-                    Cabut akses {feature.label}
-                  </Button>
+      {showHris || showInventory ? (
+        <Collapse
+          style={{ width: "100%", minWidth: 0 }}
+          activeKey={expanded}
+          onChange={(keys) => form.setFieldValue("expandedFeatureSections", keys)}
+          expandIconPlacement="end"
+          items={[
+            ...(showHris ? [{ code: "hris", label: "HRIS", icon: "navigation:employees" }] : []),
+            ...(showInventory
+              ? [{ code: "inventory", label: "Inventaris", icon: "navigation:inventory" }]
+              : []),
+          ].map((feature) => ({
+            key: feature.code,
+            forceRender: true,
+            label: (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  minWidth: 0,
+                  flexWrap: "wrap",
+                }}
+              >
+                <AppIcon icon={feature.icon} fontSize="22px" />
+                <Box sx={{ minWidth: 0 }}>
+                  <FontStyle component="h4" fontWeight={700}>
+                    {feature.label}
+                  </FontStyle>
+                  <FontStyle fontSize={12} color="text.secondary">
+                    {feature.code === "hris"
+                      ? full
+                        ? "Admin HRD penuh"
+                        : `${hrisGrants.filter((grant) => grant.key !== "dashboard").length + (accountMode !== "none" ? 1 : 0)} menu dipilih`
+                      : `${inventoryGrants.length} izin Inventaris`}
+                  </FontStyle>
                 </Box>
-              ) : null}
-            </Box>
-          ),
-        }))}
-      />
+              </Box>
+            ),
+            children: (
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0,1fr)",
+                  gap: 3,
+                  minWidth: 0,
+                  maxWidth: "100%",
+                }}
+              >
+                {feature.code === "hris" ? (
+                  <HrisAccessFields form={form} item={item} options={options} onDirty={onDirty} />
+                ) : (
+                  <PackageAccessFields
+                    form={form}
+                    options={options}
+                    optionsReady={optionsReady}
+                    existing={item?.packageAccess}
+                    organizationId={organizationId}
+                    onNavigate={onNavigate}
+                    onDirty={onDirty}
+                    embedded
+                  />
+                )}
+                {!(feature.code === "hris" && full) ? (
+                  <Box sx={{ pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+                    <Button
+                      type="primary"
+                      danger
+                      icon={<DeleteOutlined />}
+                      aria-label={`Cabut fitur ${feature.label}`}
+                      onClick={() => removeFeature(feature.code)}
+                    >
+                      Cabut akses {feature.label}
+                    </Button>
+                  </Box>
+                ) : null}
+              </Box>
+            ),
+          }))}
+        />
+      ) : null}
       {optionsReady && !canInventory && saved.some((feature) => feature.key === "inventory") ? (
         <Box sx={{ display: "grid", gap: 1.5 }}>
           <FontStyle fontWeight={600}>Inventaris · Akses tersimpan</FontStyle>
@@ -202,11 +214,6 @@ export default function FeatureAccessFields({
             </Box>
           ))}
         </Box>
-      ) : null}
-      {optionsReady && !available.length && !showHris && !showInventory && !saved.length ? (
-        <FontStyle explanation fontSize={12}>
-          Akun ini belum memiliki akses fitur tambahan.
-        </FontStyle>
       ) : null}
     </Box>
   );

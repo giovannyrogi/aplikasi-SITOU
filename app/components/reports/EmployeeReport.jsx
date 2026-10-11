@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Box, Typography } from "@mui/material";
-import { Alert, Button, DatePicker, Input, Select, Tooltip } from "antd";
+import { Button, DatePicker, Input, Select, Tooltip } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
@@ -485,10 +486,10 @@ export default function EmployeeReport({ kind }) {
           navigate({ organizationId });
         }}
       />
-      {referenceError && <Alert type="error" title={referenceError} showIcon />}
-      {exportError && <Alert type="error" title={exportError} showIcon />}
+      {referenceError && <AppNotice tone="danger" title={referenceError} />}
+      {exportError && <AppNotice tone="danger" title={exportError} />}
       {!organizationId ? (
-        <Alert type="info" title="Pilih organisasi untuk menampilkan laporan." showIcon />
+        <AppNotice tone="info" title="Pilih organisasi untuk menampilkan laporan." />
       ) : (
         <DataPanel
           title="Hasil laporan"

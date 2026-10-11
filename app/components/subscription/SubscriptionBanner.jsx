@@ -1,5 +1,6 @@
 "use client";
-import { Alert, Button } from "antd";
+import { Button } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 
 const formatDate = (value) =>
   value
@@ -32,9 +33,8 @@ export default function SubscriptionBanner({
       : "Masa akses organisasi segera berakhir";
 
   return (
-    <Alert
-      showIcon
-      type={grace || daysRemaining <= 7 ? "error" : "warning"}
+    <AppNotice
+      tone={grace || daysRemaining <= 7 ? "danger" : "warning"}
       title={title}
       description={`${Math.max(0, daysRemaining)} hari tersisa. Hubungi Superadmin untuk memastikan layanan tetap aktif.`}
       action={<Button onClick={onRenew}>Perpanjang</Button>}

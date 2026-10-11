@@ -148,11 +148,6 @@ export function AccountAccessDetails({ account, onClose }) {
                   </FontStyle>
                 </Box>
               ) : null}
-              {value.hrisAccess.legacy ? (
-                <FontStyle explanation fontSize={12}>
-                  Hak HRD lama masih berlaku sampai Superadmin menetapkan admin penuh.
-                </FontStyle>
-              ) : null}
               {[
                 ...new Set(
                   value.hrisAccess.grants

@@ -1,7 +1,7 @@
 "use client";
 
-import { canUseHrisRoute } from "@/lib/access/hrisPolicy.mjs";
-import { useEffect, useMemo, useState } from "react";
+import { accessChangeImpact, pageAccessState } from "@/lib/access/liveAccessPolicy.mjs";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, useTheme } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
 import Notification from "../Notifications/Notification";
@@ -13,6 +13,7 @@ import MobileLeftNavBar from "./MobileLeftNavBar";
 import TopMenu from "./TopMenu";
 import SubscriptionBanner from "../subscription/SubscriptionBanner";
 import ExpiredSessionModal from "../modals/ExpiredSessionModal";
+import AccessChangedModal from "../modals/AccessChangedModal";
 import { AuthenticatedUserProvider } from "../auth/AuthenticatedUserProvider";
 import { waitForMinimumDuration } from "@/lib/ui/minimumDuration.mjs";
 
@@ -26,57 +27,116 @@ export default function ProtectedShell({ user, children }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(5);
   const [access, setAccess] = useState(user.access);
+  const accessRef = useRef(user.access);
+  const changeModeRef = useRef(null);
+  const [accessChange, setAccessChange] = useState(null);
+  const [accessCountdown, setAccessCountdown] = useState(5);
+  const [contentRevision, setContentRevision] = useState(0);
   const menus = useMemo(
     () => getMenusByRole(MENU_CONFIG, user.role_code, access),
     [user.role_code, access],
   );
   useEffect(() => {
     const controller = new AbortController();
+    let latestRequest = 0;
+    let activeRequest = null;
     const refresh = async () => {
+      activeRequest?.abort();
+      const request = new AbortController();
+      activeRequest = request;
+      const requestNumber = ++latestRequest;
       try {
         const response = await fetch("/api/access/me", {
           cache: "no-store",
-          signal: controller.signal,
+          signal: request.signal,
         });
+        if (controller.signal.aborted || request.signal.aborted || requestNumber !== latestRequest)
+          return;
         if (response.status === 401) {
           setSessionExpired(true);
           return;
         }
         if (!response.ok) return;
         const body = await response.json();
-        setAccess(body.data);
-        if (
-          !canUseHrisRoute(
-            { role_code: user.role_code, hrisContext: body.data.hris },
-            pathname,
-            "GET",
-          )
-        )
-          router.replace("/dashboard");
-        const pagePermission = MENU_CONFIG.flatMap((menu) => menu.submenu || [menu]).find(
-          (entry) => entry.path === pathname,
-        )?.permission;
-        // Menu Inventaris dapat berada di Data Master/Laporan; pencabutan mengikuti permission halaman.
-        if (
-          user.role_code !== "superadmin" &&
-          pagePermission &&
-          !body.data.permissions?.includes(pagePermission)
-        )
-          router.replace("/dashboard");
+        if (controller.signal.aborted || request.signal.aborted || requestNumber !== latestRequest)
+          return;
+        const before = accessRef.current;
+        const next = body.data;
+        accessRef.current = next;
+        setAccess(next);
+        const impact = accessChangeImpact(user.role_code, pathname, before, next);
+        const page = pageAccessState(user.role_code, next, pathname);
+        if (impact) {
+          changeModeRef.current = impact;
+          setAccessChange(impact);
+          setAccessCountdown(5);
+          setDrawerOpen(false);
+          setContentRevision((revision) => revision + 1);
+        } else if (changeModeRef.current === "redirect" && page.canRead) {
+          // Jika izin dipulihkan sebelum hitungan berakhir, jangan tetap mengalihkan pengguna.
+          changeModeRef.current = null;
+          setAccessChange(null);
+          setContentRevision((revision) => revision + 1);
+        } else if (!page.canRead && pathname !== "/dashboard" && !changeModeRef.current) {
+          // Termasuk tautan lama yang dibuka setelah izin lebih dahulu dicabut.
+          changeModeRef.current = "redirect";
+          setAccessChange("redirect");
+          setAccessCountdown(5);
+          setDrawerOpen(false);
+        }
       } catch (error) {
         // Kegagalan jaringan mempertahankan snapshot terakhir; jangan kembali ke izin role legacy.
         if (error.name === "AbortError") return;
+      } finally {
+        if (activeRequest === request) activeRequest = null;
       }
     };
     void refresh();
-    window.addEventListener("focus", refresh);
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const interval =
+      user.role_code === "superadmin" ? null : window.setInterval(refreshIfVisible, 8000);
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
     window.addEventListener("sitou:access-changed", refresh);
+    window.addEventListener("sitou:permission-denied", refresh);
     return () => {
       controller.abort();
-      window.removeEventListener("focus", refresh);
+      activeRequest?.abort();
+      if (interval !== null) window.clearInterval(interval);
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
       window.removeEventListener("sitou:access-changed", refresh);
+      window.removeEventListener("sitou:permission-denied", refresh);
     };
   }, [pathname, router, user.role_code]);
+
+  useEffect(() => {
+    if (pathname === "/dashboard" && changeModeRef.current === "redirect") {
+      changeModeRef.current = null;
+      setAccessChange(null);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!accessChange || sessionExpired) return undefined;
+    const interval = window.setInterval(
+      () => setAccessCountdown((seconds) => Math.max(0, seconds - 1)),
+      1000,
+    );
+    const timeout = window.setTimeout(() => {
+      if (accessChange === "redirect") router.replace("/dashboard");
+      else {
+        changeModeRef.current = null;
+        setAccessChange(null);
+      }
+    }, 5000);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [accessChange, router, sessionExpired]);
 
   useEffect(() => {
     finishNavigationLoading();
@@ -234,8 +294,11 @@ export default function ProtectedShell({ user, children }) {
               }
             />
           </Box>
-          <AuthenticatedUserProvider user={{ ...user, access }}>
-            {children}
+          <AuthenticatedUserProvider key={contentRevision} user={{ ...user, access }}>
+            {accessChange === "redirect" ||
+            !pageAccessState(user.role_code, access, pathname).canRead
+              ? null
+              : children}
           </AuthenticatedUserProvider>
         </Box>
       </Box>
@@ -250,6 +313,17 @@ export default function ProtectedShell({ user, children }) {
         open={sessionExpired}
         secondsRemaining={redirectCountdown}
         onLogout={redirectToLogin}
+      />
+      <AccessChangedModal
+        mode={sessionExpired ? null : accessChange}
+        secondsRemaining={accessCountdown}
+        onContinue={() => {
+          if (accessChange === "redirect") router.replace("/dashboard");
+          else {
+            changeModeRef.current = null;
+            setAccessChange(null);
+          }
+        }}
       />
     </Box>
   );

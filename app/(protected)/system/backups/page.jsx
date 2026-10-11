@@ -12,12 +12,13 @@ import {
   ReloadOutlined,
   SafetyCertificateOutlined,
 } from "@ant-design/icons";
-import { Alert, Box, IconButton, InputAdornment, MenuItem, TextField } from "@mui/material";
+import { Box, IconButton, InputAdornment, MenuItem, TextField } from "@mui/material";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import AppModal from "@/app/components/modals/AppModal";
@@ -34,18 +35,6 @@ import BackupProgressPanel from "@/app/components/system-backup/BackupProgressPa
 import { formatBackupDate } from "@/lib/system-backup/timezone.mjs";
 import { BACKUP_HISTORY_PAGE_SIZE } from "@/lib/system-backup/pagination.mjs";
 import { paginationTotalLabel } from "@/app/components/data-display/rowNumbers.mjs";
-
-const alertTextSx = {
-  borderRadius: 2,
-  alignItems: "flex-start",
-  "& .MuiAlert-message": {
-    minWidth: 0,
-    textAlign: "justify",
-    textAlignLast: "left",
-    overflowWrap: "anywhere",
-    lineHeight: 1.7,
-  },
-};
 
 const labels = {
   queued: "Menunggu",
@@ -689,20 +678,20 @@ export default function SystemBackupsPage() {
         }
       />
 
-      <Alert severity="info" sx={alertTextSx}>
+      <AppNotice tone="info">
         Backup mencakup database serta seluruh isi folder upload: foto, dokumen, histori, draft, dan
         karantina dari semua organisasi. Hasil disimpan di server sampai Superadmin menghapusnya.
         Unduh juga ke tempat aman di luar server dan simpan kata sandinya sendiri. Jika ada catatan
         file yang tidak sesuai, daftar tindak lanjut tetap tersedia.
-      </Alert>
-      <Alert severity="warning" sx={alertTextSx}>
+      </AppNotice>
+      <AppNotice tone="warning">
         ZIP database dan ZIP semua file adalah unduhan terpisah dari backup yang sama. Buka dengan
         kata sandi melalui aplikasi ZIP AES-256. ZIP semua file cukup diekstrak sekali ke folder
         uploads. Daftar path dapat terlihat tanpa kata sandi; isi file tetap terenkripsi. Untuk
         pemulihan seluruh sistem gunakan paket lengkap; jangan memasangkan database dan file dari
         backup berbeda. ZIP semua file juga mencakup karantina; jangan membuka file yang terdeteksi
         berbahaya.
-      </Alert>
+      </AppNotice>
 
       <DataPanel
         title="Riwayat backup"
@@ -946,10 +935,10 @@ export default function SystemBackupsPage() {
               </Box>
             </Box>
           ) : null}
-          <Alert severity="warning" sx={alertTextSx}>
+          <AppNotice tone="warning">
             Paket berisi data sensitif. Simpan file dan kata sandinya secara terpisah; kata sandi
             tidak disimpan di server.
-          </Alert>
+          </AppNotice>
           <Box sx={{ display: "grid", gap: 2 }}>
             <FontStyle fontSize={14} variant="subtitle2" fontWeight={700}>
               Kata sandi paket
@@ -1109,12 +1098,12 @@ export default function SystemBackupsPage() {
               ))}
             </Box>
             {["ready", "ready_with_warnings"].includes(selected.status) ? (
-              <Alert severity="info" sx={alertTextSx}>
+              <AppNotice tone="info">
                 Untuk mengambil gambar atau dokumen, unduh ZIP semua file, buka dengan kata sandi,
                 ekstrak sekali untuk memperoleh folder uploads berisi foto dan dokumen. Untuk
                 DBeaver, ekstrak ZIP database dan pilih file sitou_db_backup bertanggal dengan
                 ekstensi .dump. Restore penuh memakai paket lengkap di server.
-              </Alert>
+              </AppNotice>
             ) : null}
             <Box sx={{ display: "grid", gap: 2, minWidth: 0 }}>
               {(activeStatuses.has(selected.status)
@@ -1276,12 +1265,12 @@ export default function SystemBackupsPage() {
                   </TextField>
                 </Box>
                 {issueError ? (
-                  <Alert
-                    severity="error"
+                  <AppNotice
+                    tone="danger"
                     action={<Button onClick={() => loadIssues(selected.id)}>Coba lagi</Button>}
                   >
                     {issueError}
-                  </Alert>
+                  </AppNotice>
                 ) : null}
                 {issues.map((issue) => (
                   <Box
@@ -1397,9 +1386,9 @@ export default function SystemBackupsPage() {
         }
       >
         <Box sx={{ display: "grid", gap: 2 }}>
-          <Alert severity="info" sx={alertTextSx}>
+          <AppNotice tone="info">
             Masukkan kata sandi paket utama. Sistem tidak menyimpan kata sandi Anda.
-          </Alert>
+          </AppNotice>
           <TextField
             label="Kata sandi backup"
             type={showRetryPassword ? "text" : "password"}
@@ -1478,9 +1467,9 @@ export default function SystemBackupsPage() {
             helpText="Pemeriksaan ini membandingkan file dengan paket asli di server."
           />
           {verifyResult ? (
-            <Alert severity={verifyResult.startsWith("File unduhan cocok") ? "success" : "error"}>
+            <AppNotice tone={verifyResult.startsWith("File unduhan cocok") ? "success" : "danger"}>
               {verifyResult}
-            </Alert>
+            </AppNotice>
           ) : null}
           <FontStyle fontSize={14} variant="body2" color="text.secondary">
             Untuk memeriksa isi dan kata sandi, jalankan alat pemeriksa lokal pada Windows atau
@@ -1530,14 +1519,14 @@ export default function SystemBackupsPage() {
                 )}
               </FontStyle>
             </Box>
-            <Alert severity="info" sx={alertTextSx}>
+            <AppNotice tone="info">
               Database aktif dan foto atau dokumen asli tidak dihapus. Riwayat backup, catatan
               penghapusan, dan temuan pemeriksaan tetap tersimpan.
-            </Alert>
-            <Alert severity="warning" sx={alertTextSx}>
+            </AppNotice>
+            <AppNotice tone="warning">
               Setelah dihapus, backup ini tidak dapat diunduh atau digunakan untuk pemulihan dari
               server.
-            </Alert>
+            </AppNotice>
           </Box>
         ) : null}
       </ConfirmDialog>

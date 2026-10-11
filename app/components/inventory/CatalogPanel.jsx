@@ -13,11 +13,13 @@ import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import AppModal from "@/app/components/modals/AppModal";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
-import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
+import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import PrivateFileUpload from "@/app/components/forms/PrivateFileUpload";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import Notification from "@/app/components/Notifications/Notification";
 import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
+import PhotoAvatar from "@/app/components/data-display/PhotoAvatar";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -28,6 +30,8 @@ import {
   itemWarehouseSchema,
 } from "@/lib/inventory/catalogSchemas";
 const NAMES = { items: "barang", categories: "kategori", units: "satuan" };
+const formatMinimum = (value) =>
+  new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 }).format(Number(value));
 function validatePayload(schema, payload) {
   const result = schema.safeParse(payload);
   if (result.success) return result.data;
@@ -48,6 +52,7 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
   const [optionsRevision, setOptionsRevision] = useState(0);
   const [edit, setEdit] = useState(null);
   const [warehouseItem, setWarehouseItem] = useState(null);
+  const [limitsPreview, setLimitsPreview] = useState(null);
   const [preview, setPreview] = useState(null);
   const { notification, showNotification, closeNotification } = useAppNotification();
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
@@ -92,34 +97,73 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
       });
     return values.length ? <RowActionMenu items={values} /> : null;
   };
+  const itemPhoto = (row) => {
+    const photoUrl =
+      row.photo_file_id && organizationId
+        ? `/api/uploads/${encodeURIComponent(row.photo_file_id)}?organizationId=${encodeURIComponent(organizationId)}`
+        : null;
+    return (
+      <PhotoAvatar
+        key={photoUrl || row.name}
+        name={row.name}
+        photoUrl={photoUrl}
+        photoLabel="Foto barang"
+        onPreview={() => setPreview(row)}
+      />
+    );
+  };
+  const warehouseLimits = (row) => {
+    const limits = row.warehouse_limits || [];
+    if (!limits.length)
+      return (
+        <FontStyle fontSize={12} sx={{ color: "text.secondary" }}>
+          Belum diatur di gudang yang dapat dilihat
+        </FontStyle>
+      );
+    return (
+      <Box sx={{ display: "grid", gap: 0.5, minWidth: 0 }}>
+        {limits.slice(0, 2).map((limit) => (
+          <FontStyle
+            key={limit.warehouse_name}
+            fontSize={12}
+            sx={{
+              lineHeight: 1.5,
+              overflowWrap: "anywhere",
+              color: limit.is_active ? "text.primary" : "text.secondary",
+            }}
+          >
+            {limit.warehouse_name}: {formatMinimum(limit.minimum_stock)} {row.unit_name}
+            {!limit.is_active ? " (tidak digunakan)" : ""}
+          </FontStyle>
+        ))}
+        {limits.length > 2 ? (
+          <Button
+            type="link"
+            size="small"
+            onClick={() => setLimitsPreview(row)}
+            style={{ justifySelf: "start", paddingInline: 0, minHeight: 44 }}
+          >
+            Lihat {limits.length - 2} gudang lainnya
+          </Button>
+        ) : null}
+      </Box>
+    );
+  };
   const columns = [
     ...(kind === "items"
       ? [
           {
             title: "Foto",
             key: "photo",
-            width: 72,
-            render: (_, row) =>
-              row.photo_file_id ? (
-                <Button
-                  onClick={() => setPreview(row)}
-                  aria-label={`Lihat foto ${row.name}`}
-                  style={{ padding: 0, width: 44, height: 44 }}
-                >
-                  <Box
-                    component="img"
-                    src={`/api/uploads/${row.photo_file_id}?organizationId=${organizationId}`}
-                    alt={row.name}
-                    sx={{ width: 42, height: 42, objectFit: "cover", borderRadius: 1 }}
-                  />
-                </Button>
-              ) : null,
+            width: 64,
+            render: (_, row) => itemPhoto(row),
           },
         ]
       : []),
     {
       title: kind === "items" ? "Barang" : kind === "categories" ? "Kategori" : "Satuan",
       key: "identity",
+      width: kind === "items" ? 200 : undefined,
       render: (_, row) => (
         <Box sx={{ display: "grid", gap: 0.75, justifyItems: "start", minWidth: 0 }}>
           <FontStyle fontWeight={700}>{row.name}</FontStyle>
@@ -150,12 +194,20 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
           {
             title: "Kategori",
             dataIndex: "category_name",
+            width: 160,
             render: (value) => <CompactInfoChip label={value} tone="neutral" />,
           },
           {
             title: "Satuan",
             dataIndex: "unit_name",
+            width: 90,
             render: (value) => <CompactInfoChip label={value} tone="info" />,
+          },
+          {
+            title: "Batas minimum",
+            key: "warehouse_limits",
+            width: 220,
+            render: (_, row) => warehouseLimits(row),
           },
         ]
       : []),
@@ -176,13 +228,14 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
     {
       title: "Status",
       dataIndex: "is_active",
+      width: kind === "items" ? 105 : undefined,
       render: (v) => <CompactInfoChip status={v ? "active" : "inactive"} />,
     },
     {
       title: "Aksi",
       key: "action",
       align: "center",
-      width: 88,
+      width: kind === "items" ? 76 : 88,
       render: (_, row) => (
         <Box sx={{ display: "flex", justifyContent: "center" }}>{actions(row)}</Box>
       ),
@@ -190,16 +243,12 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
   ];
   const card = (row) => (
     <Box sx={{ display: "grid", gap: 1.5 }}>
-      {kind === "items" && row.photo_file_id ? (
-        <Button
-          onClick={() => setPreview(row)}
-          style={{ justifySelf: "start" }}
-          aria-label={`Lihat foto ${row.name}`}
-        >
-          Lihat foto barang
-        </Button>
-      ) : null}
-      <FontStyle fontWeight={700}>{row.name}</FontStyle>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+        {kind === "items" ? itemPhoto(row) : null}
+        <FontStyle fontWeight={700} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+          {row.name}
+        </FontStyle>
+      </Box>
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, minWidth: 0 }}>
         {kind !== "units" ? <CompactInfoChip label={row.code} tone="info" /> : null}
         {kind === "items" ? (
@@ -216,6 +265,14 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
         ) : null}
       </Box>
       <CompactInfoChip status={row.is_active ? "active" : "inactive"} />
+      {kind === "items" ? (
+        <Box sx={{ display: "grid", gap: 0.75, minWidth: 0 }}>
+          <FontStyle fontSize={11.5} fontWeight={700}>
+            Batas stok minimum per gudang
+          </FontStyle>
+          {warehouseLimits(row)}
+        </Box>
+      ) : null}
       {kind === "categories" && row.notes?.trim() ? (
         <Box sx={{ display: "grid", gap: 0.75, minWidth: 0 }}>
           <FontStyle fontSize={11.5} fontWeight={600} sx={{ color: "text.secondary" }}>
@@ -298,6 +355,17 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
+          scrollX={kind === "items" ? 990 : 900}
+          tableSx={
+            kind === "items"
+              ? {
+                  "& .ant-table-wrapper .ant-table-thead > tr > th, & .ant-table-wrapper .ant-table-tbody > tr > td":
+                    {
+                      px: 1.5,
+                    },
+                }
+              : undefined
+          }
         />
       </DataPanel>
       <CatalogForm
@@ -318,20 +386,62 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
         organizationId={organizationId}
         options={options}
         onClose={() => setWarehouseItem(null)}
-        onSaved={(message) => showNotification(message)}
+        onSaved={async (message) => {
+          showNotification(message);
+          await list.refresh();
+        }}
         onError={(message) => showNotification(message, "error")}
       />
       <ImagePreviewModal
         open={Boolean(preview)}
         imageUrl={
           preview
-            ? `/api/uploads/${preview.photo_file_id}?organizationId=${organizationId}`
+            ? `/api/uploads/${encodeURIComponent(preview.photo_file_id)}?organizationId=${encodeURIComponent(organizationId)}`
             : undefined
         }
         alt={preview?.name}
         title="Foto barang"
         onClose={() => setPreview(null)}
       />
+      <AppModal
+        open={Boolean(limitsPreview)}
+        title="Batas stok minimum per gudang"
+        description={limitsPreview?.name}
+        icon="inventory:warehouse"
+        size="sm"
+        onClose={() => setLimitsPreview(null)}
+      >
+        <Box sx={{ display: "grid", gap: 2 }}>
+          {(limitsPreview?.warehouse_limits || []).map((limit) => (
+            <Box
+              key={limit.warehouse_name}
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 2,
+                minWidth: 0,
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                pb: 1.5,
+              }}
+            >
+              <FontStyle fontSize={13} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                {limit.warehouse_name}
+              </FontStyle>
+              <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+                <FontStyle fontSize={13} fontWeight={700}>
+                  {formatMinimum(limit.minimum_stock)} {limitsPreview?.unit_name}
+                </FontStyle>
+                {!limit.is_active ? (
+                  <FontStyle fontSize={11} sx={{ color: "text.secondary" }}>
+                    Tidak digunakan
+                  </FontStyle>
+                ) : null}
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      </AppModal>
       <Notification {...notification} onClose={closeNotification} />
     </Box>
   );
@@ -523,7 +633,12 @@ function CatalogForm({ kind, item, organizationId, options, onClose, onSaved, on
                 label="Satuan dasar"
                 extra={
                   item?.unit_locked ? (
-                    "Satuan terkunci karena barang sudah digunakan di gudang."
+                    <AppNotice
+                      compact
+                      tone="info"
+                      title="Satuan terkunci"
+                      description="Barang sudah digunakan dalam pengaturan gudang, sehingga satuan dasarnya tidak dapat diubah."
+                    />
                   ) : options && !options.units.some((row) => row.is_active) ? (
                     <PrerequisiteHint
                       text={
@@ -628,6 +743,7 @@ function ItemWarehouseForm({ item, organizationId, options, onClose, onSaved, on
     errors.current = onError;
   }, [onError]);
   const warehouseId = Form.useWatch("warehouseId", form);
+  const isActive = Form.useWatch("isActive", form);
   useEffect(() => {
     if (!item) return;
     dirty.current = false;
@@ -739,10 +855,15 @@ function ItemWarehouseForm({ item, organizationId, options, onClose, onSaved, on
                 .map((w) => ({ value: w.id, label: w.name }))}
             />
           </Form.Item>
+          <AppNotice
+            tone="info"
+            title="Batas minimum adalah ambang peringatan"
+            description="Angka di bawah tidak menambah stok barang. Jumlah stok akan dicatat melalui transaksi saat fitur stok tersedia. Setiap gudang dapat memiliki batas yang berbeda."
+            sx={{ mb: 3 }}
+          />
           <Form.Item
             name="minimumStock"
             label={`Batas stok minimum (${item?.unit_name || "satuan dasar"})`}
-            extra="Ini batas peringatan, bukan jumlah stok. Stok dicatat melalui transaksi pada tahap berikutnya."
             rules={[{ required: true, message: "Batas minimum wajib diisi." }]}
           >
             <InputNumber
@@ -753,11 +874,28 @@ function ItemWarehouseForm({ item, organizationId, options, onClose, onSaved, on
               style={{ width: "100%" }}
             />
           </Form.Item>
-          <FormSettingSwitch
-            name="isActive"
-            title="Barang digunakan di gudang ini"
-            description="Nonaktifkan untuk menghentikan pemilihan barang di gudang ini tanpa menghapus referensinya."
-          />
+          <FormSettingsGroup sx={{ mt: 3 }}>
+            <FormSettingSwitch
+              name="isActive"
+              title="Barang digunakan di gudang ini"
+              disabled={!warehouseId}
+            />
+          </FormSettingsGroup>
+          {warehouseId ? (
+            <AppNotice
+              compact
+              tone={isActive ? "info" : "warning"}
+              title={
+                isActive ? "Barang aktif di gudang ini" : "Barang tidak digunakan di gudang ini"
+              }
+              description={
+                isActive
+                  ? "Barang tersedia untuk dipilih pada transaksi gudang saat fitur stok tersedia."
+                  : "Barang tidak dapat dipilih untuk transaksi di gudang ini. Pengaturan dan riwayatnya tetap tersimpan."
+              }
+              sx={{ mt: 2 }}
+            />
+          ) : null}
         </Form>
       </AppModal>
       <ConfirmDialog

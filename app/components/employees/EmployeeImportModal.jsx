@@ -3,7 +3,8 @@
 import { readApiResponse } from "@/lib/api/clientError";
 
 import { useMemo, useState } from "react";
-import { Alert, Button, Collapse, Empty, Steps } from "antd";
+import { Button, Collapse, Empty, Steps } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import { DownloadOutlined } from "@ant-design/icons";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
@@ -179,9 +180,8 @@ export default function EmployeeImportModal({
 
         {step === 0 ? (
           <Box sx={{ mt: 3 }}>
-            <Alert
-              type="info"
-              showIcon
+            <AppNotice
+              tone="info"
               title="Import hanya membuat pegawai baru"
               description="Data pegawai yang memiliki NIP atau NIK sama akan ditolak. NIK wajib berisi 16 digit."
             />
@@ -329,10 +329,9 @@ export default function EmployeeImportModal({
               />
             </Box>
             {invalidGroups.length ? (
-              <Alert
+              <AppNotice
                 style={{ marginTop: 16 }}
-                type="warning"
-                showIcon
+                tone="warning"
                 title="Sebagian pegawai belum dapat diimpor"
                 description="Pegawai tersebut akan dilewati. Perbaiki file berdasarkan pesan di bawah, lalu import kembali sebagai batch baru."
                 action={
@@ -342,10 +341,9 @@ export default function EmployeeImportModal({
                 }
               />
             ) : (
-              <Alert
+              <AppNotice
                 style={{ marginTop: 16 }}
-                type="success"
-                showIcon
+                tone="success"
                 title="Seluruh pegawai siap diimpor"
               />
             )}

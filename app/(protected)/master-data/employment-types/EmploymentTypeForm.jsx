@@ -8,6 +8,7 @@ import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/For
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
+import { notifyPermissionDenied } from "@/lib/api/clientError";
 
 /** Form domain untuk jenis hubungan kerja yang dapat berbeda pada setiap organisasi. */
 export default function EmploymentTypeForm({
@@ -62,6 +63,7 @@ export default function EmploymentTypeForm({
           );
           const body = await response.json();
           if (!response.ok) {
+            notifyPermissionDenied(response);
             if (body.fieldErrors)
               form.setFields(
                 Object.entries(body.fieldErrors).map(([name, error]) => ({

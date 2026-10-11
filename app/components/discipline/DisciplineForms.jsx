@@ -4,11 +4,11 @@ import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 
 import { useEffect, useState } from "react";
 import { Button, DatePicker, Form, Input, Select } from "antd";
-import { InfoCircleOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
@@ -490,23 +490,9 @@ export function DisciplinaryActionRevokeForm({
           </FontStyle>
         </Box>
 
-        <Box
-          sx={{
-            p: 1.5,
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 1,
-            color: theme.status.info.text,
-            bgcolor: theme.status.info.background,
-            border: `1px solid ${theme.status.info.border}`,
-            borderRadius: "8px",
-          }}
-        >
-          <InfoCircleOutlined style={{ marginTop: 2 }} />
-          <FontStyle fontSize={11.5} sx={{ lineHeight: 1.6 }}>
-            Tindakan dan surat tetap tersimpan dalam histori.
-          </FontStyle>
-        </Box>
+        <AppNotice tone="info" compact>
+          Tindakan dan surat tetap tersimpan dalam histori.
+        </AppNotice>
 
         <Form form={form} layout="vertical" onFinish={submit}>
           <Form.Item

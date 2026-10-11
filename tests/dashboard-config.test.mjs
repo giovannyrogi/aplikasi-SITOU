@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
+  dashboardMetricCards,
+  ORGANIZATION_CHART_SECTIONS,
+  ORGANIZATION_CHART_SHAPES,
+} from "../lib/dashboard/cardCatalog.mjs";
+import {
   buildBirthdaySummary,
   buildEmployeeSummary,
   DASHBOARD_PERIODS,
@@ -20,6 +25,35 @@ test("periode dashboard hanya menerima pilihan yang disediakan", () => {
   assert.equal(normalizeDashboardPeriod("24m"), "24m");
   assert.equal(normalizeDashboardPeriod("36m"), "12m");
   assert.deepEqual(DASHBOARD_PERIODS, { "6m": 6, "12m": 12, "24m": 24 });
+});
+
+test("kartu HRD tanpa izin hanya berisi metadata publik, bukan nilai tersembunyi", () => {
+  const cards = dashboardMetricCards({ sections: [], metrics: [] });
+  assert.equal(cards.length, 6);
+  assert.ok(cards.every((card) => card.locked && card.metric === undefined));
+  assert.equal(cards.find((card) => card.key === "currentLeave").section, "leave");
+  assert.equal(ORGANIZATION_CHART_SECTIONS.contracts, "contracts");
+  assert.deepEqual(ORGANIZATION_CHART_SHAPES, {
+    growth: "area",
+    locations: "horizontal",
+    units: "horizontal",
+    contracts: "stacked",
+    retirement: "retirement",
+    discipline: "list",
+  });
+});
+
+test("izin parsial hanya memasangkan metrik dari section yang diberikan server", () => {
+  const cards = dashboardMetricCards({
+    sections: ["leave"],
+    metrics: [
+      { key: "currentLeave", value: 3 },
+      { key: "activeEmployees", value: 999 },
+    ],
+  });
+  assert.equal(cards.find((card) => card.key === "currentLeave").metric.value, 3);
+  assert.equal(cards.find((card) => card.key === "activeEmployees").metric, undefined);
+  assert.equal(cards.filter((card) => card.locked).length, 5);
 });
 
 test("aktivitas audit diterjemahkan tanpa mengekspos payload", () => {

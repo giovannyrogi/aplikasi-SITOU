@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Form, Input, InputNumber } from "antd";
+import { Button, Form, Input, InputNumber } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import AppModal from "../modals/AppModal";
 import ConfirmDialog from "../actions/ConfirmDialog";
 import Notification from "../Notifications/Notification";
@@ -142,9 +143,8 @@ export default function RetirementPolicyEditor({ organization, policy, onClose, 
               placeholder="Jelaskan dasar atau alasan penetapan usia pensiun"
             />
           </Form.Item>
-          <Alert
-            showIcon
-            type="info"
+          <AppNotice
+            tone="info"
             title="Berlaku untuk seluruh organisasi"
             description="Proyeksi pada dashboard, laporan, dan Excel mengikuti usia terbaru. Status pegawai tetap diproses oleh HRD."
             style={{ marginTop: 24 }}

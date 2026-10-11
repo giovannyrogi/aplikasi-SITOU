@@ -36,13 +36,21 @@ test("HRIS memakai katalog tertutup dan izin perubahan terpisah", () => {
   assert.equal(canUseHrisRoute(actor([], true), "/api/payroll", "GET"), false);
 });
 
-test("Admin penuh, legacy, dashboard kosong, dan akses fitur tetap terpisah", () => {
+test("Admin penuh, grant eksplisit, dashboard kosong, dan akses fitur tetap terpisah", () => {
+  assert.equal(canUseHrisRoute({ role_code: "hrd" }, "/employees", "GET"), false);
+  assert.equal(accountCapabilities({ role_code: "hrd" }).canManageAccounts, false);
+  assert.equal(hrisLevel({ role_code: "hrd" }, "employees"), null);
   assert.ok(canUseHrisRoute(actor([], true), "/access/accounts", "GET"));
   assert.equal(canUseHrisRoute(actor(), "/access/accounts", "GET"), false);
   assert.ok(canUseHrisRoute(actor(), "/dashboard", "GET"));
   assert.equal(canUseHrisRoute(actor(), "/api/dashboard/summary", "GET"), true);
-  assert.ok(
-    canUseHrisRoute({ role_code: "hrd", hrisContext: { configured: false } }, "/employees", "GET"),
+  assert.equal(
+    canUseHrisRoute(
+      { role_code: "hrd", hrisContext: { configured: false, fullAdmin: false, grants: [] } },
+      "/employees",
+      "GET",
+    ),
+    false,
   );
   assert.equal(hrisLevel({ role_code: "employee" }, "employees"), null);
   assert.ok(canUseHrisRoute(actor(), "/api/inventory/warehouses", "GET"));

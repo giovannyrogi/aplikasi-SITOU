@@ -7,6 +7,7 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import { accessFeatureDescription } from "@/lib/access/featureLabels.mjs";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import AccessExplanation from "./AccessExplanation";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import { SCOPE_DESCRIPTIONS, FEATURE_DESCRIPTIONS } from "@/lib/access/accessDescriptions.mjs";
 
 function PackageRow({
@@ -217,10 +218,10 @@ export default function PackageAccessFields({
         Inventaris.
       </FontStyle>
       {optionsReady && !options.inventoryEnabled ? (
-        <FontStyle explanation fontSize={12}>
-          Fitur Inventaris belum aktif. Minta Superadmin mengaktifkannya. Pengaturan akses
-          sebelumnya tetap tersimpan.
-        </FontStyle>
+        <AppNotice tone="warning" compact title="Inventaris belum aktif">
+          Minta Superadmin membuka Data Master → Organisasi → Kelola fitur untuk mengaktifkannya.
+          Akses yang sudah tersimpan tidak dihapus.
+        </AppNotice>
       ) : null}
       <Form.List name="packageAccess">
         {(fields, { add, remove }) => (

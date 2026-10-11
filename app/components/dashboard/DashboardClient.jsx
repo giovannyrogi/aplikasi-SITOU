@@ -1,5 +1,9 @@
 "use client";
-import { dashboardSectionsFor } from "@/lib/dashboard/accessPolicy.mjs";
+import {
+  dashboardMetricCards,
+  ORGANIZATION_CHART_SECTIONS,
+  ORGANIZATION_CHART_SHAPES,
+} from "@/lib/dashboard/cardCatalog.mjs";
 
 import { readApiResponse } from "@/lib/api/clientError";
 
@@ -18,6 +22,7 @@ import DashboardActivityList from "./DashboardActivityList";
 import DashboardAttentionList from "./DashboardAttentionList";
 import DashboardChart from "./DashboardChart";
 import DashboardMetric from "./DashboardMetric";
+import DashboardCardPlaceholder from "./DashboardCardPlaceholder";
 import RetirementSummary from "./RetirementSummary";
 import EmployeeCompositionSummary from "./EmployeeCompositionSummary";
 import HorizontalBarChart from "./HorizontalBarChart";
@@ -33,12 +38,7 @@ const DASHBOARD_TITLE = "Dashboard monitoring";
 /** Pegawai hanya mendapat header; komponen data organisasi tidak dipasang. */
 export default function DashboardClient() {
   const user = useAuthenticatedUser();
-  if (
-    user.role_code === ROLES.EMPLOYEE ||
-    (user.role_code === "hrd" &&
-      !(user.access?.dashboardSections || dashboardSectionsFor(user)).length)
-  )
-    return <PageHeader title={DASHBOARD_TITLE} />;
+  if (user.role_code === ROLES.EMPLOYEE) return <PageHeader title={DASHBOARD_TITLE} />;
   return <OrganizationDashboard />;
 }
 
@@ -52,7 +52,7 @@ function hasChartValues(chart) {
 }
 
 /** Menentukan grafik operasional berdasarkan scope tanpa membedakan data non-sensitif per role. */
-function buildChartDefinitions(data) {
+function buildChartDefinitions(data, showLocked = false) {
   if (!data) return [];
   if (data.scope === "platform") {
     return [
@@ -131,13 +131,22 @@ function buildChartDefinitions(data) {
       icon: "solar:shield-warning-bold-duotone",
       Component: HorizontalBarChart,
     },
-  ].filter((chart) =>
-    chart.key === "retirement"
-      ? Boolean(data.retirementSummary)
-      : chart.key === "discipline"
-        ? Array.isArray(data.recentDiscipline)
-        : Object.hasOwn(data.charts || {}, chart.key),
+  ].filter(
+    (chart) =>
+      showLocked ||
+      (chart.key === "retirement"
+        ? Boolean(data.retirementSummary)
+        : chart.key === "discipline"
+          ? Array.isArray(data.recentDiscipline)
+          : Object.hasOwn(data.charts || {}, chart.key)),
   );
+}
+
+/** Membagi sisa satu baris KPI secara merata tanpa mengubah urutan bacaan. */
+function metricSpan(index, count, columns) {
+  if (columns === 1) return 1;
+  const rest = count % columns;
+  return rest && index >= count - rest ? columns / rest : 1;
 }
 
 /** Dashboard utama yang mengubah data dan hierarchy visual berdasarkan role session. */
@@ -145,6 +154,7 @@ function OrganizationDashboard() {
   const theme = useTheme();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
+  const isHrd = user.role_code === ROLES.HRD;
   const [organizationId, setOrganizationId] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [state, setState] = useState({ loading: true, data: null, error: "" });
@@ -164,21 +174,64 @@ function OrganizationDashboard() {
     const controller = new AbortController();
     const query = new URLSearchParams();
     if (isSuperadmin && organizationId) query.set("organizationId", organizationId);
-    fetch(`/api/dashboard/summary?${query}`, { signal: controller.signal })
-      .then(async (response) => {
+    let inFlight = false;
+    let lastSections = null;
+    const refresh = async () => {
+      if (inFlight || controller.signal.aborted) return;
+      inFlight = true;
+      try {
+        const response = await fetch(`/api/dashboard/summary?${query}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
         const body = await readApiResponse(response, "Dashboard belum dapat dimuat.");
-        return body.data;
-      })
-      .then((data) => setState({ loading: false, data, error: "" }))
-      .catch((error) => {
-        if (error.name !== "AbortError") {
+        if (!controller.signal.aborted) {
+          const nextSections = isHrd ? JSON.stringify(body.data?.sections || []) : null;
+          if (lastSections !== null && nextSections !== lastSections)
+            window.dispatchEvent(new Event("sitou:access-changed"));
+          lastSections = nextSections;
+          setState({ loading: false, data: body.data, error: "" });
+        }
+      } catch (error) {
+        if (!controller.signal.aborted && error.name !== "AbortError") {
+          // Jangan mempertahankan data lama bila izin berubah atau sesi berakhir.
           setState({ loading: false, data: null, error: error.message });
         }
-      });
-    return () => controller.abort();
-  }, [isSuperadmin, organizationId, reloadKey]);
+      } finally {
+        inFlight = false;
+      }
+    };
+    void refresh();
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    // Izin dapat diubah dari sesi lain; tab aktif memeriksanya tanpa perlu reload halaman.
+    const interval = isHrd ? window.setInterval(refreshIfVisible, 8000) : null;
+    if (isHrd) {
+      window.addEventListener("focus", refreshIfVisible);
+      document.addEventListener("visibilitychange", refreshIfVisible);
+    }
+    return () => {
+      controller.abort();
+      if (interval !== null) window.clearInterval(interval);
+      if (isHrd) {
+        window.removeEventListener("focus", refreshIfVisible);
+        document.removeEventListener("visibilitychange", refreshIfVisible);
+      }
+    };
+  }, [isHrd, isSuperadmin, organizationId, reloadKey]);
 
-  const charts = useMemo(() => buildChartDefinitions(state.data), [state.data]);
+  const charts = useMemo(() => buildChartDefinitions(state.data, isHrd), [state.data, isHrd]);
+  const sections = new Set(state.data?.sections || []);
+  const restricted = isHrd && !state.loading && !sections.size;
+  const metricCards =
+    !state.loading && isHrd
+      ? dashboardMetricCards(state.data)
+      : state.loading
+        ? Array.from({ length: isSuperadmin && !organizationId ? 5 : 6 }, (_, index) => ({
+            key: `loading-${index}`,
+          }))
+        : (state.data?.metrics || []).map((metric) => ({ key: metric.key, metric }));
   const attentionCount = state.data?.attentionItems?.length || 0;
   const pageDescription = isSuperadmin
     ? organizationId
@@ -195,7 +248,10 @@ function OrganizationDashboard() {
         description={pageDescription}
         metadata={
           <>
-            <CompactInfoChip label="Kondisi operasional saat ini" tone="info" />
+            <CompactInfoChip
+              label={restricted ? "Akses dashboard terbatas" : "Kondisi operasional saat ini"}
+              tone={restricted ? "warning" : "info"}
+            />
             {state.data?.generatedAt ? (
               <CompactInfoChip
                 label={`Diperbarui ${generatedAtFormatter.format(new Date(state.data.generatedAt))}`}
@@ -242,11 +298,12 @@ function OrganizationDashboard() {
             elevation={0}
             sx={{
               p: { xs: 2, sm: 2.5 },
-              border: `1px solid ${attentionCount ? theme.status.warning.border : theme.status.success.border}`,
+              border: `1px solid ${restricted || attentionCount ? theme.status.warning.border : theme.status.success.border}`,
               borderRadius: "8px",
-              bgcolor: attentionCount
-                ? theme.status.warning.background
-                : theme.status.success.background,
+              bgcolor:
+                restricted || attentionCount
+                  ? theme.status.warning.background
+                  : theme.status.success.background,
               display: "flex",
               alignItems: { xs: "flex-start", sm: "center" },
               justifyContent: "space-between",
@@ -264,31 +321,40 @@ function OrganizationDashboard() {
                   placeItems: "center",
                   flexShrink: 0,
                   bgcolor: theme.ui.panelBg,
-                  color: attentionCount ? theme.status.warning.main : theme.status.success.main,
+                  color:
+                    restricted || attentionCount
+                      ? theme.status.warning.main
+                      : theme.status.success.main,
                 }}
               >
                 <AppIcon
                   icon={
-                    attentionCount
-                      ? "solar:danger-triangle-bold-duotone"
-                      : "solar:shield-check-bold-duotone"
+                    restricted
+                      ? "solar:lock-password-bold-duotone"
+                      : attentionCount
+                        ? "solar:danger-triangle-bold-duotone"
+                        : "solar:shield-check-bold-duotone"
                   }
                   width={24}
                 />
               </Box>
               <Box sx={{ minWidth: 0 }}>
                 <FontStyle component="h2" fontSize={15} fontWeight={700}>
-                  {attentionCount
-                    ? `${attentionCount} prioritas ditampilkan`
-                    : "Operasional stabil"}
+                  {restricted
+                    ? "Akses dashboard terbatas"
+                    : attentionCount
+                      ? `${attentionCount} prioritas ditampilkan`
+                      : "Operasional stabil"}
                 </FontStyle>
                 <FontStyle
                   fontSize={11.5}
                   sx={{ mt: 0.35, color: theme.ui.mutedText, lineHeight: 1.55 }}
                 >
-                  {attentionCount
-                    ? "Periksa daftar prioritas agar administrasi penting dapat segera ditindaklanjuti."
-                    : "Belum ada kondisi mendesak pada data yang dapat Anda akses saat ini."}
+                  {restricted
+                    ? "Data operasional tidak ditampilkan karena akun ini belum memiliki akses fitur terkait."
+                    : attentionCount
+                      ? "Periksa daftar prioritas agar administrasi penting dapat segera ditindaklanjuti."
+                      : "Belum ada kondisi mendesak pada data yang dapat Anda akses saat ini."}
                 </FontStyle>
               </Box>
             </Box>
@@ -311,28 +377,50 @@ function OrganizationDashboard() {
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "repeat(2, minmax(0, 1fr))",
-                md: "repeat(3, minmax(0, 1fr))",
+                md: "repeat(6, minmax(0, 1fr))",
               },
               gap: { xs: 1.5, md: 2 },
             }}
           >
-            {(state.loading
-              ? Array.from({ length: 6 }, (_, index) => ({ key: index }))
-              : state.data?.metrics || []
-            ).map((metric) => (
-              <DashboardMetric key={metric.key} metric={metric} loading={state.loading} />
+            {metricCards.map((card, index) => (
+              <Box
+                key={card.key}
+                sx={{
+                  minWidth: 0,
+                  gridColumn: {
+                    xs: "span 1",
+                    sm: `span ${metricSpan(index, metricCards.length, 2)}`,
+                    md: `span ${metricSpan(index, metricCards.length, 3) * 2}`,
+                  },
+                }}
+              >
+                {card.locked || (!state.loading && !card.metric) ? (
+                  <DashboardCardPlaceholder title={card.label} kind="metric" locked={card.locked} />
+                ) : (
+                  <DashboardMetric metric={card.metric} loading={state.loading} />
+                )}
+              </Box>
             ))}
           </Box>
 
-          {(state.loading || state.data?.birthdaySummary) && (!isSuperadmin || organizationId) ? (
-            <BirthdaySpotlight data={state.data?.birthdaySummary} loading={state.loading} />
+          {(!isSuperadmin || organizationId) &&
+          (state.loading || isHrd || state.data?.birthdaySummary) ? (
+            isHrd && !state.loading && !sections.has("employees") ? (
+              <DashboardCardPlaceholder title="Ulang tahun pegawai" kind="birthday" />
+            ) : (
+              <BirthdaySpotlight data={state.data?.birthdaySummary} loading={state.loading} />
+            )
           ) : null}
 
-          {state.loading || state.data?.employeeSummary ? (
-            <EmployeeCompositionSummary
-              data={state.data?.employeeSummary}
-              loading={state.loading}
-            />
+          {state.loading || isHrd || state.data?.employeeSummary ? (
+            isHrd && !state.loading && !sections.has("employees") ? (
+              <DashboardCardPlaceholder title="Ringkasan komposisi pegawai" kind="composition" />
+            ) : (
+              <EmployeeCompositionSummary
+                data={state.data?.employeeSummary}
+                loading={state.loading}
+              />
+            )
           ) : null}
 
           <Box
@@ -343,6 +431,7 @@ function OrganizationDashboard() {
               gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" },
               gap: { xs: 2, md: 3 },
               alignItems: "stretch",
+              "& > :last-child": { gridColumn: { lg: charts.length % 2 ? "1 / -1" : "auto" } },
             }}
           >
             {(state.loading
@@ -351,6 +440,20 @@ function OrganizationDashboard() {
                 }))
               : charts
             ).map((chart, index) => {
+              if (isHrd && !state.loading && !sections.has(ORGANIZATION_CHART_SECTIONS[chart.key]))
+                return (
+                  <DashboardCardPlaceholder
+                    key={chart.key}
+                    title={
+                      chart.key === "retirement"
+                        ? "Proyeksi pensiun"
+                        : chart.key === "discipline"
+                          ? "Kasus disiplin terbaru"
+                          : chart.title
+                    }
+                    kind={ORGANIZATION_CHART_SHAPES[chart.key]}
+                  />
+                );
               if (chart.key === "discipline")
                 return (
                   <DashboardAttentionList
@@ -398,16 +501,24 @@ function OrganizationDashboard() {
               gap: { xs: 2, md: 3 },
             }}
           >
-            {state.loading || state.data?.attentionItems ? (
-              <DashboardAttentionList
-                items={state.data?.attentionItems}
-                loading={state.loading}
-                organizationId={organizationId}
-                isSuperadmin={isSuperadmin}
-              />
+            {state.loading || isHrd || state.data?.attentionItems ? (
+              restricted ? (
+                <DashboardCardPlaceholder title="Perlu ditinjau" kind="list" />
+              ) : (
+                <DashboardAttentionList
+                  items={state.data?.attentionItems}
+                  loading={state.loading}
+                  organizationId={organizationId}
+                  isSuperadmin={isSuperadmin}
+                />
+              )
             ) : null}
-            {state.loading || state.data?.activities ? (
-              <DashboardActivityList items={state.data?.activities} loading={state.loading} />
+            {state.loading || isHrd || state.data?.activities ? (
+              restricted ? (
+                <DashboardCardPlaceholder title="Aktivitas terbaru" kind="list" />
+              ) : (
+                <DashboardActivityList items={state.data?.activities} loading={state.loading} />
+              )
             ) : null}
           </Box>
         </>

@@ -73,8 +73,8 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
       </Form.Item>
       {!options.hrisConfigured ? (
         <FontStyle explanation fontSize={12}>
-          Hak HRD lama masih berlaku sampai Superadmin menetapkan admin penuh. Setelah itu, akun
-          mengikuti pengaturan aksesnya.
+          Admin HRD penuh belum ditetapkan. Pilihan menu dan Akun & Akses yang disimpan tetap
+          langsung berlaku untuk akun ini.
         </FontStyle>
       ) : null}
       {full ? (

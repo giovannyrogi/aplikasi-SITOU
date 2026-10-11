@@ -166,3 +166,13 @@ none/manage/manage_and_delegate; omission mempertahankan. Uji upgrade/bootstrap,
 CRUD vs delegasi, scope, rollback/audit/session aktif melalui test:inventory:http
 pada database terpisah. npm run db:migrate adalah runner khusus development;
 produksi memakai prosedur migration lingkungan yang berlaku.
+
+## 053 — Hak HRD lama menjadi pilihan eksplisit
+
+Terapkan `20261010_053_hris_explicit_legacy_access.sql` setelah 052, sebelum deploy
+web baru. Migration ini memberi semua 14 grant HRIS dan kedua kewenangan Akun &
+Akses kepada akun HRD lama yang sebelumnya masih memakai fallback penuh. Akun yang
+sudah mempunyai `user_hris_access_settings` tidak diubah. Setelah upgrade, edit
+hak tiap akun melalui dashboard untuk mengurangi akses; kode baru tidak membaca
+fallback lama. Jalankan saat layanan SITOU berhenti agar perubahan akun tidak
+bertabrakan dengan backfill, lalu jalankan `npm run db:check`.

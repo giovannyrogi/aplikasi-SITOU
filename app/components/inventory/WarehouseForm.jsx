@@ -8,6 +8,7 @@ import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import usePrerequisiteNavigation from "@/app/hooks/usePrerequisiteNavigation";
 import PrerequisiteHint from "@/app/components/forms/PrerequisiteHint";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 export default function WarehouseForm({ open, item, organizationId, onClose, onSaved, onError }) {
@@ -166,7 +167,12 @@ export default function WarehouseForm({ open, item, organizationId, onClose, onS
             rules={[{ required: true, message: "Lokasi wajib dipilih." }]}
             extra={
               item?.location_locked ? (
-                "Lokasi terkunci karena gudang sudah digunakan dalam pengaturan akses fitur."
+                <AppNotice
+                  compact
+                  tone="info"
+                  title="Lokasi terkunci"
+                  description="Gudang sudah digunakan dalam pengaturan akses fitur, sehingga lokasinya tidak dapat diubah."
+                />
               ) : ready && !locations.some((location) => !location.disabled) ? (
                 <PrerequisiteHint
                   text={

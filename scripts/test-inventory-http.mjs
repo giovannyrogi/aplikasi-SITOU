@@ -155,6 +155,58 @@ try {
   };
   const superadmin = await actor("superadmin");
   const hrd = await actor("hrd", org.id);
+  const reviewedBeforeUpgrade = await actor("hrd", org.id, "reviewed_before_053");
+  await db.query(
+    "INSERT INTO user_hris_menu_grants(organization_id,membership_id,menu_code,access_level) VALUES($1,$2,'master-positions','read')",
+    [org.id, reviewedBeforeUpgrade.membership],
+  );
+  await db.query(
+    "INSERT INTO user_hris_access_settings(organization_id,membership_id) VALUES($1,$2)",
+    [org.id, reviewedBeforeUpgrade.membership],
+  );
+  // Upgrade akun lama: hak efektif dibekukan sebagai grant sebelum fallback dihapus.
+  await db.query(
+    await readFile("database/migrations/20261010_053_hris_explicit_legacy_access.sql", "utf8"),
+  );
+  assert.equal(
+    (
+      await db.query(
+        "SELECT count(*)::int total FROM user_hris_menu_grants WHERE organization_id=$1 AND membership_id=$2",
+        [org.id, hrd.membership],
+      )
+    ).rows[0].total,
+    14,
+  );
+  assert.deepEqual(
+    (
+      await db.query(
+        "SELECT can_manage_employee_accounts,can_delegate_employee_features FROM user_hris_access_settings WHERE organization_id=$1 AND membership_id=$2",
+        [org.id, hrd.membership],
+      )
+    ).rows[0],
+    { can_manage_employee_accounts: true, can_delegate_employee_features: true },
+  );
+  assert.equal(
+    (
+      await db.query(
+        "SELECT count(*)::int total FROM user_hris_menu_grants WHERE organization_id=$1 AND membership_id=$2",
+        [org.id, reviewedBeforeUpgrade.membership],
+      )
+    ).rows[0].total,
+    1,
+  );
+  await db.query(
+    "DELETE FROM user_hris_access_settings WHERE organization_id=$1 AND membership_id=$2",
+    [org.id, reviewedBeforeUpgrade.membership],
+  );
+  await db.query(
+    "DELETE FROM user_hris_menu_grants WHERE organization_id=$1 AND membership_id=$2",
+    [org.id, reviewedBeforeUpgrade.membership],
+  );
+  await db.query("DELETE FROM user_organization_roles WHERE id=$1", [
+    reviewedBeforeUpgrade.membership,
+  ]);
+  await db.query("DELETE FROM users WHERE id=$1", [reviewedBeforeUpgrade.id]);
   const employeeProfile = async (nip) => {
     const id = (
       await db.query(
@@ -619,6 +671,10 @@ try {
   const masterProfile = await employeeProfile("UJI_PENGELOLA_MASTER");
   const masterGrant = { packageCode: "inventory_master", scopeMode: "all", warehouseIds: [] };
   const fullHrd = await actor("hrd", org.id, "qa_hrd_full_master");
+  await db.query(
+    "INSERT INTO user_hris_access_settings(organization_id,membership_id,can_manage_employee_accounts,can_delegate_employee_features) VALUES($1,$2,true,true)",
+    [org.id, fullHrd.membership],
+  );
   const masterAccount = expect(
     await req("/api/access/accounts", fullHrd.cookie, "POST", {
       ...input,
@@ -850,6 +906,30 @@ try {
     await req(`${catalog}/items/${item.id}/warehouses`, combinedCookie, "PUT", configInput),
     200,
   );
+  const extraWarehouse = expect(
+    await req(warehouses, superadmin.cookie, "POST", warehouseInput(org.locations[0], "KEDUA")),
+    201,
+  );
+  expect(
+    await req(`${catalog}/items/${item.id}/warehouses`, superadmin.cookie, "PUT", {
+      ...configInput,
+      warehouseId: Number(extraWarehouse.id),
+      minimumStock: 9,
+    }),
+    200,
+  );
+  const scopedItem = expect(
+    await req(`${catalog}/items?organizationId=${org.id}`, employeeCookie),
+    200,
+  ).find((row) => row.id === item.id);
+  assert.deepEqual(scopedItem.warehouse_limits, [
+    { warehouse_name: "Gudang Bersehati", minimum_stock: "12.000", is_active: true },
+  ]);
+  const fullItem = expect(
+    await req(`${catalog}/items?organizationId=${org.id}`, superadmin.cookie),
+    200,
+  ).find((row) => row.id === item.id);
+  assert.equal(fullItem.warehouse_limits.length, 2);
   expect(
     await req(`${catalog}/items/${item.id}/warehouses`, employeeCookie, "PUT", configInput),
     409,
@@ -1161,6 +1241,14 @@ try {
     await page.goto(base + "/master-data/inventory-items");
     await page.getByRole("heading", { name: "Barang Persediaan", exact: true }).waitFor();
     await page.getByText("Kertas HVS A4", { exact: true }).first().waitFor();
+    if (width < 768) {
+      const itemCard = page.locator("[data-responsive-card]").filter({ hasText: "Kertas HVS A4" });
+      await itemCard.getByLabel("Inisial Kertas HVS A4").waitFor();
+      assert.equal(await itemCard.getByRole("button", { name: /Perbesar foto barang/ }).count(), 0);
+    } else {
+      const itemRow = page.getByRole("row").filter({ hasText: "Kertas HVS A4" });
+      await itemRow.getByLabel("Inisial Kertas HVS A4").waitFor();
+    }
     await page.getByRole("button", { name: /Tambah barang$/ }).waitFor();
     assert.equal(await page.getByRole("button", { name: /Tambah barang$/ }).count(), 1);
     if (width === 320) {
@@ -1192,6 +1280,13 @@ try {
         .filter({ hasText: /^Gudang Bersehati$/ })
         .click();
       await dialog.getByLabel("Batas stok minimum (Rim)").fill("15");
+      await dialog.getByText("Batas minimum adalah ambang peringatan").waitFor();
+      await dialog.getByText("Barang aktif di gudang ini").waitFor();
+      await page.locator(".ant-select-dropdown:visible").waitFor({ state: "hidden" });
+      await page.screenshot({
+        path: path.join(screenshots, "item-warehouse-form-320.png"),
+        fullPage: true,
+      });
       await dialog.getByRole("button", { name: "Simpan pengaturan", exact: true }).click();
       await dialog.waitFor({ state: "hidden" });
       assert.equal(
@@ -1203,6 +1298,11 @@ try {
         ).rows[0].minimum_stock,
         "15.000",
       );
+      await page
+        .locator("[data-responsive-card]")
+        .filter({ hasText: "Kertas HVS A4" })
+        .getByText("Gudang Bersehati: 15 Rim")
+        .waitFor();
     }
     await page.goto(base + "/inventory/stock");
     await page.getByText("Stok Barang", { exact: true }).last().waitFor();
@@ -1345,6 +1445,18 @@ try {
   assert.ok(Number.isFinite(featurePlan.rows[0]["QUERY PLAN"][0]["Execution Time"]));
   await adminPage.goto(`${base}/inventory/catalog?organizationId=${org.id}&tab=items`);
   await adminPage.getByText("Kertas HVS A4", { exact: true }).waitFor();
+  const tableContent = await adminPage.locator(".ant-table-content").evaluate((element) => ({
+    scrollWidth: element.scrollWidth,
+    clientWidth: element.clientWidth,
+  }));
+  await adminPage.screenshot({
+    path: path.join(screenshots, "inventory-limits-1366.png"),
+    fullPage: true,
+  });
+  assert.ok(
+    tableContent.scrollWidth <= tableContent.clientWidth + 2,
+    `Tabel Inventaris perlu scroll horizontal pada 1366px: ${tableContent.scrollWidth}/${tableContent.clientWidth}`,
+  );
   const itemRowUI = adminPage.getByRole("row").filter({ hasText: "Kertas HVS A4" });
   await itemRowUI.getByRole("button", { name: "Buka menu aksi" }).click();
   await adminPage
@@ -1389,6 +1501,15 @@ try {
     (await db.query("SELECT count(*)::int count FROM stored_files")).rows[0].count,
     photoCount,
   );
+  const currentItem = await getItem();
+  expect(await multipartPhoto({ ...itemInput, version: currentItem.version }, image), 200);
+  await adminPage.setViewportSize({ width: 1366, height: 950 });
+  await adminPage.goto(`${base}/master-data/inventory-items?organizationId=${org.id}`);
+  const photoRow = adminPage.getByRole("row").filter({ hasText: "Kertas HVS A4" });
+  await photoRow.getByRole("button", { name: "Perbesar foto barang Kertas HVS A4" }).click();
+  const photoPreview = adminPage.getByRole("dialog", { name: "Foto barang" });
+  await photoPreview.getByRole("img", { name: "Kertas HVS A4" }).waitFor();
+  await photoPreview.getByRole("button", { name: "Tutup modal" }).click();
   await adminPage.setViewportSize({ width: 1366, height: 950 });
   await adminPage.goto(`${base}/master-data/inventory-units?organizationId=${org.id}`);
   await adminPage.getByRole("button", { name: /Tambah satuan$/ }).click();
@@ -1452,11 +1573,14 @@ try {
       [...element.querySelectorAll(".ant-form-item")]
         .filter(
           (field) =>
-            field.querySelector(".ant-select") && field.querySelector(".ant-form-item-extra p"),
+            field.querySelector(".ant-select") &&
+            field.querySelector(".ant-form-item-extra [data-prerequisite-text]"),
         )
         .map((field) => {
           const control = field.querySelector(".ant-select").getBoundingClientRect();
-          const text = field.querySelector(".ant-form-item-extra p").getBoundingClientRect();
+          const text = field
+            .querySelector(".ant-form-item-extra [data-prerequisite-text]")
+            .getBoundingClientRect();
           const link = field.querySelector(".ant-form-item-extra button").getBoundingClientRect();
           return {
             gap: text.top - control.bottom,
@@ -1506,10 +1630,9 @@ try {
     )
     .waitFor();
   assert.equal(await accessDialog.getByLabel("Cakupan gudang", { exact: true }).count(), 0);
-  assert.equal(
-    await accessDialog.getByLabel("Gudang yang dapat diakses", { exact: true }).count(),
-    0,
-  );
+  await accessDialog
+    .getByLabel("Gudang yang dapat diakses", { exact: true })
+    .waitFor({ state: "hidden" });
   await accessDialog.getByLabel("Fitur dan izin", { exact: true }).click();
   await adminPage
     .locator(".ant-select-item-option-content")

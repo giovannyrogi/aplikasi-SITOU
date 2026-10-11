@@ -254,6 +254,10 @@ API /api/inventory/catalog/:kind (items/categories/units) mendukung list/create,
 PATCH /:kind/:id, dan options=1; pengaturan gudang GET/PUT
 /api/inventory/catalog/items/:id/warehouses memakai versi per barang-gudang.
 minimumStock adalah batas peringatan, bukan saldo. Migration 047–048 diperlukan.
+Daftar barang mengembalikan `warehouse_limits` hanya untuk gudang dalam cakupan baca
+pengguna, sehingga batas minimum dapat terlihat per gudang di tabel dan kartu mobile.
+Setelah pengaturan disimpan, daftar dimuat ulang; gudang yang tidak berizin tidak
+boleh muncul pada ringkasan maupun modal rincian batas.
 Konversi kemasan, saldo awal, transaksi, peringatan saldo nyata, kartu stok,
 permintaan/approval, laporan operasional serta aset tetap tahap berikutnya.
 

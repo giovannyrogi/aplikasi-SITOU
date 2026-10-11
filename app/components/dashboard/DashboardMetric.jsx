@@ -15,6 +15,7 @@ export default function DashboardMetric({ metric, loading }) {
       elevation={0}
       sx={{
         position: "relative",
+        height: "100%",
         minHeight: 132,
         overflow: "hidden",
         p: 2,

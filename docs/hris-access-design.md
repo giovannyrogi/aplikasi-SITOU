@@ -56,11 +56,13 @@ sedangkan edit akun tetap memakai version akun. DTO akun menambah `hrisAccess`;
 reference-options menambah kemampuan penetapan/status/versi; `/api/access/me`
 memuat snapshot `hris` terbaru. Response tetap private/no-store.
 
-Migration sendiri tidak mengaktifkan pembatasan pada organisasi lama. Sampai
-Superadmin menunjuk admin penuh, hak HRD lama tetap berlaku. Pada aktivasi pertama,
-hak menu bisnis HRD lama dipertahankan sebagai grant eksplisit kecuali telah
-ditinjau sebelumnya. Setelah itu hanya satu admin penuh mengelola akun/delegasi;
-admin perlu meninjau dan mengurangi grant lama sesuai tugas setiap akun.
+Migration 053 membekukan hak efektif HRD lama yang belum pernah diatur menjadi
+semua 14 grant menu HRIS dan kedua kewenangan Akun & Akses. Grant/flag akun yang
+sudah diatur tidak ditimpa. Setelah itu tidak ada fallback akses lama: akun biasa
+hanya mengikuti pilihan yang tersimpan. Akun HRD baru atau baru beralih ke HRD
+tanpa pilihan mulai tanpa menu. Superadmin dapat mengurangi hak akun lama lewat
+dashboard, tanpa menunggu penetapan admin penuh. Admin penuh tetap mendapat semua
+hak HRIS dan harus dialihkan sebelum haknya dapat dibatasi.
 
 Backend membaca membership/policy/grant terbaru setiap request. Proxy menimpa
 header konteks path/method; session/browser bukan sumber izin. Sidebar, halaman,
@@ -110,7 +112,7 @@ Inventaris. Modul harus aktif; HRD selected tidak memberikan master/all atau gud
 luar lokasi. HRIS tetap khusus pemberi Superadmin/admin penuh dan target HRD.
 Pengelola tanpa delegasi dapat mempertahankan grant identik pada koreksi akun;
 perubahan grant termasuk pencabutan ditolak. Kewenangan diperiksa ulang dalam
-transaksi dan pencabutan berlaku pada session aktif. Rollout legacy tetap sama.
+transaksi dan pencabutan berlaku pada session aktif. Hak lama dikonversi oleh migration 053.
 
 FeatureAccessFields hanya mengatur presentasi; featureModules tidak dikirim ke API.
 Setiap pilihan memiliki uraian terpusat di accessDescriptions.mjs/featureLabels.mjs:
@@ -121,10 +123,9 @@ AccountAccessDetails berada di level halaman agar tidak tertutup saat breakpoint
 berubah. Halaman operasional Inventaris masih header; jangan menjanjikan posting
 stok, approval, atau payroll yang belum tersedia.
 
-Pada request legacy yang mengubah hanya hrisAccountAccess, menu yang belum pernah
-ditinjau dipertahankan sebagai snapshot grant lama sebelum penanda settings dibuat.
-Request tersebut tidak dianggap pencabutan menu. Peninjauan menu eksplisit kosong
-yang sudah tercatat tetap dipertahankan; hak baru tidak diberikan otomatis.
+Pada edit akun, omission mempertahankan grant/flag yang sudah tersimpan; array
+menu kosong atau `hrisAccountAccess=none` mencabut secara eksplisit. Pembuatan
+akun dengan kewenangan Akun Organisasi saja tidak menambah menu HRIS lain.
 
 ### Pengelompokan Akun & Akses dan menu hanya baca
 
@@ -134,8 +135,9 @@ Tidak ada penambahan kode menu/grant atau migration: capability akun tetap terpi
 dari hrisMenuAccess. Dashboard/laporan tidak menampilkan dropdown satu pilihan;
 chip Hanya baca menjelaskan tipe menu. Divider memisahkan submenu dan
 AccessExplanation memperjelas informasi menu serta batas izin.
-Login tetap /dashboard; isi mengikuti izin domain/submenu. Akun tanpa hak data
-menerima header saja, menu berizin tetap dapat dinavigasi dan API mengirim DTO kosong.
+Login tetap /dashboard; data mengikuti izin domain/submenu. HRD tanpa hak data
+melihat kartu terkunci dengan placeholder sintetis tanpa nilai atau identitas;
+menu berizin tetap dapat dinavigasi dan API mengirim DTO kosong.
 
 ## Dashboard dasar dan editor akses responsif
 
@@ -157,24 +159,37 @@ nilai tetap tersimpan, tidak menandai dirty, dan error membuka section terkait.
 Backend Dashboard membaca izin efektif dari sumber server. Data Pegawai membuka
 komposisi/penempatan/perkembangan/kelengkapan/ulang tahun; kontrak terbuka bagi
 Data Pegawai atau laporan kontrak, pensiun bagi Data Pegawai atau laporan pensiun,
-disiplin bagi Data Pegawai atau laporan sanksi. Cuti hanya hak Cuti & Izin. Akun
-master/akun/Inventaris saja atau tanpa hak data menerima header saja. Pegawai tetap
-header. Tidak menambahkan statistik Inventaris pada tahap ini.
+disiplin bagi Data Pegawai atau laporan sanksi. Cuti hanya hak Cuti & Izin. HRD
+dengan hak master/akun/Inventaris saja atau tanpa hak data tetap melihat susunan
+kartu organisasi dalam kondisi terkunci; Pegawai tetap hanya melihat header.
+Tidak menambahkan statistik Inventaris pada tahap ini.
 
 DTO /api/dashboard/summary menambah sections; field employeeSummary,
 birthdaySummary, retirementSummary dan recentDiscipline hanya dikirim bila berizin.
-metrics/charts parsial; section tanpa izin tidak diwakili nol palsu. Snapshot
+metrics/charts parsial; section tanpa izin tidak diwakili nol palsu. UI HRD
+memakai katalog metadata publik untuk judul kartu terkunci, bukan data yang
+disembunyikan dengan CSS. Snapshot
 /api/access/me menambah dashboardDefault dan dashboardSections. Query yang tidak
 diperlukan dilewati, aktivitas/prioritas difilter sebelum LIMIT, link tujuan tanpa
 izin dihilangkan. Cache mencakup organisasi, role, scope, rentang, kebijakan dan
 fingerprint izin/capability. Rumus/rentang/timezone/lifecycle HRIS tetap.
 
-Uji permission kombinasi, session aktif/cache dua akun, legacy Dashboard,
+Uji permission kombinasi, session aktif/cache dua akun, Dashboard dasar,
 Superadmin/Pimpinan/Pegawai, form panjang 320–1920px, zoom 200%, keyboard,
-penyimpanan section terlipat dan query plan memakai database terpisah. Tidak ada
-perubahan schema atau migration baru.
+penyimpanan section terlipat dan query plan memakai database terpisah. Migration
+053 hanya mengubah data grant akun lama, bukan struktur tabel.
 
 Menu baru dengan kode grant baru tetap harus menambah seed hris_menu_definitions
 melalui migration serta schema bootstrap. Katalog UI bersama tidak menggantikan
 permission backend, registrasi API, audit, atau composite FK organisasi. Dataset
 Dashboard ditambahkan bersama permission sumbernya, tidak terbuka otomatis.
+
+# Tampilan dashboard saat izin berubah
+
+Kartu HRD yang belum diizinkan menampilkan siluet sintetis sesuai jenis konten (metrik, grafik area, batang horizontal/bertumpuk, daftar, ulang tahun, komposisi, atau pensiun). Siluet tidak berasal dari data terlindungi. Dashboard yang tetap terbuka memeriksa ulang respons server setiap 8 detik selama tab aktif dan segera saat tab kembali fokus; permintaan tidak ditumpuk. Hak baru maupun pencabutan hak mengganti seluruh DTO dashboard dan meminta shell menyegarkan menu, sementara respons gagal membersihkan data lama dari tampilan.
+
+## Perubahan hak saat halaman masih terbuka
+
+ProtectedShell memeriksa snapshot izin server setiap delapan detik ketika tab terlihat, saat tab kembali fokus, dan setelah API mengembalikan `403`. Keputusan didasarkan pada izin baca/tulis efektif halaman, bukan menu yang kebetulan terlihat. Turun dari Kelola ke Lihat menutup form aktif dengan membangun ulang halaman, menampilkan `AccessChangedModal` selama lima detik, dan tetap di halaman baca-saja. Jika hanya sebagian izin tulis Inventaris dicabut, pesannya menyatakan bahwa hanya sebagian tindakan tidak tersedia. Pencabutan hak Lihat segera melepas isi halaman dari DOM, menampilkan modal yang sama dengan tujuan Dashboard, lalu mengalihkan setelah lima detik atau saat tombol ditekan. Perubahan yang belum tersimpan tidak disimpan otomatis. Backend tetap memeriksa setiap operasi; permintaan yang sudah lolos pemeriksaan sebelum pencabutan merupakan batas race yang harus dijaga oleh transaksi pada use case kritis.
+
+Snapshot `/api/access/me` memuat `writePermissions` Inventaris untuk menentukan penutupan form secara visual; kode ini tidak memberikan izin baru. `readApiResponse` dan form Data Master yang membaca respons sendiri meminta pemeriksaan ulang izin ketika menerima `403`. Kegagalan jaringan tidak ditafsirkan sebagai pencabutan izin. Pengalihan karena sesi login berakhir tetap menuju Login dan menggunakan panel hitungan mundur yang sama.

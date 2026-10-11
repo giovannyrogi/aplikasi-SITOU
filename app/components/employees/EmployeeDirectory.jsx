@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, Button, Input, Select } from "antd";
+import { Button, Input, Select } from "antd";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import {
   EditOutlined,
   EyeOutlined,
@@ -573,9 +574,8 @@ export default function EmployeeDirectory() {
         wideColumns={4}
       />
       {getEmployeeCompletenessOption(list.filters.completeness)?.description ? (
-        <Alert
-          type="info"
-          showIcon
+        <AppNotice
+          tone="info"
           title={getEmployeeCompletenessOption(list.filters.completeness).label}
           description={
             <Box sx={{ textAlign: "justify", overflowWrap: "anywhere", lineHeight: 1.7 }}>

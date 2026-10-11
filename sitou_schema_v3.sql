@@ -1979,7 +1979,7 @@ ALTER TABLE user_access_packages ADD CONSTRAINT ck_inventory_master_organization
 CHECK(package_code <> 'inventory_master' OR scope_mode='all');
 
 -- Migration 051: hak menu HRIS dan satu admin penuh organisasi.
--- Konfigurasi eksplisit HRD; organisasi lama tetap legacy sampai Superadmin menetapkan admin.
+-- Konfigurasi HRD; migration 053 membekukan hak akun lama sebagai grant eksplisit.
 CREATE TABLE organization_hris_access_policies (
  organization_id bigint PRIMARY KEY REFERENCES organizations(id),
  enabled boolean NOT NULL DEFAULT false, primary_membership_id bigint,
