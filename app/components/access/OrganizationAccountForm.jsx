@@ -7,7 +7,7 @@ import { Button, Form, Input, Segmented, Select } from "antd";
 import { Box } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
-import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
+import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { PASSWORD_FORM_RULES } from "@/app/utils/passwordRules";
@@ -463,13 +463,21 @@ export default function OrganizationAccountForm({
               dirtyRef.current = true;
             }}
           />
-          <FormSettingsGroup sx={{ mt: 1 }}>
-            <FormSettingSwitch
-              name="isActive"
-              title="Akun dapat digunakan untuk masuk"
-              description="Nonaktifkan jika akses akun perlu dihentikan tanpa menghapus data dan riwayatnya."
-            />
-          </FormSettingsGroup>
+          <FormSettingSwitch
+            name="isActive"
+            notice={{
+              on: {
+                title: "Akun aktif",
+                description:
+                  "Akun ini dapat digunakan untuk masuk sesuai hak akses yang diberikan.",
+              },
+              off: {
+                title: "Akun tidak aktif",
+                description:
+                  "Jika dinonaktifkan, pemilik akun tidak dapat masuk. Data akun dan riwayatnya tetap tersimpan.",
+              },
+            }}
+          />
         </Form>
       </AppModal>
       <ConfirmDialog

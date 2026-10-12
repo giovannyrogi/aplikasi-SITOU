@@ -24,6 +24,7 @@ export default function AppNotice({
   style,
   className,
   role,
+  descriptionId,
 }) {
   const theme = useTheme();
   const palette = theme.status[tone] || theme.status.info;
@@ -31,6 +32,7 @@ export default function AppNotice({
   return (
     <Box
       role={role || (tone === "danger" ? "alert" : "status")}
+      aria-label={role === "group" ? title : undefined}
       className={className}
       style={style}
       sx={[
@@ -72,6 +74,7 @@ export default function AppNotice({
         ) : null}
         {description || children ? (
           <FontStyle
+            id={descriptionId}
             explanation
             component="div"
             fontSize={compact ? 12 : 13}
@@ -82,7 +85,16 @@ export default function AppNotice({
         ) : null}
       </Box>
       {action ? (
-        <Box sx={{ display: "flex", alignItems: "center", minHeight: 44, minWidth: 0 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            minHeight: 44,
+            minWidth: 0,
+            ml: "auto",
+            flexShrink: 0,
+          }}
+        >
           {action}
         </Box>
       ) : null}

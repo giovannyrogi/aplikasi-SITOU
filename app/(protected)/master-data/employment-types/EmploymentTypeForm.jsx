@@ -124,12 +124,21 @@ export default function EmploymentTypeForm({
                   title="Menggunakan tanggal akhir kontrak"
                   description="Aktifkan jika kontrak memiliki tanggal berakhir."
                 />
-                <FormSettingSwitch
-                  name="isActive"
-                  title="Tersedia saat membuat kontrak"
-                  description="Aktifkan agar jenis kepegawaian ini dapat dipilih pada kontrak baru."
-                />
               </FormSettingsGroup>
+              <FormSettingSwitch
+                name="isActive"
+                notice={{
+                  on: {
+                    title: "Jenis kepegawaian aktif",
+                    description: "Jenis ini dapat dipilih saat membuat kontrak baru.",
+                  },
+                  off: {
+                    title: "Jenis kepegawaian tidak aktif",
+                    description:
+                      "Jika dinonaktifkan, jenis ini tidak dapat dipilih untuk kontrak baru. Kontrak dan riwayat yang sudah ada tetap tersimpan.",
+                  },
+                }}
+              />
             </Col>
           </Row>
         </Form>

@@ -33,6 +33,7 @@
 !/database/migrations/*.sql
 !/database/migrations/README.md
 /scripts/*
+!/scripts/expire-inventory-transaction-drafts.mjs
 !/scripts/run-system-backup.mjs
 !/scripts/diagnose-system-backup-files.mjs
 !/scripts/expire-system-backups.mjs

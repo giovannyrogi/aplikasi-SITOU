@@ -139,12 +139,21 @@ export default function PositionForm({
                   title="Termasuk jabatan manajerial"
                   description="Aktifkan untuk jabatan yang memiliki tanggung jawab memimpin tim atau unit kerja."
                 />
-                <FormSettingSwitch
-                  name="isActive"
-                  title="Tersedia untuk penempatan pegawai"
-                  description="Aktifkan agar jabatan ini dapat dipilih pada penempatan baru."
-                />
               </FormSettingsGroup>
+              <FormSettingSwitch
+                name="isActive"
+                notice={{
+                  on: {
+                    title: "Jabatan aktif",
+                    description: "Jabatan ini dapat dipilih untuk penempatan pegawai baru.",
+                  },
+                  off: {
+                    title: "Jabatan tidak aktif",
+                    description:
+                      "Jika dinonaktifkan, jabatan ini tidak dapat dipilih untuk penempatan baru. Riwayat penempatan tetap tersimpan.",
+                  },
+                }}
+              />
             </Col>
           </Row>
         </Form>

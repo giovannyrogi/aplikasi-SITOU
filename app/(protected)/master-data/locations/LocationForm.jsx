@@ -9,7 +9,7 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
-import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
+import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 
 const TYPES = [
   { value: "head_office", label: "Kantor pusat" },
@@ -197,13 +197,21 @@ export default function LocationForm({
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <FormSettingsGroup sx={{ mt: 1 }}>
-                <FormSettingSwitch
-                  name="isActive"
-                  title="Tersedia untuk penempatan pegawai"
-                  description="Aktifkan agar lokasi ini dapat dipilih untuk penempatan dan kegiatan operasional baru."
-                />
-              </FormSettingsGroup>
+              <FormSettingSwitch
+                name="isActive"
+                notice={{
+                  on: {
+                    title: "Lokasi aktif",
+                    description:
+                      "Lokasi ini dapat dipilih untuk penempatan pegawai dan kegiatan operasional baru.",
+                  },
+                  off: {
+                    title: "Lokasi tidak aktif",
+                    description:
+                      "Jika dinonaktifkan, lokasi ini tidak dapat dipilih untuk penempatan atau kegiatan operasional baru. Riwayatnya tetap tersimpan.",
+                  },
+                }}
+              />
             </Col>
           </Row>
         </Form>

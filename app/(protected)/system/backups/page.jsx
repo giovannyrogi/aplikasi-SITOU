@@ -18,6 +18,7 @@ import { bytesToHex } from "@noble/hashes/utils";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
+import DataPagination from "@/app/components/data-display/DataPagination";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -781,40 +782,18 @@ export default function SystemBackupsPage() {
             </Box>
           )}
         />
-        <Box
-          component="nav"
-          aria-label="Halaman riwayat backup"
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 2,
-            p: { xs: 2, sm: 2.5 },
-            borderTop: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <FontStyle fontSize={13} color="text.secondary" role="status" aria-live="polite">
-            Halaman {historyPage + 1} · {jobs.length} data · {paginationTotalLabel(historyTotal)}
-          </FontStyle>
-          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
-            <Button
-              disabled={historyPage === 0 || loading || historyLoading}
-              onClick={() => changeHistoryPage(-1)}
-              style={{ minHeight: 44 }}
-            >
-              Sebelumnya
-            </Button>
-            <Button
-              disabled={!historyCursor || loading || historyLoading}
-              onClick={() => changeHistoryPage(1)}
-              style={{ minHeight: 44 }}
-            >
-              Berikutnya
-            </Button>
-          </Box>
-        </Box>
+        <Box sx={{p:{xs:2,sm:2.5},borderTop:"1px solid",borderColor:"divider"}}><DataPagination
+          ariaLabel="Halaman riwayat backup"
+          cursor={{page:historyPage+1,next:historyCursor}}
+          total={historyTotal}
+          summary={`Halaman ${historyPage+1} · ${jobs.length} data · ${paginationTotalLabel(historyTotal)}`}
+          pageSize={BACKUP_HISTORY_PAGE_SIZE}
+          pageSizeOptions={[]}
+          loading={loading||historyLoading}
+          onPrevious={()=>changeHistoryPage(-1)}
+          onNext={()=>changeHistoryPage(1)}
+          sx={{pt:0}}
+        /></Box>
       </DataPanel>
 
       <AppModal

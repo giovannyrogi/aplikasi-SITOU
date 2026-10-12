@@ -5,7 +5,7 @@ import { Button, Col, Form, Input, InputNumber, Row } from "antd";
 import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import AppModal from "@/app/components/modals/AppModal";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
-import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
+import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
@@ -145,15 +145,22 @@ export default function OrganizationUnitTypeForm({
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <FormSettingsGroup sx={{ mt: 1 }}>
-                <FormSettingSwitch
-                  name="isActive"
-                  title="Tersedia saat membuat Divisi & Unit"
-                  description="Aktifkan agar jenis unit ini dapat dipilih saat membuat struktur organisasi baru."
-                  disabled={editing && item.is_active}
-                  disabledReason="Gunakan aksi Nonaktifkan pada daftar agar dampaknya dapat diperiksa dan dikonfirmasi."
-                />
-              </FormSettingsGroup>
+              <FormSettingSwitch
+                name="isActive"
+                notice={{
+                  on: {
+                    title: "Jenis unit aktif",
+                    description: "Jenis ini dapat dipilih saat membuat Divisi & Unit baru.",
+                  },
+                  off: {
+                    title: "Jenis unit tidak aktif",
+                    description:
+                      "Jika dinonaktifkan, jenis ini tidak dapat dipilih untuk Divisi & Unit baru. Struktur dan riwayat yang sudah ada tetap tersimpan.",
+                  },
+                }}
+                disabled={editing && item.is_active}
+                disabledReason="Gunakan aksi Nonaktifkan pada daftar agar dampaknya dapat diperiksa dan dikonfirmasi."
+              />
             </Col>
           </Row>
         </Form>

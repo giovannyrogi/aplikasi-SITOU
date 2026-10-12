@@ -111,8 +111,18 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
         >
           <FormSettingSwitch
             name="isEnabled"
-            title="Fitur Inventaris"
-            description="Aktifkan untuk akun yang diberi akses. Saat nonaktif, gudang dan pengaturan akses tetap tersimpan. Aktifkan kembali untuk memulihkan akses."
+            notice={{
+              on: {
+                title: "Fitur Inventaris aktif",
+                description:
+                  "Fitur dapat digunakan oleh akun yang diberi akses. Gudang dan pengaturan akses tetap tersimpan.",
+              },
+              off: {
+                title: "Fitur Inventaris tidak aktif",
+                description:
+                  "Jika dinonaktifkan, akun organisasi tidak dapat menggunakan fitur Inventaris. Gudang dan pengaturan akses tetap tersimpan; aktifkan kembali untuk memulihkan akses.",
+              },
+            }}
           />
         </Form>
       </AppModal>

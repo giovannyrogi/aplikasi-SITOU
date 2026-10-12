@@ -299,7 +299,7 @@ hanya all. Tidak ada perubahan tabel/grant atau backfill data bisnis.
 ## Pemisahan master dan operasional — migration 050
 
 - Lihat Saja (inventory_reader): baca Stok Barang/Transaksi Barang/Distribusi Barang, scope gudang all/selected; tidak membuka atau mengubah master.
-- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Transaksi stok/ledger belum diimplementasikan; permission transaksi mutasi ditambahkan bersama fitur berikutnya.
+- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Sejak migration 054, transaksi stok dapat dicatat dan dibatalkan dalam gudang berizin.
 - Pengelola Master Inventaris (inventory_master): baca/tambah/edit/nonaktifkan Barang/Kategori/Satuan/Gudang, termasuk membuat gudang. Cakupan organisasi, disimpan scope_mode=all dan warehouseIds kosong. Tidak memberi akses operasional stok/transaksi/laporan/minimum; bukan seluruh gudang operasional.
 
 Satu akun dapat menerima tiga pilihan tersebut secara independen. Form master
@@ -352,3 +352,13 @@ menurut hak domain, tanpa field untuk data yang dilarang. Grant dashboard lama
 kompatibel tetapi tidak memberi statistik. Scope organisasi/lokasi dan rumus
 agregasi tetap. Cache memakai fingerprint seluruh izin/capability. Tidak ada
 perubahan tabel atau migration untuk penyesuaian Dashboard/editor ini.
+
+## Transaksi stok Inventaris — migration 054
+
+`inventory_transactions` menyimpan header draft dan transaksi terposting, tanggal kejadian, waktu pencatatan sebenarnya, gudang, tujuan barang keluar, referensi, serta relasi asal/pembatalan. Draft menyimpan checkpoint parsial di `draft_payload` dan tidak mengubah stok. `inventory_transaction_lines` menyimpan barang, jumlah, selisih stok, dan referensi baris asal pengembalian. `inventory_stock_openings` menjamin saldo awal hanya satu kali per barang–gudang; `inventory_stock_movements` adalah riwayat stok append-only; `inventory_stock_balances` adalah saldo turunan yang diperbarui dalam transaksi database yang sama. `inventory_transaction_files` menyiapkan referensi lampiran privat tanpa menyimpan byte di database. Seluruh relasi bisnis memakai pasangan organisasi dan ID.
+
+Migration 056 menambahkan checkpoint tahap, `updated_at`, masa berlaku, dan tanda draft dibuang pada header transaksi. Draft Transaksi Barang terpisah dari `employee_onboarding_drafts`; beberapa draft aktif boleh dimiliki satu petugas. Lampiran draft ditautkan privat melalui `stored_files.inventory_transaction_draft_id` dan slot per jenis bukti. Penyimpanan ulang memakai `version` agar dua tab tidak saling menimpa; draft kedaluwarsa/dibuang dan lampirannya dibersihkan oleh worker lifecycle tanpa mengubah riwayat transaksi terposting.
+
+Permission `inventory.transactions.create` dan `inventory.transactions.cancel` diberikan kepada Pengelola Gudang dalam scope grant-nya serta Superadmin; Lihat Saja tetap hanya membaca, Pengelola Master tidak memperoleh hak transaksi. Saldo awal nol sah. Posting memeriksa saldo historis tidak negatif, mengunci barang–gudang dalam urutan ID, dan mengaudit hasilnya. Kartu Stok nantinya membaca `inventory_stock_movements`, bukan ledger baru.
+
+Migration 055 menambahkan kategori `inventory_transaction_attachment` untuk bukti pembelian, dokumen permintaan, dan foto serah terima. File disimpan privat dan hanya diunduh melalui ID setelah permission transaksi serta cakupan gudang diperiksa. Referensi lampiran transaksi terdaftar sebagai histori resmi di pemeliharaan file. Trigger database melarang edit/hapus transaksi terposting, rincian, saldo awal, dan riwayat gerakan stok; pembatalan tetap mencatat transaksi pembalik baru.

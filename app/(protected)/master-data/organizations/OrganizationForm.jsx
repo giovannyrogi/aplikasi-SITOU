@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Button, Col, DatePicker, Divider, Form, Input, Row, Select } from "antd";
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
-import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
+import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
@@ -196,17 +196,21 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
               </>
             )}
             <Col xs={24}>
-              <FormSettingsGroup sx={{ mt: 1 }}>
-                <FormSettingSwitch
-                  name="isActive"
-                  title="Akses organisasi diaktifkan"
-                  description={
-                    editing
-                      ? "Nonaktifkan untuk memblokir seluruh akun organisasi meskipun masa aksesnya masih berlaku."
-                      : "Aktifkan agar organisasi dan akun di dalamnya dapat digunakan setelah dibuat."
-                  }
-                />
-              </FormSettingsGroup>
+              <FormSettingSwitch
+                name="isActive"
+                notice={{
+                  on: {
+                    title: "Akses organisasi aktif",
+                    description:
+                      "Akun organisasi dapat digunakan selama masa aksesnya berlaku dan sesuai hak masing-masing.",
+                  },
+                  off: {
+                    title: "Akses organisasi tidak aktif",
+                    description:
+                      "Jika dinonaktifkan, seluruh akun organisasi tidak dapat masuk meskipun masa aksesnya masih berlaku. Data dan riwayat tetap tersimpan.",
+                  },
+                }}
+              />
             </Col>
           </Row>
         </Form>

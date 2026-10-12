@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "antd";
-import { Box, useTheme } from "@mui/material";
+import { Box, useMediaQuery, useTheme } from "@mui/material";
 import AppModal from "../modals/AppModal";
 import FontStyle from "../font-style/FontStyle";
 
@@ -16,10 +16,13 @@ export default function ConfirmDialog({
   confirmText = "Konfirmasi",
   danger = false,
   loading = false,
+  fullWidthMobile = false,
   onConfirm,
   onClose,
 }) {
   const theme = useTheme();
+  const mobile = useMediaQuery("(max-width:599px)");
+  const mobileButtonStyle = { minHeight: 44, width: fullWidthMobile && mobile ? "100%" : undefined };
   return (
     <AppModal
       open={open}
@@ -31,7 +34,7 @@ export default function ConfirmDialog({
       disableClose={loading}
       footer={
         <>
-          <Button onClick={onClose} disabled={loading} style={{ minHeight: 44 }}>
+          <Button onClick={onClose} disabled={loading} style={mobileButtonStyle}>
             Batal
           </Button>
           <Button
@@ -40,7 +43,7 @@ export default function ConfirmDialog({
             data-action-tone={danger ? "danger" : undefined}
             loading={loading}
             onClick={onConfirm}
-            style={{ minHeight: 44 }}
+            style={mobileButtonStyle}
           >
             {confirmText}
           </Button>

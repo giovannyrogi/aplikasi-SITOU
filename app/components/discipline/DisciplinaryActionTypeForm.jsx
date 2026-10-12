@@ -189,12 +189,21 @@ export default function DisciplinaryActionTypeForm({
                   title="Wajib surat resmi"
                   description="Saat tindakan diterbitkan, nomor surat dan satu PDF resmi wajib dilengkapi."
                 />
-                <FormSettingSwitch
-                  name="isActive"
-                  title="Tersedia untuk digunakan"
-                  description="Jenis nonaktif tetap muncul pada histori, tetapi tidak dapat dipilih untuk tindakan baru."
-                />
               </FormSettingsGroup>
+              <FormSettingSwitch
+                name="isActive"
+                notice={{
+                  on: {
+                    title: "Jenis tindakan aktif",
+                    description: "Jenis tindakan ini dapat dipilih untuk tindakan disiplin baru.",
+                  },
+                  off: {
+                    title: "Jenis tindakan tidak aktif",
+                    description:
+                      "Jika dinonaktifkan, jenis ini tidak dapat dipilih untuk tindakan baru. Tindakan dalam histori tetap dapat dilihat sesuai hak akses.",
+                  },
+                }}
+              />
             </Col>
           </Row>
         </Form>

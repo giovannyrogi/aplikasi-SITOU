@@ -28,6 +28,7 @@
     "db:migrate-excel-employee-import": "node scripts/apply-excel-only-employee-import-migration.mjs",
     "db:migrate-employee-drafts": "node scripts/apply-employee-onboarding-drafts-migration.mjs",
     "employee-drafts:expire": "node scripts/expire-employee-drafts.mjs",
+    "inventory-drafts:expire": "node scripts/expire-inventory-transaction-drafts.mjs",
     "files:cleanup-profile": "node scripts/cleanup-replaced-profile-files.mjs",
     "worker:file-cleanup": "node scripts/file-cleanup-worker.mjs",
     "worker:backup-expiry": "node scripts/expire-system-backups.mjs",

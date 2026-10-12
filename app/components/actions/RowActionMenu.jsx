@@ -8,7 +8,7 @@ import { MenuOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import { useState } from "react";
 
-export default function RowActionMenu({ items }) {
+export default function RowActionMenu({ items, triggerIcon, triggerLabel = "Buka menu aksi" }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const user = useOptionalAuthenticatedUser();
@@ -84,10 +84,10 @@ export default function RowActionMenu({ items }) {
       )}
     >
       <Button
-        icon={<MenuOutlined style={{ fontSize: 20 }} />}
-        aria-label="Buka menu aksi"
+        icon={triggerIcon || <MenuOutlined style={{ fontSize: 20 }} />}
+        aria-label={triggerLabel}
         aria-haspopup="menu"
-        title="Menu aksi"
+        title={triggerLabel}
         style={{ width: 44, height: 44, flexShrink: 0, padding: 0 }}
       />
     </Dropdown>

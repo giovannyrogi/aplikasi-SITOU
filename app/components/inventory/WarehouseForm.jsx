@@ -204,8 +204,18 @@ export default function WarehouseForm({ open, item, organizationId, onClose, onS
           </Form.Item>
           <FormSettingSwitch
             name="isActive"
-            title="Gudang aktif"
-            description="Gudang nonaktif tetap tercatat, tetapi tidak dapat dipilih untuk pemberian akses baru atau digunakan untuk transaksi stok nanti."
+            notice={{
+              on: {
+                title: "Gudang aktif",
+                description:
+                  "Gudang dapat dipilih untuk pemberian akses baru dan digunakan pada transaksi stok saat fitur tersebut tersedia.",
+              },
+              off: {
+                title: "Gudang tidak aktif",
+                description:
+                  "Jika dinonaktifkan, gudang tidak dapat dipilih untuk akses baru atau transaksi stok. Pengaturan dan riwayatnya tetap tersimpan.",
+              },
+            }}
           />
         </Form>
       </AppModal>

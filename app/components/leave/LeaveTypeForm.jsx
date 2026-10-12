@@ -190,12 +190,21 @@ export default function LeaveTypeForm({
                     />
                   </Form.Item>
                 </FormSettingSwitch>
-                <FormSettingSwitch
-                  name="isActive"
-                  title="Tersedia untuk digunakan"
-                  description="Aktifkan agar pilihan ini muncul saat HRD mencatat cuti atau izin baru."
-                />
               </FormSettingsGroup>
+              <FormSettingSwitch
+                name="isActive"
+                notice={{
+                  on: {
+                    title: "Jenis cuti atau izin aktif",
+                    description: "Jenis ini dapat dipilih saat HRD mencatat cuti atau izin baru.",
+                  },
+                  off: {
+                    title: "Jenis cuti atau izin tidak aktif",
+                    description:
+                      "Jika dinonaktifkan, jenis ini tidak dapat dipilih untuk pencatatan baru. Pencatatan dan riwayat yang sudah ada tetap tersimpan.",
+                  },
+                }}
+              />
             </Col>
           </Row>
         </Form>

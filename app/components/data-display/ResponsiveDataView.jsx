@@ -1,12 +1,13 @@
 "use client";
 
 import { Box, useMediaQuery, useTheme } from "@mui/material";
-import { Pagination, Skeleton } from "antd";
+import { Skeleton } from "antd";
 import Table from "./NumberedTable";
 import { rowNumberOffset } from "./rowNumbers.mjs";
 import EmptyState from "./EmptyState";
 import ErrorState from "./ErrorState";
 import ModernTableFrame from "./ModernTableFrame";
+import DataPagination from "./DataPagination";
 
 /** Menampilkan dataset yang sama sebagai tabel modern pada layar besar dan kartu pada mobile. */
 export default function ResponsiveDataView({
@@ -116,17 +117,7 @@ export default function ResponsiveDataView({
             </Box>
           ))}
         </Box>
-        {pagination && (
-          <Box sx={{ display: "flex", justifyContent: "center", overflowX: "auto", pb: 0.5 }}>
-            <Pagination
-              simple
-              current={pagination.page}
-              pageSize={pagination.pageSize}
-              total={pagination.total}
-              onChange={onPageChange}
-            />
-          </Box>
-        )}
+        <DataPagination pagination={pagination} onPageChange={onPageChange}/>
       </Box>
     );
   }
@@ -142,20 +133,9 @@ export default function ResponsiveDataView({
         size="middle"
         scroll={{ x: scrollX }}
         locale={{ emptyText: <EmptyState description={emptyDescription} /> }}
-        pagination={
-          pagination
-            ? {
-                current: pagination.page,
-                pageSize: pagination.pageSize,
-                total: pagination.total,
-                showSizeChanger: true,
-                pageSizeOptions: [10, 20, 50],
-                showTotal: (total) => total + " data",
-                onChange: onPageChange,
-              }
-            : false
-        }
+        pagination={false}
       />
+      {pagination ? <Box sx={{px:{xs:2,sm:2.5,lg:3},pb:2,borderTop:"1px solid",borderColor:theme.ui.panelBorderSubtle}}><DataPagination pagination={pagination} onPageChange={onPageChange} loading={loading}/></Box> : null}
     </ModernTableFrame>
   );
 }

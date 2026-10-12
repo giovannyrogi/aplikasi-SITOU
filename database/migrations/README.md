@@ -1,5 +1,8 @@
 # Migration Database SITOU
 
+Migration `054` menambahkan transaksi stok multi-barang, draft, saldo awal per barang–gudang, riwayat stok append-only, saldo turunan, referensi pengembalian/pembatalan, dan permission mutasi untuk Pengelola Gudang. Terapkan setelah migration `053`, lalu deploy API dan UI transaksi dalam satu rilis. Backup database development/produksi sesuai prosedur sebelum upgrade; jangan menjalankan migration ini dua kali. Kartu Stok tetap tahap berikutnya dan membaca riwayat yang sama.
+Migration `055` menambah kategori lampiran privat transaksi dan trigger database yang menolak edit/hapus transaksi terposting serta riwayat stok. Terapkan sesudah `054` sebelum memakai upload bukti transaksi.
+
 Folder ini menyimpan perubahan schema secara berurutan untuk database SITOU yang sudah pernah dibuat. Migration berfungsi membawa schema lama ke versi baru tanpa membuat ulang seluruh database.
 
 ## Kapan dijalankan
@@ -176,3 +179,12 @@ sudah mempunyai `user_hris_access_settings` tidak diubah. Setelah upgrade, edit
 hak tiap akun melalui dashboard untuk mengurangi akses; kode baru tidak membaca
 fallback lama. Jalankan saat layanan SITOU berhenti agar perubahan akun tidak
 bertabrakan dengan backfill, lalu jalankan `npm run db:check`.
+
+## 056 — Draft Transaksi Barang
+
+Jalankan setelah 054 dan 055. Migration menambahkan langkah dan masa berlaku draft
+Transaksi Barang, penanda draft yang dibuang, serta referensi lampiran privat draft.
+Draft Pegawai tidak berubah. Setelah migrasi, deploy API dan UI dalam satu rilis;
+uji melanjutkan draft, unggah/hapus lampiran, posting, dan pembersihan draft
+kedaluwarsa. Jalankan `npm run inventory-drafts:expire` secara terjadwal seperti
+`employee-drafts:expire`. Draft tidak mengubah saldo stok.

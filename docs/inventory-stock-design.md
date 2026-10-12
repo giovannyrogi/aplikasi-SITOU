@@ -151,7 +151,7 @@ pakai menjadi fokus; nomor seri, penyusutan, dan perawatan aset belum termasuk.
 Konversi kemasan hanya ditambahkan jika alur penerimaan/penyaluran memerlukannya.
 Saldo awal berasal dari penghitungan nyata, dengan tanggal acuan dan audit.
 
-### Tahap 3 — Transaksi dan kartu stok
+### Tahap 3 — Transaksi, dilanjutkan Kartu Stok
 
 Implementasikan pencatatan saldo awal, penerimaan pembelian, dan penyaluran ke
 lokasi/Divisi & Unit, berikut penerima, tanggal, jumlah, dan catatan. Bukti pembelian,
@@ -255,10 +255,20 @@ PATCH /:kind/:id, dan options=1; pengaturan gudang GET/PUT
 /api/inventory/catalog/items/:id/warehouses memakai versi per barang-gudang.
 minimumStock adalah batas peringatan, bukan saldo. Migration 047–048 diperlukan.
 Daftar barang mengembalikan `warehouse_limits` hanya untuk gudang dalam cakupan baca
-pengguna, sehingga batas minimum dapat terlihat per gudang di tabel dan kartu mobile.
+pengguna, sehingga batas minimum terlihat di kartu katalog desktop dan mobile.
+Kartu menampilkan foto privat atau ikon tanpa foto, nama/kode, kategori, satuan,
+status, dan batas minimum per gudang; batas bukan saldo stok. Filter katalog memakai
+section filter bersama untuk nama/kode, status, lokasi, gudang, barang belum didaftarkan,
+dan rentang nilai minimum. Filter dijalankan pada SQL sebelum paginasi dan dibatasi
+cakupan gudang actor; ID gudang di luar cakupan ditolak. Barang tanpa tautan dalam
+cakupan gudang yang dapat dilihat dianggap belum didaftarkan bagi akun tersebut.
+Katalog menampilkan kartu langsung tanpa panel tabel atau paginasi visual. Halaman
+berikutnya dimuat otomatis saat mendekati akhir viewport, dengan tombol muat berikutnya
+sebagai cadangan; filter mereset daftar dari awal. Angka minimum bulat tidak dipaksa
+menampilkan tiga desimal, sementara pecahan hingga tiga digit tetap dapat dimasukkan.
 Setelah pengaturan disimpan, daftar dimuat ulang; gudang yang tidak berizin tidak
 boleh muncul pada ringkasan maupun modal rincian batas.
-Konversi kemasan, saldo awal, transaksi, peringatan saldo nyata, kartu stok,
+Konversi kemasan, peringatan saldo nyata, kartu stok,
 permintaan/approval, laporan operasional serta aset tetap tahap berikutnya.
 
 ## Arahan prasyarat dan tautan lama
@@ -303,7 +313,8 @@ mencabut inventory.master.read dari paket reader tanpa menghapus grant lama.
 ## Pemisahan master dan operasional — migration 050
 
 - Lihat Saja (inventory_reader): baca Stok Barang/Transaksi Barang/Distribusi Barang, scope gudang all/selected; tidak membuka atau mengubah master.
-- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Transaksi stok/ledger belum diimplementasikan; permission transaksi mutasi ditambahkan bersama fitur berikutnya.
+- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Migration 054 menambahkan pencatatan dan pembatalan transaksi dalam gudang yang diizinkan. Saldo awal, masuk, keluar, pengembalian, dan stok opname memakai riwayat `inventory_stock_movements` yang sama; draft tidak mengubah stok. Kartu Stok dan laporan pemantauan tetap tahap berikutnya.
+- Pencatatan Transaksi Barang memakai `AppModal` empat tahap (jenis, detail, barang, periksa). Tombol Catat transaksi memulihkan draft aktif terakhir milik petugas/organisasi tanpa menampilkan daftar draft; draft Pegawai tetap terpisah. Draft memakai checkpoint saat Lanjut, Kembali, Simpan draft & tutup, atau finalisasi, bukan autosave per perubahan field; penutupan menunggu simpan berhasil. Pengguna dapat membuang draft aktif dan mulai ulang di modal. Pemilihan jenis lain baru meminta konfirmasi ketika Lanjut ditekan dan isian lama ada; isian dikosongkan hanya setelah pengguna setuju dan checkpoint jenis baru berhasil. Lampiran lama dibersihkan saat jenis baru tersimpan. Seluruh dropdown wizard dapat dicari dengan ketikan; footer dan tombol konfirmasi menempati satu baris masing-masing dengan lebar penuh pada ponsel. Dua area unggah yang berurutan dan area unggah terakhir terhadap footer memiliki jarak aman. Lampiran draft disimpan privat serta dibersihkan saat draft dibuang/kedaluwarsa (migration 056). Pilihan jenis pada tahap pertama dan ledger berbagi label, ikon, serta warna yang sama. Riwayat hanya berisi transaksi terposting, berbentuk ledger responsif padat per dokumen dengan kolom Status setelah Dicatat oleh, ikon jenis ringkas, dan cursor 10/20/50 baris per halaman (awal 20), diurutkan menurut waktu pencatatan terbaru. Pencarian dan dropdown yang bisa diketik berada dalam section filter bersama; toolbar pencarian/muat ulang terpisah tidak digunakan. `DataPagination` menampilkan total hasil filter dari server. Satu tanggal di baris adalah Tanggal transaksi; waktu pencatatan tetap tersedia di detail audit. Bukti pembelian baru memakai JPEG/PNG/WebP maksimal 5 MB; PDF lama tetap terbaca berizin.
 - Pengelola Master Inventaris (inventory_master): baca/tambah/edit/nonaktifkan Barang/Kategori/Satuan/Gudang, termasuk membuat gudang. Cakupan organisasi, disimpan scope_mode=all dan warehouseIds kosong. Tidak memberi akses operasional stok/transaksi/laporan/minimum; bukan seluruh gudang operasional.
 
 Satu akun dapat menerima tiga pilihan tersebut secara independen. Form master

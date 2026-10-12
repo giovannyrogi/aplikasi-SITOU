@@ -6,6 +6,7 @@ import { createServer } from "node:net";
 import sharp from "sharp";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import os from "node:os";
 import dotenv from "dotenv";
 import pg from "pg";
@@ -68,6 +69,15 @@ try {
   await db.query(
     await readFile("database/migrations/20261009_052_hris_account_delegation.sql", "utf8"),
   );
+  await db.query(
+    await readFile("database/migrations/20261011_054_inventory_transactions.sql", "utf8"),
+  );
+  await db.query(
+    await readFile("database/migrations/20261011_055_inventory_transaction_files_and_immutability.sql", "utf8"),
+  );
+  await db.query(
+    await readFile("database/migrations/20261011_056_inventory_transaction_drafts.sql", "utf8"),
+  );
   assert.equal(
     (await db.query("SELECT count(*)::int count FROM access_packages")).rows[0].count,
     3,
@@ -83,6 +93,15 @@ try {
       (await bootstrap.query("SELECT count(*)::int count FROM access_packages")).rows[0].count,
       3,
     );
+    const transactionSignature = async (database) => (
+      await database.query(`SELECT table_name,column_name,data_type,is_nullable
+        FROM information_schema.columns WHERE table_schema='public' AND table_name=ANY($1::text[])
+        ORDER BY table_name,ordinal_position`, [[
+          "inventory_transactions","inventory_transaction_lines","inventory_stock_openings",
+          "inventory_stock_movements","inventory_stock_balances","inventory_transaction_files",
+        ]])
+    ).rows;
+    assert.deepEqual(await transactionSignature(db),await transactionSignature(bootstrap));
   } finally {
     await bootstrap.end();
     await admin.query(`DROP DATABASE "${bootstrapName}"`);
@@ -724,6 +743,7 @@ try {
     201,
   );
   const combinedCookie = await cookieFor(combinedAccount);
+  assert.equal(expect(await req(`/api/inventory/transactions?organizationId=${org.id}&options=1`, combinedCookie), 200).canCreate, true);
   assert.equal(combinedAccount.packageAccess.length, 3);
   const combinedGrants = combinedAccount.packageAccess.map((grant) => ({
     packageCode: grant.packageCode,
@@ -923,13 +943,69 @@ try {
     200,
   ).find((row) => row.id === item.id);
   assert.deepEqual(scopedItem.warehouse_limits, [
-    { warehouse_name: "Gudang Bersehati", minimum_stock: "12.000", is_active: true },
+    {
+      warehouse_id: String(cabang.id),
+      warehouse_name: "Gudang Bersehati",
+      minimum_stock: "12.000",
+      is_active: true,
+    },
   ]);
   const fullItem = expect(
     await req(`${catalog}/items?organizationId=${org.id}`, superadmin.cookie),
     200,
   ).find((row) => row.id === item.id);
   assert.equal(fullItem.warehouse_limits.length, 2);
+  const unregisteredItem = expect(
+    await req(catalog + "/items", superadmin.cookie, "POST", {
+      ...itemInput,
+      code: "HVS_BELUM",
+      name: "Kertas belum terdaftar",
+    }),
+    201,
+  );
+  const filteredItems = async (cookie, suffix) =>
+    expect(await req(`${catalog}/items?organizationId=${org.id}${suffix}`, cookie), 200);
+  assert.deepEqual(
+    (await filteredItems(superadmin.cookie, `&warehouseId=${cabang.id}`)).map((row) => row.id),
+    [item.id],
+  );
+  assert.deepEqual(
+    (await filteredItems(superadmin.cookie, `&locationId=${org.locations[0]}`)).map(
+      (row) => row.id,
+    ),
+    [item.id],
+  );
+  assert.deepEqual(
+    (await filteredItems(superadmin.cookie, "&warehouseId=unregistered")).map((row) => row.id),
+    [unregisteredItem.id],
+  );
+  assert.deepEqual(
+    (await filteredItems(superadmin.cookie, "&minimumFrom=10&minimumTo=12")).map((row) => row.id),
+    [item.id],
+  );
+  assert.equal((await filteredItems(superadmin.cookie, "&minimumFrom=13")).length, 0);
+  expect(
+    await req(
+      `${catalog}/items?organizationId=${org.id}&warehouseId=${extraWarehouse.id}`,
+      employeeCookie,
+    ),
+    403,
+  );
+  expect(
+    await req(`${catalog}/items?organizationId=${org.id}&minimumFrom=-1`, superadmin.cookie),
+    400,
+  );
+  expect(
+    await req(`${catalog}/items?organizationId=${org.id}&locationId=abc`, superadmin.cookie),
+    400,
+  );
+  expect(
+    await req(
+      `${catalog}/items?organizationId=${org.id}&minimumFrom=13&minimumTo=10`,
+      superadmin.cookie,
+    ),
+    400,
+  );
   expect(
     await req(`${catalog}/items/${item.id}/warehouses`, employeeCookie, "PUT", configInput),
     409,
@@ -1146,6 +1222,131 @@ try {
   });
   assert.ok(legacy.status >= 300 && legacy.status < 400);
   assert.match(legacy.headers.get("location"), /master-data\/inventory-items/);
+  const transactions = "/api/inventory/transactions";
+  const transactionItem = expect(await req(catalog + "/items", superadmin.cookie, "POST", {
+    ...itemInput, code: "PENA_UJI", name: "Pena transaksi uji",
+  }), 201);
+  expect(await req(`${catalog}/items/${transactionItem.id}/warehouses`, superadmin.cookie, "PUT", {
+    ...configInput, minimumStock: 2,
+  }), 200);
+  const today = (await db.query(
+    "SELECT to_char((now() AT TIME ZONE timezone)::date,'YYYY-MM-DD') AS value FROM organizations WHERE id=$1",
+    [org.id],
+  )).rows[0].value;
+  const daysAgo = (days) => new Date(Date.parse(today + "T00:00:00Z") - days * 86400000).toISOString().slice(0, 10);
+  const transactionInput = (kind, lines, changes = {}) => ({
+    organizationId: Number(org.id), transactionId: randomUUID(), warehouseId: Number(cabang.id),
+    kind, occurredOn: today, referenceNo: null, notes: null, lateReason: null,
+    destinationLocationId: null, destinationUnitId: null, recipientEmployeeId: null,
+    sourceTransactionId: null, lines, ...changes,
+  });
+  const firstLine = [{ itemId: Number(item.id), quantity: 10 }];
+  expect(await req(transactions, readerCookie, "POST", transactionInput("opening", firstLine)), 403);
+  expect(await req(transactions, masterCookie, "POST", transactionInput("opening", firstLine)), 403);
+  expect(await req(transactions, employeeCookie, "POST", transactionInput("opening", firstLine, {warehouseId:Number(extraWarehouse.id)})), 403);
+  expect(await req(transactions, employeeCookie, "POST", transactionInput("opening", firstLine, {organizationId:Number(other.id)})), 403);
+  const opening = transactionInput("opening", [
+    {itemId:Number(item.id),quantity:10},{itemId:Number(transactionItem.id),quantity:0},
+  ], {occurredOn:daysAgo(2),lateReason:"Barang sudah dihitung dua hari lalu."});
+  expect(await req(transactions, employeeCookie, "POST", opening), 201);
+  assert.equal((await db.query("SELECT quantity::text FROM inventory_stock_balances WHERE organization_id=$1 AND warehouse_id=$2 AND item_id=$3",[org.id,cabang.id,transactionItem.id])).rows[0].quantity,"0.000");
+  expect(await req(transactions, employeeCookie, "POST", opening), 201);
+  expect(await req(transactions, employeeCookie, "POST", transactionInput("opening", firstLine)), 409);
+  const draft = transactionInput("receipt",[{itemId:Number(item.id),quantity:2}]);
+  const savedDraft = expect(await req(`${transactions}/drafts`, employeeCookie, "POST", {...draft,version:undefined}),200);
+  assert.equal((await db.query("SELECT quantity::text FROM inventory_stock_balances WHERE organization_id=$1 AND warehouse_id=$2 AND item_id=$3",[org.id,cabang.id,item.id])).rows[0].quantity,"10.000");
+  expect(await req(`${transactions}/drafts`,employeeCookie,"POST",{...draft,version:savedDraft.version}),200);
+  expect(await req(transactions,employeeCookie,"POST",{...draft,version:savedDraft.version}),409);
+  const currentDraft=(await db.query("SELECT version FROM inventory_transactions WHERE id=$1",[draft.transactionId])).rows[0];
+  expect(await req(transactions,employeeCookie,"POST",{...draft,version:currentDraft.version}),201);
+  await db.query("INSERT INTO organization_unit_locations(organization_id,organization_unit_id,location_id,active_from) VALUES($1,$2,$3,current_date-10)",[org.id,org.unit,org.locations[1]]);
+  const receipt = transactionInput("receipt",[{itemId:Number(transactionItem.id),quantity:5}]);
+  expect(await req(transactions,employeeCookie,"POST",receipt),201);
+  const staged=transactionInput("receipt",[{itemId:Number(transactionItem.id),quantity:1}]);
+  const stagedSaved=expect(await req(`${transactions}/drafts`,employeeCookie,"POST",{...staged,currentStep:1}),200);
+  assert.equal(expect(await req(`${transactions}/${staged.transactionId}?organizationId=${org.id}`,employeeCookie),200).draft_step,1);
+  const stagedForm=new FormData();
+  stagedForm.append("organizationId",org.id);
+  stagedForm.append("purpose","purchase_proof");
+  const rejectedProof=new FormData();
+  rejectedProof.append("organizationId",org.id);
+  rejectedProof.append("purpose","purchase_proof");
+  rejectedProof.append("file",new Blob([Buffer.from("%PDF-1.4\n%%EOF")],{type:"application/pdf"}),"bukti-lama.pdf");
+  const rejectedResponse=await fetch(`${base}${transactions}/${staged.transactionId}/draft-files`,{method:"POST",headers:{Origin:base,Cookie:employeeCookie},body:rejectedProof});
+  assert.ok(rejectedResponse.status>=400);
+  stagedForm.append("file",new Blob([image],{type:"image/png"}),"bukti-draft.png");
+  const stagedResponse=await fetch(`${base}${transactions}/${staged.transactionId}/draft-files`,{method:"POST",headers:{Origin:base,Cookie:employeeCookie},body:stagedForm});
+  const stagedFile=expect({status:stagedResponse.status,...await stagedResponse.json()},201);
+  assert.equal((await fetch(`${base}/api/uploads/${stagedFile.id}?organizationId=${org.id}`,{headers:{Cookie:employeeCookie}})).status,200);
+  assert.equal((await fetch(`${base}/api/uploads/${stagedFile.id}?organizationId=${org.id}`,{headers:{Cookie:readerCookie}})).status,403);
+  const stagedDetail=expect(await req(`${transactions}/${staged.transactionId}?organizationId=${org.id}`,employeeCookie),200);
+  assert.equal(stagedDetail.files[0].id,stagedFile.id);
+  expect(await req(transactions,employeeCookie,"POST",{...staged,version:stagedSaved.version}),201);
+  assert.equal((await db.query("SELECT lifecycle_status FROM stored_files WHERE id=$1",[stagedFile.id])).rows[0].lifecycle_status,"active");
+  const disposable=transactionInput("receipt",[{itemId:Number(transactionItem.id),quantity:1}]);
+  expect(await req(`${transactions}/drafts`,employeeCookie,"POST",{...disposable,currentStep:1}),200);
+  expect(await req(`${transactions}/${disposable.transactionId}/draft?organizationId=${org.id}`,employeeCookie,"DELETE"),200);
+  expect(await req(`${transactions}/${disposable.transactionId}?organizationId=${org.id}`,employeeCookie),404);
+  const additionalDraft=transactionInput("receipt",[{itemId:Number(transactionItem.id),quantity:2}]);
+  expect(await req(`${transactions}/drafts`,employeeCookie,"POST",{...additionalDraft,currentStep:2}),200);
+  const parallelDraft=transactionInput("issue",[{itemId:Number(transactionItem.id),quantity:1}]);
+  expect(await req(`${transactions}/drafts`,employeeCookie,"POST",{...parallelDraft,currentStep:0}),200);
+  const latestDraft=expect(await req(`${transactions}/drafts?organizationId=${org.id}`,employeeCookie),200);
+  assert.equal(latestDraft.id,parallelDraft.transactionId);
+  expect(await req(`${transactions}/${parallelDraft.transactionId}/draft?organizationId=${org.id}`,employeeCookie,"DELETE"),200);
+  assert.equal(expect(await req(`${transactions}/drafts?organizationId=${org.id}`,employeeCookie),200).id,additionalDraft.transactionId);
+  const ledger=expect(await req(`${transactions}?organizationId=${org.id}&status=all`,employeeCookie),200);
+  assert.ok(ledger.data.every((entry)=>entry.status==="posted"));
+  assert.ok(!ledger.data.some((entry)=>entry.id===additionalDraft.transactionId));
+  assert.ok(new Date(ledger.data[0].sort_at)>=new Date(ledger.data.at(-1).sort_at));
+  const proofTransaction=transactionInput("receipt",[{itemId:Number(transactionItem.id),quantity:1}],{referenceNo:"QA-BUKTI-GAMBAR-001"});
+  const proofForm=new FormData();
+  proofForm.append("payload",JSON.stringify(proofTransaction));
+  proofForm.append("purchaseProof",new Blob([image],{type:"image/png"}),"bukti-uji.png");
+  const proofResponse=await fetch(base+transactions,{method:"POST",headers:{Origin:base,Cookie:employeeCookie},body:proofForm});
+  const proofBody={status:proofResponse.status,...await proofResponse.json()};
+  const proofPosted=expect(proofBody,201);
+  assert.equal(proofPosted.files.length,1);
+  const fileUrl=`/api/uploads/${proofPosted.files[0].id}?organizationId=${org.id}&download=1`;
+  assert.equal((await fetch(base+fileUrl,{headers:{Cookie:employeeCookie}})).status,200);
+  assert.equal((await fetch(base+fileUrl,{headers:{Cookie:readerCookie}})).status,200);
+  assert.equal((await fetch(base+fileUrl,{headers:{Cookie:masterCookie}})).status,403);
+  await assert.rejects(db.query("UPDATE inventory_transactions SET notes='diubah' WHERE id=$1",[proofTransaction.transactionId]));
+  const issue = transactionInput("issue",[{itemId:Number(item.id),quantity:3}],{
+    destinationLocationId:Number(org.locations[1]),destinationUnitId:Number(org.unit),recipientEmployeeId:Number(profile),
+  });
+  expect(await req(transactions,employeeCookie,"POST",issue),201);
+  const excessiveReturn=transactionInput("return",[{itemId:Number(item.id),quantity:4}],{sourceTransactionId:issue.transactionId});
+  expect(await req(transactions,employeeCookie,"POST",excessiveReturn),409);
+  const returned=transactionInput("return",[{itemId:Number(item.id),quantity:1}],{sourceTransactionId:issue.transactionId});
+  expect(await req(transactions,employeeCookie,"POST",returned),201);
+  const stocktake=transactionInput("stocktake",[{itemId:Number(item.id),quantity:9}]);
+  expect(await req(transactions,employeeCookie,"POST",stocktake),201);
+  expect(await req(`${transactions}/${stocktake.transactionId}/cancel`,employeeCookie,"POST",{
+    organizationId:Number(org.id),reason:"Hasil hitung fisik sebelumnya keliru.",reversalId:randomUUID(),
+  }),200);
+  const historical=transactionInput("issue",[{itemId:Number(item.id),quantity:10}],{
+    occurredOn:daysAgo(1),lateReason:"Penyaluran kemarin baru diserahkan ke petugas.",
+    destinationLocationId:Number(org.locations[1]),destinationUnitId:Number(org.unit),recipientEmployeeId:Number(profile),
+  });
+  expect(await req(transactions,employeeCookie,"POST",historical),409);
+  const concurrent=(quantity)=>transactionInput("issue",[{itemId:Number(item.id),quantity}],{
+    destinationLocationId:Number(org.locations[1]),destinationUnitId:Number(org.unit),recipientEmployeeId:Number(profile),
+  });
+  const concurrentResults=await Promise.all([req(transactions,employeeCookie,"POST",concurrent(7)),req(transactions,employeeCookie,"POST",concurrent(7))]);
+  assert.deepEqual(concurrentResults.map((result)=>result.status).sort(),[201,409]);
+  assert.equal((await db.query("SELECT quantity::text FROM inventory_stock_balances WHERE organization_id=$1 AND warehouse_id=$2 AND item_id=$3",[org.id,cabang.id,item.id])).rows[0].quantity,"3.000");
+  assert.ok(expect(await req(`${transactions}/${issue.transactionId}?organizationId=${org.id}`,readerCookie),200).lines.length);
+  expect(await req(`${transactions}/${issue.transactionId}?organizationId=${other.id}`,readerCookie),403);
+  const ledgerPage = expect(await req(`${transactions}?organizationId=${org.id}&pageSize=10`,readerCookie),200);
+  assert.ok(ledgerPage.total >= ledgerPage.data.length);
+  assert.ok(ledgerPage.data.length <= 10);
+  if(ledgerPage.nextCursor){
+    const nextPage = expect(await req(`${transactions}?organizationId=${org.id}&pageSize=10&cursor=${encodeURIComponent(ledgerPage.nextCursor)}`,readerCookie),200);
+    assert.equal(nextPage.total,ledgerPage.total);
+    assert.ok(nextPage.data.every((row)=>!ledgerPage.data.some((first)=>first.id===row.id)));
+  }
+  expect(await req(`${transactions}?organizationId=${org.id}&pageSize=11`,readerCookie),400);
   await db.query(
     `INSERT INTO inventory_items(organization_id,code,name,category_id,unit_id)
     SELECT $1,'BENCH_'||value,'ZZ Katalog uji '||lpad(value::text,3,'0'),$2,$3 FROM generate_series(1,85) value`,
@@ -1161,7 +1362,7 @@ try {
   assert.ok(Number.isFinite(catalogPlan.rows[0]["QUERY PLAN"][0]["Execution Time"]));
   const { chromium } = await import(
     process.env.PLAYWRIGHT_MODULE_PATH ||
-      "file:///C:/Users/GIOVR/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs"
+      pathToFileURL(path.join(os.homedir(), ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs")).href
   );
   browser = await chromium.launch({
     headless: true,
@@ -1241,24 +1442,40 @@ try {
     await page.goto(base + "/master-data/inventory-items");
     await page.getByRole("heading", { name: "Barang Persediaan", exact: true }).waitFor();
     await page.getByText("Kertas HVS A4", { exact: true }).first().waitFor();
+    if (width === 320) {
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+        false,
+      );
+      await page.screenshot({
+        path: path.join(screenshots, "inventory-gallery-320.png"),
+        fullPage: true,
+      });
+    }
     if (width < 768) {
-      const itemCard = page.locator("[data-responsive-card]").filter({ hasText: "Kertas HVS A4" });
-      await itemCard.getByLabel("Inisial Kertas HVS A4").waitFor();
+      const itemCard = page
+        .locator("[data-inventory-item-card]")
+        .filter({ hasText: "Kertas HVS A4" });
+      await itemCard.getByRole("img", { name: "Foto Kertas HVS A4 belum tersedia" }).waitFor();
       assert.equal(await itemCard.getByRole("button", { name: /Perbesar foto barang/ }).count(), 0);
     } else {
-      const itemRow = page.getByRole("row").filter({ hasText: "Kertas HVS A4" });
-      await itemRow.getByLabel("Inisial Kertas HVS A4").waitFor();
+      const itemCard = page
+        .locator("[data-inventory-item-card]")
+        .filter({ hasText: "Kertas HVS A4" });
+      await itemCard.getByRole("img", { name: "Foto Kertas HVS A4 belum tersedia" }).waitFor();
     }
     await page.getByRole("button", { name: /Tambah barang$/ }).waitFor();
     assert.equal(await page.getByRole("button", { name: /Tambah barang$/ }).count(), 1);
     if (width === 320) {
-      const card = page.locator("[data-responsive-card]").filter({ hasText: "Kertas HVS A4" });
-      await card.getByRole("button", { name: "Buka menu aksi" }).click();
+      const card = page.locator("[data-inventory-item-card]").filter({ hasText: "Kertas HVS A4" });
+      await card.getByRole("button", { name: "Edit atau atur barang Kertas HVS A4" }).click();
       await page
         .locator(".ant-dropdown-menu-item")
         .filter({ hasText: /^Atur barang di gudang$/ })
         .click();
       const dialog = page.getByRole("dialog", { name: "Atur barang di gudang" });
+      assert.equal(await dialog.getByText("Barang aktif di gudang ini").count(), 0);
+      assert.equal(await dialog.getByText("Barang tidak aktif di gudang ini").count(), 0);
       try {
         await dialog.getByLabel("Gudang", { exact: true }).click();
       } catch (error) {
@@ -1280,7 +1497,42 @@ try {
         .filter({ hasText: /^Gudang Bersehati$/ })
         .click();
       await dialog.getByLabel("Batas stok minimum (Rim)").fill("15");
-      await dialog.getByText("Batas minimum adalah ambang peringatan").waitFor();
+      assert.equal(await dialog.getByLabel("Batas stok minimum (Rim)").inputValue(), "15");
+      await dialog.getByText("Batas stok minimum menentukan kapan peringatan muncul").waitFor();
+      await dialog.getByText("Barang aktif di gudang ini").waitFor();
+      const minimumBox = await dialog.getByLabel("Batas stok minimum (Rim)").boundingBox();
+      const minimumNoticeBox = await dialog
+        .getByRole("status")
+        .filter({ hasText: "Batas stok minimum menentukan kapan peringatan muncul" })
+        .boundingBox();
+      assert.ok(minimumNoticeBox.y >= minimumBox.y + minimumBox.height + 12);
+      assert.equal(await dialog.getByText("Barang digunakan di gudang ini").count(), 0);
+      const warehouseStatusNotice = dialog.getByRole("group", {
+        name: /Barang aktif di gudang ini/,
+      });
+      const statusNoticeBox = await warehouseStatusNotice.boundingBox();
+      assert.ok(statusNoticeBox.y >= minimumNoticeBox.y + minimumNoticeBox.height + 16);
+      assert.equal(
+        await warehouseStatusNotice.getByRole("switch").getAttribute("aria-checked"),
+        "true",
+      );
+      const activeSwitchColor = await warehouseStatusNotice
+        .getByRole("switch")
+        .evaluate((element) => getComputedStyle(element).backgroundColor);
+      const [red, green, blue] = activeSwitchColor.match(/[\d.]+/g).map(Number);
+      assert.ok(
+        green > red * 2 && green > blue * 1.5,
+        `Switch aktif harus hijau: ${activeSwitchColor}`,
+      );
+      await warehouseStatusNotice.getByRole("switch").click();
+      await dialog.getByText("Barang tidak aktif di gudang ini").waitFor();
+      await dialog
+        .getByText(/barang tidak dapat dipilih atau digunakan pada transaksi stok/)
+        .waitFor();
+      await dialog
+        .getByRole("group", { name: /Barang tidak aktif di gudang ini/ })
+        .getByRole("switch")
+        .click();
       await dialog.getByText("Barang aktif di gudang ini").waitFor();
       await page.locator(".ant-select-dropdown:visible").waitFor({ state: "hidden" });
       await page.screenshot({
@@ -1299,14 +1551,116 @@ try {
         "15.000",
       );
       await page
-        .locator("[data-responsive-card]")
+        .locator("[data-inventory-item-card]")
         .filter({ hasText: "Kertas HVS A4" })
-        .getByText("Gudang Bersehati: 15 Rim")
+        .getByText("15 Rim")
         .waitFor();
     }
     await page.goto(base + "/inventory/stock");
     await page.getByText("Stok Barang", { exact: true }).last().waitFor();
     assert.equal(await page.getByRole("button", { name: /Catat barang/ }).count(), 0);
+    await page.goto(base + "/inventory/transactions");
+    await page.getByRole("navigation", { name: "Navigasi halaman data" }).waitFor();
+    await page.getByRole("combobox", { name: "Jumlah baris per halaman" }).waitFor();
+    await page.getByRole("heading", { name: "Transaksi Barang", exact: true }).waitFor();
+    await page.getByText("Riwayat transaksi", { exact: true }).waitFor();
+    await page.getByText("Barang keluar", { exact: true }).first().waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    if (width === 320 || width === 1366)
+      await page.screenshot({ path: path.join(screenshots, `transactions-${width}.png`), fullPage: true });
+    if (width === 1366) {
+      const filterSection = page.locator("section").filter({has:page.getByRole("heading", { name: "Cari transaksi" })});
+      const kindSearch = filterSection.locator(".ant-select").nth(1).locator("input");
+      await kindSearch.click();
+      await kindSearch.fill("Barang kel");
+      await page.locator(".ant-select-dropdown:visible .ant-select-item-option-content").filter({hasText:"Barang keluar"}).waitFor();
+      await kindSearch.fill("");
+      await kindSearch.press("Escape");
+      const ledgerHeader = page.getByRole("list", { name: "Riwayat transaksi barang" }).locator('[aria-hidden="true"]').first();
+      assert.deepEqual(await ledgerHeader.locator("p").allInnerTexts(), ["Tanggal transaksi", "Transaksi", "Gudang", "Barang", "Dicatat oleh", "Status", "Aksi"]);
+      await page.getByRole("combobox", { name: "Jumlah baris per halaman" }).click();
+      await page.locator(".ant-select-dropdown:visible .ant-select-item-option-content").filter({hasText:"10 / halaman"}).click();
+      await page.waitForFunction(() => document.querySelectorAll('[role="listitem"]').length <= 10);
+      await page.getByText(/Total: \d+ data/).last().waitFor();
+      const searchField = page.getByPlaceholder("Barang, referensi, gudang, atau petugas");
+      await searchField.fill("QA-BUKTI-GAMBAR-001");
+      const proofRow = page.getByRole("listitem").filter({ hasText: "QA-BUKTI-GAMBAR-001" });
+      await proofRow.getByRole("button", { name: /Lihat detail/ }).click();
+      const proofDetail = page.getByRole("dialog", { name: "Barang masuk" });
+      const proofImage = proofDetail.getByRole("img", { name: "Bukti pembelian" });
+      assert.ok((await proofImage.boundingBox()).width > 150);
+      await page.screenshot({ path: path.join(screenshots, "transaction-detail-image-1366.png"), fullPage: true });
+      await proofDetail.getByRole("button", { name: "Tutup modal" }).click();
+      await searchField.fill("");
+    }
+    await page.getByText("Catat transaksi", { exact: true }).first().click();
+    const transactionDialog=page.getByRole("dialog",{name:"Catat transaksi barang"});
+    await transactionDialog.getByText("Silakan pilih jenis transaksi").waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    if (width === 320 || width === 1366)
+      await page.screenshot({ path: path.join(screenshots, `transaction-form-${width}.png`), fullPage: true });
+    if (width === 320) {
+      await transactionDialog.locator("button").filter({ hasText: "Saldo awal" }).first().click();
+      await transactionDialog.getByRole("button", { name: "Lanjut", exact: true }).click();
+      await transactionDialog.getByText("Pilih gudang dan tanggal saat barang diterima", { exact: false }).waitFor();
+      await transactionDialog.getByText("Draft aman tersimpan", { exact: true }).waitFor();
+      const back = transactionDialog.getByRole("button", { name: "Kembali", exact: true });
+      const next = transactionDialog.getByRole("button", { name: "Lanjut", exact: true });
+      for (const button of [transactionDialog.getByRole("button", { name: "Simpan draft & tutup" }), back, next]) {
+        const rect = await button.boundingBox();
+        assert.ok(rect.width > 230 && rect.width < 320, "Tombol footer mobile harus lebar penuh");
+      }
+      assert.ok((await back.boundingBox()).y > (await transactionDialog.getByRole("button", { name: "Simpan draft & tutup" }).boundingBox()).y + 44);
+      assert.ok((await next.boundingBox()).y > (await back.boundingBox()).y + 44);
+      const warehouseSearch = transactionDialog.locator('[data-field="warehouseId"] input[role="combobox"]');
+      await warehouseSearch.click();
+      const firstWarehouseOption = page.locator(".ant-select-item-option-content").first();
+      await firstWarehouseOption.waitFor();
+      const warehouseLabel = await firstWarehouseOption.innerText();
+      await warehouseSearch.fill(warehouseLabel.slice(0, 4));
+      await page.locator(".ant-select-item-option-content").filter({ hasText: warehouseLabel }).first().waitFor();
+      await warehouseSearch.fill("");
+      await transactionDialog.getByPlaceholder("Contoh: BA-2026-001").fill("BA-LAMA-001");
+    }
+    if (width === 320) await transactionDialog.getByRole("button", { name: "Tutup modal" }).click();
+    else await transactionDialog.getByRole("button",{name:"Simpan draft & tutup"}).click();
+    if (width === 320) {
+      await page.getByText("Catat transaksi", { exact: true }).first().click();
+      const resumed = page.getByRole("dialog", { name: "Lanjutkan draft transaksi" });
+      await resumed.getByText("Pilih gudang dan tanggal saat barang diterima", { exact: false }).waitFor();
+      assert.equal(await resumed.getByPlaceholder("Contoh: BA-2026-001").inputValue(),"BA-LAMA-001");
+      await resumed.getByRole("button", { name: "Kembali", exact: true }).click();
+      await resumed.locator("button").filter({ hasText: "Barang keluar" }).first().click();
+      assert.equal(await page.getByText("Ganti jenis transaksi?", { exact: true }).count(), 0);
+      await resumed.getByRole("button", { name: "Lanjut", exact: true }).click();
+      const switchDialog = page.getByRole("dialog", { name: "Ganti jenis transaksi?" });
+      const cancelSwitch = switchDialog.getByRole("button", { name: "Batal" });
+      const confirmSwitch = switchDialog.getByRole("button", { name: "Ganti jenis", exact: true });
+      assert.ok((await cancelSwitch.boundingBox()).width > 230);
+      assert.ok((await confirmSwitch.boundingBox()).width > 230);
+      assert.ok((await confirmSwitch.boundingBox()).y > (await cancelSwitch.boundingBox()).y + 44);
+      await cancelSwitch.click();
+      await resumed.locator("button").filter({ hasText: "Saldo awal" }).first().click();
+      await resumed.getByRole("button", { name: "Lanjut", exact: true }).click();
+      assert.equal(await resumed.getByPlaceholder("Contoh: BA-2026-001").inputValue(),"BA-LAMA-001");
+      await resumed.getByRole("button", { name: "Kembali", exact: true }).click();
+      await resumed.locator("button").filter({ hasText: "Barang keluar" }).first().click();
+      await resumed.getByRole("button", { name: "Lanjut", exact: true }).click();
+      await page.screenshot({ path: path.join(screenshots, "transaction-switch-confirm.png"), fullPage: true });
+      await switchDialog.getByText("Ganti jenis transaksi?", { exact: true }).waitFor();
+      await confirmSwitch.click();
+      assert.equal(await resumed.getByPlaceholder("Contoh: BA-2026-001").inputValue(),"");
+      const requestUpload = resumed.getByText("Dokumen permintaan (PDF, opsional)").locator("..").locator(".ant-upload-drag");
+      const handoverLabel = resumed.getByText("Foto serah terima (opsional)");
+      const requestUploadBox = await requestUpload.boundingBox();
+      const handoverLabelBox = await handoverLabel.boundingBox();
+      assert.ok(handoverLabelBox.y - (requestUploadBox.y + requestUploadBox.height) >= 24,`Dua unggahan harus memiliki jarak aman; jarak aktual ${handoverLabelBox.y - (requestUploadBox.y + requestUploadBox.height)} px`);
+      await resumed.getByRole("button", { name: "Buang draft & mulai ulang" }).click();
+      await page.getByRole("dialog", { name: "Buang draft dan mulai ulang?" }).getByRole("button", { name: "Buang draft", exact: true }).click();
+      const fresh = page.getByRole("dialog", { name: "Catat transaksi barang" });
+      await fresh.getByText("Silakan pilih jenis transaksi").waitFor();
+      await fresh.getByRole("button", { name: "Tutup modal" }).click();
+    }
     assert.deepEqual(errors, []);
     await context.close();
   }
@@ -1400,7 +1754,7 @@ try {
   await adminPage.locator(".ant-dropdown:visible").waitFor({ state: "hidden" });
   const moduleDialog = adminPage.getByRole("dialog", { name: "Fitur organisasi" });
   const moduleExplanation = moduleDialog.getByText(
-    "Aktifkan untuk akun yang diberi akses. Saat nonaktif, gudang dan pengaturan akses tetap tersimpan. Aktifkan kembali untuk memulihkan akses.",
+    "Fitur dapat digunakan oleh akun yang diberi akses. Gudang dan pengaturan akses tetap tersimpan.",
     { exact: true },
   );
   assert.equal(
@@ -1445,20 +1799,63 @@ try {
   assert.ok(Number.isFinite(featurePlan.rows[0]["QUERY PLAN"][0]["Execution Time"]));
   await adminPage.goto(`${base}/inventory/catalog?organizationId=${org.id}&tab=items`);
   await adminPage.getByText("Kertas HVS A4", { exact: true }).waitFor();
-  const tableContent = await adminPage.locator(".ant-table-content").evaluate((element) => ({
-    scrollWidth: element.scrollWidth,
-    clientWidth: element.clientWidth,
-  }));
+  assert.equal(await adminPage.locator(".ant-pagination").count(), 0);
+  await adminPage.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await adminPage.waitForFunction(
+    () => document.querySelectorAll("[data-inventory-item-card]").length > 10,
+  );
+  assert.equal(
+    await adminPage.evaluate(() => {
+      const ids = [...document.querySelectorAll("[data-inventory-item-card]")].map(
+        (card) => card.dataset.itemId,
+      );
+      return ids.length === new Set(ids).size;
+    }),
+    true,
+    "Pemuatan otomatis tidak boleh menduplikasi kartu barang",
+  );
+  await adminPage.evaluate(() => window.scrollTo(0, 0));
+  await adminPage.getByRole("combobox", { name: "Filter gudang barang" }).click();
+  await adminPage
+    .locator(".ant-select-item-option-content")
+    .filter({ hasText: /^Belum didaftarkan$/ })
+    .click();
+  await adminPage.getByText("Kertas belum terdaftar", { exact: true }).waitFor();
+  assert.equal(await adminPage.getByText("Kertas HVS A4", { exact: true }).count(), 0);
+  await adminPage.getByRole("button", { name: "Atur ulang" }).click();
+  await adminPage.getByText("Kertas HVS A4", { exact: true }).waitFor();
+  await adminPage.getByRole("spinbutton", { name: "Batas stok minimum dari" }).fill("14");
+  await adminPage.getByRole("spinbutton", { name: "Batas stok minimum sampai" }).fill("15");
+  assert.equal(
+    await adminPage.getByRole("spinbutton", { name: "Batas stok minimum dari" }).inputValue(),
+    "14",
+  );
+  await adminPage.waitForFunction(
+    () => document.querySelectorAll("[data-inventory-item-card]").length === 1,
+  );
+  await adminPage.getByText("Kertas HVS A4", { exact: true }).waitFor();
+  assert.equal(await adminPage.locator("[data-inventory-item-card]").count(), 1);
+  await adminPage.getByRole("button", { name: "Atur ulang" }).click();
+  await adminPage.getByText("Kertas HVS A4", { exact: true }).waitFor();
+  const galleryWidth = await adminPage
+    .locator("[data-inventory-item-card]")
+    .first()
+    .evaluate((element) => ({
+      cardRight: element.getBoundingClientRect().right,
+      viewportWidth: window.innerWidth,
+    }));
   await adminPage.screenshot({
     path: path.join(screenshots, "inventory-limits-1366.png"),
     fullPage: true,
   });
   assert.ok(
-    tableContent.scrollWidth <= tableContent.clientWidth + 2,
-    `Tabel Inventaris perlu scroll horizontal pada 1366px: ${tableContent.scrollWidth}/${tableContent.clientWidth}`,
+    galleryWidth.cardRight <= galleryWidth.viewportWidth + 2,
+    `Kartu inventaris melampaui viewport 1366px: ${galleryWidth.cardRight}/${galleryWidth.viewportWidth}`,
   );
-  const itemRowUI = adminPage.getByRole("row").filter({ hasText: "Kertas HVS A4" });
-  await itemRowUI.getByRole("button", { name: "Buka menu aksi" }).click();
+  const itemRowUI = adminPage
+    .locator("[data-inventory-item-card]")
+    .filter({ hasText: "Kertas HVS A4" });
+  await itemRowUI.getByRole("button", { name: "Edit atau atur barang Kertas HVS A4" }).click();
   await adminPage
     .locator(".ant-dropdown-menu-item")
     .filter({ hasText: /^Edit barang$/ })
@@ -1505,7 +1902,9 @@ try {
   expect(await multipartPhoto({ ...itemInput, version: currentItem.version }, image), 200);
   await adminPage.setViewportSize({ width: 1366, height: 950 });
   await adminPage.goto(`${base}/master-data/inventory-items?organizationId=${org.id}`);
-  const photoRow = adminPage.getByRole("row").filter({ hasText: "Kertas HVS A4" });
+  const photoRow = adminPage
+    .locator("[data-inventory-item-card]")
+    .filter({ hasText: "Kertas HVS A4" });
   await photoRow.getByRole("button", { name: "Perbesar foto barang Kertas HVS A4" }).click();
   const photoPreview = adminPage.getByRole("dialog", { name: "Foto barang" });
   await photoPreview.getByRole("img", { name: "Kertas HVS A4" }).waitFor();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button as AntButton, Checkbox, Pagination, Skeleton, Tabs, Tooltip } from "antd";
+import { Button as AntButton, Checkbox, Skeleton, Tabs, Tooltip } from "antd";
 import Table from "@/app/components/data-display/NumberedTable";
 import { rowNumberOffset } from "@/app/components/data-display/rowNumbers.mjs";
 import {
@@ -32,6 +32,7 @@ import { readApiResponse, normalizeRequestError } from "@/lib/api/clientError";
 import FileUploadField from "@/app/components/forms/FileUploadField";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
+import DataPagination from "@/app/components/data-display/DataPagination";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import ModernTableFrame from "@/app/components/data-display/ModernTableFrame";
 import EmptyState from "@/app/components/data-display/EmptyState";
@@ -542,15 +543,7 @@ function FileItemsView({
             }
           />
         </ModernTableFrame>
-        <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
-          <Pagination
-            current={pagination.page}
-            pageSize={pagination.pageSize}
-            total={pagination.total}
-            showSizeChanger={false}
-            onChange={onPageChange}
-          />
-        </Box>
+        <DataPagination pagination={pagination} onPageChange={onPageChange} pageSizeOptions={[]}/>
       </Box>
     );
 
@@ -685,15 +678,7 @@ function FileItemsView({
           <Divider sx={{ mt: 2 }} />
         </Box>
       ))}
-      <Box sx={{ display: "flex", justifyContent: "center", pt: 1 }}>
-        <Pagination
-          simple
-          current={pagination.page}
-          pageSize={pagination.pageSize}
-          total={pagination.total}
-          onChange={onPageChange}
-        />
-      </Box>
+      <DataPagination pagination={pagination} onPageChange={onPageChange} pageSizeOptions={[]}/>
     </Box>
   );
 }
@@ -708,6 +693,8 @@ export default function StorageMaintenancePage() {
   const [connectionError, setConnectionError] = useState("");
   const [summary, setSummary] = useState(null);
   const [runs, setRuns] = useState([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
   const [activeTab, setActiveTab] = useState("candidate");
   const [itemState, setItemState] = useState({
     data: [],
@@ -736,6 +723,7 @@ export default function StorageMaintenancePage() {
     [runs],
   );
   const hasActiveRun = Number(summary?.active_run_count || 0) > 0;
+  const visibleHistoryPage = Math.min(historyPage, Math.max(1, Math.ceil(runs.length / historyPageSize)));
   const activeRunLabel = activeRun?.run_type === "cleanup" ? "Penghapusan file" : "Pemeriksaan";
 
   const refreshOverview = useCallback(async () => {
@@ -1305,12 +1293,14 @@ export default function StorageMaintenancePage() {
             <ModernTableFrame>
               <Table
                 rowKey="id"
-                dataSource={runs}
+                dataSource={runs.slice((visibleHistoryPage-1)*historyPageSize,visibleHistoryPage*historyPageSize)}
                 columns={historyColumns}
                 size="middle"
                 scroll={{ x: 850 }}
-                pagination={{ pageSize: 10, showSizeChanger: false }}
+                pagination={false}
+                rowOffset={(visibleHistoryPage-1)*historyPageSize}
               />
+              <Box sx={{px:2,pb:2,borderTop:"1px solid",borderColor:theme.ui.panelBorderSubtle}}><DataPagination pagination={{page:visibleHistoryPage,pageSize:historyPageSize,total:runs.length}} onPageChange={(page,size)=>{setHistoryPage(page);setHistoryPageSize(size);}} sx={{pt:1.5}}/></Box>
             </ModernTableFrame>
           )}
         </Box>

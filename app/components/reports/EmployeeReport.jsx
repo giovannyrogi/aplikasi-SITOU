@@ -8,7 +8,7 @@ import AppNotice from "@/app/components/data-display/AppNotice";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import { paginationTotalLabel } from "@/app/components/data-display/rowNumbers.mjs";
+import DataPagination from "@/app/components/data-display/DataPagination";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -574,56 +574,16 @@ export default function EmployeeReport({ kind }) {
               )}
             />
           )}
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1,
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              p: 2,
-            }}
-          >
-            <Typography
-              variant="body2"
-              role="status"
-              aria-live="polite"
-              sx={{
-                mr: { sm: "auto" },
-                flexBasis: { xs: "100%", sm: "auto" },
-                minWidth: 0,
-                color: "text.secondary",
-              }}
-            >
-              {paginationTotalLabel(!dateBlocked && !currentError ? report?.total : null)}
-            </Typography>
-            <Button
-              disabled={dateBlocked || pending || !input.cursor}
-              onClick={() => {
-                const previous = history.at(-1);
-                setHistory(history.slice(0, -1));
-                navigate({ ...input, cursor: previous });
-              }}
-            >
-              Sebelumnya
-            </Button>
-            <Button
-              disabled={dateBlocked || pending || !report?.nextCursor || !!currentError}
-              onClick={() => {
-                setHistory([...history, input.cursor]);
-                navigate({ ...input, cursor: report.nextCursor });
-              }}
-            >
-              Berikutnya
-            </Button>
-            <Select
-              aria-label="Jumlah baris per halaman"
-              disabled={dateBlocked}
-              value={Number(input.pageSize || DEFAULT_REPORT_PAGE_SIZE)}
-              onChange={(value) => change("pageSize", value)}
-              options={[10, 20, 50].map((value) => ({ value, label: `${value} / halaman` }))}
-            />
-          </Box>
+          <Box sx={{p:2}}><DataPagination
+            cursor={{page:history.length+1,next:!dateBlocked&&!currentError?report?.nextCursor:null}}
+            total={!dateBlocked&&!currentError?report?.total:null}
+            pageSize={Number(input.pageSize || DEFAULT_REPORT_PAGE_SIZE)}
+            loading={dateBlocked||pending}
+            onPrevious={()=>{const previous=history.at(-1);setHistory(history.slice(0,-1));navigate({...input,cursor:previous});}}
+            onNext={()=>{setHistory([...history,input.cursor]);navigate({...input,cursor:report.nextCursor});}}
+            onPageSizeChange={(value)=>change("pageSize",value)}
+            sx={{pt:0}}
+          /></Box>
         </DataPanel>
       )}
       <ImagePreviewModal

@@ -7,6 +7,7 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import WarehousePanel from "./WarehousePanel";
 import CatalogPanel from "./CatalogPanel";
+import TransactionPanel from "./TransactionPanel";
 /** Menjaga konteks organisasi URL dan mereset panel ketika organisasi berubah. */
 export default function InventoryWorkspace({ section }) {
   const user = useAuthenticatedUser();
@@ -48,6 +49,15 @@ export default function InventoryWorkspace({ section }) {
         key={organizationId || "empty"}
         organizationId={organizationId}
         organizationFilter={organizationFilter}
+      />
+    );
+  if (section === "transactions")
+    return (
+      <TransactionPanel
+        key={organizationId || "empty"}
+        organizationId={organizationId}
+        organizationFilter={organizationFilter}
+        initialDraftId={query.get("draftId")}
       />
     );
   return (

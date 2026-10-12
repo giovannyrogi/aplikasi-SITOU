@@ -7,7 +7,7 @@ import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
-import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
+import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import OrganizationUnitTypeSelect from "@/app/components/selects/OrganizationUnitTypeSelect";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -411,13 +411,20 @@ export default function OrganizationUnitForm({
               </Col>
             ) : null}
             <Col xs={24}>
-              <FormSettingsGroup sx={{ mt: 1 }}>
-                <FormSettingSwitch
-                  name="isActive"
-                  title="Tersedia untuk digunakan pada penempatan"
-                  description="Aktifkan agar Divisi & Unit ini dapat dipilih saat membuat penempatan baru."
-                />
-              </FormSettingsGroup>
+              <FormSettingSwitch
+                name="isActive"
+                notice={{
+                  on: {
+                    title: "Divisi & Unit aktif",
+                    description: "Divisi & Unit ini dapat dipilih untuk penempatan pegawai baru.",
+                  },
+                  off: {
+                    title: "Divisi & Unit tidak aktif",
+                    description:
+                      "Jika dinonaktifkan, Divisi & Unit ini tidak dapat dipilih untuk penempatan baru. Struktur dan riwayatnya tetap tersimpan.",
+                  },
+                }}
+              />
             </Col>
           </Row>
         </Form>

@@ -33,10 +33,11 @@ memblokir kata sandi pendek dan tidak mengirim kata sandi ke layanan lain.
 | --------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `data-display/DataPanel`          | Satu paper untuk judul daftar, ringkasan, toolbar embedded, data view, dan pagination.          | `title`, `description`, `toolbar`, `children`                                                                        |
 | `data-display/ResponsiveDataView` | AntD Table pada tablet/desktop dan card list dengan loading serta pagination pada mobile.       | `data`, `columns`, `renderCard`, `pagination`, `onPageChange`, `loading`, `error`                                    |
+| `data-display/DataPagination`     | Navigasi bersama untuk daftar master bernomor dan riwayat besar berbasis cursor.                | `pagination`, `onPageChange` atau `cursor`, `onPrevious`, `onNext`, `count`, `loading`                               |
 | `data-display/PhotoAvatar`        | Avatar foto privat yang dapat diperbesar; inisial saat tidak ada foto atau gambar gagal dimuat. | `name`, `photoUrl`, `photoLabel`, `previewTitle`, `size`, `onPreview`                                                |
 | `data-display/EmptyState`         | Empty/no-result state umum.                                                                     | `title`, `description`                                                                                               |
 | `data-display/ErrorState`         | Error state dengan aksi retry.                                                                  | `message`, `onRetry`                                                                                                 |
-| `data-display/AppNotice`          | Panel informasi tetap pada halaman/modal, dengan warna dan ikon semantik terpusat.              | `tone=info/warning/success/danger`, `title`, `description`/`children`, `descriptionAlign`, `action`, `compact`, `sx` |
+| `data-display/AppNotice`          | Panel informasi tetap pada halaman/modal, dengan warna dan ikon semantik terpusat.              | `tone=info/warning/success/danger`, `title`, `description`/`children`, `descriptionAlign`, `descriptionId`, `action`, `compact`, `sx` |
 | `chips/CompactInfoChip`           | Satu-satunya chip untuk metadata dan status, dengan tone semantik, ikon, dan label.             | `label`, `status`, `tone`, `icon`, `color`, `sx`                                                                     |
 
 Area daftar operasional wajib memeriksa `DataPanel` sebelum membuat wrapper baru. Hindari paper tambahan untuk toolbar atau tabel di dalam panel; card hanya dipakai sebagai item berulang pada mobile. `CompactInfoChip` menangani metadata sekaligus status agar tidak ada reusable badge kedua dengan fungsi sama. Chip dipakai untuk data yang perlu ditonjolkan, bukan seluruh teks tabel.
@@ -75,7 +76,7 @@ Seluruh tanggal form memakai `DatePicker` dengan locale terpusat; komponen fitur
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | `forms/AsyncSelect`                  | Select async umum dengan loading dan empty state.                                                                                                      | Props AntD `Select`, `loading`, `options`                                                                   |
 | `forms/OrganizationScopeField`       | Pemilih organisasi Superadmin atau organisasi session HRD yang terkunci.                                                                               | `disabled`                                                                                                  |
-| `forms/FormSettingSwitch`            | Satu-satunya kontrol on/off untuk form domain non-pegawai; menyatukan judul, penjelasan, kondisi terkunci, dan field lanjutan.                         | `name`, `title`, `description`, `disabled`, `disabledReason`, `children`, `switchProps`, `formItemProps`    |
+| `forms/FormSettingSwitch`            | Satu-satunya kontrol on/off untuk form domain non-pegawai; menyatukan judul, penjelasan, kondisi terkunci, dan field lanjutan.                         | `name`, `title`, `description`, `notice.on/off`, `disabled`, `disabledReason`, `children`, `switchProps`, `formItemProps`    |
 | `forms/FileUploadField`              | Dropzone umum untuk Excel, PDF, gambar, dan dokumen; gambar selalu dilihat melalui `ImagePreviewModal`.                                                | `value`, `accept`, `maxSizeBytes`, `onSelect`, `onRemove`, `previewUrl`                                     |
 | `forms/FileUploadListField`          | Adapter file lokal yang menyusun `FileUploadField`; `maxCount=1` menampilkan satu area untuk pilih, ganti, dan hapus. `id` mendukung fokus error form. | `value`, `accept`, `maxSizeBytes`, `maxCount`, `onChange`, `onError`, `fullWidth`, `id`                     |
 | `forms/IndonesiaPhoneInput`          | Input nomor seluler Indonesia dengan prefix tetap `+62` dan nilai E.164.                                                                               | Props standar AntD Input: `value`, `onChange`, `disabled`, `placeholder`                                    |
@@ -89,6 +90,8 @@ Seluruh tanggal form memakai `DatePicker` dengan locale terpusat; komponen fitur
 
 Form domain tetap berada di modul fitur dan dirender sebagai children `AppModal`. Gunakan `hooks/useFormModalClose` bersama `ConfirmDialog` untuk dirty-state warning.
 Form fitur non-pegawai dilarang memakai `Switch` AntD secara langsung. Susun pengaturan terkait dengan `FormSettingsGroup` dan `FormSettingSwitch`; gunakan judul yang menjelaskan dampak bagi pengguna, bukan istilah teknis seperti "Status aktif". Gunakan `Segmented` untuk pilihan mode yang saling eksklusif dan `Checkbox` hanya untuk beberapa pilihan independen atau persetujuan.
+
+Untuk switch status aktif/nonaktif, gunakan `FormSettingSwitch` dengan `notice.on` dan `notice.off` (masing-masing judul serta penjelasan dampak). Switch tampil sebagai aksi di dalam `AppNotice`; jangan ulangi status sebagai baris label atau panel informasi terpisah. Status aktif memakai notifikasi dan switch hijau (warna keberhasilan); status nonaktif memakai notifikasi peringatan dan switch abu-abu. Switch pengaturan lain yang bukan status tetap memakai bentuk label dan bantuan biasa.
 Form panjang dengan tab/collapse wajib mengarahkan validasi ke section bermasalah: tampilkan Notification, buka dan tandai section, lalu fokuskan field pertama yang gagal.
 Seluruh UI pemilihan file wajib memakai `forms/FileUploadField`; adapter domain boleh menyusunnya untuk menangani endpoint atau lifecycle khusus.
 Seluruh aksi lihat gambar wajib memakai `modals/ImagePreviewModal`; jangan membuka gambar langsung pada tab browser atau membuat modal preview per fitur.
@@ -155,6 +158,8 @@ Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender
 
 Komponen domain di atas menyusun fondasi reusable umum dan tidak membuat modal, tabel, chip, notification, atau loading shell baru.
 
+Transaksi Barang memakai `TransactionPanel` untuk ledger dan `TransactionWizard` untuk `AppModal` empat tahap. Tombol Catat transaksi memulihkan draft aktif terakhir milik petugas/organisasi; tidak ada daftar draft di halaman. Draft disimpan sebagai checkpoint saat Lanjut, Kembali, Simpan draft & tutup, dan finalisasi; perubahan field tidak mengirim autosave. Pergantian jenis mengosongkan isian sebelumnya. Banner status memakai `AppNotice`, hasil aksi `Notification`, lampiran `PrivateFileUpload`, gambar `ImagePreviewModal`, dan aksi foreground `LoadingBackdrop`. Riwayat hanya menampilkan transaksi tercatat, memakai `DataPanel` dan `DataPagination` cursor; di ponsel tetap berupa baris satu daftar, bukan kartu. Detail menampilkan gambar berukuran memadai dan PDF sebagai item dokumen berizin. Bukti pembelian baru adalah gambar; PDF lama tetap dapat dibuka berizin.
+
 Halaman detail memakai `DetailTabs` sebelum membuat tab shell baru. Informasi dikelompokkan berdasarkan kebutuhan pengguna, status diterjemahkan ke Bahasa Indonesia, dan aksi utama ditempatkan pada header section. Pimpinan memakai workspace yang sama dalam mode read-only tanpa menerima tab atau data akun.
 
 Histori penempatan selalu dapat dibuka melalui modal `Detail penempatan`, termasuk record tanpa dokumen SK. Hanya penempatan aktif tanpa `effective_until` yang dapat dikoreksi; histori bersifat read-only di UI dan wajib ditolak kembali oleh service/API bila diminta langsung.
@@ -179,7 +184,7 @@ Semua tabel AntD disusun melalui `data-display/NumberedTable.jsx`, yang menambah
 
 `reports/EmployeeReport.jsx` menyatukan filter URL, daftar desktop/card mobile, ringkasan, navigasi detail, dan ekspor untuk Kontrak Akan Berakhir serta Proyeksi Pensiun. Gunakan komponen ini untuk kedua route, bukan membuat salinan form filter.
 
-`ResponsiveDataView` menerima `pagination={false}` untuk daftar dengan kontrol keyset server sendiri; perilaku default menu lain tidak berubah. `DashboardMetric` menerima `metric.description` sebagai penjelasan indikator, tidak dapat diklik, dan memakai hover seragam dengan dukungan reduced motion. Dashboard tidak memiliki filter tanggal global; tren memakai 12 bulan kalender hingga hari ini. `DashboardAttentionList` juga menerima `title`, `description`, `emptyMessage`, dan `showPriority` untuk daftar lima kasus resmi terbaru. Tombol detail pada daftar tetap dapat digunakan.
+`ResponsiveDataView` menerima `pagination={false}` untuk daftar dengan kontrol keyset server sendiri. Semua tabel/daftar berpaginasi memakai `DataPagination` pada desktop dan mobile: `pagination` untuk halaman bernomor, `cursor` untuk keyset, `total` sebagai jumlah seluruh hasil filter, serta `pageSize`/`onPageSizeChange` bila API mendukung 10/20/50 baris. Daftar dengan ukuran halaman tetap memakai `pageSizeOptions={[]}`. Jangan memakai footer AntD tersendiri. `DashboardMetric` menerima `metric.description` sebagai penjelasan indikator, tidak dapat diklik, dan memakai hover seragam dengan dukungan reduced motion. Dashboard tidak memiliki filter tanggal global; tren memakai 12 bulan kalender hingga hari ini. `DashboardAttentionList` juga menerima `title`, `description`, `emptyMessage`, dan `showPriority` untuk daftar lima kasus resmi terbaru. Tombol detail pada daftar tetap dapat digunakan.
 
 # Pengaturan organisasi
 
@@ -230,10 +235,19 @@ pembuatan gudang dan daftar organisasi menampilkan Fitur aktif dari server.
 - Resolver menu menerima snapshot permission tambahan; sidebar desktop/mobile memakai konfigurasi yang sama. Snapshot dari `/api/access/me` hanya untuk UI; page/API tetap memeriksa authorization server.
 - RowActionMenu menutup popup ketika aksi dipilih sebelum modal dibuka, agar menu lama tidak menutupi form. DetailTabs embedded memakai dua kolom pada mobile dan susunan horizontal pada layar lebih besar.
 
-`inventory/CatalogPanel` menyusun DataPanel/ResponsiveDataView untuk Barang,
-Kategori dan Satuan, AppModal untuk edit, serta pengaturan minimum per gudang.
-Daftar barang menampilkan batas minimum per gudang yang berizin, bukan saldo stok;
-dua gudang pertama tampak langsung dan sisanya dapat dibuka di AppModal.
+`inventory/CatalogPanel` menyusun OperationalFilterSection dan InventoryItemGallery
+untuk Barang Persediaan; Kategori dan Satuan tetap memakai DataPanel/ResponsiveDataView.
+Katalog barang sengaja menampilkan grid kartu langsung tanpa bingkai DataPanel atau
+paginasi visual: `useDataList` mode infinite memuat halaman berikutnya lewat
+IntersectionObserver dengan tombol manual sebagai cadangan. Mode standar hook dan
+DataPanel pada daftar operasional lain tidak berubah.
+Kartu barang menampilkan foto atau ikon tanpa foto, identitas, status, kategori,
+satuan, dan batas minimum per gudang yang berizin, bukan saldo stok. Dua gudang
+pertama tampak langsung dan sisanya dapat dibuka di AppModal. Filter nama/status,
+lokasi, gudang, barang belum didaftarkan, serta rentang batas minimum diproses server
+sebelum pengambilan halaman. Pilihan gudang menampilkan nama gudang saja karena lokasi
+punya filter terpisah. Tombol pensil kartu membuka menu edit/atur gudang yang tetap
+memeriksa izin. AppModal tetap dipakai untuk edit dan pengaturan minimum per gudang.
 Penjelasan ambang stok dan dampak status barang-gudang memakai AppNotice.
 Foto memakai PrivateFileUpload deferred dan ImagePreviewModal; byte disimpan
 bersama transaksi form, bukan saat dipilih. InventoryWorkspace menampilkan master terpisah pada Data Master; setiap panel memiliki
@@ -301,6 +315,8 @@ Form kategori memakai label Catatan (opsional), kontrak API notes tetap sama.
 Teks catatan dibungkus aman dan justify dengan line-height 1.6.
 
 ## Komponen hak akses HRIS
+
+AppIcon menyediakan ikon semantik tambahan untuk transaksi Inventaris (saldo awal, masuk, keluar, pengembalian, stok opname, pembatalan, tambah, dan hapus). Gunakan ID ikon yang terdaftar; ID yang tidak ada akan menampilkan ikon tanda tanya.
 
 HrisAccessFields menyusun kelompok menu utama, checkbox submenu dan tingkat
 Lihat Saja/Kelola dalam OrganizationAccountForm yang sama dengan Inventaris.

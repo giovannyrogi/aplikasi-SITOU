@@ -2,23 +2,24 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Select, InputNumber } from "antd";
 import { Box } from "@mui/material";
-import { PlusOutlined, EditOutlined, SettingOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, SettingOutlined, SearchOutlined } from "@ant-design/icons";
 import PageHeader from "@/app/components/layout/PageHeader";
 import PrerequisiteHint from "@/app/components/forms/PrerequisiteHint";
 import usePrerequisiteNavigation from "@/app/hooks/usePrerequisiteNavigation";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import DataToolbar from "@/app/components/filters/DataToolbar";
+import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import InventoryItemGallery from "./InventoryItemGallery";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import AppModal from "@/app/components/modals/AppModal";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
-import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
+import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import PrivateFileUpload from "@/app/components/forms/PrivateFileUpload";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import Notification from "@/app/components/Notifications/Notification";
 import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
-import PhotoAvatar from "@/app/components/data-display/PhotoAvatar";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
@@ -30,6 +31,7 @@ import {
   itemWarehouseSchema,
 } from "@/lib/inventory/catalogSchemas";
 const NAMES = { items: "barang", categories: "kategori", units: "satuan" };
+const STATUS_NAMES = { items: "Barang", categories: "Kategori barang", units: "Satuan barang" };
 const formatMinimum = (value) =>
   new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 }).format(Number(value));
 function validatePayload(schema, payload) {
@@ -47,6 +49,7 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
   const list = useDataList(`/api/inventory/catalog/${kind}`, {
     requiredFilter: "organizationId",
     initialFilters: { organizationId },
+    infinite: kind === "items",
   });
   const [options, setOptions] = useState(null);
   const [optionsRevision, setOptionsRevision] = useState(0);
@@ -95,79 +98,181 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
         icon: <SettingOutlined />,
         onClick: () => setWarehouseItem(row),
       });
-    return values.length ? <RowActionMenu items={values} /> : null;
-  };
-  const itemPhoto = (row) => {
-    const photoUrl =
-      row.photo_file_id && organizationId
-        ? `/api/uploads/${encodeURIComponent(row.photo_file_id)}?organizationId=${encodeURIComponent(organizationId)}`
-        : null;
-    return (
-      <PhotoAvatar
-        key={photoUrl || row.name}
-        name={row.name}
-        photoUrl={photoUrl}
-        photoLabel="Foto barang"
-        onPreview={() => setPreview(row)}
+    return values.length ? (
+      <RowActionMenu
+        items={values}
+        {...(kind === "items"
+          ? {
+              triggerIcon: <EditOutlined style={{ fontSize: 19 }} />,
+              triggerLabel: `Edit atau atur barang ${row.name}`,
+            }
+          : {})}
       />
-    );
+    ) : null;
   };
-  const warehouseLimits = (row) => {
-    const limits = row.warehouse_limits || [];
-    if (!limits.length)
-      return (
-        <FontStyle fontSize={12} sx={{ color: "text.secondary" }}>
-          Belum diatur di gudang yang dapat dilihat
-        </FontStyle>
-      );
-    return (
-      <Box sx={{ display: "grid", gap: 0.5, minWidth: 0 }}>
-        {limits.slice(0, 2).map((limit) => (
-          <FontStyle
-            key={limit.warehouse_name}
-            fontSize={12}
-            sx={{
-              lineHeight: 1.5,
-              overflowWrap: "anywhere",
-              color: limit.is_active ? "text.primary" : "text.secondary",
-            }}
-          >
-            {limit.warehouse_name}: {formatMinimum(limit.minimum_stock)} {row.unit_name}
-            {!limit.is_active ? " (tidak digunakan)" : ""}
-          </FontStyle>
-        ))}
-        {limits.length > 2 ? (
-          <Button
-            type="link"
-            size="small"
-            onClick={() => setLimitsPreview(row)}
-            style={{ justifySelf: "start", paddingInline: 0, minHeight: 44 }}
-          >
-            Lihat {limits.length - 2} gudang lainnya
-          </Button>
-        ) : null}
-      </Box>
-    );
+  const updateItemFilter = (key, value) => {
+    const next = { ...list.filters, [key]: value ?? "" };
+    if (key === "warehouseId" && value === "unregistered") {
+      next.locationId = "";
+      next.minimumFrom = "";
+      next.minimumTo = "";
+    }
+    if (key === "locationId") next.warehouseId = "";
+    if (
+      key === "minimumFrom" &&
+      value !== "" &&
+      next.minimumTo !== "" &&
+      next.minimumTo !== undefined &&
+      Number(value) > Number(next.minimumTo)
+    )
+      next.minimumTo = "";
+    if (
+      key === "minimumTo" &&
+      value !== "" &&
+      next.minimumFrom !== "" &&
+      next.minimumFrom !== undefined &&
+      Number(value) < Number(next.minimumFrom)
+    )
+      next.minimumFrom = "";
+    list.updateFilters(next);
   };
-  const columns = [
-    ...(kind === "items"
-      ? [
-          {
-            title: "Foto",
-            key: "photo",
-            width: 64,
-            render: (_, row) => itemPhoto(row),
-          },
-        ]
+  const itemFilterItems = [
+    ...(organizationFilter
+      ? [{ key: "organization", label: "Organisasi", control: organizationFilter }]
       : []),
     {
-      title: kind === "items" ? "Barang" : kind === "categories" ? "Kategori" : "Satuan",
+      key: "search",
+      label: "Cari barang",
+      control: (
+        <Input
+          allowClear
+          prefix={<SearchOutlined />}
+          placeholder="Nama atau kode barang"
+          value={list.search}
+          onChange={(event) => list.setSearch(event.target.value)}
+          aria-label="Cari barang"
+          style={{ minHeight: 44 }}
+        />
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      control: (
+        <Select
+          value={list.status}
+          onChange={list.setStatus}
+          aria-label="Filter status barang"
+          options={[
+            { value: "all", label: "Semua status" },
+            { value: "active", label: "Aktif" },
+            { value: "inactive", label: "Nonaktif" },
+          ]}
+        />
+      ),
+    },
+    {
+      key: "location",
+      label: "Lokasi",
+      control: (
+        <Select
+          value={list.filters.locationId || "all"}
+          onChange={(value) => updateItemFilter("locationId", value === "all" ? "" : value)}
+          aria-label="Filter lokasi barang"
+          disabled={list.filters.warehouseId === "unregistered"}
+          options={[
+            { value: "all", label: "Semua lokasi" },
+            ...Array.from(
+              new Map(
+                (options?.warehouses || []).map((warehouse) => [
+                  warehouse.location_id,
+                  warehouse.location_name,
+                ]),
+              ).entries(),
+            ).map(([value, label]) => ({ value, label })),
+          ]}
+        />
+      ),
+    },
+    {
+      key: "warehouse",
+      label: "Pilih gudang",
+      control: (
+        <Select
+          value={list.filters.warehouseId || "all"}
+          onChange={(value) => updateItemFilter("warehouseId", value === "all" ? "" : value)}
+          aria-label="Filter gudang barang"
+          options={[
+            { value: "all", label: "Semua gudang" },
+            { value: "unregistered", label: "Belum didaftarkan" },
+            ...(options?.warehouses || [])
+              .filter(
+                (warehouse) =>
+                  !list.filters.locationId || warehouse.location_id === list.filters.locationId,
+              )
+              .map((warehouse) => ({
+                value: warehouse.id,
+                label: `${warehouse.name}${!warehouse.is_active ? " (nonaktif)" : ""}`,
+              })),
+          ]}
+        />
+      ),
+    },
+    {
+      key: "minimum",
+      label: "Batas stok minimum",
+      control: (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            "& .ant-input-number": { flex: 1, minWidth: 0, minHeight: 44 },
+          }}
+        >
+          <InputNumber
+            min={0}
+            max={999999999999}
+            value={
+              list.filters.minimumFrom === "" || list.filters.minimumFrom === undefined
+                ? null
+                : Number(list.filters.minimumFrom)
+            }
+            onChange={(value) =>
+              updateItemFilter("minimumFrom", value === null ? "" : String(value))
+            }
+            disabled={list.filters.warehouseId === "unregistered"}
+            placeholder="Dari"
+            aria-label="Batas stok minimum dari"
+          />
+          <FontStyle fontSize={12} sx={{ color: "text.secondary" }}>
+            –
+          </FontStyle>
+          <InputNumber
+            min={0}
+            max={999999999999}
+            value={
+              list.filters.minimumTo === "" || list.filters.minimumTo === undefined
+                ? null
+                : Number(list.filters.minimumTo)
+            }
+            onChange={(value) => updateItemFilter("minimumTo", value === null ? "" : String(value))}
+            disabled={list.filters.warehouseId === "unregistered"}
+            placeholder="Sampai"
+            aria-label="Batas stok minimum sampai"
+          />
+        </Box>
+      ),
+    },
+  ];
+  const columns = [
+    {
+      title: kind === "categories" ? "Kategori" : "Satuan",
       key: "identity",
-      width: kind === "items" ? 200 : undefined,
       render: (_, row) => (
         <Box sx={{ display: "grid", gap: 0.75, justifyItems: "start", minWidth: 0 }}>
           <FontStyle fontWeight={700}>{row.name}</FontStyle>
-          {kind !== "units" ? <CompactInfoChip label={row.code} tone="info" /> : null}
+          {kind === "categories" ? <CompactInfoChip label={row.code} tone="info" /> : null}
         </Box>
       ),
     },
@@ -189,28 +294,6 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
           },
         ]
       : []),
-    ...(kind === "items"
-      ? [
-          {
-            title: "Kategori",
-            dataIndex: "category_name",
-            width: 160,
-            render: (value) => <CompactInfoChip label={value} tone="neutral" />,
-          },
-          {
-            title: "Satuan",
-            dataIndex: "unit_name",
-            width: 90,
-            render: (value) => <CompactInfoChip label={value} tone="info" />,
-          },
-          {
-            title: "Batas minimum",
-            key: "warehouse_limits",
-            width: 220,
-            render: (_, row) => warehouseLimits(row),
-          },
-        ]
-      : []),
     ...(kind === "units"
       ? [
           {
@@ -228,14 +311,13 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
     {
       title: "Status",
       dataIndex: "is_active",
-      width: kind === "items" ? 105 : undefined,
       render: (v) => <CompactInfoChip status={v ? "active" : "inactive"} />,
     },
     {
       title: "Aksi",
       key: "action",
       align: "center",
-      width: kind === "items" ? 76 : 88,
+      width: 88,
       render: (_, row) => (
         <Box sx={{ display: "flex", justifyContent: "center" }}>{actions(row)}</Box>
       ),
@@ -244,19 +326,12 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
   const card = (row) => (
     <Box sx={{ display: "grid", gap: 1.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
-        {kind === "items" ? itemPhoto(row) : null}
         <FontStyle fontWeight={700} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
           {row.name}
         </FontStyle>
       </Box>
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, minWidth: 0 }}>
-        {kind !== "units" ? <CompactInfoChip label={row.code} tone="info" /> : null}
-        {kind === "items" ? (
-          <>
-            <CompactInfoChip label={row.category_name} tone="neutral" />
-            <CompactInfoChip label={row.unit_name} tone="info" />
-          </>
-        ) : null}
+        {kind === "categories" ? <CompactInfoChip label={row.code} tone="info" /> : null}
         {kind === "units" ? (
           <CompactInfoChip
             label={row.allows_fractional ? "Pecahan diizinkan" : "Angka bulat"}
@@ -265,14 +340,6 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
         ) : null}
       </Box>
       <CompactInfoChip status={row.is_active ? "active" : "inactive"} />
-      {kind === "items" ? (
-        <Box sx={{ display: "grid", gap: 0.75, minWidth: 0 }}>
-          <FontStyle fontSize={11.5} fontWeight={700}>
-            Batas stok minimum per gudang
-          </FontStyle>
-          {warehouseLimits(row)}
-        </Box>
-      ) : null}
       {kind === "categories" && row.notes?.trim() ? (
         <Box sx={{ display: "grid", gap: 0.75, minWidth: 0 }}>
           <FontStyle fontSize={11.5} fontWeight={600} sx={{ color: "text.secondary" }}>
@@ -321,53 +388,76 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
           ) : null
         }
       />
-      <DataPanel
-        title={`Daftar ${NAMES[kind]}`}
-        description={
-          list.loading
-            ? "Memuat katalog..."
-            : `${list.pagination.total} data. ${options?.canManageCatalog ? "Kelola data bersama organisasi." : "Data bersama organisasi; perubahan hanya oleh Pengelola Master Inventaris."}`
-        }
-        toolbar={
-          <DataToolbar
-            embedded
-            search={list.search}
-            onSearchChange={list.setSearch}
-            status={list.status}
-            onStatusChange={list.setStatus}
-            onRefresh={() => {
-              setOptionsRevision((current) => current + 1);
-              void list.refresh();
-            }}
-            filters={organizationFilter}
-          />
-        }
-      >
-        <ResponsiveDataView
-          data={list.data}
-          columns={columns}
-          renderCard={card}
-          loading={list.loading}
-          error={list.error}
-          emptyDescription={
-            !organizationId ? "Pilih organisasi pada filter untuk menampilkan data." : undefined
-          }
-          onRetry={list.refresh}
-          pagination={list.pagination}
-          onPageChange={list.setPage}
-          scrollX={kind === "items" ? 990 : 900}
-          tableSx={
-            kind === "items"
-              ? {
-                  "& .ant-table-wrapper .ant-table-thead > tr > th, & .ant-table-wrapper .ant-table-tbody > tr > td":
-                    {
-                      px: 1.5,
-                    },
-                }
-              : undefined
-          }
+      {kind === "items" ? (
+        <OperationalFilterSection
+          title="Filter barang persediaan"
+          description="Temukan barang berdasarkan nama, status, lokasi, gudang, dan batas stok minimum. Batas ini bukan saldo stok."
+          items={itemFilterItems}
+          onReset={() => {
+            list.setSearch("");
+            list.setStatus("all");
+            list.updateFilters({ organizationId });
+          }}
         />
-      </DataPanel>
+      ) : null}
+      {kind === "items" ? (
+        <InventoryItemGallery
+          data={list.data}
+          loading={list.loading}
+          loadingMore={list.loadingMore}
+          error={list.error}
+          loadMoreError={list.loadMoreError}
+          onRetry={list.retryLoadMore}
+          onRefresh={() => {
+            setOptionsRevision((current) => current + 1);
+            void list.refresh();
+          }}
+          onLoadMore={list.loadMore}
+          pagination={list.pagination}
+          organizationId={organizationId}
+          actions={actions}
+          onPreview={setPreview}
+          onLimitsPreview={setLimitsPreview}
+        />
+      ) : (
+        <DataPanel
+          title={`Daftar ${NAMES[kind]}`}
+          description={
+            list.loading
+              ? "Memuat katalog..."
+              : `${list.pagination.total} data. ${options?.canManageCatalog ? "Kelola data bersama organisasi." : "Data bersama organisasi; perubahan hanya oleh Pengelola Master Inventaris."}`
+          }
+          toolbar={
+            <DataToolbar
+              embedded
+              search={list.search}
+              onSearchChange={list.setSearch}
+              status={list.status}
+              onStatusChange={list.setStatus}
+              onRefresh={() => {
+                setOptionsRevision((current) => current + 1);
+                void list.refresh();
+              }}
+              filters={organizationFilter}
+            />
+          }
+        >
+          <ResponsiveDataView
+            data={list.data}
+            columns={columns}
+            renderCard={card}
+            loading={list.loading}
+            error={list.error}
+            emptyDescription={
+              !organizationId ? "Pilih organisasi pada filter untuk menampilkan data." : undefined
+            }
+            onRetry={list.refresh}
+            pagination={list.pagination}
+            onPageChange={list.setPage}
+            scrollX={900}
+          />
+        </DataPanel>
+      )}
       <CatalogForm
         kind={kind}
         item={edit}
@@ -701,8 +791,18 @@ function CatalogForm({ kind, item, organizationId, options, onClose, onSaved, on
           ) : null}
           <FormSettingSwitch
             name="isActive"
-            title="Aktif"
-            description="Data nonaktif tetap tersimpan, tetapi tidak dipilih untuk pencatatan baru."
+            notice={{
+              on: {
+                title: `${STATUS_NAMES[kind]} aktif`,
+                description:
+                  "Data ini dapat dipilih untuk pencatatan baru. Data dan riwayat sebelumnya tetap tersimpan.",
+              },
+              off: {
+                title: `${STATUS_NAMES[kind]} tidak aktif`,
+                description:
+                  "Jika dinonaktifkan, data ini tidak dapat dipilih untuk pencatatan baru. Data dan riwayat sebelumnya tetap tersimpan.",
+              },
+            }}
           />
         </Form>
       </AppModal>
@@ -743,7 +843,6 @@ function ItemWarehouseForm({ item, organizationId, options, onClose, onSaved, on
     errors.current = onError;
   }, [onError]);
   const warehouseId = Form.useWatch("warehouseId", form);
-  const isActive = Form.useWatch("isActive", form);
   useEffect(() => {
     if (!item) return;
     dirty.current = false;
@@ -855,45 +954,41 @@ function ItemWarehouseForm({ item, organizationId, options, onClose, onSaved, on
                 .map((w) => ({ value: w.id, label: w.name }))}
             />
           </Form.Item>
-          <AppNotice
-            tone="info"
-            title="Batas minimum adalah ambang peringatan"
-            description="Angka di bawah tidak menambah stok barang. Jumlah stok akan dicatat melalui transaksi saat fitur stok tersedia. Setiap gudang dapat memiliki batas yang berbeda."
-            sx={{ mb: 3 }}
-          />
           <Form.Item
             name="minimumStock"
             label={`Batas stok minimum (${item?.unit_name || "satuan dasar"})`}
             rules={[{ required: true, message: "Batas minimum wajib diisi." }]}
+            style={{ marginBottom: 0 }}
           >
             <InputNumber
               min={0}
               max={999999999999}
-              precision={item?.allows_fractional ? 3 : 0}
+              precision={item?.allows_fractional ? undefined : 0}
               decimalSeparator=","
               style={{ width: "100%" }}
             />
           </Form.Item>
-          <FormSettingsGroup sx={{ mt: 3 }}>
+          <AppNotice
+            tone="info"
+            title="Batas stok minimum menentukan kapan peringatan muncul"
+            description="Saat fitur stok tersedia, sistem akan memberi peringatan jika sisa stok di gudang ini mencapai atau turun di bawah angka yang Anda isi. Angka ini tidak menambah stok barang; stok masuk dan keluar dicatat melalui transaksi."
+            sx={{ mt: 2, mb: 1 }}
+          />
+          {warehouseId ? (
             <FormSettingSwitch
               name="isActive"
-              title="Barang digunakan di gudang ini"
-              disabled={!warehouseId}
-            />
-          </FormSettingsGroup>
-          {warehouseId ? (
-            <AppNotice
-              compact
-              tone={isActive ? "info" : "warning"}
-              title={
-                isActive ? "Barang aktif di gudang ini" : "Barang tidak digunakan di gudang ini"
-              }
-              description={
-                isActive
-                  ? "Barang tersedia untuk dipilih pada transaksi gudang saat fitur stok tersedia."
-                  : "Barang tidak dapat dipilih untuk transaksi di gudang ini. Pengaturan dan riwayatnya tetap tersimpan."
-              }
-              sx={{ mt: 2 }}
+              notice={{
+                on: {
+                  title: "Barang aktif di gudang ini",
+                  description:
+                    "Barang dapat dipilih untuk transaksi stok di gudang ini saat fitur transaksi tersedia. Batas minimum akan dipakai untuk memberi peringatan saat sisa stok mencapai atau turun di bawahnya.",
+                },
+                off: {
+                  title: "Barang tidak aktif di gudang ini",
+                  description:
+                    "Jika dinonaktifkan, barang tidak dapat dipilih atau digunakan pada transaksi stok di gudang ini. Pengaturan batas minimum dan riwayatnya tetap tersimpan; aktifkan kembali untuk menggunakannya.",
+                },
+              }}
             />
           ) : null}
         </Form>

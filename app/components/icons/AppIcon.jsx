@@ -43,6 +43,11 @@ import {
   SettingOutlined,
   SwapOutlined,
   InboxOutlined,
+  ImportOutlined,
+  ExportOutlined,
+  RollbackOutlined,
+  UndoOutlined,
+  PlusCircleOutlined,
   NodeIndexOutlined,
   TagsOutlined,
   ShopOutlined,
@@ -151,6 +156,16 @@ const ICONS = {
   "solar:filter-bold-duotone": FilterOutlined,
   "solar:wallet-money-bold-duotone": WalletOutlined,
   "solar:gallery-wide-bold-duotone": PictureOutlined,
+  "solar:gallery-minimalistic-linear": PictureOutlined,
+  "solar:box-bold-duotone": InboxOutlined,
+  "solar:inbox-in-bold-duotone": ImportOutlined,
+  "solar:inbox-out-bold-duotone": ExportOutlined,
+  "solar:restart-bold-duotone": RollbackOutlined,
+  "solar:clipboard-check-bold-duotone": FileDoneOutlined,
+  "solar:undo-left-bold-duotone": UndoOutlined,
+  "solar:add-circle-bold": PlusCircleOutlined,
+  "solar:add-circle-linear": PlusCircleOutlined,
+  "solar:trash-bin-trash-linear": DeleteOutlined,
 };
 
 export default function AppIcon({ icon, width, height, fontSize, color, style, ...props }) {
