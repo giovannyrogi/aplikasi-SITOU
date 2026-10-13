@@ -138,7 +138,8 @@ function BuildingIllustration() {
 export default function LoginPage() {
   const router = useRouter();
   const theme = useTheme();
-  const { isLoading, startNavigationLoading, finishNavigationLoading } = useLoadingBackdrop();
+  const { isLoading, startLoading, startNavigationLoading, finishNavigationLoading } =
+    useLoadingBackdrop();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -162,7 +163,7 @@ export default function LoginPage() {
       return;
     }
 
-    startNavigationLoading({ message: "Memproses login..." });
+    const finishLogin = startLoading({ message: "Memproses login..." });
 
     try {
       const response = await axios.post("/api/auth/login", {
@@ -186,6 +187,8 @@ export default function LoginPage() {
           error.response?.data?.message || "Login gagal. Periksa kembali username dan password.",
         severity: "error",
       });
+    } finally {
+      finishLogin();
     }
   };
 

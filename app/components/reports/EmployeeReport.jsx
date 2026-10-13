@@ -434,16 +434,6 @@ export default function EmployeeReport({ kind }) {
       width: 165,
       render: (_, row) => <ReportRemaining row={row} />,
     },
-    ...(!retirement
-      ? [
-          {
-            key: "successor",
-            title: "Kontrak berikutnya",
-            width: 150,
-            render: (_, row) => successorChip(row),
-          },
-        ]
-      : []),
   ];
   columns.push({
     key: "action",
@@ -566,7 +556,6 @@ export default function EmployeeReport({ kind }) {
                           ]
                         : [
                             ["Tanggal akhir", reportDate(row.due_date)],
-                            ["Kontrak berikutnya", successorChip(row)],
                           ]
                     }
                   />

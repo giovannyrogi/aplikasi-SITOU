@@ -682,3 +682,79 @@ bebas tetap teks agar penanda penting tidak tenggelam dalam terlalu banyak chip.
 - menuCatalog.mjs menjadi katalog deklaratif sidebar/editor/evaluator; setiap menu baru wajib melengkapi jenis izin, scope, delegasi, penjelasan dan pengujian registrasi. Tidak memberi hak otomatis kepada akun terbatas.
 - Form akses vertikal: nama menu → dropdown jika perlu → batas izin singkat. Tidak memakai section Informasi menu. Track minmax(0,1fr), min-width:0, popup wrap dan max-width:100% wajib diuji dengan pilihan terpanjang dan zoom 200%.
 - Section fitur dapat dilipat independen, header kanan untuk buka/tutup; cabut akses di bawah setelah divider, tombol merah solid. Melipat tidak mencabut, tidak menghapus nilai/dirty, dan error membuka section sebelum fokus. Fitur baru terbuka; edit membuka HRIS atau fitur pertama.
+
+### Pemindaian file development dan production
+
+- Kepegawaian dan Inventaris wajib memakai pipeline storage/pemindaian yang sama. npm run dev dapat tanpa ClamAV dengan CLAMAV_REQUIRED=0 dan CLAMAV_ENABLED=0; validasi MIME byte/ukuran/dimensi/hash, organisasi/scope, staging dan rollback tetap berlaku. Status file legacy_unscanned, bukan clean palsu.
+- NODE_ENV=production selalu wajib scan, termasuk npm start lokal, walaupun flag bernilai 0. Scanner tidak tersedia, timeout, atau ancaman menggagalkan upload. File belum clean diblokir pada preview/unduh production; jalankan pemindaian sebelum memakai file development di VPS.
+- Upload Inventaris memakai PrivateFileUpload/FileUploadField dan ImagePreviewModal yang sudah ada. Foto barang disimpan bersama Simpan barang; lampiran transaksi mengikuti draft privat. Callback penghapusan async wajib ditunggu dan dilindungi loading/error; jangan membuat upload/dropzone paralel atau mencabut referensi UI sebelum hasil pemilik diketahui.
+- Metadata tampilan upload dibaca melalui helper bersama `readUploadMetadata`: mendukung `mime_type`/`mimeType`, `size_bytes`/`sizeBytes`, serta file lokal. DTO upload dan pembukaan kembali draft wajib menyertakan MIME nyata dan ukuran agar preview konsisten; nama/ekstensi bukan dasar penentuan MIME. Uji gambar langsung setelah upload, draft dibuka kembali, PDF, dan penghapusan.
+
+### Pemulihan loading navigasi
+
+- Bedakan token proses simpan/upload/autentikasi dari token navigasi. Pembatalan stream RSC, Back/Forward, atau perpindahan yang tidak selesai tidak boleh meninggalkan overlay navigasi permanen.
+- Loading navigasi memiliki deadline terpusat 30 detik dan pemberitahuan pemulihan; timer lama dibatalkan saat selesai/diganti. Hanya token navigasi dilepas, bukan proses upload/simpan aktif. Jangan menekan console error framework secara global untuk menutupi masalah.
+
+### Stok Barang dan Kartu Stok
+
+- Tahap Stok Barang menggantikan placeholder stok pada tahap awal. Distribusi Barang membaca laporan penyaluran resmi sesuai docs/inventory-distribution.md; request/approval/aset belum dikembangkan. Tidak membuat ledger atau saldo kedua.
+- Stok dibaca per pasangan barang–gudang dari proyeksi replay bersama serta inventory_stock_balances; saldo awal manual terpisah dari keberadaan riwayat. Belum ada riwayat resmi berarti Belum ada transaksi, bukan nol. Setelah riwayat dimulai, saldo nol berarti Habis; saldo positif di bawah minimum berarti Di bawah minimum; nilai lainnya Cukup. Batas minimum bukan saldo.
+- Kartu Stok berada pada detail barang–gudang, memakai inventory_stock_projection dan referensi inventory_stock_movements, dengan tanggal efektif dan urutan replay yang sama dengan validasi transaksi. Hitung running balance sebelum filter tanggal/pagination; pembatalan tetap transaksi pembalik. Draft tidak masuk kartu stok. Tautan rincian diperiksa dengan permission transaksi asal gudang.
+- Daftar/Kartu Stok memakai permission inventory.stock.read, scope gudang server terbaru, DTO privat, pagination cursor terikat filter/scope, total server, dan komponen tabel/kartu/modal/filter yang sudah ada. Barang/gudang nonaktif tetap tersedia melalui filter untuk pemeriksaan histori, tanpa operasi stok baru.
+- Pengaturan minimum hanya dengan inventory.item_warehouses.update pada gudang yang sama, memakai use case/version/audit yang tersedia. Pembuatan transaksi hanya melalui menu Transaksi Barang; Stok Barang fokus pada pemantauan, Kartu Stok, minimum, dan koreksi saldo awal, tanpa tombol Tambah transaksi pada header.
+- Thumbnail barang menggunakan InventoryItemPhoto dan ImagePreviewModal, mendukung keyboard dan target 44px. Pada wizard jumlah/saldo awal terkunci sebelum barang valid dipilih. Memperbesar foto tidak mengubah isian/dirty state.
+
+### Bahasa dan ringkasan transaksi Inventaris
+
+- Gunakan Tambah transaksi untuk membuka form baru, Simpan transaksi untuk finalisasi, dan Simpan draft & tutup untuk draft. Hindari istilah Catat transaksi pada alur pengguna. Status resmi ditampilkan Tersimpan; identifier teknis posted/recorded_at tetap dipertahankan.
+- Pilihan transaksi asal menampilkan nomor dokumen bila ada, tanggal, gudang, dan ringkasan barang/jumlah. UUID atau potongannya bukan nomor referensi dan tidak boleh menjadi label pilihan pengguna. Pemilihan barang keluar asal memerlukan gudang terlebih dahulu.
+- Nomor referensi berada pada grid dua kolom desktop (sejajar dengan Pegawai penerima pada barang keluar), satu kolom mobile. Tombol hapus baris barang sejajar tengah control pilihan/jumlah, bukan sejajar label.
+- Detail transaksi menampilkan foto barang melalui InventoryItemPhoto/ImagePreviewModal. Lampiran dokumen tampil sebelum foto serah terima. Foto tidak menampilkan nama file; petunjuk memperbesar berada di tengah bawah gambar.
+- InventoryQuantityChip menampilkan jumlah/stok penting secara utuh dengan font terbaca dan wrap mobile, bukan ellipsis yang menyembunyikan angka. Label membedakan Jumlah masuk/keluar, stok sebelum, stok setelah tanggal transaksi, dan stok gudang saat ini.
+- Pada tahap Barang, Barang Masuk/Keluar/Stok opname menampilkan Stok gudang saat ini dan satuan dari saldo server untuk gudang terpilih. Jumlah yang sedang diisi belum termasuk saldo tersebut; perubahan setelah transaksi berada pada tahap Periksa. Saldo awal yang belum tersedia tidak boleh diberi angka nol palsu.
+- Tahap Periksa wajib memakai perkiraan server melalui POST /api/inventory/transactions/preview. Validasi jumlah/tanggal/pecahan/sumber dan cakupan memakai helper yang sama dengan penyimpanan. Simulasi tidak menulis saldo, ledger, draft, file atau audit transaksi. Data bertanggal sebelumnya menampilkan kedua saldo yang relevan; finalisasi tetap memvalidasi ulang stok terbaru, version dan transaksi atomik. Draft yang dibuka pada tahap Periksa memuat ulang perkiraan, bukan memakai angka lama dari browser.
+
+### Pengembalian ke gudang
+
+- Field transaksi penyaluran sebelumnya memakai lebar satu kolom desktop dan penuh pada mobile. Pengembalian tidak menyediakan input nomor referensi baru; nomor memo asal dapat dibaca pada rincian penyaluran. Label jumlah pada daftar tetap cukup Jumlah (satuan). Tahap Periksa membedakan Tanggal penyaluran sebelumnya dan Tanggal pengembalian ke gudang; tanggal transaksi pengembalian adalah tanggal barang kembali, bukan tanggal sumber atau waktu input.
+- Riwayat transaksi memakai lebar kolom desktop yang memadai dan scroll horizontal lokal. Tanggal/nama jenis transaksi pada baris data memakai bobot normal; nama transaksi, gudang dan ringkasan barang tidak wrap pada desktop. Mobile tetap wrap dengan track yang menyusut. Jangan menyembunyikan overflow halaman secara global untuk mempertahankan tampilan dense.
+
+- Pengembalian adalah penerimaan fisik barang dari penyaluran sebelumnya. Label Transaksi penyaluran sebelumnya menggantikan Barang keluar asal; aksi RelatedRecordAction dengan tombol Lihat detail transaksi yang menonjol membuka AppModal berisi tanggal, tujuan lokasi/unit, penerima, serta barang/jumlah penyaluran tanpa mengubah isian.
+- Tanggal barang diterima kembali wajib, default hari ini dari database/zona organisasi. Tidak mengambil tanggal penyaluran sebagai tanggal kembali. Tanggal sebelumnya tetap memerlukan alasan input terlambat; batas 30 hari, larangan masa depan, serta larangan tanggal sebelum penyaluran dipertahankan.
+- Semua barang dari penyaluran tampil otomatis pada tahap Barang, tanpa tambah/ganti/hapus produk. Jumlah awal berisi sisa maksimal yang masih dapat dikembalikan dari server; pengguna dapat mengurangi atau mengisi 0 untuk barang yang tidak kembali. Tampilkan jumlah disalurkan, sudah kembali, dan maksimal tersisa dari server. Barang nonaktif/seluruhnya kembali tetap terlihat dengan input terkunci dan petunjuk.
+- Draft menyimpan semua baris; preview/finalisasi hanya mengirim jumlah positif. Jangan mengasumsikan semua barang dikembalikan atau mengubah saldo dengan baris 0. Pemulihan draft mempertahankan jumlah lama dan mengambil ulang batas terbaru.
+- Batas pengembalian selalu dihitung server per baris sumber. Lock transaksi penyaluran sebelum query agregasi dengan snapshot baru untuk menghindari pengembalian serentak berlebih. Pembatalan pengembalian yang sah mengembalikan batas tersebut; histori dan audit tetap utuh.
+- Daftar transaksi sumber memiliki pencarian dan pagination dropdown agar penyaluran lama tidak terpotong pada halaman pertama. Endpoint return-options memeriksa organisasi, scope gudang, modul/session aktif, dan permission transaksi; tidak membuka hak HRIS atau master.
+
+### Saldo awal, koreksi dan replay Inventaris (057)
+
+- Saldo awal hanya sebelum riwayat resmi barang–gudang dimulai. Penerimaan pertama boleh tanpa saldo awal, dimulai dari nol tanpa dokumen saldo awal palsu. Riwayat yang sudah dibatalkan tetap menghalangi saldo awal baru. Eligibility berasal dari backend dan diperiksa ulang preview/commit.
+- Koreksi tanggal/jumlah saldo awal append-only, wajib alasan minimal 10 karakter, preview/version/fingerprint/konfirmasi/audit. Gabungan koreksi+penerimaan wajib atomik; isian draft tidak diubah otomatis. Tanggal saldo awal pada/sebelum operasi pertama; tidak menebak jumlah sebenarnya.
+- Koreksi hanya Superadmin atau paket Koreksi Saldo Awal eksplisit disertai Pengelola Gudang pada gudang yang sama. Pemberi paket hanya Superadmin/admin HRD penuh; scope koreksi tidak lebih luas dari manager. Grant tidak otomatis untuk akun lama atau master.
+- Replay BigInt tiga desimal bersama untuk preview/post/cancel/correction dan proyeksi stok/kartu/minimum. Hasil fisik stok opname tetap, delta dan reversal memakai efek replay. Tolak negatif historis dan retro pada hari stocktake yang sama. Dokumen/ledger asal immutable.
+- Pesan error wajib satu penyebab pasti, dengan barang/gudang/tanggal/angka faktual dan fieldErrors. Jangan memakai diagnosis dengan beberapa kemungkinan. Status commit tidak pasti diverifikasi melalui UUID sebelum retry, bukan notifikasi gagal yang diasumsikan.
+- Saldo legacy tidak berubah diam-diam. Dry-run, laporan selisih, persetujuan, fingerprint dan aktivasi atomik diaudit wajib sesuai docs/inventory-opening-corrections.md. Migration mencerminkan bootstrap dan diuji pada database terpisah.
+- Aksi Kartu Stok/Atur minimum/Koreksi memakai AppIcon semantik terdaftar, tema info/secondary/warning, tooltip/aria/44px. Jangan memakai fallback tanda tanya.
+
+### Filter daftar Pegawai
+
+- Golongan darah pada daftar dan export memakai BLOOD_TYPE_OPTIONS yang sama dengan form (A/B/AB/O); tidak menambah klasifikasi baru atau mengubah data lama.
+- Tanpa penempatan berada dalam Kelengkapan data dan memakai employeeWithoutAssignmentSql yang sama dengan Dashboard: status aktif/masa percobaan, tanpa penempatan utama yang berlaku hari ini. Penempatan tambahan, masa depan, dan yang sudah berakhir tidak memenuhi penempatan utama saat ini. Scope HRD terpilih tetap membatasi akses; filter ini tidak memberikan akses ke Pegawai di luar scope. Filter daftar, total, pagination, dan export harus konsisten.
+
+### Field administratif Transaksi Barang
+
+- transactionFieldPolicy.mjs adalah sumber bersama form/backend untuk kewajiban alasan terlambat dan metadata nomor dokumen. Saldo awal tidak meminta alasan keterlambatan, meskipun tanggal acuannya sebelum hari ini. Barang masuk, keluar, pengembalian dan stok opname bertanggal sebelumnya tetap wajib alasan minimal 10 karakter. Batas 30 hari, larangan masa depan dan audit tidak berubah.
+- Input nomor dokumen hanya untuk Barang masuk (Nomor dokumen penerimaan, opsional) serta Barang keluar (Nomor memo/permintaan, opsional). Saldo awal, pengembalian, stok opname tidak menawarkan input nomor referensi baru. Kontrak referenceNo dipertahankan; nilai draft/dokumen lama tidak dihapus karena field disembunyikan, ditampilkan sebagai informasi tersimpan. Nomor penyaluran asal tidak disalin menjadi nomor pengembalian baru.
+- Ringkasan tidak menampilkan placeholder nomor referensi kosong. Pembatalan dan koreksi saldo awal tetap wajib alasan tindakan, termasuk jika dilakukan hari ini. Catatan transaksi tetap opsional. Tidak ada penomoran otomatis baru pada tahap ini.
+
+### Identitas modal transaksi
+
+- Setelah jenis transaksi dipilih dan diterapkan pada form, judul/icon AppModal mengikuti katalog jenis transaksi. Status melanjutkan draft berada pada deskripsi, bukan menggantikan identitas jenis transaksi. Loading draft memakai judul jelas sampai data tersedia.
+- Aksi rincian penyaluran memakai RelatedRecordAction; desktop di samping pilihan sumber, mobile tepat setelah pilihan sumber, dengan konteks singkat dan tombol semantik 44px. Preview tidak mengubah isian, draft, stok, atau dirty-state.
+
+### Laporan Distribusi Barang
+
+- Laporan membaca dokumen Barang keluar yang tersimpan, tidak menulis stok, tidak menginput distribusi lagi. Cohort berdasarkan tanggal penyaluran; pengembalian/reversal dibatasi tanggal akhir laporan. Nilai asal immutable; penyaluran efektif nol setelah pembatalan pada/sebelum akhir periode. Penyaluran bersih bukan stok atau pemakaian unit.
+- Scope inventory.reports.read mengikuti paket yang memuat permission tersebut; master all tidak memperluas reader selected. Detail dan lampiran tetap memerlukan izin transaksi/file. Modal bersama dari laporan tidak menawarkan pembatalan dan menjelaskan perbedaan cutoff laporan dengan status dokumen terkini.
+- Rincian/rekap/satuan/filter/keyset/total/Excel memakai service dan snapshot baca yang sama. Ekspor maksimal 5.000 baris, literal, diaudit, no-store, tanpa pemotongan. Jangan menjumlahkan kuantitas lintas satuan atau menampilkan error sebagai statistik nol.
+- Tujuan berasal dari transaksi asal, bukan penempatan Pegawai terkini. Default periode awal bulan–hari ini zona organisasi. Perubahan aturan historis harus diuji terhadap return dan pembatalan sebelum/sesudah cutoff. Rancangan/API/uji: docs/inventory-distribution.md.

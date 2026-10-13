@@ -30,7 +30,7 @@ export async function GET(request) {
     const url = new URL(request.url);
     const parsedFilters = parseEmployeeListFilters(url.searchParams);
     if (!parsedFilters.success)
-      return errorResponse("VALIDATION_ERROR", "Filter pegawai tidak valid.", 400, requestId);
+      return errorResponse("VALIDATION_ERROR", "Filter pegawai tidak valid.", 400, requestId, Object.fromEntries(parsedFilters.error.issues.map((issue)=>[issue.path.join("."),issue.message])));
     const organizationId = resolvePermissionOrganization(user, parsedFilters.data.organizationId);
     const { search } = parseListQuery(url.searchParams);
     const report = await readEmployeeExport({

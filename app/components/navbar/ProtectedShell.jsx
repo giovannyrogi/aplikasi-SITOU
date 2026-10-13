@@ -21,7 +21,7 @@ export default function ProtectedShell({ user, children }) {
   const theme = useTheme();
   const router = useRouter();
   const pathname = usePathname();
-  const { startNavigationLoading, finishNavigationLoading } = useLoadingBackdrop();
+  const { startLoading, startNavigationLoading, finishNavigationLoading } = useLoadingBackdrop();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: "", severity: "error" });
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -183,7 +183,7 @@ export default function ProtectedShell({ user, children }) {
 
   const logout = async () => {
     const startedAt = Date.now();
-    startNavigationLoading({ message: "Keluar dari SITOU..." });
+    const finishLogout = startLoading({ message: "Keluar dari SITOU..." });
 
     try {
       const [response] = await Promise.all([
@@ -201,6 +201,8 @@ export default function ProtectedShell({ user, children }) {
         message: "Gagal keluar dari sistem. Silakan coba kembali.",
         severity: "error",
       });
+    } finally {
+      finishLogout();
     }
   };
 

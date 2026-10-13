@@ -355,3 +355,68 @@ menggantikan dua kolom, tanpa Informasi menu. Dashboard dasar tidak diatur grant
 sidebar/editor memakai metadata menuCatalog.mjs bersama dan validator registrasi.
 DashboardClient menampilkan section dari DTO parsial; absence tidak menjadi nol
 atau kartu kosong. Link Pegawai pada prioritas/pensiun mengikuti izin Data Pegawai.
+
+PrivateFileUpload menunggu Promise dari onRemoveRequest, mempertahankan loading
+selama operasi pemilik dan meneruskan kegagalan melalui onError. Callback yang
+membuka konfirmasi dapat tetap synchronous; adapter tidak membersihkan value
+pemilik secara otomatis. Inventory CatalogPanel (deferred photo) dan
+TransactionWizard (purchase proof/request document/handover photo) sudah memakai
+adapter yang sama. Scanner optional hanya development; production tetap fail closed.
+
+LoadingBackdropProvider membedakan token proses (startLoading/runWithLoadingBackdrop)
+dan token navigasi. Token navigasi memiliki deadline 30 detik agar pembatalan stream
+RSC tidak mengunci overlay selamanya; timeout hanya melepas token navigasi dan
+menampilkan Notification agar pengguna dapat memilih menu/muat ulang. Back/Forward
+serta pageshow persisted juga melepas token navigasi. Timer lama dibatalkan ketika
+navigasi selesai/diganti atau provider dilepas. Token upload/simpan tidak diakhiri
+oleh pemulihan navigasi. Fase request login/logout memakai token proses, sedangkan
+perpindahan setelah respons memakai token navigasi; endpoint dan aturan auth tetap.
+
+### Metadata dan preview upload Inventaris
+
+`FileUploadField` membaca metadata melalui `lib/ui/uploadMetadata.mjs`. File lokal,
+DTO Kepegawaian (`mime_type`, `size_bytes`), dan DTO Inventaris (`mimeType`,
+`sizeBytes`) memakai preview gambar yang sama. Endpoint lampiran transaksi
+mengembalikan MIME dan ukuran pada upload maupun pembukaan kembali draft.
+Gambar memakai `ImagePreviewModal`; PDF memakai aksi buka privat, bukan preview gambar.
+Validasi MIME byte, scanning, dan authorization tetap dilakukan server.
+
+### Stok Barang
+
+StockPanel memakai OperationalFilterSection, DataPanel, ResponsiveDataView,
+DataPagination cursor, CompactInfoChip, AppModal, dan ConfirmDialog. Kartu Stok
+berada pada modal detail barang–gudang; pengaturan minimum memakai use case lama.
+InventoryItemPhoto merupakan thumbnail privat untuk stok serta wizard transaksi,
+dengan aksi keyboard/touch untuk ImagePreviewModal. Input jumlah wizard terkunci
+sebelum barang dipilih; preview foto tidak mengubah data form.
+
+InventoryQuantityChip membungkus CompactInfoChip untuk jumlah/stok operasional
+dengan font 13px, label tebal, tinggi fleksibel dan wrap; angka tidak terpotong
+ellipsis. TransactionWizard mengambil perkiraan stok dari endpoint preview pada
+tahap Periksa dan saat memulihkan draft. Detail transaksi menggunakan thumbnail
+InventoryItemPhoto serta menempatkan dokumen sebelum gambar lampiran.
+
+TransactionSourceDetailModal menampilkan penyaluran terpilih, foto, jumlah asal,
+sudah kembali dan sisa melalui AppModal/ImagePreviewModal. Wizard Pengembalian
+memakai daftar barang tetap dari return-options; InputNumber hanya mengubah
+jumlah dan tidak memilih produk baru. ReturnPolicy memisahkan baris draft (semua)
+dari payload transaksi resmi (jumlah positif). Tanggal default berasal dari
+options.today; bantuan menjelaskan tanggal penerimaan fisik, bukan tanggal sumber.
+
+
+## OpeningCorrectionModal dan ikon stok
+
+Lihat `docs/inventory-opening-corrections.md` untuk aturan eligibility, permission koreksi, kontrak API, proyeksi replay bersama, dan rollout legacy. `OpeningCorrectionModal` memakai AppModal, ConfirmDialog, AppNotice dan InventoryQuantityChip; koreksi dari draft hanya menyiapkan perubahan sampai Simpan transaksi. AppIcon mendaftarkan inventory:stock-card, inventory:minimum, inventory:opening-correction.
+
+
+### RelatedRecordAction
+
+`actions/RelatedRecordAction` menampilkan konteks record terkait dan tombol detail sekunder yang terlihat jelas. Gunakan title/description singkat, label tindakan lengkap, warna info dari tema, AppIcon semantik, target minimal 44px, serta loading/disabled. Pada wizard Pengembalian, letakkan di samping pemilih penyaluran pada desktop dan setelah pemilih pada mobile. Membuka detail tidak mengubah isian maupun dirty-state.
+
+
+### Modal transaksi dan laporan bersama
+
+Lihat docs/inventory-distribution.md. Distribusi memakai transaksi/line/reversal existing, tanpa migration atau perubahan saldo. DistributionPanel menggunakan DataPanel, ResponsiveDataView, DataPagination, OperationalFilterSection, DashboardMetric, chip, modal dan preview terpusat. TransactionDetailModal/TransactionPresentationParts dipakai bersama dengan Transaksi Barang; onCancel hanya diberikan workspace transaksi berizin, bukan laporan.
+
+
+TableExportMenu menerima `formats` opsional (default Excel/PDF). Distribusi memilih `["excel"]` sehingga UI hanya menawarkan format yang sudah tersedia. Perhitungan kartu laporan menggunakan DashboardMetric bersama; error tidak dirender sebagai nilai nol.

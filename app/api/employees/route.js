@@ -21,7 +21,7 @@ export async function GET(request) {
     const query = parseListQuery(url.searchParams);
     const filters = parseEmployeeListFilters(url.searchParams);
     if (!filters.success)
-      return errorResponse("VALIDATION_ERROR", "Filter pegawai tidak valid.", 400, requestId);
+      return errorResponse("VALIDATION_ERROR", "Filter pegawai tidak valid.", 400, requestId, Object.fromEntries(filters.error.issues.map((issue)=>[issue.path.join("."),issue.message])));
     const organizationId = resolvePermissionOrganization(user, filters.data.organizationId);
     const result = await listEmployees({ ...query, ...filters.data, organizationId, actor: user });
     return successResponse(result.data, {

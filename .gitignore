@@ -101,7 +101,14 @@
 !/scripts/test-inventory-http.mjs
 !/scripts/test-hris-access-helper.mjs
 !/tests/hris-access.test.mjs
+!/tests/navigation-loading.test.mjs
+!/tests/upload-metadata.test.mjs
+!/tests/inventory-stock.test.mjs
+!/tests/inventory-source-label.test.mjs
+!/tests/inventory-return.test.mjs
 /.hris-*-results.txt
+/.upload-*-results.txt
+/.upload-*.txt
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -116,3 +123,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+!tests/inventory-replay.test.mjs
+
+/.upload-*.json
+!scripts/replay-inventory-stock.mjs
+!scripts/test-inventory-openings-helper.mjs
+
+!scripts/test-employee-directory-filters-helper.mjs
+
+!scripts/test-employee-directory-filters-http.mjs
+
+!tests/inventory-transaction-fields.test.mjs
+!scripts/test-inventory-field-rules-helper.mjs
+!scripts/test-inventory-field-rules-http.mjs
+
+!scripts/test-inventory-distribution-helper.mjs
+!scripts/test-inventory-distribution-http.mjs
+
+!tests/inventory-distribution.test.mjs

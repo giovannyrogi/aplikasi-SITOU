@@ -1,5 +1,12 @@
 # Database Schema SITOU
 
+Halaman Stok Barang membaca `inventory_stock_balances` dan keberadaan
+`inventory_stock_openings` per barang–gudang. Kartu Stok membaca
+`inventory_stock_movements` berurutan `occurred_on,id`, dengan running balance
+sebelum filter tanggal/pagination. Tidak ada tabel saldo/ledger baru. API
+`GET /api/inventory/stock` memakai `inventory.stock.read` dan scope gudang;
+pengaturan minimum tetap memakai version/audit `inventory_item_warehouses`.
+
 Dokumen ini adalah peta cepat database SITOU. Gunakan dokumen ini sebelum membuka `sitou_schema_v3.sql`; buka SQL hanya saat perlu detail constraint, index, fungsi partisi, definisi view, atau membuat migration.
 
 ## Prinsip Umum
@@ -362,3 +369,18 @@ Migration 056 menambahkan checkpoint tahap, `updated_at`, masa berlaku, dan tand
 Permission `inventory.transactions.create` dan `inventory.transactions.cancel` diberikan kepada Pengelola Gudang dalam scope grant-nya serta Superadmin; Lihat Saja tetap hanya membaca, Pengelola Master tidak memperoleh hak transaksi. Saldo awal nol sah. Posting memeriksa saldo historis tidak negatif, mengunci barang–gudang dalam urutan ID, dan mengaudit hasilnya. Kartu Stok nantinya membaca `inventory_stock_movements`, bukan ledger baru.
 
 Migration 055 menambahkan kategori `inventory_transaction_attachment` untuk bukti pembelian, dokumen permintaan, dan foto serah terima. File disimpan privat dan hanya diunduh melalui ID setelah permission transaksi serta cakupan gudang diperiksa. Referensi lampiran transaksi terdaftar sebagai histori resmi di pemeliharaan file. Trigger database melarang edit/hapus transaksi terposting, rincian, saldo awal, dan riwayat gerakan stok; pembatalan tetap mencatat transaksi pembalik baru.
+
+
+## Revisi saldo awal — migration 057
+
+Lihat `docs/inventory-opening-corrections.md` untuk aturan eligibility, permission koreksi, kontrak API, proyeksi replay bersama, dan rollout legacy. `OpeningCorrectionModal` memakai AppModal, ConfirmDialog, AppNotice dan InventoryQuantityChip; koreksi dari draft hanya menyiapkan perubahan sampai Simpan transaksi. AppIcon mendaftarkan inventory:stock-card, inventory:minimum, inventory:opening-correction.
+
+
+### Filter Pegawai: golongan darah dan tanpa penempatan
+
+Tidak ada perubahan schema. Filter bloodType memakai employees.blood_type dan pilihan A/B/AB/O dari katalog form. Kelengkapan without_assignment memakai predicate bersama Dashboard (aktif/masa percobaan, tidak ada penempatan primary pada current_date). Query data, total serta export memakai listEmployees yang sama dan tetap memfilter organisasi/scope.
+
+
+### Laporan Distribusi Barang
+
+Lihat docs/inventory-distribution.md. Distribusi memakai transaksi/line/reversal existing, tanpa migration atau perubahan saldo. DistributionPanel menggunakan DataPanel, ResponsiveDataView, DataPagination, OperationalFilterSection, DashboardMetric, chip, modal dan preview terpusat. TransactionDetailModal/TransactionPresentationParts dipakai bersama dengan Transaksi Barang; onCancel hanya diberikan workspace transaksi berizin, bukan laporan.

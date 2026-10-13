@@ -43,3 +43,18 @@ test("filter default menampilkan semua pegawai dan pilihan umum lama tidak terse
     );
   }
 });
+
+
+test("golongan darah daftar dan export mengikuti pilihan form", () => {
+  for(const bloodType of ["A","B","AB","O"]) {
+    const parsed=parseEmployeeListFilters(new URLSearchParams({bloodType}));
+    assert.equal(parsed.success,true);assert.equal(parsed.data.bloodType,bloodType);
+  }
+  assert.equal(parseEmployeeListFilters(new URLSearchParams()).data.bloodType,null);
+  assert.equal(parseEmployeeListFilters(new URLSearchParams({bloodType:"UNKNOWN"})).success,false);
+});
+test("tanpa penempatan memakai status Dashboard dan periode penempatan utama", () => {
+  const sql=employeeCompletenessSql("employee","without_assignment");
+  assert.match(sql,/employment_status IN \('active','probation'\)/);
+  assert.match(sql,/assignment_type='primary'/);assert.match(sql,/effective_from<=current_date/);assert.match(sql,/effective_until>=current_date/);
+});

@@ -93,7 +93,7 @@ export async function POST(request) {
     }
     const organizationId = resolvePermissionOrganization(user,payload.organizationId);
     const result = await postTransaction({...payload,organizationId},user,requestId,uploads);
-    return successResponse(result,{status:201,message:"Transaksi berhasil dicatat. Stok gudang sudah diperbarui."});
+    return successResponse(result,{status:201,message:"Transaksi berhasil disimpan. Stok gudang sudah diperbarui."});
   } catch(error) { return handleRouteError("inventory.transactions.post",error,requestId); }
   finally { await form?.cleanup?.(); }
 }

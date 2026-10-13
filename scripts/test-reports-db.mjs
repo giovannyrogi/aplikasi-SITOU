@@ -1,16 +1,22 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import dotenv from "dotenv";
 import pg from "pg";
 import { buildReportQuery } from "../lib/reports/query.mjs";
 import { normalizeReportFilters } from "../lib/reports/policy.mjs";
 dotenv.config({ path: ".env.development", quiet: true });
-const client = new pg.Client({
+const connection = {
   host: process.env.PGHOST,
   port: Number(process.env.PGPORT || 5432),
-  database: process.env.PGDATABASE,
   user: process.env.PGUSER,
   password: process.env.PGPASSWORD,
-});
+};
+const databaseName = `sitou_reports_test_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+assert.match(databaseName, /^sitou_reports_test_[a-f0-9]{12}$/);
+const admin = new pg.Client({ ...connection, database: process.env.PGADMIN_DATABASE || "postgres" });
+await admin.connect();
+await admin.query(`CREATE DATABASE "${databaseName}"`);
+const client = new pg.Client({ ...connection, database: databaseName });
 await client.connect();
 try {
   await client.query("BEGIN");
@@ -20,7 +26,7 @@ try {
     CREATE TEMP TABLE locations(id bigint,organization_id bigint,name text);
     CREATE TEMP TABLE organization_units(id bigint,organization_id bigint,name text);
     CREATE TEMP TABLE positions(id bigint,organization_id bigint,name text);
-    CREATE TEMP TABLE employment_types(id bigint,organization_id bigint,name text);
+    CREATE TEMP TABLE employment_types(id bigint,organization_id bigint,name text,requires_end_date boolean DEFAULT true);
     CREATE TEMP TABLE employment_contracts(id bigint,organization_id bigint,employee_id bigint,employment_type_id bigint,contract_no text,start_date date,end_date date,status text);
     INSERT INTO employees VALUES
       (1,1,'001','Uji A','1968-09-11','2020-01-01','active',NULL),
@@ -34,7 +40,7 @@ try {
     INSERT INTO locations VALUES(1,1,'Lokasi A');
     INSERT INTO organization_units VALUES(1,1,'Unit A');
     INSERT INTO positions VALUES(1,1,'Jabatan A');
-    INSERT INTO employment_types VALUES(1,1,'Jenis A');
+    INSERT INTO employment_types(id,organization_id,name) VALUES(1,1,'Jenis A'),(2,1,'Jenis B'),(3,2,'Jenis organisasi lain');
     INSERT INTO employee_assignments VALUES(1,1,1,1,1,1,'primary','2020-01-01',NULL);
     INSERT INTO employment_contracts VALUES
       (1,1,1,1,'C1','2025-01-01','2026-09-11','renewed'),
@@ -81,6 +87,18 @@ try {
   assert.equal(result.rows[1].profile_photo_file_id, null);
   result = await read("retirements", { group: "overdue" });
   assert.equal(result.rows[0].due_date, "2026-02-28");
+  assert.equal(result.rows[0].employment_type_name, "Jenis A", "Kontrak expired tetap menyediakan jenis kepegawaian");
+  await client.query(`INSERT INTO employment_contracts VALUES
+    (11,1,2,2,'C11','2026-08-02','2026-08-31','active'),
+    (12,1,2,1,'C12','2026-09-01','2026-09-30','draft'),
+    (13,1,2,1,'C13','2026-09-02','2026-09-30','cancelled'),
+    (14,1,2,1,'C14','2026-09-03','2026-09-30','terminated'),
+    (15,1,2,1,'C15','2027-01-01','2027-12-31','active'),
+    (16,2,2,3,'C16','2026-09-10','2026-09-30','active');`);
+  assert.equal((await read("retirements", { group: "overdue" })).rows[0].employment_type_name, "Jenis B",
+    "Kontrak active yang lewat tetap menjadi acuan; draft, status final, masa depan dan organisasi lain dikecualikan");
+  assert.equal((await read("retirements", { group: "overdue", employmentTypeId: "2" })).total, 1);
+  await client.query("DELETE FROM employment_contracts WHERE id>=11");
   assert.equal(result.rows[0].profile_photo_file_id, null);
   result = await read("retirements", { group: "invalid" });
   assert.equal(result.total, 2);
@@ -130,4 +148,6 @@ try {
 } finally {
   await client.query("ROLLBACK");
   await client.end();
+  await admin.query(`DROP DATABASE "${databaseName}"`);
+  await admin.end();
 }

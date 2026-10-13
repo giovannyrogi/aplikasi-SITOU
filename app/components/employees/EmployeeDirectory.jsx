@@ -35,6 +35,7 @@ import {
   EMPLOYEE_COMPLETENESS_OPTIONS,
   getEmployeeCompletenessOption,
 } from "@/lib/employees/completenessOptions";
+import { BLOOD_TYPE_OPTIONS } from "@/lib/employees/profileOptions";
 import EmployeeAvatar from "./EmployeeAvatar";
 import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import EmployeeForm from "./EmployeeForm";
@@ -236,6 +237,12 @@ export default function EmployeeDirectory() {
           style={{ width: "100%" }}
         />
       ),
+    },
+    {
+      key: "bloodType",label: "Golongan darah",
+      control: <Select aria-label="Golongan darah" allowClear showSearch optionFilterProp="label"
+        placeholder="Semua golongan darah" value={list.filters.bloodType || undefined}
+        onChange={(value)=>updateFilter("bloodType",value)} options={BLOOD_TYPE_OPTIONS} style={{width:"100%"}} />,
     },
     {
       key: "completeness",
@@ -568,7 +575,7 @@ export default function EmployeeDirectory() {
       />
       <OperationalFilterSection
         title="Filter data pegawai"
-        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian, status, kelengkapan data, dan akun pencatat."
+        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian, status, golongan darah, kelengkapan data, dan akun pencatat."
         items={filterItems}
         onReset={resetFilters}
         wideColumns={4}

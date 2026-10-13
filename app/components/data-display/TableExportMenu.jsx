@@ -7,7 +7,7 @@ import { useMediaQuery } from "@mui/material";
 import Notification from "../Notifications/Notification";
 import { useLoadingBackdrop } from "../loading/LoadingBackdropProvider";
 
-export default function TableExportMenu({ enabled = false, onExcel, onPdf, loading, disabled }) {
+export default function TableExportMenu({ enabled = false, onExcel, onPdf, loading, disabled, formats = ["excel", "pdf"] }) {
   const compact = useMediaQuery("(max-width:1023px)");
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const [notice, setNotice] = useState(null);
@@ -52,7 +52,7 @@ export default function TableExportMenu({ enabled = false, onExcel, onPdf, loadi
           items: [
             { key: "excel", icon: <FileExcelOutlined />, label: "Unduh Excel", disabled: !onExcel },
             { key: "pdf", icon: <FilePdfOutlined />, label: "Unduh PDF" },
-          ],
+          ].filter((item)=>formats.includes(item.key)),
           onClick: handleMenuClick,
         }}
       >

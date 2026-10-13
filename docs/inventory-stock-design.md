@@ -331,3 +331,134 @@ master. Migration 050 mengubah mapping permission, menambah katalog akses dan
 CHECK scope master; grant/histori dipertahankan. Schema bootstrap memuat perubahan.
 Berikan master secara eksplisit bila diperlukan. Keputusan ini menggantikan izin
 master bagi inventory_manager pada tahap 049.
+
+## Metadata lampiran transaksi
+
+Respons upload `POST /api/inventory/transactions/:id/draft-files` dan daftar
+lampiran pada detail transaksi memuat `id`, `purpose`, `name`, `mimeType`, serta
+`sizeBytes`. MIME berasal dari pemeriksaan byte server; ukuran berasal dari
+metadata file yang disimpan. Preview memakai `/api/uploads/:fileId` berizin.
+Komponen upload bersama mendukung kontrak ini dan metadata Kepegawaian tanpa
+menentukan jenis file dari nama/ekstensi. Foto barang memakai pilihan lokal
+hingga Simpan barang; lampiran transaksi disimpan ke draft privat.
+
+## Tahap Stok Barang (12 Oktober 2026)
+
+Stok Barang kini menampilkan persediaan per barang–gudang, foto privat, kategori,
+satuan, lokasi, saldo, minimum, dan kondisi stok. Filter mencakup nama/kode,
+gudang berizin, kategori, kondisi, dan status aktif/nonaktif. Superadmin memilih
+organisasi pada filter; akun organisasi memakai session. Tidak ada saldo awal
+ditampilkan Belum dicatat, saldo awal nol Habis, saldo positif di bawah minimum
+Di bawah minimum, dan saldo lain Cukup.
+
+Kartu Stok dibuka melalui detail barang–gudang, bukan submenu baru. Pergerakan
+masuk/keluar dan saldo berjalan berasal dari ledger yang sudah ada; urutan
+tanggal dan ID pergerakan sama dengan validasi transaksi. Filter tanggal tidak
+menghilangkan saldo sebelum periode. Pembatalan tetap terlihat sebagai pembalik.
+Tombol rincian membuka transaksi yang terkait melalui parameter transactionId
+dan authorization endpoint detail yang sama. Draft tidak mengubah stok.
+
+GET /api/inventory/stock memakai inventory.stock.read dan scope gudang.
+Filter: organizationId, warehouseId, categoryId, search, condition, status,
+pageSize (10/20/50), cursor. Respons: data, total, nextCursor, kemampuan perubahan,
+serta referensi gudang/kategori berizin. action=history memerlukan warehouseId
+dan itemId; menerima from/to dan mengembalikan rows, opening_balance,
+closing_balance, total, nextCursor, dan kemampuan membaca transaksi.
+Cursor terikat filter dan scope; seluruh respons private, no-store.
+
+Pengelola Gudang dapat mengubah minimum menggunakan API/use case yang sudah
+ada, dengan version dan audit, tanpa mengubah saldo. Lihat Saja tidak mendapat
+aksi perubahan. Pengelola Master tetap tidak otomatis mendapat operasional.
+Catat transaksi memakai wizard yang sama dan memulihkan draft petugas.
+Thumbnail pada tahap barang wizard dapat diperbesar; input jumlah terkunci
+hingga barang dipilih. Tidak diperlukan migration atau perubahan schema.
+Distribusi Barang, request/approval, dan aset tetap tahap lanjutan.
+
+## Perapian transaksi dan perkiraan stok
+
+Form baru menggunakan Tambah transaksi barang, tombol final Simpan transaksi,
+serta Simpan draft & tutup untuk checkpoint. Nomor referensi memakai satu kolom
+dari grid dua kolom desktop; pada barang keluar bersebelahan dengan penerima.
+Tombol hapus sejajar dengan control barang/jumlah. Data jumlah dan saldo memakai
+InventoryQuantityChip agar angka dan satuan terbaca utuh pada ponsel.
+
+Detail transaksi mengembalikan photo_file_id pada setiap baris barang untuk
+thumbnail privat dan ImagePreviewModal. Lampiran dokumen mendahului foto; gambar
+tidak menampilkan nama fisik/file, hanya petunjuk memperbesar di tengah bawah.
+
+POST /api/inventory/transactions/preview menerima kontrak transactionSchema,
+memerlukan inventory.transactions.create pada gudang yang sama. Endpoint berbagi
+prepareStockChanges dengan finalisasi tanpa mengubah aturan perhitungan.
+DTO memuat occurredOn, asOf, serta lines: itemId, name, unit, quantity, delta,
+beforeDate, afterDate, currentBefore, currentAfter. Simulasi memakai urutan
+occurred_on,id dengan baris hipotetis setelah seluruh pergerakan pada tanggalnya,
+menolak stok negatif di tanggal berikutnya, dan tidak menulis data transaksi.
+Stok opname bertanggal sebelumnya memakai delta terhadap saldo pada tanggal
+tersebut; currentAfter ikut memperhitungkan perubahan sesudahnya.
+
+Tahap Periksa dan pemulihan draft memuat perkiraan server. Angka merupakan
+perkiraan berdasarkan keadaan saat pemeriksaan; penyimpanan selalu memvalidasi
+ulang karena petugas lain dapat memproses transaksi. Tidak diperlukan migration.
+
+## Pengembalian ke gudang — alur penyaluran terkait
+
+Alur mengikuti prinsip Material Return: terhubung ke penyaluran yang sudah terjadi,
+barang asal tampil otomatis, pengguna mengisi jumlah yang benar-benar kembali.
+Referensi: [Zoho Inventory Material Return](https://www.zoho.com/us/inventory/help/material-return/material-return.html).
+SITOU memakai cakupan organisasi/gudang yang sudah ada, tanpa alur penjualan,
+refund, approval, nomor otomatis baru, atau gudang tujuan berbeda.
+
+1. Pilih Pengembalian ke gudang.
+2. Pilih gudang dan Transaksi penyaluran sebelumnya. Tanggal barang diterima
+   kembali default hari ini dari waktu organisasi; ubah hanya untuk kejadian pada
+   tanggal lain. Tanggal sebelumnya memerlukan alasan agar kronologi stok dapat
+   diperiksa. Lihat detail transaksi membuka daftar barang/jumlah sumber.
+3. Semua barang tampil otomatis, tanpa tombol tambah/ganti/hapus. Isi jumlah
+   dikembalikan, default sisa maksimal yang belum kembali (sesuai pembaruan UX), dan dapat diedit menjadi 0. Angka 0 tidak masuk
+   transaksi resmi. Status barang nonaktif atau sudah seluruhnya kembali terlihat
+   dan input terkunci. Draft mempertahankan seluruh baris dan jumlah yang diisi.
+4. Periksa barang/jumlah positif dan perkiraan stok; simpan menggunakan guard
+   transaksi dan audit yang sama. Source/qty/cakupan diperiksa ulang saat commit.
+
+GET /api/inventory/transactions/:id/return-options?organizationId=&warehouseId=
+mengembalikan detail penyaluran, today, dan lines dengan returnedQuantity,
+remainingQuantity, canReturn, balance, allows_fractional, serta metadata foto/satuan.
+Memerlukan inventory.transactions.create pada gudang asal dan membaca sumber
+melalui guard transaksi berizin. Respons private, no-store. Agregasi jumlah
+mengabaikan pengembalian yang dibatalkan, dan lock sumber diambil sebelum query
+agregasi baru untuk serialisasi pengembalian serentak. Tidak diperlukan migration.
+
+### Penyempurnaan rincian dan jumlah awal
+
+Detail transaksi mengembalikan destination_location_name, destination_unit_name,
+dan recipient_name melalui join yang dibatasi organisasi. Popup penyaluran
+menampilkan tanggal, gudang, lokasi/unit tujuan dan Pegawai penerima. Tahap
+Periksa menampilkan tanggal penyaluran asal terpisah dari tanggal pengembalian;
+occurred_on pada transaksi return tetap tanggal pengembalian fisik ke gudang.
+
+Field penyaluran dan nomor referensi berdampingan pada desktop, satu kolom
+mobile. Tautan rincian tanpa ikon, font 12px dan target sentuh 44px. Jumlah awal
+pilihan penyaluran baru memakai remainingQuantity, bukan jumlah asal jika
+sebagian sudah kembali. Perubahan draft termasuk 0 tetap dipertahankan. Label
+input Jumlah (satuan). Riwayat desktop memakai kolom lebih lebar, teks body
+tanggal/jenis normal, dan scroll lokal agar data tidak wrap menjadi dua baris.
+
+
+## Saldo awal dan penerimaan terlambat
+
+Lihat `docs/inventory-opening-corrections.md` untuk aturan eligibility, permission koreksi, kontrak API, proyeksi replay bersama, dan rollout legacy. `OpeningCorrectionModal` memakai AppModal, ConfirmDialog, AppNotice dan InventoryQuantityChip; koreksi dari draft hanya menyiapkan perubahan sampai Simpan transaksi. AppIcon mendaftarkan inventory:stock-card, inventory:minimum, inventory:opening-correction.
+
+
+### Pembagian Stok dan Transaksi Barang
+
+Tambah transaksi hanya berada pada Transaksi Barang. Header Stok Barang tidak menawarkan pembuatan transaksi; halaman ini memantau saldo/indikator, Kartu Stok, minimum dan koreksi saldo awal berizin.
+
+
+### Field administratif menurut jenis transaksi
+
+Saldo awal tidak wajib alasan keterlambatan. Barang masuk, keluar, pengembalian dan stok opname sebelum hari ini wajib alasan minimal 10 karakter, sesuai transactionFieldPolicy.mjs bersama UI/backend. Pembatalan dan koreksi tetap wajib alasan tindakan. Nomor dokumen baru hanya pada penerimaan/penyaluran, opsional, dengan label Nomor dokumen penerimaan dan Nomor memo/permintaan. Opening/return/stocktake menyimpan dan menampilkan referensi lama tanpa input baru atau penghapusan diam-diam. Catatan tetap opsional; nomor kosong tidak ditampilkan di ringkasan. Kontrak API referenceNo/lateReason, schema, audit, tanggal dan izin tidak berubah; tidak perlu migration.
+
+
+### Implementasi Distribusi Barang
+
+Lihat docs/inventory-distribution.md. Distribusi memakai transaksi/line/reversal existing, tanpa migration atau perubahan saldo. DistributionPanel menggunakan DataPanel, ResponsiveDataView, DataPagination, OperationalFilterSection, DashboardMetric, chip, modal dan preview terpusat. TransactionDetailModal/TransactionPresentationParts dipakai bersama dengan Transaksi Barang; onCancel hanya diberikan workspace transaksi berizin, bukan laporan.

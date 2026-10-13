@@ -15,6 +15,7 @@ import {
 import { Box, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
+import { readUploadMetadata } from "@/lib/ui/uploadMetadata.mjs";
 
 /** Menampilkan ukuran file terpilih dengan satuan yang mudah dipindai pengguna. */
 function formatFileSize(bytes) {
@@ -67,9 +68,7 @@ export default function FileUploadField({
 }) {
   const theme = useTheme();
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
-  const name = value?.name || value?.original_name;
-  const size = value?.size ?? value?.size_bytes;
-  const mimeType = value?.type || value?.mime_type || "";
+  const { name, size, mimeType } = readUploadMetadata(value);
   const isImage = mimeType.startsWith("image/");
 
   /** Validasi ukuran memberi feedback cepat; server tetap memeriksa MIME dan batas final. */

@@ -707,7 +707,7 @@ test("filter daftar pegawai menerima setiap status hubungan kerja resmi", () => 
 });
 
 test("filter pembuat pegawai memakai audit pencatatan awal dan index pendukung", () => {
-  const serviceSource = readFileSync(new URL("../lib/employees/service.js", import.meta.url), "utf8");
+  const serviceSource = readFileSync(new URL("../lib/employees/service.js", import.meta.url), "utf8").replace(/\r\n/g,"\n");
   const schemaSql = readFileSync(new URL("../sitou_schema_v3.sql", import.meta.url), "utf8");
   const migrationSql = readFileSync(
     new URL("../database/migrations/20260911_026_employee_creator_filter_index.sql", import.meta.url),
@@ -814,7 +814,8 @@ test("direktori pegawai memakai section filter operasional", () => {
   assert.doesNotMatch(locationSelect, /showCode/);
   assert.match(locationSelect, /label: item\.name/);
   assert.match(rowActionMenu, /MenuOutlined/);
-  assert.match(rowActionMenu, /aria-label="Buka menu aksi"/);
+  assert.match(rowActionMenu, /triggerLabel = "Buka menu aksi"/);
+  assert.match(rowActionMenu, /aria-label=\{triggerLabel\}/);
   assert.match(rowActionMenu, /popupRender/);
   assert.match(rowActionMenu, /type: "divider"/);
   assert.match(topMenu, /<Divider/);
@@ -866,9 +867,12 @@ test("seluruh tabel memakai desain modern reusable dan alignment yang konsisten"
   assert.ok(avatarSource.includes("employee?.organization_id"));
   assert.ok(avatarSource.includes("/api/uploads/"));
   assert.ok(avatarSource.includes("?organizationId="));
-  assert.ok(avatarSource.includes("onPreview?.("));
-  assert.ok(avatarSource.includes("Perbesar pas foto "));
-  assert.ok(avatarSource.includes("onError={() => setFailed(true)}"));
+  assert.ok(avatarSource.includes("<PhotoAvatar"));
+  assert.ok(avatarSource.includes("onPreview={onPreview}"));
+  const photoAvatarSource = readFileSync(new URL("../app/components/data-display/PhotoAvatar.jsx", import.meta.url), "utf8");
+  assert.ok(photoAvatarSource.includes("onPreview?.("));
+  assert.ok(photoAvatarSource.includes("aria-label={`Perbesar"));
+  assert.ok(photoAvatarSource.includes("onError={() => setFailed(true)}"));
   assert.doesNotMatch(avatarSource, /ktp|identity_document|document_file_id/i);
 
   assert.ok(dataPanelSource.includes("p: 0"));

@@ -528,7 +528,7 @@ export async function verifyHrisAccess({
   await formDialog.getByText("Akun & Akses", { exact: true }).click();
   const accountToggle = formDialog.getByRole("checkbox", { name: "Akun Organisasi", exact: true });
   const toggleAccount = async (checked) => {
-    if ((await accountToggle.isChecked()) !== checked) await accountToggle.click();
+    await accountToggle.setChecked(checked);
     await formDialog
       .getByRole("checkbox", { name: "Akun Organisasi", exact: true, checked })
       .waitFor({ state: "visible" });

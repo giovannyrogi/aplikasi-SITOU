@@ -109,7 +109,15 @@ export default function PrivateFileUpload({
   const remove = async () => {
     if (!storedValue) return false;
     if (onRemoveRequest) {
-      onRemoveRequest({ file: storedValue, fileId: resolvedFileId });
+      // Callback async tetap berada dalam lifecycle komponen agar kegagalan tidak lepas ke console.
+      setUploading(true);
+      try {
+        await onRemoveRequest({ file: storedValue, fileId: resolvedFileId });
+      } catch (error) {
+        onError?.(error.message || "File belum dapat dihapus. Coba kembali.");
+      } finally {
+        setUploading(false);
+      }
       return false;
     }
     if (deferred) {

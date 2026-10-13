@@ -8,6 +8,8 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import WarehousePanel from "./WarehousePanel";
 import CatalogPanel from "./CatalogPanel";
 import TransactionPanel from "./TransactionPanel";
+import DistributionPanel from "./DistributionPanel";
+import StockPanel from "./StockPanel";
 /** Menjaga konteks organisasi URL dan mereset panel ketika organisasi berubah. */
 export default function InventoryWorkspace({ section }) {
   const user = useAuthenticatedUser();
@@ -58,8 +60,11 @@ export default function InventoryWorkspace({ section }) {
         organizationId={organizationId}
         organizationFilter={organizationFilter}
         initialDraftId={query.get("draftId")}
+        initialTransactionId={query.get("transactionId")}
       />
     );
+  if (section === "reports") return <DistributionPanel key={organizationId||"empty"} organizationId={organizationId} organizationFilter={organizationFilter}/>;
+  if (section === "stock") return <StockPanel key={organizationId || "empty"} organizationId={organizationId} organizationFilter={organizationFilter}/>;
   return (
     <PageHeader
       title={

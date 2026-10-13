@@ -1,0 +1,186 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button, DatePicker, Input, InputNumber, Tooltip } from "antd";
+import { Box, Divider, useTheme } from "@mui/material";
+import dayjs from "dayjs";
+import PageHeader from "@/app/components/layout/PageHeader";
+import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
+import DataPanel from "@/app/components/data-display/DataPanel";
+import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import DataPagination from "@/app/components/data-display/DataPagination";
+import AppModal from "@/app/components/modals/AppModal";
+import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
+import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
+import AppNotice from "@/app/components/data-display/AppNotice";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
+import FontStyle from "@/app/components/font-style/FontStyle";
+import AppIcon from "@/app/components/icons/AppIcon";
+import AsyncSelect from "@/app/components/forms/AsyncSelect";
+import Notification from "@/app/components/Notifications/Notification";
+import useAppNotification from "@/app/hooks/useAppNotification";
+import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
+import { readApiResponse } from "@/lib/api/clientError";
+import { stockConditions } from "@/lib/inventory/stockPolicy.mjs";
+import { transactionPresentations } from "./transactionPresentations";
+import InventoryItemPhoto from "./InventoryItemPhoto";
+import OpeningCorrectionModal from "./OpeningCorrectionModal";
+
+const quantity = (value) => value == null ? "Belum ada transaksi" : new Intl.NumberFormat("id-ID", {maximumFractionDigits:3}).format(Number(value));
+const initialFilters = { search:"",warehouseId:"",categoryId:"",condition:"all",status:"active" };
+
+/** Request dibatalkan saat filter berubah; cursor terikat seluruh filter dan scope backend. */
+function useStockData(params, reloadKey = 0) {
+  const signature = JSON.stringify(params);
+  const [page, setPage] = useState({ signature, cursors:[null], index:0 });
+  const current = page.signature === signature ? page : {signature,cursors:[null],index:0};
+  const token = current.cursors[current.index];
+  const requestKey = `${signature}:${token || ""}:${reloadKey}`;
+  const [state, setState] = useState({ data:null,error:"",key:null });
+  useEffect(() => {
+    const filters = JSON.parse(signature);
+    if (!filters.organizationId) return;
+    const controller = new AbortController();
+    const query = new URLSearchParams(Object.entries(filters).filter(([,value]) => value !== "" && value != null));
+    if (token) query.set("cursor",token);
+    fetch(`/api/inventory/stock?${query}`, {signal:controller.signal,cache:"no-store"})
+      .then(readApiResponse).then((body) => { if (!controller.signal.aborted) setState({data:body.data,error:"",key:requestKey}); })
+      .catch((error) => { if (!controller.signal.aborted) setState({data:null,error:error.message,key:requestKey}); });
+    return () => controller.abort();
+  }, [signature,token,reloadKey,requestKey]);
+  return { ...state,loading:state.key!==requestKey,error:state.key===requestKey ? state.error : "",cursor:{page:current.index+1,next:state.data?.nextCursor},
+    previous:() => setPage({...current,index:current.index-1}),
+    next:() => setPage({...current,index:current.index+1,cursors:[...current.cursors.slice(0,current.index+1),state.data.nextCursor]}) };
+}
+
+function CursorFooter({ result, pageSize, onSize }) {
+  return <Box sx={{px:2,pb:2}}><DataPagination cursor={result.cursor} onPrevious={result.previous} onNext={result.next}
+    loading={result.loading} total={result.data?.total} pageSize={pageSize} onPageSizeChange={onSize}/></Box>;
+}
+
+function StockHistoryModal({ row, organizationId, onClose }) {
+  const [dates,setDates] = useState({from:"",to:""});
+  const [pageSize,setPageSize] = useState(20);
+  const [retry,setRetry] = useState(0);
+  const invalid = dates.from && dates.to && dates.from > dates.to;
+  const result = useStockData({organizationId,action:"history",warehouseId:row.warehouse_id,itemId:row.item_id,...dates,pageSize},retry);
+  const columns = [
+    {key:"date",title:"Tanggal",render:(_,entry)=>dayjs(entry.occurred_on).format("D MMM YYYY"),width:135},
+    {key:"kind",title:"Transaksi",render:(_,entry)=><Box><FontStyle fontWeight={600}>{transactionPresentations[entry.kind]?.label}</FontStyle><FontStyle fontSize={12}>{entry.reference_no || "Tanpa nomor referensi"}{entry.delta!==entry.original_delta || entry.occurred_on!==entry.original_date ? ` · Dihitung ulang; efek asal ${quantity(entry.original_delta)} ${row.unit_name}, tanggal asal ${dayjs(entry.original_date).format("D MMM YYYY")}` : ""}</FontStyle></Box>},
+    {key:"in",title:"Masuk",align:"right",render:(_,entry)=>Number(entry.delta)>0 ? quantity(entry.delta) : "—"},
+    {key:"out",title:"Keluar",align:"right",render:(_,entry)=>Number(entry.delta)<0 ? quantity(-Number(entry.delta)) : "—"},
+    {key:"balance",title:"Saldo",align:"right",render:(_,entry)=><FontStyle fontWeight={700}>{quantity(entry.balance)}</FontStyle>},
+    {key:"actor",title:"Disimpan oleh",dataIndex:"actor_name"},
+    ...(result.data?.canReadTransaction ? [{key:"action",title:"Aksi",align:"center",render:(_,entry)=><TransactionLink entry={entry} organizationId={organizationId}/>,width:90}] : []),
+  ];
+  // Reload key tersendiri hanya untuk kegagalan request; filter tidak mengubah ledger.
+  const history = result.data;
+  return <AppModal open onClose={onClose} title={`Kartu Stok · ${row.name}`} description={`${row.warehouse_name} · ${row.unit_name}`} icon="solar:clipboard-list-bold-duotone" size="xl">
+    <Box sx={{display:"grid",gap:3,minWidth:0}}>
+      <AppNotice title={row.has_history ? "Riwayat perubahan stok" : "Belum ada transaksi"}
+        description={row.has_history ? "Saldo mengikuti urutan tanggal transaksi. Pembatalan tampil sebagai transaksi pembalik." : "Pencatatan stok belum dimulai. Gunakan Barang Masuk untuk penerimaan pertama, atau Saldo Awal untuk persediaan yang sudah dimiliki sebelum pencatatan dimulai."}/>
+      <Box sx={{display:"grid",gridTemplateColumns:{xs:"minmax(0,1fr)",sm:"repeat(2,minmax(0,1fr))"},gap:2}}>
+        {[['from','Tanggal awal'],['to','Tanggal akhir']].map(([key,label])=><Box key={key}><FontStyle fontSize={12} sx={{mb:1}}>{label}</FontStyle><DatePicker aria-label={label} value={dates[key] ? dayjs(dates[key]) : null} onChange={(value)=>setDates({...dates,[key]:value?.format("YYYY-MM-DD") || ""})} style={{width:"100%",minHeight:44}}/></Box>)}
+      </Box>
+      {invalid ? <AppNotice tone="danger" title="Rentang tanggal tidak valid" description="Tanggal akhir tidak boleh sebelum tanggal awal."/> : <>
+        {history && row.has_history ? <Box sx={{display:"flex",flexWrap:"wrap",gap:2}}><CompactInfoChip label={`Saldo sebelum periode: ${quantity(history.opening_balance)} ${row.unit_name}`} tone="neutral"/><CompactInfoChip label={`Saldo akhir periode: ${quantity(history.closing_balance)} ${row.unit_name}`} tone="info"/></Box> : null}
+        <DataPanel title="Pergerakan barang" description="Masuk, keluar, dan saldo setelah setiap transaksi.">
+          <ResponsiveDataView key={retry} data={history?.rows || []} columns={columns} loading={result.loading} error={result.error} onRetry={()=>setRetry(retry+1)} scrollX={800} emptyDescription="Tidak ada pergerakan stok pada periode ini."
+            renderCard={(entry)=><Box sx={{display:"grid",gap:1.5}}><FontStyle fontWeight={700}>{dayjs(entry.occurred_on).format("D MMM YYYY")} · {transactionPresentations[entry.kind]?.label}</FontStyle><FontStyle fontSize={12}>{entry.reference_no || "Tanpa nomor referensi"}{entry.delta!==entry.original_delta || entry.occurred_on!==entry.original_date ? ` · Dihitung ulang; efek asal ${quantity(entry.original_delta)} ${row.unit_name}, tanggal asal ${dayjs(entry.original_date).format("D MMM YYYY")}` : ""}</FontStyle><FontStyle>Masuk: {Number(entry.delta)>0 ? quantity(entry.delta) : "—"} · Keluar: {Number(entry.delta)<0 ? quantity(-Number(entry.delta)) : "—"}</FontStyle><CompactInfoChip label={`Saldo: ${quantity(entry.balance)} ${row.unit_name}`} tone="info"/><FontStyle fontSize={12}>Disimpan oleh: {entry.actor_name}</FontStyle>{history?.canReadTransaction ? <TransactionLink entry={entry} organizationId={organizationId}/> : null}</Box>}/>
+          <CursorFooter result={result} pageSize={pageSize} onSize={setPageSize}/>
+        </DataPanel>
+      </>}
+    </Box>
+  </AppModal>;
+}
+
+function TransactionLink({entry,organizationId}) {
+  const router = useRouter();
+  const {startNavigationLoading} = useLoadingBackdrop();
+  return <Button aria-label="Lihat detail transaksi" onClick={()=>{startNavigationLoading({message:"Membuka transaksi..."});router.push(`/inventory/transactions?organizationId=${organizationId}&transactionId=${entry.transaction_id}`);}} icon={<AppIcon icon="solar:eye-linear" width={18}/>} style={{minHeight:44,minWidth:44}}/>;
+}
+
+function MinimumModal({ row, organizationId, onClose, onSaved }) {
+  const [value,setValue] = useState(Number(row.minimum_stock));
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState("");
+  const [discard,setDiscard] = useState(false);
+  const {runWithLoadingBackdrop} = useLoadingBackdrop();
+  useEffect(()=>{
+    if (value===Number(row.minimum_stock)) return;
+    const warn=(event)=>{event.preventDefault();event.returnValue="";};
+    window.addEventListener("beforeunload",warn);
+    return ()=>window.removeEventListener("beforeunload",warn);
+  },[value,row.minimum_stock]);
+  const close = () => value !== Number(row.minimum_stock) ? setDiscard(true) : onClose();
+  const save = async () => {
+    if (busy) return;
+    if (value == null) {setError("Isi batas minimum.");return;}
+    setBusy(true);setError("");
+    try {
+      await runWithLoadingBackdrop(async()=>readApiResponse(await fetch(`/api/inventory/catalog/items/${row.item_id}/warehouses`,{
+        method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({organizationId:Number(organizationId),warehouseId:Number(row.warehouse_id),minimumStock:value,isActive:row.link_active,version:row.version}),
+      })), {message:"Menyimpan batas minimum..."});
+      onSaved();
+    } catch (cause) {setError(cause.fieldErrors?.minimumStock || cause.message);}
+    finally {setBusy(false);}
+  };
+  return <><AppModal open onClose={close} disableClose={busy} title="Atur batas minimum" description={`${row.name} · ${row.warehouse_name}`} icon="solar:bell-bing-bold-duotone" footer={<><Button onClick={close} disabled={busy}>Batal</Button><Button type="primary" loading={busy} onClick={save}>Simpan minimum</Button></>}>
+    <Box sx={{display:"grid",gap:3}}><AppNotice description="Batas minimum memberi peringatan saat stok lebih rendah. Mengubah batas ini tidak mengubah saldo."/><Box><FontStyle sx={{mb:1}}>Batas minimum ({row.unit_name})</FontStyle><InputNumber aria-label="Batas minimum" autoFocus min={0} max={999999999999} precision={row.allows_fractional ? 3 : 0} value={value} onChange={setValue} status={error ? "error" : undefined} style={{width:"100%",minHeight:44}}/>{error ? <FontStyle role="alert" fontSize={12} sx={{color:"error.main",mt:1}}>{error}</FontStyle> : null}</Box></Box>
+  </AppModal><ConfirmDialog open={discard} title="Buang perubahan minimum?" message="Perubahan batas minimum belum disimpan." danger confirmText="Buang perubahan" onClose={()=>setDiscard(false)} onConfirm={onClose}/></>;
+}
+
+export default function StockPanel({organizationId,organizationFilter}) {
+  const theme=useTheme();
+  const [filters,setFilters] = useState(initialFilters);
+  const [search,setSearch] = useState("");
+  const [pageSize,setPageSize] = useState(20);
+  const [reload,setReload] = useState(0);
+  const [detail,setDetail] = useState(null);
+  const [opening,setOpening] = useState(null);
+  const [minimum,setMinimum] = useState(null);
+  const [preview,setPreview] = useState(null);
+  const {notification,showNotification,closeNotification} = useAppNotification();
+  useEffect(()=>{const timer=setTimeout(()=>setSearch(filters.search.trim()),350);return ()=>clearTimeout(timer);},[filters.search]);
+  const result = useStockData({organizationId,...filters,search,pageSize},reload);
+  const snapshot = result.data;
+  const identity = (row)=><Box sx={{display:"flex",gap:1.5,alignItems:"center",minWidth:0}}><InventoryItemPhoto item={row} organizationId={organizationId} onPreview={setPreview}/><Box sx={{minWidth:0}}><FontStyle fontWeight={700} sx={{overflowWrap:"anywhere"}}>{row.name}</FontStyle><CompactInfoChip label={row.code} tone="info"/><FontStyle fontSize={12} sx={{mt:.75,color:"text.secondary"}}>{row.category_name} · {row.unit_name}</FontStyle></Box></Box>;
+  const condition = (row)=><Box sx={{display:"flex",gap:1,flexWrap:"wrap"}}><CompactInfoChip {...stockConditions[row.condition]}/>{!row.is_active ? <CompactInfoChip label="Nonaktif" tone="neutral"/> : null}</Box>;
+  const actions = (row)=><Box sx={{display:"flex",gap:1,justifyContent:"center",flexWrap:"wrap"}}>
+    <Tooltip title="Kartu Stok"><Button icon={<AppIcon icon="inventory:stock-card" width={18}/>} aria-label={`Kartu Stok ${row.name}`} onClick={()=>setDetail(row)} style={{minHeight:44,minWidth:44,color:theme.status.info.main}}/></Tooltip>
+    {row.canManageMinimum ? <Tooltip title="Atur minimum"><Button icon={<AppIcon icon="inventory:minimum" width={18}/>} aria-label={`Atur minimum ${row.name}`} onClick={()=>setMinimum(row)} style={{minHeight:44,minWidth:44,color:theme.palette.secondary.main}}/></Tooltip> : null}
+    {row.canCorrectOpening ? <Tooltip title="Koreksi saldo awal"><Button icon={<AppIcon icon="inventory:opening-correction" width={18}/>} aria-label={`Koreksi saldo awal ${row.name}`} onClick={()=>setOpening(row)} style={{minHeight:44,minWidth:44,color:theme.status.warning.main}}/></Tooltip> : null}
+  </Box>;
+  const columns = [
+    {key:"item",title:"Barang",render:(_,row)=>identity(row),width:270},
+    {key:"warehouse",title:"Gudang",render:(_,row)=><Box><FontStyle fontWeight={600}>{row.warehouse_name}</FontStyle><CompactInfoChip label={row.warehouse_code} tone="info"/><FontStyle fontSize={12} sx={{mt:.75,color:"text.secondary"}}>{row.location_name}</FontStyle></Box>,width:220},
+    {key:"quantity",title:"Stok tersedia",align:"right",render:(_,row)=><FontStyle fontWeight={700}>{quantity(row.quantity)}{row.has_history ? ` ${row.unit_name}` : ""}</FontStyle>,width:150},
+    {key:"minimum",title:"Batas minimum",align:"right",render:(_,row)=>`${quantity(row.minimum_stock)} ${row.unit_name}`,width:145},
+    {key:"condition",title:"Kondisi stok",render:(_,row)=>condition(row),width:170},
+    {key:"actions",title:"Aksi",align:"center",render:(_,row)=>actions(row),width:180},
+  ];
+  const select = (key,options,placeholder)=><AsyncSelect aria-label={placeholder} allowClear={!["condition","status"].includes(key)} value={filters[key] || undefined} onChange={(value)=>setFilters({...filters,[key]:value || ""})} options={options} placeholder={placeholder} style={{width:"100%",minHeight:44}}/>;
+  return <Box sx={{display:"grid",gap:3,minWidth:0}}>
+    <PageHeader title="Stok Barang" description="Pantau persediaan dan riwayat setiap barang di gudang."/>
+    {!organizationId ? <AppNotice title="Pilih organisasi" description="Pilih organisasi untuk melihat stok barang."/> : null}
+    <OperationalFilterSection title="Cari persediaan" onReset={()=>setFilters(initialFilters)} items={[
+      ...(organizationFilter ? [{key:"organization",label:"Organisasi",control:organizationFilter}] : []),
+      {key:"search",label:"Nama atau kode barang",control:<Input aria-label="Cari stok barang" placeholder="Cari nama atau kode barang" value={filters.search} onChange={(event)=>setFilters({...filters,search:event.target.value})} style={{minHeight:44}}/>},
+      {key:"warehouse",label:"Gudang",control:select("warehouseId",(snapshot?.warehouses || []).map((row)=>({value:row.id,label:`${row.name} · ${row.location_name}${row.is_active ? "" : " · Nonaktif"}`})),"Semua gudang berizin")},
+      {key:"category",label:"Kategori",control:select("categoryId",(snapshot?.categories || []).map((row)=>({value:row.id,label:row.name})),"Semua kategori")},
+      {key:"condition",label:"Kondisi stok",control:select("condition",[{value:"all",label:"Semua kondisi"},...Object.entries(stockConditions).map(([value,entry])=>({value,label:entry.label}))],"Kondisi stok")},
+      {key:"status",label:"Status barang–gudang",control:select("status",[{value:"active",label:"Aktif"},{value:"inactive",label:"Nonaktif"},{value:"all",label:"Semua status"}],"Status barang–gudang")},
+    ]}/>
+    {organizationId ? <DataPanel title="Persediaan per gudang" description="Belum ada transaksi berarti pencatatan stok belum dimulai. Stok nol setelah pencatatan dimulai ditampilkan sebagai Habis.">
+      <ResponsiveDataView data={snapshot?.data || []} columns={columns} loading={result.loading} error={result.error} onRetry={()=>setReload(reload+1)} scrollX={1200} emptyDescription="Tidak ada barang terdaftar dalam cakupan atau filter ini. Siapkan barang melalui Pengelola Master Inventaris dan daftarkan ke gudang."
+        renderCard={(row)=><Box sx={{display:"grid",gap:2,minWidth:0}}>{identity(row)}<Divider/><Box><FontStyle fontWeight={600}>{row.warehouse_name}</FontStyle><FontStyle fontSize={12}>{row.location_name}</FontStyle></Box><Box sx={{display:"grid",gap:1}}><FontStyle fontWeight={700}>Stok: {quantity(row.quantity)}{row.has_history ? ` ${row.unit_name}` : ""}</FontStyle><FontStyle fontSize={12}>Minimum: {quantity(row.minimum_stock)} {row.unit_name}</FontStyle>{condition(row)}</Box>{actions(row)}</Box>}/>
+      <CursorFooter result={result} pageSize={pageSize} onSize={setPageSize}/>
+    </DataPanel> : null}
+    {detail ? <StockHistoryModal row={detail} organizationId={organizationId} onClose={()=>setDetail(null)}/> : null}
+    {opening ? <OpeningCorrectionModal organizationId={organizationId} warehouseId={opening.warehouse_id} itemId={opening.item_id} onClose={()=>setOpening(null)} onApplied={()=>{setOpening(null);setReload(reload+1);showNotification("Koreksi saldo awal berhasil disimpan.");}}/> : null}
+    {minimum ? <MinimumModal row={minimum} organizationId={organizationId} onClose={()=>setMinimum(null)} onSaved={()=>{setMinimum(null);setReload(reload+1);showNotification("Batas minimum berhasil disimpan.");}}/> : null}
+
+    <ImagePreviewModal open={!!preview} imageUrl={preview?.url} title={preview?.name || "Foto barang"} alt={`Foto ${preview?.name || "barang"}`} onClose={()=>setPreview(null)}/>
+    <Notification {...notification} onClose={closeNotification}/>
+  </Box>;
+}

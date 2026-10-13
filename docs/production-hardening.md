@@ -150,3 +150,33 @@ ORDER BY requests DESC;
 ```
 
 Pantau juga log 401/403/413/429/500, kapasitas disk, file `.tmp` dan `.trash`, file aktif tanpa referensi, metadata tanpa byte, serta versi signature ClamAV. Menu Penyimpanan File tetap menjadi alat audit dan pemulihan terakhir.
+
+## Development lokal: scanner opsional
+
+Kepegawaian dan Inventaris memakai pipeline privat yang sama di lib/files/storage.js
+serta scanUploadBuffer. Untuk pengembangan dengan npm run dev tanpa ClamAV lokal:
+
+```dotenv
+CLAMAV_REQUIRED=0
+CLAMAV_ENABLED=0
+CLAMAV_TIMEOUT_MS=15000
+```
+
+CLAMAV_SOCKET/HOST/PORT tidak diperlukan jika pemindaian tidak aktif. File tetap
+diperiksa MIME dari byte, ukuran, dimensi gambar, hash, otorisasi, staging dan
+rollback. Statusnya legacy_unscanned, bukan clean palsu; preview lokal mengikuti
+kebijakan development. Jika ingin menguji ClamAV, aktifkan REQUIRED=1 atau ENABLED=1
+serta endpoint yang sesuai OS.
+
+Pada NODE_ENV=production (termasuk npm run build lalu npm start di komputer lokal),
+scanner selalu wajib walaupun kedua flag bernilai 0. Scanner mati/timeout/ancaman
+menolak upload; file non-clean tidak dapat dibuka. VPS tetap memakai konfigurasi
+production/socket Linux yang valid. File development yang dipindah ke production
+harus dipindai lewat files:scan-malware sebelum digunakan. Jalankan ulang server
+setelah mengubah environment agar nilai baru pasti terbaca.
+
+Inventaris sudah memakai PrivateFileUpload untuk foto barang (deferred sampai
+Simpan barang), bukti pembelian, dokumen permintaan, dan foto serah terima (draft
+privat). Semua merender FileUploadField dan ImagePreviewModal yang sama. Callback
+onRemoveRequest asynchronous wajib ditunggu, dengan loading dan pesan gagal;
+referensi UI baru dilepas setelah operasi pemilik berhasil.

@@ -53,6 +53,7 @@ test("registry referensi mencakup seluruh pemilik stored_files pada schema saat 
       "employment_contract_document_versions.file_id",
       "employment_contracts.document_file_id",
       "inventory_items.photo_file_id",
+      "inventory_transaction_files.file_id",
       "leave_request_attachments.file_id",
       "locations.logo_file_id",
       "organization_branding.logo_file_id",
@@ -211,11 +212,7 @@ test("halaman membedakan antrean worker dari proses yang sedang berjalan", async
   assert.match(source, /background: theme\.palette\.info\.main/);
   assert.match(source, /background: theme\.palette\.success\.main/);
   assert.match(source, /background: theme\.palette\.warning\.main/);
-  assert.match(source, /"& \.MuiAlert-icon": \{/);
-  assert.match(source, /"& \.MuiAlert-message": \{/);
-  assert.match(source, /tone="brand"/);
-  assert.match(source, /tone="danger"/);
-  assert.match(source, /tone="success"/);
+  assert.match(source, /<AppNotice/);
   assert.match(source, /tone="warning"/);
   assert.doesNotMatch(source, /Buka detail pegawai/);
 });

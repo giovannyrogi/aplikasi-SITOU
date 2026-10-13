@@ -77,7 +77,7 @@ function PackageRow({
                 form.setFieldValue(["packageAccess", field.name, "warehouseIds"], []);
               }
             }}
-            options={options.packages.map((p) => ({
+            options={[...options.packages,...(existing||[]).filter((g)=>!options.packages.some((p)=>p.code===g.packageCode)).map((g)=>({code:g.packageCode,name:g.name,disabled:true}))].map((p) => ({
               value: p.code,
               label: p.name,
               disabled:
