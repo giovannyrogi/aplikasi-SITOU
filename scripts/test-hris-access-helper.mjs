@@ -354,7 +354,7 @@ export async function verifyHrisAccess({
       .filter({ hasText: /^Edit$/ })
       .click();
     const warning = noticePage.getByRole("status").filter({
-      hasText: "Inventaris belum aktif untuk organisasi ini",
+      hasText: "Inventaris belum tersedia",
     });
     await warning.waitFor();
     assert.match(await warning.innerText(), /Data Master.*Organisasi.*Kelola fitur/);
@@ -375,13 +375,12 @@ export async function verifyHrisAccess({
         .evaluate((element) => element.scrollWidth > element.clientWidth),
       false,
     );
-    await noticePage.getByLabel("Tambahkan fitur", { exact: true }).click();
     assert.equal(
       await noticePage
-        .locator(".ant-select-item-option-disabled")
-        .filter({ hasText: "Inventaris" })
+        .getByRole("dialog", { name: "Edit akun organisasi" })
+        .getByLabel("Tambahkan fitur", { exact: true })
         .count(),
-      1,
+      0,
     );
   } finally {
     await noticeContext.close();

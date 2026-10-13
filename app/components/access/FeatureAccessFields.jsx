@@ -57,6 +57,7 @@ export default function FeatureAccessFields({
       ? [{ value: "inventory", label: "Inventaris", disabled: !options.inventoryEnabled }]
       : []),
   ];
+  const selectableFeatures = available.filter((feature) => !feature.disabled);
   const saved = accountFeatureGroups(item || {});
   if (!canHris && !canInventory && !saved.length && (optionsReady || roleCode === "employee"))
     return null;
@@ -84,7 +85,7 @@ export default function FeatureAccessFields({
           organisasi.
         </FontStyle>
       ) : null}
-      {available.length ? (
+      {selectableFeatures.length ? (
         <Form.Item
           label="Tambahkan fitur"
           extra={
@@ -102,7 +103,7 @@ export default function FeatureAccessFields({
             value={null}
             placeholder="Pilih fitur yang ingin diberikan"
             disabled={!optionsReady}
-            options={available}
+            options={selectableFeatures}
             onChange={addFeature}
           />
         </Form.Item>
@@ -110,8 +111,8 @@ export default function FeatureAccessFields({
       {optionsReady && canInventory && !options.inventoryEnabled ? (
         <AppNotice
           tone="warning"
-          title="Inventaris belum aktif untuk organisasi ini"
-          description="Pilihan Inventaris belum dapat diberikan. Minta Superadmin membuka Data Master → Organisasi, pilih Kelola fitur pada organisasi ini, lalu aktifkan Fitur Inventaris. Setelah disimpan, buka ulang modal akun."
+          title="Inventaris belum tersedia"
+          description="Superadmin dapat mengaktifkannya melalui Data Master → Organisasi → Kelola fitur. Setelah aktif, buka kembali formulir akun ini untuk memberikan akses."
         />
       ) : null}
       <Form.Item name="expandedFeatureSections" hidden>

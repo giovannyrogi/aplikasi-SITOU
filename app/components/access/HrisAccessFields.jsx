@@ -10,6 +10,7 @@ import {
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import AppIcon from "@/app/components/icons/AppIcon";
+import AppNotice from "@/app/components/data-display/AppNotice";
 import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import AccessExplanation from "./AccessExplanation";
 /** Menjaga array grant sebagai nilai Form, bukan string input HTML. */
@@ -46,12 +47,11 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
         display: "grid",
         gap: 2,
         minWidth: 0,
+        "& > .form-setting-switch": { py: 0 },
         "& .ant-checkbox-wrapper": { minHeight: 44, alignItems: "center" },
       }}
     >
-      <FontStyle explanation fontSize={12}>
-        {FEATURE_DESCRIPTIONS.hris}
-      </FontStyle>
+      {!full ? <FontStyle explanation fontSize={12}>{FEATURE_DESCRIPTIONS.hris}</FontStyle> : null}
       {options.canSetHrisAdmin ? (
         <FormSettingSwitch
           name="isHrisAdmin"
@@ -59,10 +59,10 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
           disabled={Boolean(item?.hrisAccess?.fullAdmin || (!item && options.needsFirstHrisAdmin))}
           disabledReason={
             item?.hrisAccess?.fullAdmin
-              ? "Alihkan admin melalui akun HRD lain terlebih dahulu. Penetapan khusus Superadmin."
-              : "Akun HRD aktif pertama menjadi admin penuh organisasi. Inventaris diatur terpisah."
+              ? "Untuk mengganti admin, pilih akun HRD lain melalui Superadmin."
+              : "Akun HRD aktif pertama otomatis menjadi admin penuh."
           }
-          description="Satu admin penuh per organisasi. Memilih akun ini mengalihkan admin lama dan memberi seluruh hak HRIS serta lokasi."
+          description="Hanya satu akun per organisasi. Jika diaktifkan, akun ini menggantikan admin HRD penuh sebelumnya."
         />
       ) : null}
       <Form.Item name="expandedHrisGroups" hidden>
@@ -71,20 +71,18 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
       <Form.Item name="hrisMenuAccess" hidden>
         <GrantValue />
       </Form.Item>
-      {!options.hrisConfigured ? (
+      {!options.hrisConfigured && !full ? (
         <FontStyle explanation fontSize={12}>
-          Admin HRD penuh belum ditetapkan. Pilihan menu dan Akun & Akses yang disimpan tetap
-          langsung berlaku untuk akun ini.
+          Admin HRD penuh belum ditetapkan. Hak menu yang disimpan tetap berlaku untuk akun ini.
         </FontStyle>
       ) : null}
       {full ? (
-        <Box sx={{ display: "grid", gap: 1, justifyItems: "start" }}>
-          <CompactInfoChip label="Admin HRD penuh" tone="info" />
-          <FontStyle explanation fontSize={12}>
-            Mengelola seluruh menu HRIS, akun organisasi, dan pembagian akses. Inventaris tetap
-            diberikan terpisah.
-          </FontStyle>
-        </Box>
+        <AppNotice
+          compact
+          tone="info"
+          title="Akses HRIS lengkap"
+          description="Dapat mengelola semua menu HRIS, seluruh lokasi, dan akun organisasi. Akses Inventaris diberikan terpisah."
+        />
       ) : (
         <>
           <Collapse
