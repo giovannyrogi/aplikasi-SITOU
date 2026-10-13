@@ -78,7 +78,7 @@ function StockHistoryModal({ row, organizationId, onClose }) {
   return <AppModal open onClose={onClose} title={`Kartu Stok · ${row.name}`} description={`${row.warehouse_name} · ${row.unit_name}`} icon="solar:clipboard-list-bold-duotone" size="xl">
     <Box sx={{display:"grid",gap:3,minWidth:0}}>
       <AppNotice title={row.has_history ? "Riwayat perubahan stok" : "Belum ada transaksi"}
-        description={row.has_history ? "Saldo mengikuti urutan tanggal transaksi. Pembatalan tampil sebagai transaksi pembalik." : "Pencatatan stok belum dimulai. Gunakan Barang Masuk untuk penerimaan pertama, atau Saldo Awal untuk persediaan yang sudah dimiliki sebelum pencatatan dimulai."}/>
+        description={row.has_history ? "Stok dihitung menurut tanggal transaksi. Jika transaksi dibatalkan, perubahan stoknya juga dibatalkan." : "Pencatatan stok belum dimulai. Gunakan Barang Masuk untuk penerimaan pertama, atau Saldo Awal untuk persediaan yang sudah dimiliki sebelum pencatatan dimulai."}/>
       <Box sx={{display:"grid",gridTemplateColumns:{xs:"minmax(0,1fr)",sm:"repeat(2,minmax(0,1fr))"},gap:2}}>
         {[['from','Tanggal awal'],['to','Tanggal akhir']].map(([key,label])=><Box key={key}><FontStyle fontSize={12} sx={{mb:1}}>{label}</FontStyle><DatePicker aria-label={label} value={dates[key] ? dayjs(dates[key]) : null} onChange={(value)=>setDates({...dates,[key]:value?.format("YYYY-MM-DD") || ""})} style={{width:"100%",minHeight:44}}/></Box>)}
       </Box>
@@ -126,7 +126,7 @@ function MinimumModal({ row, organizationId, onClose, onSaved }) {
     finally {setBusy(false);}
   };
   return <><AppModal open onClose={close} disableClose={busy} title="Atur batas minimum" description={`${row.name} · ${row.warehouse_name}`} icon="solar:bell-bing-bold-duotone" footer={<><Button onClick={close} disabled={busy}>Batal</Button><Button type="primary" loading={busy} onClick={save}>Simpan minimum</Button></>}>
-    <Box sx={{display:"grid",gap:3}}><AppNotice description="Batas minimum memberi peringatan saat stok lebih rendah. Mengubah batas ini tidak mengubah saldo."/><Box><FontStyle sx={{mb:1}}>Batas minimum ({row.unit_name})</FontStyle><InputNumber aria-label="Batas minimum" autoFocus min={0} max={999999999999} precision={row.allows_fractional ? 3 : 0} value={value} onChange={setValue} status={error ? "error" : undefined} style={{width:"100%",minHeight:44}}/>{error ? <FontStyle role="alert" fontSize={12} sx={{color:"error.main",mt:1}}>{error}</FontStyle> : null}</Box></Box>
+    <Box sx={{display:"grid",gap:3}}><AppNotice description="Batas minimum memberi peringatan saat stok lebih rendah. Mengubah batas ini tidak mengubah saldo."/><Box><FontStyle sx={{mb:1}}>Batas minimum ({row.unit_name})</FontStyle><InputNumber aria-label="Batas minimum" autoFocus min={0} max={999999999999} precision={row.allows_fractional ? undefined : 0} value={value} onChange={setValue} status={error ? "error" : undefined} style={{width:"100%",minHeight:44}}/>{error ? <FontStyle role="alert" fontSize={12} sx={{color:"error.main",mt:1}}>{error}</FontStyle> : null}</Box></Box>
   </AppModal><ConfirmDialog open={discard} title="Buang perubahan minimum?" message="Perubahan batas minimum belum disimpan." danger confirmText="Buang perubahan" onClose={()=>setDiscard(false)} onConfirm={onClose}/></>;
 }
 

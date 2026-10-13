@@ -141,6 +141,7 @@ Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender
 - `ACTION_TONES` tersedia melalui `theme.action`. Tombol AntD memakai `data-action-tone="detail|download|database|files|verify|danger"`: detail biru, paket lengkap teal, database biru, file ungu, verifikasi hijau, hapus merah. Styling terpusat mencakup hover, fokus keyboard, dan target sentuh 44px.
 - `system-backup/BackupProgressPanel` menerima `job`; ikon mengikuti tahap dan hasil, bergerak hanya saat proses aktif serta menghormati prefers-reduced-motion. Gagal memakai ikon error, siap dengan temuan memakai peringatan, dan siap tanpa temuan memakai centang.
 - Token BRAND_COLORS dan STATUS_TONES berada di themeprovider/ThemeProvider.jsx serta tersedia melalui theme.brand dan theme.status. Komponen MUI, AntD, badge, dan halaman fitur harus memakai sumber warna semantik yang sama.
+- Gunakan warna brand sebagai aksen yang relevan, bukan warna bawaan seluruh angka atau panel. Ikon dekoratif berlatar warna memakai `icons/AppIconTile` agar bentuk dan intensitas latarnya sama untuk semua tone; pilih `tone` sesuai makna. Pada ringkasan saldo awal, ikon Saldo awal memakai `info` biru dan ikon Stok saat ini memakai `brand` merah; kedua nilai stok tetap netral. Warna status/aksi lain mengikuti token semantik sesuai artinya.
 
 ## Kepegawaian dan Akses
 

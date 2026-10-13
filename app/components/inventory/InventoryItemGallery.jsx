@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Button, Skeleton } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
@@ -9,169 +9,26 @@ import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import EmptyState from "@/app/components/data-display/EmptyState";
 import ErrorState from "@/app/components/data-display/ErrorState";
+import InventoryItemCard from "./InventoryItemCard";
 
 const formatMinimum = (value) =>
   new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 }).format(Number(value));
-
-function ItemMedia({ item, organizationId, onPreview }) {
-  const theme = useTheme();
-  const [broken, setBroken] = useState(false);
-  const photoUrl =
-    item.photo_file_id && organizationId
-      ? `/api/uploads/${encodeURIComponent(item.photo_file_id)}?organizationId=${encodeURIComponent(organizationId)}`
-      : null;
-  const hasPhoto = Boolean(photoUrl && !broken);
-  return (
-    <Box
-      sx={{
-        width: { xs: 88, sm: 112 },
-        height: { xs: 88, sm: 112 },
-        flexShrink: 0,
-        borderRadius: 2,
-        overflow: "hidden",
-        bgcolor: theme.ui.panelSubtleBg,
-        border: `1px solid ${theme.ui.panelBorderSubtle}`,
-        boxShadow: "0 5px 12px rgba(20, 32, 56, 0.07)",
-      }}
-    >
-      {hasPhoto ? (
-        <Box
-          component="button"
-          type="button"
-          aria-label={`Perbesar foto barang ${item.name}`}
-          onClick={() => onPreview(item)}
-          sx={{
-            display: "block",
-            width: "100%",
-            height: "100%",
-            p: 0,
-            border: 0,
-            cursor: "zoom-in",
-            bgcolor: "transparent",
-            "&:focus-visible": {
-              outline: `3px solid ${theme.palette.primary.main}`,
-              outlineOffset: -3,
-            },
-          }}
-        >
-          <Box
-            component="img"
-            src={photoUrl}
-            alt={`Foto ${item.name}`}
-            loading="lazy"
-            onError={() => setBroken(true)}
-            sx={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        </Box>
-      ) : (
-        <Box
-          role="img"
-          aria-label={`Foto ${item.name} belum tersedia`}
-          sx={{
-            height: "100%",
-            display: "grid",
-            alignContent: "center",
-            justifyItems: "center",
-            gap: 0.5,
-            color: theme.ui.mutedText,
-          }}
-        >
-          <AppIcon icon="solar:gallery-wide-bold-duotone" width={27} />
-          <FontStyle fontSize={10.5} sx={{ textAlign: "center" }}>
-            Tanpa foto
-          </FontStyle>
-        </Box>
-      )}
-    </Box>
-  );
-}
 
 function ItemCard({ item, organizationId, actions, onPreview, onLimitsPreview }) {
   const theme = useTheme();
   const limits = item.warehouse_limits || [];
   return (
-    <Box
-      component="article"
+    <InventoryItemCard
+      item={item}
+      organizationId={organizationId}
+      onPreview={onPreview}
+      action={actions(item)}
+      meta={<CompactInfoChip status={item.is_active ? "active" : "inactive"} />}
+      showAttributes
+      interactive
       data-inventory-item-card
       data-item-id={item.id}
-      sx={{
-        minWidth: 0,
-        p: { xs: 1.5, sm: 2 },
-        border: `1px solid ${theme.ui.panelBorderSubtle}`,
-        borderRadius: 2.5,
-        bgcolor: theme.ui.panelBg,
-        boxShadow: "0 5px 16px rgba(20, 32, 56, 0.055)",
-        display: "grid",
-        alignContent: "start",
-        gap: 2,
-        transition: "transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease",
-        "&:hover": {
-          transform: "translateY(-3px)",
-          borderColor: theme.ui.panelBorder,
-          boxShadow: "0 12px 24px rgba(20, 32, 56, 0.11)",
-        },
-        "@media (prefers-reduced-motion: reduce)": {
-          transition: "none",
-          "&:hover": { transform: "none" },
-        },
-      }}
     >
-      <Box sx={{ display: "flex", gap: { xs: 1.5, sm: 2 }, minWidth: 0 }}>
-        <ItemMedia item={item} organizationId={organizationId} onPreview={onPreview} />
-        <Box sx={{ display: "grid", alignContent: "start", gap: 0.75, minWidth: 0, flex: 1 }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 0.5,
-              minWidth: 0,
-            }}
-          >
-            <FontStyle
-              component="h3"
-              fontSize={{ xs: 14, sm: 15 }}
-              fontWeight={700}
-              sx={{ minWidth: 0, overflowWrap: "anywhere", lineHeight: 1.4 }}
-            >
-              {item.name}
-            </FontStyle>
-            {actions(item)}
-          </Box>
-          <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText, overflowWrap: "anywhere" }}>
-            {item.code}
-          </FontStyle>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, alignItems: "flex-start" }}>
-            <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
-          </Box>
-        </Box>
-      </Box>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: 1.5,
-          pt: 1.5,
-          borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
-        }}
-      >
-        <Box sx={{ minWidth: 0 }}>
-          <FontStyle fontSize={11} sx={{ color: theme.ui.mutedText, mb: 0.5 }}>
-            Kategori
-          </FontStyle>
-          <FontStyle fontSize={12.5} fontWeight={600} sx={{ overflowWrap: "anywhere" }}>
-            {item.category_name}
-          </FontStyle>
-        </Box>
-        <Box sx={{ minWidth: 0 }}>
-          <FontStyle fontSize={11} sx={{ color: theme.ui.mutedText, mb: 0.5 }}>
-            Satuan dasar
-          </FontStyle>
-          <FontStyle fontSize={12.5} fontWeight={600} sx={{ overflowWrap: "anywhere" }}>
-            {item.unit_name}
-          </FontStyle>
-        </Box>
-      </Box>
       <Box
         sx={{
           minWidth: 0,
@@ -228,7 +85,7 @@ function ItemCard({ item, organizationId, actions, onPreview, onLimitsPreview })
           </FontStyle>
         )}
       </Box>
-    </Box>
+    </InventoryItemCard>
   );
 }
 

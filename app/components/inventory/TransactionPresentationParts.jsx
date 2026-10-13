@@ -2,16 +2,15 @@
 import {Button} from "antd";
 import {Box} from "@mui/material";
 import AppIcon from "@/app/components/icons/AppIcon";
+import AppIconTile from "@/app/components/icons/AppIconTile";
 import FontStyle from "@/app/components/font-style/FontStyle";
-import {transactionPresentations as presentations,transactionTone} from "./transactionPresentations";
+import {transactionPresentations as presentations} from "./transactionPresentations";
 /** Identitas jenis yang sama digunakan pada daftar dan modal transaksi. */
-export function KindMark({ kind, theme, compact = false }) {
+export function KindMark({ kind, compact = false }) {
   const entry = presentations[kind] || presentations.receipt;
-  const tone = transactionTone(theme, entry.tone);
   const size = compact ? 28 : 40;
-  return <Box aria-hidden="true" sx={{ width: size, height: size, flex: `0 0 ${size}px`, display: "grid", placeItems: "center", borderRadius: compact ? 1.25 : 2, color: tone.main, bgcolor: tone.background, border: `1px solid ${tone.border}` }}>
-    <AppIcon icon={entry.icon} width={compact ? 16 : 21}/>
-  </Box>;
+  return <AppIconTile icon={entry.icon} tone={entry.tone} size={size}
+    iconSize={compact ? 16 : 21} borderRadius={compact ? 1.25 : 2} showBorder/>;
 }
 
 /** Gambar dan PDF tetap memakai endpoint privat serta viewer yang sudah tersedia. */
@@ -28,7 +27,7 @@ export function TransactionAttachments({ files, organizationId, theme, onPreview
     <FontStyle fontSize={14} fontWeight={700}>Lampiran</FontStyle>
     {documents.length ? <Box sx={{ display: "grid", gap: 1.5 }}>
       {documents.map((file) => <Box key={file.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", p: 2, border: `1px solid ${theme.ui.panelBorder}`, borderRadius: 2, bgcolor: theme.ui.panelSubtleBg }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flex: "1 1 200px" }}><Box aria-hidden="true" sx={{ width: 48, height: 48, flexShrink: 0, display: "grid", placeItems: "center", borderRadius: 1.5, color: theme.status.info.main, bgcolor: theme.status.info.background }}><AppIcon icon="solar:document-text-bold-duotone" width={25}/></Box><Box sx={{ minWidth: 0 }}><FontStyle fontSize={12.5} fontWeight={700}>{labels[file.purpose] || "Dokumen transaksi"}</FontStyle><FontStyle fontSize={11.5} sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{file.name} · PDF privat</FontStyle></Box></Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flex: "1 1 200px" }}><AppIconTile icon="solar:document-text-bold-duotone" tone="info" size={48} iconSize={25}/><Box sx={{ minWidth: 0 }}><FontStyle fontSize={12.5} fontWeight={700}>{labels[file.purpose] || "Dokumen transaksi"}</FontStyle><FontStyle fontSize={11.5} sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{file.name} · PDF privat</FontStyle></Box></Box>
         <Button href={urlFor(file)} target="_blank" rel="noopener noreferrer" icon={<AppIcon icon="solar:eye-linear" width={17}/>} aria-label={`Buka ${file.name}`} style={{ minHeight: 44 }}>Buka PDF</Button>
       </Box>)}
     </Box> : null}

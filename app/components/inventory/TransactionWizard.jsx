@@ -9,10 +9,13 @@ import RelatedRecordAction from "@/app/components/actions/RelatedRecordAction";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import AppIcon from "@/app/components/icons/AppIcon";
+import AppIconTile from "@/app/components/icons/AppIconTile";
 import Notification from "@/app/components/Notifications/Notification";
 import PrivateFileUpload from "@/app/components/forms/PrivateFileUpload";
 import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import InventoryItemPhoto from "./InventoryItemPhoto";
+import InventoryItemCard from "./InventoryItemCard";
+import InventoryStockMetric from "./InventoryStockMetric";
 import InventoryQuantityChip from "./InventoryQuantityChip";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import useAppNotification from "@/app/hooks/useAppNotification";
@@ -26,6 +29,7 @@ import {requiresLateReason,transactionDocumentField,transactionReferenceLabel} f
 import TransactionSourceDetailModal from "./TransactionSourceDetailModal";
 
 const amount = (value) => new Intl.NumberFormat("id-ID",{maximumFractionDigits:3}).format(Number(value));
+const reviewTitles = {opening:"Rincian saldo awal",receipt:"Rincian barang masuk",issue:"Rincian barang keluar",return:"Rincian barang kembali",stocktake:"Rincian stok opname"};
 const empty = (organizationId,transactionId) => ({organizationId:Number(organizationId),transactionId,kind:"",warehouseId:null,occurredOn:"",referenceNo:"",notes:"",lateReason:"",destinationLocationId:null,destinationUnitId:null,recipientEmployeeId:null,sourceTransactionId:null,lines:[]});
 
 export default function TransactionWizard({organizationId,draftId,onClose,onSaved}) {
@@ -155,7 +159,11 @@ export default function TransactionWizard({organizationId,draftId,onClose,onSave
   const source = returnSource?.id===data.sourceTransactionId && returnSource.warehouse_id===String(data.warehouseId) ? returnSource : sources.find((row)=>row.id===data.sourceTransactionId);
   const returnPending=data.kind==="return" && !!data.sourceTransactionId && (returnLoading || (!returnSource && !returnError));
   const available = data.kind==="return" ? (source?.lines || []).map((line)=>options?.items.find((item)=>item.id===line.itemId)).filter(Boolean) : (options?.items || []).filter((item)=>data.kind==="opening"?item.opening_eligible:data.kind==="receipt"?true:item.has_history);
-  const selected = useMemo(()=>data.lines.filter((line)=>data.kind!=="return"||Number(line.quantity)>0).map((line)=>({...line,item:data.kind==="return" ? returnSource?.lines.find((item)=>item.itemId===String(line.itemId)) : options?.items.find((item)=>item.id===String(line.itemId))})),[data.lines,data.kind,returnSource,options]);
+  const selected = useMemo(()=>data.lines.filter((line)=>data.kind!=="return"||Number(line.quantity)>0).map((line)=>{
+    const catalogItem=options?.items.find((item)=>item.id===String(line.itemId));
+    const sourceItem=returnSource?.lines.find((item)=>item.itemId===String(line.itemId));
+    return {...line,item:data.kind==="return"?{...catalogItem,...sourceItem}:catalogItem};
+  }),[data.lines,data.kind,returnSource,options]);
   const validate = (targetStep) => {
     const next={};
     if(!(targetStep===0?selectedKind:data.kind))next.kind="Pilih jenis transaksi.";
@@ -316,7 +324,7 @@ export default function TransactionWizard({organizationId,draftId,onClose,onSave
     <AppNotice role="status" tone={{new:"info",loading:"neutral",dirty:"warning",saving:"info",saved:"success",error:"danger"}[draftStatus]} title={{new:"Draft belum disimpan",loading:"Memuat draft",dirty:"Perubahan belum disimpan",saving:"Menyimpan perubahan",saved:"Draft aman tersimpan",error:"Draft belum tersimpan"}[draftStatus]} description={<>{({new:"Pilih jenis transaksi, lalu tekan Lanjut untuk menyimpan draft.",loading:"SITOU sedang memulihkan isian terakhir Anda.",dirty:"Tekan Lanjut, Kembali, atau Simpan draft & tutup untuk menyimpan perubahan.",saving:"Mohon tunggu, isian terbaru sedang diamankan ke server.",saved:"Form dapat ditutup dan dilanjutkan kembali sebelum masa draft berakhir.",error:"Periksa koneksi lalu coba simpan draft kembali. Isian Anda tetap ada di form."})[draftStatus]}{draftUpdatedAt?<Box component="span" sx={{display:"block",mt:.75}}>Terakhir disimpan: {dayjs(draftUpdatedAt).format("D MMM YYYY, HH.mm")}</Box>:null}</>} sx={version?{"& > :last-child":{width:{xs:"100%",sm:"auto"}}}:undefined} action={version?<Button danger onClick={()=>setDiscardOpen(true)} disabled={busy||draftStatus==="saving"} style={{minHeight:44,width:mobile?"100%":undefined}}>Buang draft & mulai ulang</Button>:null}/>
     <Box sx={{display:"grid",gap:3,minWidth:0}}>
       {step===0?<Box sx={{display:"grid",gap:2.5}}>
-        <Box data-field="kind"><FontStyle fontSize={12} fontWeight={600} sx={{mb:1}}>Silakan pilih jenis transaksi</FontStyle><Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",sm:"repeat(2,minmax(0,1fr))"},gap:1.5}}>{kinds.filter((kind)=>kind.value!=="opening" || options?.canInitializeOpening || selectedKind==="opening").map((kind)=>{const tone=transactionTone(theme,kind.tone);return <Paper key={kind.value} component="button" type="button" onClick={()=>chooseKind(kind.value)} aria-pressed={selectedKind===kind.value} variant="outlined" sx={{display:"flex",textAlign:"left",gap:1.5,p:2,cursor:"pointer",borderRadius:2,borderColor:selectedKind===kind.value?tone.main:theme.ui.border,bgcolor:selectedKind===kind.value?tone.background:theme.ui.panelBg,"&:focus-visible":{outline:`2px solid ${tone.main}`}}}><Box aria-hidden="true" sx={{width:36,height:36,flex:"0 0 36px",display:"grid",placeItems:"center",borderRadius:1.5,color:tone.main,bgcolor:tone.background,border:`1px solid ${tone.border}`}}><AppIcon icon={kind.icon} width={21}/></Box><Box><FontStyle fontSize={14} fontWeight={700}>{kind.label}</FontStyle><FontStyle explanation fontSize={11.5} sx={{mt:.5}}>{kind.description}</FontStyle></Box></Paper>})}</Box>{errors.kind?fieldError("kind"):null}</Box>
+        <Box data-field="kind"><FontStyle fontSize={12} fontWeight={600} sx={{mb:1}}>Silakan pilih jenis transaksi</FontStyle><Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",sm:"repeat(2,minmax(0,1fr))"},gap:1.5}}>{kinds.filter((kind)=>kind.value!=="opening" || options?.canInitializeOpening || selectedKind==="opening").map((kind)=>{const tone=transactionTone(theme,kind.tone);return <Paper key={kind.value} component="button" type="button" onClick={()=>chooseKind(kind.value)} aria-pressed={selectedKind===kind.value} variant="outlined" sx={{display:"flex",textAlign:"left",gap:1.5,p:2,cursor:"pointer",borderRadius:2,borderColor:selectedKind===kind.value?tone.main:theme.ui.border,bgcolor:selectedKind===kind.value?tone.background:theme.ui.panelBg,"&:focus-visible":{outline:`2px solid ${tone.main}`}}}><AppIconTile icon={kind.icon} tone={kind.tone} size={36} iconSize={21} showBorder/><Box><FontStyle fontSize={14} fontWeight={700}>{kind.label}</FontStyle><FontStyle explanation fontSize={11.5} sx={{mt:.5}}>{kind.description}</FontStyle></Box></Paper>})}</Box>{errors.kind?fieldError("kind"):null}</Box>
       </Box>:null}
       {step===1?<Box sx={{display:"grid",gap:2.5}}>
         <AppNotice title={kinds.find((entry)=>entry.value===data.kind)?.label || "Detail transaksi"} description={data.kind==="opening"?"Pilih gudang dan tanggal acuan stok sebelum pencatatan dimulai. Tidak perlu mengetahui kapan barang lama pertama kali diterima.":"Pilih gudang dan tanggal saat barang diterima, dikeluarkan, dikembalikan, atau dihitung. Tanggal ini menjadi tanggal transaksi pada riwayat."} compact/>
@@ -343,18 +351,20 @@ export default function TransactionWizard({organizationId,draftId,onClose,onSave
         </Box></>:null}
         {data.kind==="receipt"?<Box sx={{display:"grid",gridTemplateColumns:{xs:"minmax(0,1fr)",sm:"repeat(2,minmax(0,1fr))"},gap:2}}>{referenceField}</Box>:null}
 
-        {field("notes","Catatan (opsional)",<Input.TextArea rows={2} maxLength={2000} value={data.notes} onChange={(event)=>update({notes:event.target.value})} placeholder="Keterangan tambahan untuk riwayat transaksi"/>)}
-        {data.kind==="receipt"||data.kind==="issue"?<Box sx={{display:"grid",gap:3,mb:1}}><AppNotice title="Lampiran draft tersimpan privat" description="File yang dipilih dapat dibuka kembali bersama draft. Lampiran baru dapat dipilih setelah draft pertama tersimpan." compact/>
+        {data.kind==="receipt"||data.kind==="issue"?<Box sx={{display:"grid",gap:3,mb:1}}>
           {data.kind==="receipt"?<Box>{label("Bukti pembelian (gambar, opsional)")}<PrivateFileUpload value={files.purchaseProof} organizationId={organizationId} uploadUrl={`/api/inventory/transactions/${data.transactionId}/draft-files`} fields={{purpose:"purchase_proof"}} onChange={(value)=>uploadDraftFile("purchaseProof","purchase_proof",value)} onRemoveRequest={({file})=>removeDraftFile("purchaseProof",file)} disabled={!version} onError={(message)=>showNotification(message,"error")} backdropMessages={{upload:"Mengunggah bukti pembelian...",remove:"Menghapus bukti pembelian..."}} accept="image/jpeg,image/png,image/webp" maxSizeBytes={5*1024*1024} emptyTitle="Pilih gambar bukti pembelian" helpText="JPEG, PNG, atau WebP; maksimal 5 MB. File tetap privat."/></Box>:null}
           {data.kind==="issue"?<Box sx={{display:"grid",gap:4,minWidth:0}}><Box>{label("Dokumen permintaan (PDF, opsional)")}<PrivateFileUpload value={files.requestDocument} organizationId={organizationId} uploadUrl={`/api/inventory/transactions/${data.transactionId}/draft-files`} fields={{purpose:"request_document"}} onChange={(value)=>uploadDraftFile("requestDocument","request_document",value)} onRemoveRequest={({file})=>removeDraftFile("requestDocument",file)} disabled={!version} onError={(message)=>showNotification(message,"error")} backdropMessages={{upload:"Mengunggah dokumen permintaan...",remove:"Menghapus dokumen permintaan..."}} accept=".pdf,application/pdf" maxSizeBytes={10*1024*1024} emptyTitle="Pilih dokumen permintaan PDF" helpText="Maksimal 10 MB. File tetap privat."/></Box><Box sx={{mt:3,pt:1}}>{label("Foto serah terima (opsional)")}<PrivateFileUpload value={files.handoverPhoto} organizationId={organizationId} uploadUrl={`/api/inventory/transactions/${data.transactionId}/draft-files`} fields={{purpose:"handover_photo"}} onChange={(value)=>uploadDraftFile("handoverPhoto","handover_photo",value)} onRemoveRequest={({file})=>removeDraftFile("handoverPhoto",file)} disabled={!version} onError={(message)=>showNotification(message,"error")} backdropMessages={{upload:"Mengunggah foto serah terima...",remove:"Menghapus foto serah terima..."}} accept="image/jpeg,image/png,image/webp" maxSizeBytes={5*1024*1024} emptyTitle="Pilih foto serah terima" helpText="JPEG, PNG, atau WebP; maksimal 5 MB."/></Box></Box>:null}
         </Box>:null}
+        <Box sx={{pt:data.kind==="receipt"||data.kind==="issue"?3:0}}>
+          {field("notes","Catatan (opsional)",<Input.TextArea rows={2} maxLength={2000} value={data.notes} onChange={(event)=>update({notes:event.target.value})} placeholder="Keterangan tambahan untuk riwayat transaksi"/>)}
+        </Box>
       </Box>:null}
       {step===2?<Box sx={{display:"grid",gap:2}}>
         <AppNotice title={data.kind==="opening"?"Masukkan hasil hitung awal":"Jumlah akan mengubah stok saat transaksi disimpan"} description={data.kind==="opening"?"Isi 0 jika barang sudah dihitung tetapi gudang kosong. Saldo awal tidak dapat diedit setelah disimpan.":"Periksa jumlah per barang. Draft tidak mengubah stok."}/>
         {data.kind!=="return"&&!available.length?<AppNotice tone="warning" title="Belum ada barang yang dapat dipilih" description={data.kind==="opening"?"Daftarkan barang aktif di gudang melalui Data Master → Barang Persediaan.":"Masukkan saldo awal atau periksa pengaturan barang di gudang ini."}/>:null}
         {data.kind!=="return"?data.lines.map((line,index)=>{const item=options?.items.find((entry)=>entry.id===String(line.itemId));return <Paper key={index} variant="outlined" sx={{p:2,borderRadius:2,display:"grid",gridTemplateColumns:{xs:"1fr auto",sm:"minmax(0,1fr) 160px auto"},gap:1.5,alignItems:"start"}}>
           <Box data-field={`lines.${index}.itemId`} sx={{minWidth:0}}>{label(`Barang ${index+1}`)}<Box sx={{display:"flex",gap:1.25,alignItems:"center"}}><InventoryItemPhoto item={item} organizationId={organizationId} onPreview={setPhotoPreview}/><AsyncSelect filterOption={false} onSearch={setItemSearch} value={line.itemId?String(line.itemId):undefined} onChange={(value)=>{setLine(index,{itemId:Number(value),quantity:Number(value)===line.itemId?line.quantity:null});setItemSearch("");}} options={available.filter((entry)=>entry.id===String(line.itemId)||!data.lines.some((other)=>String(other.itemId)===entry.id)).map((entry)=>({value:entry.id,label:`${entry.name} · ${entry.unit_name}`}))} placeholder="Cari nama atau kode barang" style={{width:"100%",minWidth:0,minHeight:44}}/></Box>{item?<Box sx={{mt:1.5}}><InventoryQuantityChip label={`${["receipt","issue","stocktake"].includes(data.kind)?"Stok gudang saat ini":"Satuan"}: ${["receipt","issue","stocktake"].includes(data.kind)?(item.has_history?amount(item.balance)+" ":"Belum ada transaksi · "):""}${item.unit_name}`} tone="info" sx={{fontSize:13,fontWeight:700}}/></Box>:null}{errors[`lines.${index}.itemId`]?fieldError(`lines.${index}.itemId`):null}</Box>
-          <Box data-field={`lines.${index}.quantity`} sx={{gridColumn:{xs:"1",sm:"auto"}}}>{label(data.kind==="stocktake"?"Hasil hitung *":data.kind==="opening"?"Saldo awal *":"Jumlah *")}<InputNumber disabled={!item || busy} placeholder={item ? undefined : "Pilih barang dahulu"} min={0} max={999999999999} precision={item?.allows_fractional?3:0} value={line.quantity} onChange={(value)=>setLine(index,{quantity:value})} style={{width:"100%",minHeight:44}} status={errors[`lines.${index}.quantity`]?"error":undefined}/>{errors[`lines.${index}.quantity`]?fieldError(`lines.${index}.quantity`):null}</Box>
+          <Box data-field={`lines.${index}.quantity`} sx={{gridColumn:{xs:"1",sm:"auto"}}}>{label(data.kind==="stocktake"?"Hasil hitung *":data.kind==="opening"?"Saldo awal *":"Jumlah *")}<InputNumber disabled={!item || busy} placeholder={item ? undefined : "Pilih barang dahulu"} min={0} max={999999999999} precision={item?.allows_fractional?undefined:0} value={line.quantity} onChange={(value)=>setLine(index,{quantity:value})} style={{width:"100%",minHeight:44}} status={errors[`lines.${index}.quantity`]?"error":undefined}/>{errors[`lines.${index}.quantity`]?fieldError(`lines.${index}.quantity`):null}</Box>
           <Button danger type="text" icon={<AppIcon icon="solar:trash-bin-trash-linear" width={18}/>} aria-label={`Hapus barang ${index+1}`} onClick={()=>update({lines:data.lines.filter((_,n)=>n!==index)})} style={{minHeight:44,minWidth:44,marginTop:24}}/>
         </Paper>}):null}
         {data.kind==="return"?<Box sx={{display:"grid",gap:2,minWidth:0}}>
@@ -368,7 +378,7 @@ export default function TransactionWizard({organizationId,draftId,onClose,onSave
                 <Box sx={{display:"flex",gap:1,flexWrap:"wrap"}}><InventoryQuantityChip label={`Disalurkan: ${amount(original.quantity)} ${original.unit}`} tone="neutral"/><InventoryQuantityChip label={`Sudah kembali: ${amount(original.returnedQuantity)} ${original.unit}`} tone="neutral"/><InventoryQuantityChip label={`Maksimal kembali: ${amount(original.remainingQuantity)} ${original.unit}`} tone="info"/></Box>
                 {!original.canReturn?<FontStyle explanation fontSize={12}>{Number(original.remainingQuantity)===0?"Seluruh jumlah sudah dikembalikan.":"Barang atau pengaturan gudang nonaktif. Hubungi Pengelola Master Inventaris sebelum memproses pengembalian."}</FontStyle>:null}
               </Box>
-              <Box data-field={`lines.${lineIndex}.quantity`}><FontStyle fontSize={12} fontWeight={600} sx={{mb:1}}>Jumlah ({original.unit})</FontStyle><InputNumber aria-label={`Jumlah ${original.name}`} min={0} max={Number(original.remainingQuantity)} precision={original.allows_fractional?3:0} disabled={!original.canReturn || returnPending || busy || lineIndex<0} value={line?.quantity ?? 0} onChange={(value)=>{if(lineIndex>=0)setLine(lineIndex,{quantity:value ?? 0});}} style={{width:"100%",minHeight:44}} status={errors[`lines.${lineIndex}.quantity`]?"error":undefined}/>{errors[`lines.${lineIndex}.quantity`]?fieldError(`lines.${lineIndex}.quantity`):null}</Box>
+              <Box data-field={`lines.${lineIndex}.quantity`}><FontStyle fontSize={12} fontWeight={600} sx={{mb:1}}>Jumlah ({original.unit})</FontStyle><InputNumber aria-label={`Jumlah ${original.name}`} min={0} max={Number(original.remainingQuantity)} precision={original.allows_fractional?undefined:0} disabled={!original.canReturn || returnPending || busy || lineIndex<0} value={line?.quantity ?? 0} onChange={(value)=>{if(lineIndex>=0)setLine(lineIndex,{quantity:value ?? 0});}} style={{width:"100%",minHeight:44}} status={errors[`lines.${lineIndex}.quantity`]?"error":undefined}/>{errors[`lines.${lineIndex}.quantity`]?fieldError(`lines.${lineIndex}.quantity`):null}</Box>
             </Paper>;
           })}
         </Box>:null}
@@ -389,22 +399,38 @@ export default function TransactionWizard({organizationId,draftId,onClose,onSave
             ["Penerima penyaluran",returnSource.recipient_name || "Tidak tersedia"],
           ]:[]),
         ].map(([name,value])=><Box key={name}><FontStyle fontSize={12} sx={{color:"text.secondary"}}>{name}</FontStyle><FontStyle fontSize={14} fontWeight={600} sx={{overflowWrap:"anywhere"}}>{value}</FontStyle></Box>)}</Box>
-        {data.occurredOn!==(options?.today || stockPreview?.asOf)?<AppNotice tone="info" title="Transaksi disimpan untuk tanggal sebelumnya" description="Perkiraan di bawah mencakup stok pada tanggal transaksi dan perubahan stok sesudahnya." compact/>:null}
-        <Box component="ul" sx={{m:0,p:0,listStyle:"none",display:"grid",gap:2}}>{selected.map((line,index)=>{
+        {stockPreview?.occurredOn!==stockPreview?.asOf?<AppNotice tone="info" title="Transaksi bertanggal sebelumnya" description={data.kind==="opening"?`Saldo awal berlaku mulai ${dayjs(data.occurredOn).format("D MMM YYYY")}. Stok saat ini juga mencakup transaksi setelah tanggal itu.`:`Angka Sebelum dan Sesudah berlaku pada ${dayjs(data.occurredOn).format("D MMM YYYY")}. Saat ini juga mencakup transaksi setelah tanggal itu.`} compact/>:null}
+        <Box component="section" aria-label={reviewTitles[data.kind] || "Rincian barang"} sx={{display:"grid",gap:1.5,minWidth:0}}>
+        <FontStyle component="h2" fontSize={15} fontWeight={700}>{reviewTitles[data.kind] || "Rincian barang"}</FontStyle>
+        <Box component="ul" sx={{m:0,p:0,listStyle:"none",display:"grid",gridTemplateColumns:{xs:"minmax(0,1fr)",md:selected.length===1?"minmax(0,600px)":"repeat(2,minmax(0,1fr))"},justifyContent:"center",gap:2,alignItems:"stretch"}}>{selected.map((line,index)=>{
           const projection=stockPreview?.lines.find((entry)=>entry.itemId===String(line.itemId));
           const label=data.kind==="issue"?"Jumlah keluar":data.kind==="receipt"?"Jumlah masuk":data.kind==="return"?"Jumlah dikembalikan":data.kind==="opening"?"Saldo awal":"Hasil hitung fisik";
-          return <Paper component="li" key={index} variant="outlined" sx={{p:2,borderRadius:2,display:"grid",gap:2}}>
-            <Box sx={{display:"flex",alignItems:"center",gap:1.5,minWidth:0}}><InventoryItemPhoto item={line.item} organizationId={organizationId} onPreview={setPhotoPreview}/><FontStyle fontSize={14} fontWeight={700} sx={{overflowWrap:"anywhere"}}>{line.item?.name || "Barang"}</FontStyle></Box>
-            <Box sx={{display:"flex",flexWrap:"wrap",gap:1.5}}>
-              <InventoryQuantityChip label={`${label}: ${amount(line.quantity)} ${line.item?.unit_name}`} tone={data.kind==="issue"?"warning":"info"} sx={{fontSize:13,fontWeight:700}}/>
-              {projection?<>
-                <InventoryQuantityChip label={`Stok sebelum transaksi (${dayjs(data.occurredOn).format("D MMM YYYY")}): ${amount(projection.beforeDate)} ${projection.unit}`} tone="neutral" sx={{fontSize:13}}/>
-                <InventoryQuantityChip label={`Stok setelah transaksi pada tanggal tersebut: ${amount(projection.afterDate)} ${projection.unit}`} tone="success" sx={{fontSize:13,fontWeight:700}}/>
-                {stockPreview.occurredOn!==stockPreview.asOf?<InventoryQuantityChip label={`Stok gudang saat ini setelah transaksi: ${amount(projection.currentAfter)} ${projection.unit}`} tone="info" sx={{fontSize:13,fontWeight:700}}/>:null}
-              </>:<AppNotice tone="warning" description="Perkiraan stok belum tersedia. Kembali ke tahap Barang lalu tekan Lanjut untuk memeriksa." compact/>}
+          return <InventoryItemCard component="li" compact showAttributes key={line.itemId || index}
+            item={line.item} organizationId={organizationId}
+            onPreview={(item,url)=>setPhotoPreview({url,name:item.name})}>
+            <Box sx={{display:"grid",gap:1.5}}>
+              {data.kind!=="opening"?<InventoryStockMetric label={label} value={amount(line.quantity)}
+                unit={line.item?.unit_name || line.item?.unit || projection?.unit || ""}
+                icon={activeKind?.icon || "solar:box-bold-duotone"}
+                tone={data.kind==="issue"?"warning":data.kind==="receipt"||data.kind==="return"?"success":"info"} prominent/>:null}
+              {projection?<Box sx={{display:"grid",gap:1.25,p:1.5,borderRadius:2,bgcolor:theme.ui.panelSubtleBg,border:`1px solid ${theme.ui.panelBorderSubtle}`}}>
+                <FontStyle fontSize={11.5} fontWeight={700}>{data.kind==="opening"?"Stok gudang":"Perubahan stok gudang"}</FontStyle>
+                <Box sx={{display:"grid",gridTemplateColumns:{xs:"minmax(0,1fr)",sm:"repeat(2,minmax(0,1fr))"},gap:1.5}}>
+                {data.kind==="opening"?<InventoryStockMetric label="Saldo awal" value={amount(line.quantity)}
+                  unit={line.item?.unit_name || line.item?.unit || projection.unit}
+                  icon={activeKind?.icon || "solar:box-bold-duotone"} tone="info" prominent/>:<>
+                  <InventoryStockMetric label="Sebelum" value={amount(projection.beforeDate)} unit={projection.unit} icon="solar:history-bold-duotone" tone="neutral"/>
+                  <InventoryStockMetric label="Sesudah" value={amount(projection.afterDate)} unit={projection.unit} icon="solar:check-read-bold-duotone" tone={Number(projection.afterDate)<Number(projection.beforeDate)?"warning":"success"}/>
+                </>}
+                {stockPreview.occurredOn!==stockPreview.asOf?<Box sx={{gridColumn:{xs:"auto",sm:data.kind==="opening"?"auto":"1 / -1"},pt:data.kind==="opening"?0:1.5,borderTop:data.kind==="opening"?"none":`1px solid ${theme.ui.panelBorderSubtle}`}}>
+                  <InventoryStockMetric label="Stok saat ini" value={amount(projection.currentAfter)} unit={projection.unit} icon="inventory:warehouse" tone="brand"/>
+                </Box>:null}
+                </Box>
+              </Box>:<AppNotice tone="warning" description="Perkiraan stok belum tersedia. Kembali ke tahap Barang lalu tekan Lanjut untuk memeriksa." compact/>}
             </Box>
-          </Paper>;
+          </InventoryItemCard>;
         })}</Box>
+        </Box>
         <FontStyle explanation fontSize={12} sx={{color:"text.secondary"}}>Angka dihitung dari stok terbaru. Sistem memeriksa kembali stok saat transaksi disimpan.</FontStyle>
         {data.lateReason?<AppNotice title={requiresLateReason(data.kind,data.occurredOn,options?.today)?"Alasan input terlambat":"Keterangan tersimpan"} description={data.lateReason} compact/>:null}
         {Object.values(files).some(Boolean)?<AppNotice title="Lampiran draft" description="Lampiran yang sudah tersimpan privat akan dihubungkan ke transaksi saat transaksi disimpan." compact/>:null}

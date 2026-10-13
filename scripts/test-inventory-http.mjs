@@ -1601,6 +1601,13 @@ try {
     }),
     200,
   );
+  const cancelledLedger=expect(await req(`${transactions}?organizationId=${org.id}&status=cancelled&pageSize=50`,employeeCookie),200);
+  assert.ok(cancelledLedger.data.some((row)=>row.id===stocktake.transactionId && row.cancelled));
+  assert.ok(cancelledLedger.data.every((row)=>row.kind!=="reversal"),"Dokumen pembalik tidak tampil sebagai baris ledger kedua");
+  const cancelledDetail=expect(await req(`${transactions}/${stocktake.transactionId}?organizationId=${org.id}`,employeeCookie),200);
+  assert.equal(cancelledDetail.cancellation_reason,"Hasil hitung fisik sebelumnya keliru.");
+  assert.ok(cancelledDetail.cancelled_by_name && cancelledDetail.cancelled_at);
+  assert.equal((await req(`${transactions}?organizationId=${org.id}&kind=reversal`,employeeCookie)).status,400);
   const historical = transactionInput("issue", [{ itemId: Number(item.id), quantity: 10 }], {
     occurredOn: daysAgo(1),
     lateReason: "Penyaluran kemarin baru diserahkan ke petugas.",
@@ -1999,8 +2006,9 @@ try {
         "Transaksi",
         "Gudang",
         "Barang",
-        "Disimpan oleh",
+        "Perubahan stok",
         "Status",
+        "Disimpan oleh",
         "Aksi",
       ]);
       await page.getByRole("combobox", { name: "Jumlah baris per halaman" }).click();
@@ -2145,6 +2153,7 @@ try {
       await switchDialog.getByText("Ganti jenis transaksi?", { exact: true }).waitFor();
       await confirmSwitch.click();
       assert.equal(await resumed.getByPlaceholder("Keterangan tambahan untuk riwayat transaksi").inputValue(), "");
+      assert.equal(await resumed.getByText("Lampiran draft tersimpan privat",{exact:true}).count(),0);
       const requestUpload = resumed
         .getByText("Dokumen permintaan (PDF, opsional)")
         .locator("..")
@@ -2157,6 +2166,12 @@ try {
         `Dua unggahan harus memiliki jarak aman; jarak aktual ${handoverLabelBox.y - (requestUploadBox.y + requestUploadBox.height)} px`,
       );
       const handoverField = handoverLabel.locator("..");
+      const handoverUploadBox = await handoverField.locator(".ant-upload-drag").boundingBox();
+      const notesLabelBox = await resumed.getByText("Catatan (opsional)",{exact:true}).boundingBox();
+      assert.ok(
+        notesLabelBox.y - (handoverUploadBox.y + handoverUploadBox.height) >= 24,
+        `Catatan harus berjarak aman dari unggahan; jarak aktual ${notesLabelBox.y - (handoverUploadBox.y + handoverUploadBox.height)} px`,
+      );
       await handoverField.locator('input[type="file"]').setInputFiles({
         name: "serah-terima.png", mimeType: "image/png", buffer: image,
       });
@@ -2225,7 +2240,14 @@ try {
       assert.equal(await quantityInput.inputValue(),"6");
       await fresh.getByRole("button",{name:"Lanjut",exact:true}).click();
       await fresh.getByText("Periksa sebelum menyimpan",{exact:true}).waitFor();
-      await fresh.getByText(/Stok setelah transaksi pada tanggal tersebut: 9 Rim/).waitFor();
+      await fresh.getByRole("region",{name:"Rincian barang masuk"}).getByRole("listitem").getByText(previewItem.name,{exact:true}).waitFor();
+      const receiptReviewItem=fresh.getByRole("region",{name:"Rincian barang masuk"}).getByRole("listitem");
+      await receiptReviewItem.getByText("Kategori",{exact:true}).waitFor();
+      await receiptReviewItem.getByText(categoryInput.name,{exact:true}).waitFor();
+      await receiptReviewItem.getByText("Satuan dasar",{exact:true}).waitFor();
+      await receiptReviewItem.getByText(unitInput.name,{exact:true}).waitFor();
+      await receiptReviewItem.getByText("Perubahan stok gudang",{exact:true}).waitFor();
+      await fresh.getByRole("region",{name:"Rincian barang masuk"}).getByText("9 Rim",{exact:true}).waitFor();
       assert.equal(await fresh.getByText("Saldo akan dihitung ulang oleh sistem",{exact:true}).count(),0);
       assert.equal(await fresh.getByRole("button",{name:"Simpan transaksi",exact:true}).isEnabled(),true);
       await page.screenshot({path:path.join(screenshots,"transaction-review-1366.png"),fullPage:true});
@@ -2234,7 +2256,7 @@ try {
       await page.screenshot({path:path.join(screenshots,"transaction-review-320.png"),fullPage:true});
       await fresh.getByRole("button",{name:"Simpan draft & tutup",exact:true}).click();
       await page.getByText("Tambah transaksi",{exact:true}).first().click();
-      await fresh.getByText(/Stok setelah transaksi pada tanggal tersebut: 9 Rim/).waitFor();
+      await fresh.getByRole("region",{name:"Rincian barang masuk"}).getByText("9 Rim",{exact:true}).waitFor();
       assert.equal(await fresh.getByRole("button",{name:"Simpan transaksi",exact:true}).isEnabled(),true);
       item = expect(await req(`${catalog}/items/${item.id}`,superadmin.cookie,"PATCH",{...itemInput,version:(await getItem()).version,photoAction:"remove"}),200);
       await fresh.getByRole("button", { name: "Buang draft & mulai ulang" }).click();
@@ -2269,13 +2291,14 @@ try {
       await page.screenshot({path:path.join(screenshots,"return-items-1366.png"),fullPage:true});
       await page.setViewportSize({width:320,height:950});
       await fresh.getByRole("button",{name:"Lanjut",exact:true}).click();
-      await fresh.getByText(/Jumlah dikembalikan: 1 Rim/).waitFor();
+      await fresh.getByRole("region",{name:"Rincian barang kembali"}).getByRole("listitem").getByText("1 Rim",{exact:true}).waitFor();
+      await fresh.getByRole("region",{name:"Rincian barang kembali"}).getByRole("listitem").getByText(categoryInput.name,{exact:true}).waitFor();
       await fresh.getByText("Tanggal penyaluran sebelumnya",{exact:true}).waitFor();
       await fresh.getByText("Tanggal pengembalian ke gudang",{exact:true}).waitFor();
-      await fresh.getByText(/Stok setelah transaksi pada tanggal tersebut: 4 Rim/).waitFor();
+      await fresh.getByRole("region",{name:"Rincian barang kembali"}).getByText("4 Rim",{exact:true}).waitFor();
       await fresh.getByRole("button",{name:"Simpan draft & tutup",exact:true}).click();
       await page.getByText("Tambah transaksi",{exact:true}).first().click();
-      await fresh.getByText(/Jumlah dikembalikan: 1 Rim/).waitFor();
+      await fresh.getByRole("region",{name:"Rincian barang kembali"}).getByRole("listitem").getByText("1 Rim",{exact:true}).waitFor();
       await fresh.getByRole("button",{name:"Buang draft & mulai ulang"}).click();
       await page.getByRole("dialog",{name:"Buang draft dan mulai ulang?"}).getByRole("button",{name:"Buang draft",exact:true}).click();
       await fresh.getByText("Silakan pilih jenis transaksi").waitFor();

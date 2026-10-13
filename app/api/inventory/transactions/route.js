@@ -35,7 +35,7 @@ export async function GET(request) {
     const kind = url.searchParams.get("kind") || "all";
     const status = url.searchParams.get("status") || "all";
     if (!["all","active","cancelled"].includes(status)) return errorResponse("INVALID_STATUS","Status transaksi tidak valid.",400,requestId);
-    if (!["all","opening","receipt","issue","return","stocktake","reversal"].includes(kind)) return errorResponse("INVALID_KIND","Jenis transaksi tidak valid.",400,requestId);
+    if (!["all","opening","receipt","issue","return","stocktake"].includes(kind)) return errorResponse("INVALID_KIND","Jenis transaksi tidak valid.",400,requestId);
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
     const search = (url.searchParams.get("search") || "").trim();

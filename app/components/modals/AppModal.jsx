@@ -3,7 +3,7 @@
 import { useId } from "react";
 import { Box, Divider, IconButton, Modal, Tooltip, useTheme } from "@mui/material";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import AppIcon from "@/app/components/icons/AppIcon";
+import AppIconTile from "@/app/components/icons/AppIconTile";
 import FontStyle from "../font-style/FontStyle";
 
 const SIZE_WIDTH = { sm: 480, md: 720, lg: 960, xl: 1200 };
@@ -91,22 +91,7 @@ export default function AppModal({
             gap: 1.5,
           }}
         >
-          {icon ? (
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                flexShrink: 0,
-                display: "grid",
-                placeItems: "center",
-                borderRadius: 2,
-                color: theme.palette.primary.main,
-                bgcolor: theme.ui.iconButtonBg,
-              }}
-            >
-              {typeof icon === "string" ? <AppIcon icon={icon} fontSize={22} /> : icon}
-            </Box>
-          ) : null}
+          {icon ? <AppIconTile icon={icon} tone="brand" size={40} iconSize={22} borderRadius={2}/> : null}
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <FontStyle
               id={titleId}
