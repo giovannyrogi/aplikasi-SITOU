@@ -2033,6 +2033,10 @@ try {
         fullPage: true,
       });
       await proofDetail.getByRole("button", { name: "Tutup modal" }).click();
+      await searchField.fill("QA-TRANSAKSI-TIDAK-ADA-999");
+      await page.getByText("Tidak ada transaksi yang sesuai dengan filter. Ubah atau atur ulang filter untuk melihat transaksi lain.").waitFor();
+      assert.equal(await ledgerHeader.isVisible(), true);
+      assert.equal(await page.getByRole("list", { name: "Riwayat transaksi barang" }).getByRole("listitem").count(), 0);
       await searchField.fill("");
     }
     await page.goto(base+"/inventory/stock");

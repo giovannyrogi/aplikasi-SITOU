@@ -8,6 +8,7 @@ import PageHeader from "@/app/components/layout/PageHeader";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import DataPagination from "@/app/components/data-display/DataPagination";
+import EmptyState from "@/app/components/data-display/EmptyState";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -132,6 +133,7 @@ export default function TransactionPanel({ organizationId, organizationFilter, i
     { key: "from", label: "Dari tanggal transaksi", control: <DatePicker value={filters.from ? dayjs(filters.from) : null} onChange={(value) => setFilters((old) => ({ ...old, from: value?.format("YYYY-MM-DD") || "" }))} format="DD MMM YYYY" placeholder="Pilih tanggal"/> },
     { key: "to", label: "Sampai tanggal transaksi", control: <DatePicker value={filters.to ? dayjs(filters.to) : null} onChange={(value) => setFilters((old) => ({ ...old, to: value?.format("YYYY-MM-DD") || "" }))} format="DD MMM YYYY" placeholder="Pilih tanggal"/> },
   ];
+  const hasActiveFilters = Boolean(filters.search.trim() || filters.warehouseId || filters.kind !== "all" || filters.status !== "all" || filters.from || filters.to);
 
   return <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>
     <PageHeader title="Transaksi Barang" description="Kelola perubahan stok gudang dan telusuri setiap transaksi." metadata={organizationFilter} action={options?.canCreate ? <Button type="primary" icon={<AppIcon icon="solar:add-circle-bold" width={18}/>} onClick={openWizard}>Tambah transaksi</Button> : null}/>
@@ -140,8 +142,7 @@ export default function TransactionPanel({ organizationId, organizationFilter, i
       <DataPanel title="Riwayat transaksi" description="Transaksi terbaru ditampilkan lebih dulu. Pembatalan tetap tercatat dalam detail transaksi asal." contentSx={{ p: { xs: 2, sm: 3 } }}>
         {error ? <AppNotice tone="danger" title="Transaksi belum dapat dimuat" description={error}/> : null}
         {loading ? <Box sx={{ display: "grid", gap: 1.5 }}>{[0, 1, 2].map((key) => <Skeleton key={key} active paragraph={{ rows: 2 }}/>)}</Box> : null}
-        {!loading && !error && !rows.length ? <AppNotice title="Belum ada transaksi" description={filters.search ? "Tidak ada transaksi yang cocok. Ubah kata pencarian atau filter." : "Transaksi yang berhasil disimpan akan muncul di sini. Buka Tambah transaksi untuk melanjutkan draft terakhir."}/> : null}
-        {!loading && !error && rows.length ? <Box tabIndex={0} aria-label="Riwayat transaksi; geser untuk melihat seluruh kolom" sx={{maxWidth:"100%",overflowX:"auto",scrollbarWidth:"none","&::-webkit-scrollbar":{display:"none"},"&:focus-visible":{outline:"2px solid",outlineColor:"primary.main",outlineOffset:2}}}><Box role="list" aria-label="Riwayat transaksi barang" sx={{ minWidth:{xs:0,lg:1360},borderTop: `1px solid ${theme.ui.border}` }}>
+        {!loading && !error ? <Box tabIndex={0} aria-label="Riwayat transaksi; geser untuk melihat seluruh kolom" sx={{maxWidth:"100%",overflowX:"auto",scrollbarWidth:"none","&::-webkit-scrollbar":{display:"none"},"&:focus-visible":{outline:"2px solid",outlineColor:"primary.main",outlineOffset:2}}}><Box role="list" aria-label="Riwayat transaksi barang" sx={{ minWidth:{xs:0,lg:1360},borderTop: `1px solid ${theme.ui.border}` }}>
           <Box aria-hidden="true" sx={{ display: { xs: "none", lg: "grid" }, gridTemplateColumns: "145px 200px 165px minmax(250px,1fr) 135px 100px 120px 44px", gap: 1.5, px: 1.5, py: 1.25, bgcolor: theme.ui.tableHeaderBg || "action.hover", borderBottom: `1px solid ${theme.ui.border}` }}>{["Tanggal transaksi", "Transaksi", "Gudang", "Barang", "Perubahan stok", "Status", "Disimpan oleh", "Aksi"].map((name) => <FontStyle key={name} fontSize={11.5} fontWeight={700} sx={{ whiteSpace:"nowrap",textAlign: name === "Aksi" ? "center" : "left" }}>{name}</FontStyle>)}</Box>
           {rows.map((row) => {const firstLine=row.lines[0],delta=Number(firstLine?.delta||0),change=firstLine?`${delta>0?"+":""}${formatQty(delta)} ${firstLine.unit}`:"—";return <Box role="listitem" key={row.id} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr) auto", lg: "145px 200px 165px minmax(250px,1fr) 135px 100px 120px 44px" }, gridTemplateAreas: { xs: '"date status" "kind kind" "warehouse warehouse" "items items" "change change" "actor action"', lg: '"date kind warehouse items change status actor action"' }, columnGap: { xs: 1.5, lg: 1.5 }, rowGap: { xs: .75, lg: 0 }, alignItems: "center", px: 1.5, py: { xs: 1.5, lg: .75 }, borderBottom: `1px solid ${theme.ui.border}`, minWidth: 0, "&:hover": { bgcolor: "action.hover" } }}>
             <FontStyle sx={{gridArea:"date"}} fontSize={12} fontWeight={400}>{dateText(row.occurred_on)}</FontStyle>
@@ -153,6 +154,7 @@ export default function TransactionPanel({ organizationId, organizationFilter, i
             <FontStyle title={row.actor_name} sx={{gridArea:"actor",color:"text.secondary",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:{xs:"normal",lg:"nowrap"},overflowWrap:{xs:"anywhere",lg:"normal"}}} fontSize={11.5}><Box component="span" sx={{ display: { lg: "none" }, fontWeight: 700 }}>Petugas: </Box>{row.actor_name}</FontStyle>
             <Box sx={{gridArea:"action",justifySelf:{xs:"end",lg:"center"}}}><Tooltip title="Lihat detail transaksi"><Button icon={<AppIcon icon="solar:eye-linear" width={18}/>} aria-label={`Lihat detail ${presentations[row.kind]?.label || "transaksi"} tanggal ${dateText(row.occurred_on)}`} onClick={() => openDetail(row.id)} style={{ width: 44, height: 44, padding: 0 }}/></Tooltip></Box>
           </Box>;})}
+          {!rows.length ? <Box sx={{py:5,px:2,borderBottom:`1px solid ${theme.ui.border}`}}><EmptyState description={hasActiveFilters ? "Tidak ada transaksi yang sesuai dengan filter. Ubah atau atur ulang filter untuk melihat transaksi lain." : "Belum ada transaksi barang. Pilih Tambah transaksi untuk mencatat transaksi pertama."}/></Box> : null}
         </Box></Box> : null}
         {!error ? <DataPagination cursor={cursor} total={total} pageSize={pageSize} loading={loading} onPrevious={() => load(cursor.page - 1, cursor.cursors.slice(0, -1))} onNext={() => load(cursor.page + 1, [...cursor.cursors, cursor.next])} onPageSizeChange={setPageSize}/> : null}
       </DataPanel>
