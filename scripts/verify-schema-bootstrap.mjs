@@ -22,6 +22,20 @@ const admin = new pg.Client({
 let bootstrap;
 let adminConnected = false;
 
+function constraintSignature(rows) {
+  return JSON.stringify(rows.map((row) => ({
+    ...row,
+    // PostgreSQL dapat mencetak cast array varchar ke text per elemen atau
+    // pada seluruh array. Normalisasi hanya array literal varchar tersebut;
+    // operator, pengelompokan kondisi, dan nilai constraint tetap diperiksa.
+    definition: row.definition.replace(/ARRAY\[([^\]]*)\](?:::text\[\])?/g, (array, values) => {
+      const literal = "'(?:[^']|'')*'::character varying(?:::text)?";
+      if (!new RegExp(`^${literal}(?:, ${literal})*$`).test(values)) return array;
+      return `ARRAY[${values.replaceAll("::character varying::text", "::character varying")}]::text[]`;
+    }),
+  })));
+}
+
 try {
   await admin.connect();
   adminConnected = true;
@@ -82,13 +96,13 @@ try {
   const upgraded = new pg.Client({ ...connection, database: process.env.PGDATABASE });
   try {
     await upgraded.connect();
-    const signatureSql = `SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='public.organization_retirement_policies'::regclass ORDER BY conname`;
+    const signatureSql = `SELECT conname,pg_get_constraintdef(oid,true) AS definition FROM pg_constraint WHERE conrelid='public.organization_retirement_policies'::regclass ORDER BY conname`;
     const [fresh, existing] = await Promise.all([
       bootstrap.query(signatureSql),
       upgraded.query(signatureSql),
     ]);
     checks.retirement_constraints_match_upgrade =
-      JSON.stringify(fresh.rows) === JSON.stringify(existing.rows);
+      constraintSignature(fresh.rows) === constraintSignature(existing.rows);
     const columnsSql = `SELECT column_name,data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='organization_retirement_policies' ORDER BY ordinal_position`;
     const [freshColumns, existingColumns] = await Promise.all([
       bootstrap.query(columnsSql),
@@ -98,13 +112,13 @@ try {
       JSON.stringify(freshColumns.rows) === JSON.stringify(existingColumns.rows);
 
     for (const table of ["disciplinary_action_types", "disciplinary_actions"]) {
-      const constraintSql = `SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='public.${table}'::regclass ORDER BY conname`;
+      const constraintSql = `SELECT conname,pg_get_constraintdef(oid,true) AS definition FROM pg_constraint WHERE conrelid='public.${table}'::regclass ORDER BY conname`;
       const [freshConstraints, existingConstraints] = await Promise.all([
         bootstrap.query(constraintSql),
         upgraded.query(constraintSql),
       ]);
       checks[`${table}_constraints_match_upgrade`] =
-        JSON.stringify(freshConstraints.rows) === JSON.stringify(existingConstraints.rows);
+        constraintSignature(freshConstraints.rows) === constraintSignature(existingConstraints.rows);
       // Migration dapat menambahkan kolom snapshot di akhir tabel, sedangkan bootstrap
       // menempatkannya dekat kolom jenis. Urutan fisik tidak mengubah kontrak schema.
       const tableColumnsSql = `SELECT column_name,data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='${table}' ORDER BY column_name`;

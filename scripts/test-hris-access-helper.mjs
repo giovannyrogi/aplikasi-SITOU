@@ -527,7 +527,13 @@ export async function verifyHrisAccess({
   await formDialog.getByText("Akun & Akses", { exact: true }).click();
   const accountToggle = formDialog.getByRole("checkbox", { name: "Akun Organisasi", exact: true });
   const toggleAccount = async (checked) => {
-    await accountToggle.setChecked(checked);
+    // Nilai berasal dari Form.useWatch; tunggu render React setelah klik,
+    // seperti checkbox menu Pegawai di atas, sebelum membaca state baru.
+    if ((await accountToggle.isChecked()) !== checked) await accountToggle.click();
+    await page.waitForFunction(
+      ({ element, expected }) => element.checked === expected,
+      { element: await accountToggle.elementHandle(), expected: checked },
+    );
     await formDialog
       .getByRole("checkbox", { name: "Akun Organisasi", exact: true, checked })
       .waitFor({ state: "visible" });

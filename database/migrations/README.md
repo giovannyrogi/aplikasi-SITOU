@@ -9,12 +9,13 @@ Folder ini menyimpan perubahan schema secara berurutan untuk database SITOU yang
 
 - Database kosong baru: gunakan `sitou_schema_v3.sql` sebagai schema lengkap terkini. Jangan lanjut menjalankan seluruh migration historis di folder ini.
 - Database lama: jalankan hanya migration yang belum pernah diterapkan, sesuai urutan nomor nama file.
-- Database development lokal `sitou_db` memiliki hasil migration `001` sampai `016`. Migration `016` menambahkan histori pencabutan tindakan disiplin tanpa menghapus tindakan atau dokumen historis. Migration `017` menormalkan nama role lama menjadi Pegawai dan perlu dijalankan pada database lama.
+- Status database lokal harus diperiksa pada setiap device; jangan menggunakan nomor migration dari dokumentasi sebagai bukti bahwa migration sudah diterapkan. Bila belum ada tabel pencatatan migration, cocokkan tabel, kolom, constraint, trigger, serta seed permission dengan SQL migration dan schema bootstrap sebelum menjalankan file yang belum diterapkan.
 
 Jangan menjalankan semua file secara acak atau mengulang migration tanpa pemeriksaan. Sebagian migration mengubah atau menghapus kolom lama dan sengaja berhenti ketika kondisi data tidak aman.
 
 Setelah membuat database kosong atau menyelesaikan upgrade, jalankan `npm run db:check`.
 Database belum boleh dipakai aplikasi jika hasil pemeriksaan menunjukkan `ready: false`.
+Jalankan juga `npm run db:verify-bootstrap` untuk menguji schema kosong pada database sementara dan membandingkan struktur upgrade yang diperiksa. Pembanding constraint mempertahankan operator dan nilai aturan, tetapi menyamakan cast array literal varchar ke text yang dapat dicetak berbeda oleh PostgreSQL. Perintah ini tidak menjalankan migration pada database aplikasi.
 
 ## Cara menjalankan migration baru
 
