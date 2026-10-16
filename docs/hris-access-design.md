@@ -20,7 +20,7 @@ Katalog `HRIS_MENUS` berasal dari menuCatalog.mjs dan mempertahankan kode Dashbo
 lama untuk kompatibilitas, tanpa menjadikannya grant data. Tiga belas submenu
 HRIS yang dapat diberikan: Lokasi, Jenis Unit
 Organisasi, Divisi & Unit, Jabatan, Jenis Kepegawaian; Data Pegawai, Cuti & Izin;
-Kontrak Akan Berakhir, Proyeksi Pensiun, Sanksi Pegawai; Aturan Cuti & Izin,
+Kontrak Akan Berakhir, Proyeksi Pensiun, Sanksi Pegawai, Rekap Cuti & Izin; Aturan Cuti & Izin,
 Pengaturan Sanksi, Kebijakan Pensiun. Dashboard adalah halaman dasar; laporan hanya Lihat Saja;
 submenu lain dapat Lihat Saja atau Kelola. Akun Organisasi dapat didelegasikan
 terbatas ke akun Pegawai sesuai migration 052 di bawah.
@@ -83,8 +83,8 @@ tabel hanya satu chip fitur +N fitur lainnya; rincian melalui Aksi → Lihat hak
 tanpa menumpuk seluruh grant di tabel. Gunakan layout responsif, teks sederhana,
 justify untuk bantuan, spacing dan komponen SITOU yang sudah ada.
 
-`tests/hris-access.test.mjs` memeriksa resolver/schema. Runner
-`npm run test:inventory:http` mencakup bootstrap/upgrade 051–052, regresi Inventaris,
+prosedur verifikasi fitur memeriksa resolver/schema. Runner
+prosedur verifikasi fitur mencakup bootstrap/upgrade 051–052, regresi Inventaris,
 delegasi HRD, read/manage, URL langsung, spoof header, isolasi organisasi,
 rollback/version, pencabutan session aktif, transfer admin, guard lifecycle,
 serta UI 320–1920px di database terpisah.
@@ -193,3 +193,5 @@ Kartu HRD yang belum diizinkan menampilkan siluet sintetis sesuai jenis konten (
 ProtectedShell memeriksa snapshot izin server setiap delapan detik ketika tab terlihat, saat tab kembali fokus, dan setelah API mengembalikan `403`. Keputusan didasarkan pada izin baca/tulis efektif halaman, bukan menu yang kebetulan terlihat. Turun dari Kelola ke Lihat menutup form aktif dengan membangun ulang halaman, menampilkan `AccessChangedModal` selama lima detik, dan tetap di halaman baca-saja. Jika hanya sebagian izin tulis Inventaris dicabut, pesannya menyatakan bahwa hanya sebagian tindakan tidak tersedia. Pencabutan hak Lihat segera melepas isi halaman dari DOM, menampilkan modal yang sama dengan tujuan Dashboard, lalu mengalihkan setelah lima detik atau saat tombol ditekan. Perubahan yang belum tersimpan tidak disimpan otomatis. Backend tetap memeriksa setiap operasi; permintaan yang sudah lolos pemeriksaan sebelum pencabutan merupakan batas race yang harus dijaga oleh transaksi pada use case kritis.
 
 Snapshot `/api/access/me` memuat `writePermissions` Inventaris untuk menentukan penutupan form secara visual; kode ini tidak memberikan izin baru. `readApiResponse` dan form Data Master yang membaca respons sendiri meminta pemeriksaan ulang izin ketika menerima `403`. Kegagalan jaringan tidak ditafsirkan sebagai pencabutan izin. Pengalihan karena sesi login berakhir tetap menuju Login dan menggunakan panel hitungan mundur yang sama.
+
+Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.

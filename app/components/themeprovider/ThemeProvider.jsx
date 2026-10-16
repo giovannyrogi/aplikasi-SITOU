@@ -2,6 +2,7 @@
 
 import GlobalStyles from "@mui/material/GlobalStyles";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { APP_FONT_FAMILY, APP_FONT_WEIGHTS } from "@/app/theme/typography";
 
 export const BRAND_COLORS = Object.freeze({
   primary: "#EE0014",
@@ -72,13 +73,13 @@ export const UI_TOKENS = Object.freeze({
 
 export const appTheme = createTheme({
   typography: {
-    fontFamily: '"Poppins", sans-serif',
+    fontFamily: APP_FONT_FAMILY,
     letterSpacing: "0.4px",
-    fontWeightRegular: 500,
-    fontWeightMedium: 600,
-    fontWeightBold: 700,
+    fontWeightRegular: APP_FONT_WEIGHTS.regular,
+    fontWeightMedium: APP_FONT_WEIGHTS.medium,
+    fontWeightBold: APP_FONT_WEIGHTS.bold,
     button: {
-      fontFamily: '"Poppins", sans-serif',
+      fontFamily: APP_FONT_FAMILY,
       letterSpacing: "0.4px",
       textTransform: "none",
     },

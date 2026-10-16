@@ -275,6 +275,11 @@ export default function EmployeeReport({ kind }) {
     ...(!retirement
       ? [
           {
+            key: "contractStatus",
+            label: "Status kontrak",
+            control: select("contractStatus", [{ value: "all", label: "Semua status" }, { value: "active", label: "Aktif" }], "Semua status"),
+          },
+          {
             key: "successor",
             label: "Kontrak berikutnya",
             control: select(
@@ -313,6 +318,7 @@ export default function EmployeeReport({ kind }) {
     "employmentTypeId",
     "group",
     "successor",
+    "contractStatus",
   ];
   items.sort((a, b) => filterOrder.indexOf(a.key) - filterOrder.indexOf(b.key));
 

@@ -24,6 +24,7 @@ import { canViewDraftDisciplinaryActions } from "@/lib/discipline/visibility.mjs
 import { requireAuthenticatedUser } from "@/app/utils/auth";
 import { canUseHrisFile } from "@/lib/access/hrisPolicy.mjs";
 import { requireInventoryAccess } from "@/lib/inventory/service";
+import { authorizeInventoryActorPhoto } from "@/lib/inventory/actorPhoto";
 
 /** Memeriksa scope pegawai untuk HRD dengan akses lokasi tertentu. */
 async function enforceFileScope(user, file) {
@@ -87,7 +88,10 @@ export async function GET(request, { params }) {
     if (!/^\d+$/.test(fileId)) throw new ServiceError("FILE_FORBIDDEN", "Anda tidak memiliki akses ke file tersebut.", 403);
     const file = await getStoredFile(fileId, organizationId);
     if (request.method === "DELETE" && !canUseHrisFile(user,file.category,true)) throw new ServiceError("FILE_FORBIDDEN","Pengubahan lampiran ini belum diberikan.",403);
-    if (file.category === "inventory_item_photo") {
+    const actorPhoto = file.category === "employee_photo" && new URL(request.url).searchParams.has("inventoryActorTransactionId");
+    if (actorPhoto) {
+      await authorizeInventoryActorPhoto(user, file, new URL(request.url).searchParams);
+    } else if (file.category === "inventory_item_photo") {
       await requireInventoryAccess(user, organizationId, "inventory.catalog.read");
       const referenced = await pool.query(
         "SELECT 1 FROM inventory_items WHERE organization_id=$1 AND photo_file_id=$2 LIMIT 1",
@@ -107,7 +111,7 @@ export async function GET(request, { params }) {
       await requireInventoryAccess(user,organizationId,linked.rows[0].status==='draft'?"inventory.transactions.create":"inventory.transactions.read",linked.rows[0].warehouse_id);
     } else if (!sensitive)
       throw new ServiceError("FILE_FORBIDDEN", "Anda tidak memiliki akses ke file tersebut.", 403);
-    await enforceFileScope(user, file);
+    if (!actorPhoto) await enforceFileScope(user, file);
     await assertStoredFileAvailable(file);
     const mode =
       new URL(request.url).searchParams.get("download") === "1" ? "attachment" : "inline";
@@ -117,7 +121,8 @@ export async function GET(request, { params }) {
       action: mode === "inline" ? "private_file.preview" : "private_file.download",
       entityType: "stored_file",
       entityId: file.id,
-      afterData: { employeeId: file.employee_id, category: file.category },
+      afterData: { employeeId: file.employee_id, category: file.category,
+        ...(actorPhoto ? { inventoryTransactionId: new URL(request.url).searchParams.get("inventoryActorTransactionId") } : {}) },
       requestId,
     });
     return new Response(createStoredFileStream(file), {

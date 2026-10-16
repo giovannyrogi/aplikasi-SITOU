@@ -391,7 +391,7 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
       {kind === "items" ? (
         <OperationalFilterSection
           title="Filter barang persediaan"
-          description="Temukan barang berdasarkan nama, status, lokasi, gudang, dan batas stok minimum. Batas ini bukan saldo stok."
+          description="Temukan barang berdasarkan nama, status, lokasi, gudang, dan batas stok minimum. Batas ini bukan jumlah stok."
           items={itemFilterItems}
           onReset={() => {
             list.setSearch("");

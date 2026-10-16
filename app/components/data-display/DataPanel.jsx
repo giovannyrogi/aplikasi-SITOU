@@ -9,6 +9,7 @@ export default function DataPanel({
   title,
   description,
   toolbar,
+  action,
   children,
   contentSx,
   exportConfig,
@@ -28,7 +29,7 @@ export default function DataPanel({
         boxShadow: theme.ui.panelShadow,
       }}
     >
-      {(title || description || exportConfig?.enabled) && (
+      {(title || description || action || exportConfig?.enabled) && (
         <Box
           sx={{
             px: { xs: 2, sm: 2.5, lg: 3 },
@@ -57,7 +58,10 @@ export default function DataPanel({
               </FontStyle>
             ) : null}
           </Box>
-          {exportConfig?.enabled ? <TableExportMenu {...exportConfig} /> : null}
+          {action || exportConfig?.enabled ? <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            {action}
+            {exportConfig?.enabled ? <TableExportMenu {...exportConfig} /> : null}
+          </Box> : null}
         </Box>
       )}
       {toolbar ? (
@@ -66,7 +70,7 @@ export default function DataPanel({
           <Box sx={{ px: { xs: 2, sm: 2.5, lg: 3 }, py: 2 }}>{toolbar}</Box>
         </>
       ) : null}
-      {title || description || toolbar || exportConfig?.enabled ? (
+      {title || description || toolbar || action || exportConfig?.enabled ? (
         <Divider sx={{ borderColor: theme.ui.panelBorderSubtle }} />
       ) : null}
       <Box sx={{ minWidth: 0, p: 0, ...contentSx }}>{children}</Box>

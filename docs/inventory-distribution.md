@@ -12,7 +12,7 @@ Laporan hanya membaca penyaluran resmi; tidak membuat transaksi, saldo penerima,
 - `distributed_quantity`: jumlah efektif penyaluran (nol jika dibatalkan sampai tanggal akhir).
 - `returned_quantity`: pengembalian terkait yang masih berlaku sampai tanggal akhir.
 - `net_quantity`: penyaluran efektif dikurangi pengembalian. **Bukan stok penerima atau bukti pemakaian.**
-- Stok opname, saldo awal, koreksi saldo awal, dan penerimaan tidak menjadi penyaluran; tidak dijumlahkan pada laporan ini. Rumus saldo gudang tidak diubah.
+- Stok opname, stok awal, koreksi stok awal, dan penerimaan tidak menjadi penyaluran; tidak dijumlahkan pada laporan ini. Rumus saldo gudang tidak diubah.
 
 Tujuan lokasi/unit dan penerima berasal dari header transaksi asal. Rolling Pegawai tidak memindahkan histori distribusi. Nama master/profil dibaca dari referensi saat laporan dibuat; ID tujuan transaksi tetap asal. Data nonaktif tetap dapat dibaca untuk histori.
 
@@ -44,4 +44,12 @@ Workbook berisi Petunjuk dan Distribusi, waktu server menurut zona organisasi, c
 
 Tidak perlu migration: memakai `inventory_transactions`, `inventory_transaction_lines`, referensi organisasi, dan `audit_logs` yang sudah ada. Return memakai source_line_id dan reversal memakai reversal_of_id; join agregasi/batch, bukan N+1. Ledger dan balances tidak diubah.
 
-Jalankan `npm run test:inventory-distribution:http`. Runner bootstrap database terpisah, menguji periode sebelum/setelah return dan reversal, status, scope/gabungan master, organisasi, modul, session dicabut, keyset, export literal/audit/batas, tujuan sesudah rolling, EXPLAIN, modal read-only, serta browser 320–1920. Database uji dibersihkan otomatis.
+Jalankan prosedur verifikasi fitur. Runner bootstrap database terpisah, menguji periode sebelum/setelah return dan reversal, status, scope/gabungan master, organisasi, modul, session dicabut, keyset, export literal/audit/batas, tujuan sesudah rolling, EXPLAIN, modal read-only, serta browser 320–1920. Database uji dibersihkan otomatis.
+
+Label laporan menggunakan Jumlah disalurkan, Dikembalikan, dan Belum dikembalikan. Filter Status penyaluran membedakan Tidak dibatalkan/Dibatalkan/Semua status sesuai tanggal akhir. Kolom status tersendiri dan panel Cara membaca periode tidak ditampilkan; transaksi dibatalkan tetap ditandai pada identitas barang. Aturan perhitungan historis dan kontrak DTO tidak berubah.
+
+Identitas pencatat memakai nama pertama–terakhir dari profil Pegawai pada organisasi dokumen, atau profil platform, dengan fallback username. DTO rincian membawa actor_photo_file_id saja; tidak mengirim data profil lain. Avatar melalui GET /api/uploads/:fileId dengan inventoryActorTransactionId, inventoryActorRole=creator|cancelled dan inventoryActorView=transaction|stock|distribution. Server mencocokkan foto aktif milik pelaku dokumen dan memeriksa izin/konteks/gudang terbaru, lalu memeriksa file serta mengaudit preview. Scope Inventaris tidak membuka akses foto/profil HRIS umum. Ekspor memakai actor_name ringkas yang sama.
+
+Format jumlah pada Excel mengikuti presisi setiap nilai: bilangan bulat tanpa pemisah desimal, pecahan maksimal tiga desimal tanpa nol tambahan. Jangan memakai format desimal opsional `#,##0.###` yang dapat menghasilkan titik/koma kosong. Jumlah biasa tetap numeric; jumlah di luar batas presisi aman tetap teks agar tidak dibulatkan.
+
+Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.

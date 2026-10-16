@@ -50,8 +50,16 @@ Kelompok diurutkan tanggal proyeksi naik, sesuai laporan. Panel menggantikan gra
 
 ## Verifikasi lokal
 
-- `node --test tests/reports.test.mjs`: tanggal, perpindahan filter, dan workbook.
-- `node scripts/test-reports-db.mjs`: database uji terpisah dengan fixture sintetis, dibuang setelah pengujian; periode, kontrak lanjutan, jenis kepegawaian, scope, pagination, dan EXPLAIN.
-- `node scripts/test-reports-http.mjs`: memerlukan server development serta akun lokal per role; menguji izin, isolasi, dashboard dan Excel tanpa mencetak kredensial/data pribadi. Ekspor uji menghasilkan audit.
-- `node scripts/test-reports-ui.mjs`: memerlukan Playwright/Chrome (opsional PLAYWRIGHT_MODULE_PATH dan CHROME_PATH), server lokal, akun HRD. Isi laporan dimock dengan data sintetis untuk screenshot 320–1920px dalam `.next/report-qa`.
+- prosedur verifikasi fitur: tanggal, perpindahan filter, dan workbook.
+- prosedur verifikasi fitur: database uji terpisah dengan fixture sintetis, dibuang setelah pengujian; periode, kontrak lanjutan, jenis kepegawaian, scope, pagination, dan EXPLAIN.
+- prosedur verifikasi fitur: memerlukan server development serta akun lokal per role; menguji izin, isolasi, dashboard dan Excel tanpa mencetak kredensial/data pribadi. Ekspor uji menghasilkan audit.
+- prosedur verifikasi fitur: memerlukan Playwright/Chrome (opsional PLAYWRIGHT_MODULE_PATH dan CHROME_PATH), server lokal, akun HRD. Isi laporan dimock dengan data sintetis untuk screenshot 320–1920px dalam `.next/report-qa`.
 - Jalankan `npm run lint` dan `npm run build`. Tema mengikuti provider aplikasi; provider saat ini menetapkan mode light, sehingga dark mode penuh memerlukan dukungan theme global, bukan warna khusus pada laporan.
+
+Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.
+
+Jadwal Kontrak Berakhir menggantikan rekap histori kontrak: jumlah kontrak aktif yang telah mulai, pegawai aktif/probation/suspended, bertanggal akhir mulai hari ini menurut timezone organisasi sampai akhir bulan kalender ke-12. Query dashboard dan laporan memakai buildReportQuery yang sama dengan contractStatus=active; kontrak draft, dibatalkan, berakhir, diperpanjang, tanpa tanggal akhir, serta pegawai final tidak dihitung. Setiap bulan menampilkan jumlah kontrak akan berakhir. Lihat pegawai hanya tersedia bagi akun berizin laporan Kontrak Akan Berakhir, mempertahankan organisasi dan rentang bulan. Tidak memakai label Aktif/Selesai atau diperpanjang pada panel jadwal.
+
+## Rekap Cuti & Izin
+
+`leavePolicy.mjs`, `leaveQuery.mjs`, `leaveService.js`, `leaveRoute.js`, dan `leaveWorkbook.mjs` menyatukan filter, cohort, perhitungan, rincian, dan ekspor pada `/api/reports/leave-summary`. Memerlukan grant `leave-summary-report` terpisah; tidak membuka administrasi cuti. Definisi durasi, saldo ledger, tahun organisasi, akses, dan pengujian: `docs/leave-summary-report.md`.

@@ -1,5 +1,7 @@
 # Migration Database SITOU
 
+Migration `058` mendaftarkan menu **Rekap Cuti & Izin** (`leave-summary-report`) sebagai laporan read-only. Tidak menambah grant HRD terdelegasi secara otomatis; atur melalui Akun & Akses. Bootstrap baru sudah memuat menu ini.
+
 Migration `054` menambahkan transaksi stok multi-barang, draft, saldo awal per barang–gudang, riwayat stok append-only, saldo turunan, referensi pengembalian/pembatalan, dan permission mutasi untuk Pengelola Gudang. Terapkan setelah migration `053`, lalu deploy API dan UI transaksi dalam satu rilis. Backup database development/produksi sesuai prosedur sebelum upgrade; jangan menjalankan migration ini dua kali. Kartu Stok tetap tahap berikutnya dan membaca riwayat yang sama.
 Migration `055` menambah kategori lampiran privat transaksi dan trigger database yang menolak edit/hapus transaksi terposting serta riwayat stok. Terapkan sesudah `054` sebelum memakai upload bukti transaksi.
 

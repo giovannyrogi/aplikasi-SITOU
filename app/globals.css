@@ -6,9 +6,18 @@
 
 html,
 body {
-  font-family: "Poppins", sans-serif;
+  font-family: var(--sitou-font-family);
   scrollbar-color: var(--sitou-scrollbar-thumb) var(--sitou-scrollbar-track);
   scrollbar-width: thin;
+}
+
+button,
+input,
+select,
+textarea,
+optgroup,
+option {
+  font-family: inherit;
 }
 
 *::-webkit-scrollbar {

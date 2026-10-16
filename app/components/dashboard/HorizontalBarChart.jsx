@@ -5,7 +5,7 @@ import ApexChartClient from "./ApexChartClient";
 import { createChartOptions, normalizeChartSeries } from "./chartAdapter";
 
 /** Grafik batang horizontal untuk perbandingan kategori dengan label panjang. */
-export default function HorizontalBarChart({ data, percent = false, colors, scrollable = false }) {
+export default function HorizontalBarChart({ data, percent = false, colors, scrollable = false, integer = false }) {
   const theme = useTheme();
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   return (
@@ -40,6 +40,8 @@ export default function HorizontalBarChart({ data, percent = false, colors, scro
           reducedMotion,
           percent,
           legend: (data?.series?.length || 0) > 1,
+          integer,
+          countMax: Math.max(0, ...(data?.series || []).flatMap((series) => series.data.map(Number))),
         })}
       />
     </Box>

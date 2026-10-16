@@ -86,7 +86,7 @@ memuat **Stok Barang** dan **Transaksi Barang**; Laporan memuat **Distribusi Bar
 Setiap submenu memakai permission fitur dan scope organisasi yang sama; parent
 hanya tampil bila ada anak berizin. Tidak ada tab Katalog & Gudang lagi.
 Tombol tambah berada pada header, filter organisasi Superadmin pada toolbar daftar.
-Wajib memilih satu organisasi; Dashboard Pegawai tetap header saja.
+Wajib memilih satu organisasi; Dashboard Pegawai menampilkan ringkasan profil sendiri; tab Inventaris mengikuti izin. Lihat `docs/dashboard-workspace.md`.
 
 Kartu Stok nantinya berada di detail satu barang pada satu gudang, menampilkan
 masuk, keluar, dan saldo setelah setiap transaksi. Distribusi Barang merangkum
@@ -140,7 +140,7 @@ Implementasi tahap 1:
   diperbarui saat navigasi, focus, dan event perubahan akses.
 - Migration 045–046 dan schema referensi harus diterapkan bersama web. Uji bootstrap,
   upgrade migration, HTTP/DB, dan browser memakai database sintetis terpisah melalui
-  `npm run test:inventory:http`; database uji dibersihkan otomatis.
+  prosedur verifikasi fitur; database uji dibersihkan otomatis.
 
 ### Tahap 2 — Melengkapi master barang
 
@@ -149,11 +149,11 @@ Siapkan gudang, kategori barang, satuan dasar, katalog barang, status aktif,
 foto barang opsional, serta stok minimum per barang per gudang. Barang habis
 pakai menjadi fokus; nomor seri, penyusutan, dan perawatan aset belum termasuk.
 Konversi kemasan hanya ditambahkan jika alur penerimaan/penyaluran memerlukannya.
-Saldo awal berasal dari penghitungan nyata, dengan tanggal acuan dan audit.
+Stok awal berasal dari penghitungan nyata, dengan tanggal acuan dan audit.
 
 ### Tahap 3 — Transaksi, dilanjutkan Kartu Stok
 
-Implementasikan pencatatan saldo awal, penerimaan pembelian, dan penyaluran ke
+Implementasikan pencatatan stok awal, penerimaan pembelian, dan penyaluran ke
 lokasi/Divisi & Unit, berikut penerima, tanggal, jumlah, dan catatan. Bukti pembelian,
 dokumen permintaan, dan foto serah terima tetap opsional. Permintaan tetap manual;
 pengelola langsung mencatat penyaluran tanpa workflow approval baru.
@@ -177,7 +177,7 @@ permintaan berulang; tidak menunjukkan sisa barang atau menyimpulkan penyalahgun
 Uji transaksi bersamaan, retry, pembatalan, hitungan saldo, scope gabungan paket,
 isolasi organisasi, lampiran opsional/privat, pencabutan akses, backup/pemeliharaan
 file, dan UI mobile/desktop. Uji dengan gudang serta barang contoh sebelum memasukkan
-saldo awal nyata dan menjalankan operasional. Manajemen Aset dibahas terpisah nanti.
+stok awal nyata dan menjalankan operasional. Manajemen Aset dibahas terpisah nanti.
 
 ## Fondasi implementasi nanti
 
@@ -313,7 +313,7 @@ mencabut inventory.master.read dari paket reader tanpa menghapus grant lama.
 ## Pemisahan master dan operasional — migration 050
 
 - Lihat Saja (inventory_reader): baca Stok Barang/Transaksi Barang/Distribusi Barang, scope gudang all/selected; tidak membuka atau mengubah master.
-- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Migration 054 menambahkan pencatatan dan pembatalan transaksi dalam gudang yang diizinkan. Saldo awal, masuk, keluar, pengembalian, dan stok opname memakai riwayat `inventory_stock_movements` yang sama; draft tidak mengubah stok. Kartu Stok dan laporan pemantauan tetap tahap berikutnya.
+- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Migration 054 menambahkan pencatatan dan pembatalan transaksi dalam gudang yang diizinkan. Stok awal, masuk, keluar, pengembalian, dan stok opname memakai riwayat `inventory_stock_movements` yang sama; draft tidak mengubah stok. Kartu Stok dan laporan pemantauan tetap tahap berikutnya.
 - Pencatatan Transaksi Barang memakai `AppModal` empat tahap (jenis, detail, barang, periksa). Tombol Catat transaksi memulihkan draft aktif terakhir milik petugas/organisasi tanpa menampilkan daftar draft; draft Pegawai tetap terpisah. Draft memakai checkpoint saat Lanjut, Kembali, Simpan draft & tutup, atau finalisasi, bukan autosave per perubahan field; penutupan menunggu simpan berhasil. Pengguna dapat membuang draft aktif dan mulai ulang di modal. Pemilihan jenis lain baru meminta konfirmasi ketika Lanjut ditekan dan isian lama ada; isian dikosongkan hanya setelah pengguna setuju dan checkpoint jenis baru berhasil. Lampiran lama dibersihkan saat jenis baru tersimpan. Seluruh dropdown wizard dapat dicari dengan ketikan; footer dan tombol konfirmasi menempati satu baris masing-masing dengan lebar penuh pada ponsel. Dua area unggah yang berurutan dan area unggah terakhir terhadap footer memiliki jarak aman. Lampiran draft disimpan privat serta dibersihkan saat draft dibuang/kedaluwarsa (migration 056). Pilihan jenis pada tahap pertama dan ledger berbagi label, ikon, serta warna yang sama. Riwayat hanya berisi transaksi terposting, berbentuk ledger responsif padat per dokumen dengan kolom Status setelah Dicatat oleh, ikon jenis ringkas, dan cursor 10/20/50 baris per halaman (awal 20), diurutkan menurut waktu pencatatan terbaru. Pencarian dan dropdown yang bisa diketik berada dalam section filter bersama; toolbar pencarian/muat ulang terpisah tidak digunakan. `DataPagination` menampilkan total hasil filter dari server. Satu tanggal di baris adalah Tanggal transaksi; waktu pencatatan tetap tersedia di detail audit. Bukti pembelian baru memakai JPEG/PNG/WebP maksimal 5 MB; PDF lama tetap terbaca berizin.
 - Pengelola Master Inventaris (inventory_master): baca/tambah/edit/nonaktifkan Barang/Kategori/Satuan/Gudang, termasuk membuat gudang. Cakupan organisasi, disimpan scope_mode=all dan warehouseIds kosong. Tidak memberi akses operasional stok/transaksi/laporan/minimum; bukan seluruh gudang operasional.
 
@@ -347,8 +347,8 @@ hingga Simpan barang; lampiran transaksi disimpan ke draft privat.
 Stok Barang kini menampilkan persediaan per barang–gudang, foto privat, kategori,
 satuan, lokasi, saldo, minimum, dan kondisi stok. Filter mencakup nama/kode,
 gudang berizin, kategori, kondisi, dan status aktif/nonaktif. Superadmin memilih
-organisasi pada filter; akun organisasi memakai session. Tidak ada saldo awal
-ditampilkan Belum dicatat, saldo awal nol Habis, saldo positif di bawah minimum
+organisasi pada filter; akun organisasi memakai session. Tidak ada stok awal
+ditampilkan Belum dicatat, stok awal nol Habis, saldo positif di bawah minimum
 Di bawah minimum, dan saldo lain Cukup.
 
 Kartu Stok dibuka melalui detail barang–gudang, bukan submenu baru. Pergerakan
@@ -444,21 +444,27 @@ input Jumlah (satuan). Riwayat desktop memakai kolom lebih lebar, teks body
 tanggal/jenis normal, dan scroll lokal agar data tidak wrap menjadi dua baris.
 
 
-## Saldo awal dan penerimaan terlambat
+## Stok awal dan penerimaan terlambat
 
 Lihat `docs/inventory-opening-corrections.md` untuk aturan eligibility, permission koreksi, kontrak API, proyeksi replay bersama, dan rollout legacy. `OpeningCorrectionModal` memakai AppModal, ConfirmDialog, AppNotice dan InventoryQuantityChip; koreksi dari draft hanya menyiapkan perubahan sampai Simpan transaksi. AppIcon mendaftarkan inventory:stock-card, inventory:minimum, inventory:opening-correction.
 
 
 ### Pembagian Stok dan Transaksi Barang
 
-Tambah transaksi hanya berada pada Transaksi Barang. Header Stok Barang tidak menawarkan pembuatan transaksi; halaman ini memantau saldo/indikator, Kartu Stok, minimum dan koreksi saldo awal berizin.
+Tambah transaksi hanya berada pada Transaksi Barang. Header Stok Barang tidak menawarkan pembuatan transaksi; halaman ini memantau saldo/indikator, Kartu Stok, minimum dan koreksi stok awal berizin.
 
 
 ### Field administratif menurut jenis transaksi
 
-Saldo awal tidak wajib alasan keterlambatan. Barang masuk, keluar, pengembalian dan stok opname sebelum hari ini wajib alasan minimal 10 karakter, sesuai transactionFieldPolicy.mjs bersama UI/backend. Pembatalan dan koreksi tetap wajib alasan tindakan. Nomor dokumen baru hanya pada penerimaan/penyaluran, opsional, dengan label Nomor dokumen penerimaan dan Nomor memo/permintaan. Opening/return/stocktake menyimpan dan menampilkan referensi lama tanpa input baru atau penghapusan diam-diam. Catatan tetap opsional; nomor kosong tidak ditampilkan di ringkasan. Kontrak API referenceNo/lateReason, schema, audit, tanggal dan izin tidak berubah; tidak perlu migration.
+Stok awal tidak wajib alasan keterlambatan. Barang masuk, keluar, pengembalian dan stok opname sebelum hari ini wajib alasan minimal 10 karakter, sesuai transactionFieldPolicy.mjs bersama UI/backend. Pembatalan dan koreksi tetap wajib alasan tindakan. Nomor dokumen baru hanya pada penerimaan/penyaluran, opsional, dengan label Nomor dokumen penerimaan dan Nomor memo/permintaan. Opening/return/stocktake menyimpan dan menampilkan referensi lama tanpa input baru atau penghapusan diam-diam. Catatan tetap opsional; nomor kosong tidak ditampilkan di ringkasan. Kontrak API referenceNo/lateReason, schema, audit, tanggal dan izin tidak berubah; tidak perlu migration.
 
 
 ### Implementasi Distribusi Barang
 
 Lihat docs/inventory-distribution.md. Distribusi memakai transaksi/line/reversal existing, tanpa migration atau perubahan saldo. DistributionPanel menggunakan DataPanel, ResponsiveDataView, DataPagination, OperationalFilterSection, DashboardMetric, chip, modal dan preview terpusat. TransactionDetailModal/TransactionPresentationParts dipakai bersama dengan Transaksi Barang; onCancel hanya diberikan workspace transaksi berizin, bukan laporan.
+
+Tabel Stok Barang secara default memakai condition=recorded: pasangan barang–gudang dengan riwayat resmi, termasuk stok habis dan transaksi yang dibatalkan. Pilihan Semua barang atau Belum ada transaksi tetap tersedia; stok tanpa riwayat adalah null dan ditampilkan sebagai —. Identitas barang cukup nama/kode, gudang cukup nama. Istilah antarmuka adalah Stok awal/Koreksi stok awal; kode opening, permission, tabel, audit lama dan migration historis tetap kompatibel.
+
+Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.
+
+Pada tahap Periksa transaksi, Perubahan stok gudang memakai InventoryStockMetric dan AppIconTile yang sama untuk Jumlah, Sebelum, Sesudah, dan Stok saat ini: tile 36px, ikon 18px, tipografi seragam. Jumlah mengikuti warna jenis transaksi, Sebelum netral, Sesudah biru atau merah jika nol. Divider berada sesudah Jumlah dengan gap 16px; padding panel 16px. Tidak mengubah proyeksi atau validasi stok.

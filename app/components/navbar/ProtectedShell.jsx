@@ -1,7 +1,7 @@
 "use client";
 
 import { accessChangeImpact, pageAccessState } from "@/lib/access/liveAccessPolicy.mjs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Box, useTheme } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
 import Notification from "../Notifications/Notification";
@@ -22,9 +22,14 @@ export default function ProtectedShell({ user, children }) {
   const router = useRouter();
   const pathname = usePathname();
   const { startLoading, startNavigationLoading, finishNavigationLoading } = useLoadingBackdrop();
+  const [navigationPending, startNavigation] = useTransition();
+  const menuNavigationRef = useRef(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: "", severity: "error" });
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const logoutInProgressRef = useRef(false);
+  const accessRequestRef = useRef(null);
   const [redirectCountdown, setRedirectCountdown] = useState(5);
   const [access, setAccess] = useState(user.access);
   const accessRef = useRef(user.access);
@@ -36,21 +41,54 @@ export default function ProtectedShell({ user, children }) {
     () => getMenusByRole(MENU_CONFIG, user.role_code, access),
     [user.role_code, access],
   );
+  const beginLogout = useCallback(() => {
+    if (logoutInProgressRef.current) return false;
+    // Ref menutup celah sebelum render berikutnya: respons 401 lama wajib diabaikan.
+    logoutInProgressRef.current = true;
+    accessRequestRef.current?.abort();
+    setLoggingOut(true);
+    setSessionExpired(false);
+    setRedirectCountdown(5);
+    changeModeRef.current = null;
+    setAccessChange(null);
+    return true;
+  }, []);
+  const redirectToLogin = useCallback(async () => {
+    if (!beginLogout()) return;
+    startNavigationLoading({ message: "Membuka halaman login..." });
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+    router.replace("/login");
+  }, [beginLogout, router, startNavigationLoading]);
   useEffect(() => {
+    if (loggingOut) return;
     const controller = new AbortController();
     let latestRequest = 0;
     let activeRequest = null;
-    const refresh = async () => {
-      activeRequest?.abort();
+    let lastStartedAt = 0;
+    const refresh = async (force = false) => {
+      // focus + visibilitychange dapat datang bersamaan; gabungkan pemeriksaan pasif.
+      if (
+        logoutInProgressRef.current ||
+        activeRequest ||
+        (!force && Date.now() - lastStartedAt < 2000)
+      )
+        return;
+      lastStartedAt = Date.now();
       const request = new AbortController();
       activeRequest = request;
+      accessRequestRef.current = request;
       const requestNumber = ++latestRequest;
       try {
         const response = await fetch("/api/access/me", {
           cache: "no-store",
           signal: request.signal,
         });
-        if (controller.signal.aborted || request.signal.aborted || requestNumber !== latestRequest)
+        if (
+          logoutInProgressRef.current ||
+          controller.signal.aborted ||
+          request.signal.aborted ||
+          requestNumber !== latestRequest
+        )
           return;
         if (response.status === 401) {
           setSessionExpired(true);
@@ -58,7 +96,12 @@ export default function ProtectedShell({ user, children }) {
         }
         if (!response.ok) return;
         const body = await response.json();
-        if (controller.signal.aborted || request.signal.aborted || requestNumber !== latestRequest)
+        if (
+          logoutInProgressRef.current ||
+          controller.signal.aborted ||
+          request.signal.aborted ||
+          requestNumber !== latestRequest
+        )
           return;
         const before = accessRef.current;
         const next = body.data;
@@ -89,7 +132,11 @@ export default function ProtectedShell({ user, children }) {
         if (error.name === "AbortError") return;
       } finally {
         if (activeRequest === request) activeRequest = null;
+        if (accessRequestRef.current === request) accessRequestRef.current = null;
       }
+    };
+    const refreshForced = () => {
+      void refresh(true);
     };
     void refresh();
     const refreshIfVisible = () => {
@@ -99,18 +146,18 @@ export default function ProtectedShell({ user, children }) {
       user.role_code === "superadmin" ? null : window.setInterval(refreshIfVisible, 8000);
     window.addEventListener("focus", refreshIfVisible);
     document.addEventListener("visibilitychange", refreshIfVisible);
-    window.addEventListener("sitou:access-changed", refresh);
-    window.addEventListener("sitou:permission-denied", refresh);
+    window.addEventListener("sitou:access-changed", refreshForced);
+    window.addEventListener("sitou:permission-denied", refreshForced);
     return () => {
       controller.abort();
       activeRequest?.abort();
       if (interval !== null) window.clearInterval(interval);
       window.removeEventListener("focus", refreshIfVisible);
       document.removeEventListener("visibilitychange", refreshIfVisible);
-      window.removeEventListener("sitou:access-changed", refresh);
-      window.removeEventListener("sitou:permission-denied", refresh);
+      window.removeEventListener("sitou:access-changed", refreshForced);
+      window.removeEventListener("sitou:permission-denied", refreshForced);
     };
-  }, [pathname, router, user.role_code]);
+  }, [loggingOut, pathname, router, user.role_code]);
 
   useEffect(() => {
     if (pathname === "/dashboard" && changeModeRef.current === "redirect") {
@@ -120,12 +167,13 @@ export default function ProtectedShell({ user, children }) {
   }, [pathname]);
 
   useEffect(() => {
-    if (!accessChange || sessionExpired) return undefined;
+    if (!accessChange || sessionExpired || loggingOut) return undefined;
     const interval = window.setInterval(
       () => setAccessCountdown((seconds) => Math.max(0, seconds - 1)),
       1000,
     );
     const timeout = window.setTimeout(() => {
+      if (logoutInProgressRef.current) return;
       if (accessChange === "redirect") router.replace("/dashboard");
       else {
         changeModeRef.current = null;
@@ -136,35 +184,45 @@ export default function ProtectedShell({ user, children }) {
       window.clearInterval(interval);
       window.clearTimeout(timeout);
     };
-  }, [accessChange, router, sessionExpired]);
+  }, [accessChange, loggingOut, router, sessionExpired]);
 
   useEffect(() => {
+    menuNavigationRef.current = false;
     finishNavigationLoading();
   }, [finishNavigationLoading, pathname]);
 
   useEffect(() => {
-    const delay = Math.max(0, Number(user.session_expires_at) - Date.now());
-    const timeout = window.setTimeout(() => setSessionExpired(true), delay);
-    return () => window.clearTimeout(timeout);
-  }, [user.session_expires_at]);
+    // Termasuk redirect ke halaman asal: pathname tidak selalu berubah.
+    if (!navigationPending && menuNavigationRef.current) {
+      menuNavigationRef.current = false;
+      finishNavigationLoading();
+    }
+  }, [finishNavigationLoading, navigationPending]);
 
   useEffect(() => {
-    if (!sessionExpired) return undefined;
+    if (loggingOut) return;
+    const delay = Math.max(0, Number(user.session_expires_at) - Date.now());
+    const timeout = window.setTimeout(() => {
+      if (!logoutInProgressRef.current) setSessionExpired(true);
+    }, delay);
+    return () => window.clearTimeout(timeout);
+  }, [loggingOut, user.session_expires_at]);
+
+  useEffect(() => {
+    if (!sessionExpired || loggingOut) return undefined;
 
     const interval = window.setInterval(() => {
       setRedirectCountdown((current) => Math.max(0, current - 1));
     }, 1000);
-    const redirect = window.setTimeout(async () => {
-      startNavigationLoading({ message: "Membuka halaman login..." });
-      await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
-      router.replace("/login");
+    const redirect = window.setTimeout(() => {
+      void redirectToLogin();
     }, 5000);
 
     return () => {
       window.clearInterval(interval);
       window.clearTimeout(redirect);
     };
-  }, [router, sessionExpired, startNavigationLoading]);
+  }, [loggingOut, redirectToLogin, sessionExpired]);
 
   const navigate = (path) => {
     if (!path || path === pathname) return;
@@ -177,11 +235,13 @@ export default function ProtectedShell({ user, children }) {
       return;
 
     setDrawerOpen(false);
-    startNavigationLoading({ message: "Membuka halaman..." });
-    router.push(path);
+    menuNavigationRef.current = true;
+    startNavigationLoading({ message: "Membuka halaman...", href: path });
+    startNavigation(() => router.push(path));
   };
 
   const logout = async () => {
+    if (!beginLogout()) return;
     const startedAt = Date.now();
     const finishLogout = startLoading({ message: "Keluar dari SITOU..." });
 
@@ -195,6 +255,8 @@ export default function ProtectedShell({ user, children }) {
       startNavigationLoading({ message: "Membuka halaman login..." });
       router.replace("/login");
     } catch {
+      logoutInProgressRef.current = false;
+      setLoggingOut(false);
       finishNavigationLoading();
       setNotification({
         open: true,
@@ -204,12 +266,6 @@ export default function ProtectedShell({ user, children }) {
     } finally {
       finishLogout();
     }
-  };
-
-  const redirectToLogin = async () => {
-    startNavigationLoading({ message: "Membuka halaman login..." });
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
-    router.replace("/login");
   };
 
   return (
@@ -312,12 +368,12 @@ export default function ProtectedShell({ user, children }) {
         onClose={() => setNotification((current) => ({ ...current, open: false }))}
       />
       <ExpiredSessionModal
-        open={sessionExpired}
+        open={sessionExpired && !loggingOut}
         secondsRemaining={redirectCountdown}
         onLogout={redirectToLogin}
       />
       <AccessChangedModal
-        mode={sessionExpired ? null : accessChange}
+        mode={sessionExpired || loggingOut ? null : accessChange}
         secondsRemaining={accessCountdown}
         onContinue={() => {
           if (accessChange === "redirect") router.replace("/dashboard");

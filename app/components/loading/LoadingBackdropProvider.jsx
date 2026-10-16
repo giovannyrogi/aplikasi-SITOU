@@ -11,7 +11,7 @@ import {
 } from "react";
 import LoadingBackdrop from "./Backdrop";
 import Notification from "../Notifications/Notification";
-import { scheduleNavigationDeadline } from "@/lib/ui/navigationLoading.mjs";
+import { navigationRecoveryHref, scheduleNavigationDeadline } from "@/lib/ui/navigationLoading.mjs";
 
 const LoadingBackdropContext = createContext(null);
 const DEFAULT_MESSAGE = "Memproses...";
@@ -92,6 +92,17 @@ export function LoadingBackdropProvider({ children }) {
           navigationToken.current = null;
           cancelNavigationDeadline.current = null;
           synchronizeBackdrop();
+          // Router client dapat tertahan pada request RSC lama. Buka tujuan yang sama
+          // lewat request dokumen baru; autentikasi dan izin server tetap diperiksa.
+          const recoveryHref = navigationRecoveryHref(options.href, window.location.origin);
+          if (recoveryHref && activeProcesses.current.size === 0) {
+            try {
+              window.location.assign(recoveryHref);
+              return;
+            } catch {
+              // Jika browser menolak pemulihan, tetap sediakan pemberitahuan manual.
+            }
+          }
           setNavigationWarning(true);
         },
       );

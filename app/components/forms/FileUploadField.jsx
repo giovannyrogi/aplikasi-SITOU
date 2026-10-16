@@ -68,6 +68,7 @@ export default function FileUploadField({
 }) {
   const theme = useTheme();
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [pickerVersion, setPickerVersion] = useState(0);
   const { name, size, mimeType } = readUploadMetadata(value);
   const isImage = mimeType.startsWith("image/");
 
@@ -89,12 +90,17 @@ export default function FileUploadField({
   const removeFile = async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    await onRemove?.();
+    const removed = await onRemove?.();
+    if (removed === false) return;
+    setImagePreviewOpen(false);
+    // Buat ulang input native agar memilih file yang sama tetap memicu perubahan.
+    setPickerVersion((version) => version + 1);
   };
 
   return (
     <>
       <Upload.Dragger
+        key={pickerVersion}
         accept={accept}
         maxCount={1}
         multiple={false}

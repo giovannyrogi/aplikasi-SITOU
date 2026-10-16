@@ -73,6 +73,34 @@ export default function LeaveRequestsPage() {
   const [detail, setDetail] = useState(null);
   const [cancel, setCancel] = useState(null);
   const { notification, showNotification, closeNotification } = useAppNotification();
+  const [exporting, setExporting] = useState(false);
+  const exportExcel = async () => {
+    setExporting(true);
+    try {
+      const query = new URLSearchParams(list.query);
+      query.set("organizationId", organizationId);
+      for (const key of ["page", "pageSize", "cursor"]) query.delete(key);
+      const response = await fetch(`/api/leave-requests/export?${query}`, { cache: "no-store" });
+      if (!response.ok) await readApiResponse(response);
+      if (!response.headers.get("content-type")?.includes("spreadsheetml"))
+        throw new Error("Unduhan tidak tersedia. Periksa sesi lalu coba kembali.");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download =
+        response.headers.get("content-disposition")?.match(/filename="([^"]+)"/)?.[1] ||
+        "sitou-cuti-izin.xlsx";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showNotification("Excel cuti dan izin berhasil diunduh.");
+    } catch (error) {
+      showNotification(error.message || "Excel belum dapat diunduh. Coba kembali.", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
   // URL hanya dipulihkan sekali saat halaman pertama kali dibuka.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -393,6 +421,12 @@ export default function LeaveRequestsPage() {
       <DataPanel
         title="Daftar cuti dan izin"
         description="Hasil mengikuti rentang tanggal dan filter yang dipilih di atas."
+        exportConfig={{
+          enabled: true,
+          onExcel: exportExcel,
+          loading: exporting,
+          disabled: !organizationId || list.loading || Boolean(list.error),
+        }}
       >
         <ResponsiveDataView
           data={list.data}

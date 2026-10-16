@@ -10,6 +10,7 @@ import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
 import idID from "antd/locale/id_ID";
+import { APP_FONT_FAMILY } from "@/app/theme/typography";
 import { LoadingBackdropProvider } from "../loading/LoadingBackdropProvider";
 import AppThemeProvider, {
   BRAND_COLORS,
@@ -38,7 +39,7 @@ export default function AppProviders({ children }) {
               colorBorder: UI_TOKENS.border,
               colorBgLayout: UI_TOKENS.pageBg,
               borderRadius: 8,
-              fontFamily: "Poppins, sans-serif",
+              fontFamily: APP_FONT_FAMILY,
               controlHeight: 44,
               // Popup AntD dirender ke body; layer ini harus berada di atas AppModal MUI (1300).
               zIndexPopupBase: 1500,

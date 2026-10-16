@@ -6,10 +6,10 @@ import AppIconTile from "@/app/components/icons/AppIconTile";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import {transactionPresentations as presentations} from "./transactionPresentations";
 /** Identitas jenis yang sama digunakan pada daftar dan modal transaksi. */
-export function KindMark({ kind, compact = false }) {
+export function KindMark({ kind, compact = false, tone }) {
   const entry = presentations[kind] || presentations.receipt;
   const size = compact ? 28 : 40;
-  return <AppIconTile icon={entry.icon} tone={entry.tone} size={size}
+  return <AppIconTile icon={entry.icon} tone={tone || entry.tone} size={size}
     iconSize={compact ? 16 : 21} borderRadius={compact ? 1.25 : 2} showBorder/>;
 }
 

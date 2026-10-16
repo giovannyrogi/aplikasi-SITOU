@@ -1,5 +1,5 @@
 export const transactionPresentations = {
-  opening: { label: "Saldo awal", icon: "solar:box-bold-duotone", tone: "info", description: "Masukkan jumlah barang saat gudang mulai menggunakan sistem stok. Isi 0 jika sudah dihitung dan kosong." },
+  opening: { label: "Stok awal", icon: "solar:box-bold-duotone", tone: "info", description: "Masukkan jumlah barang saat gudang mulai menggunakan sistem stok. Isi 0 jika sudah dihitung dan kosong." },
   receipt: { label: "Barang masuk", icon: "solar:inbox-in-bold-duotone", tone: "success", description: "Masukkan barang yang diterima gudang, misalnya dari pembelian. Stok akan bertambah." },
   issue: { label: "Barang keluar", icon: "solar:inbox-out-bold-duotone", tone: "warning", description: "Masukkan barang yang diserahkan kepada pegawai atau unit tujuan. Stok gudang akan berkurang." },
   return: { label: "Pengembalian ke gudang", icon: "solar:restart-bold-duotone", tone: "secondary", description: "Terima kembali barang yang sebelumnya disalurkan. Pilih penyalurannya, lalu isi jumlah barang yang benar-benar kembali." },

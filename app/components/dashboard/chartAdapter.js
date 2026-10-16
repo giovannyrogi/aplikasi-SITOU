@@ -1,3 +1,5 @@
+import { lighten } from "@mui/material/styles";
+
 const numberFormatter = new Intl.NumberFormat("id-ID");
 const monthFormatter = new Intl.DateTimeFormat("id-ID", { month: "short", year: "numeric" });
 const fullMonthFormatter = new Intl.DateTimeFormat("id-ID", {
@@ -61,6 +63,10 @@ export function createChartOptions({
   reducedMotion = false,
   percent = false,
   legend = true,
+  integer = false,
+  countMax = 1,
+  area = false,
+  tooltipCategories,
 }) {
   const sourceCategories = categories.map((value) =>
     value === null || value === undefined || String(value).trim() === ""
@@ -68,6 +74,9 @@ export function createChartOptions({
       : String(value),
   );
   const normalizedCategories = normalizeChartCategories(categories);
+  const countStep = Math.max(1, Math.ceil(countMax / 5));
+  const countAxisMax =
+    Math.max(1, Math.ceil(countMax / countStep) * countStep) + (area ? countStep : 0);
   const palette = colors || [
     theme.palette.primary.main,
     theme.status.info.main,
@@ -88,11 +97,29 @@ export function createChartOptions({
     colors: palette,
     dataLabels: { enabled: false },
     stroke: { width: 2.5, curve: "smooth" },
-    fill: { opacity: 0.14, type: "solid" },
+    // Warna muda dibuat lebih dulu, bukan ditumpuk sebagai lapisan transparan.
+    // Dengan begitu area biru tidak berubah abu-abu saat berada di atas oranye.
+    fill: area
+      ? {
+          type: "gradient",
+          opacity: 1,
+          gradient: {
+            type: "vertical",
+            shadeIntensity: 0,
+            inverseColors: false,
+            opacityFrom: 1,
+            opacityTo: 1,
+            colorStops: palette.map((color) => [
+              { offset: 0, color: lighten(color, 0.76), opacity: 1 },
+              { offset: 100, color: lighten(color, 0.97), opacity: 1 },
+            ]),
+          },
+        }
+      : { opacity: 0.14, type: "solid" },
     grid: {
       borderColor: theme.ui.panelBorderSubtle,
       strokeDashArray: 4,
-      padding: { left: 4, right: 10, top: 2, bottom: 0 },
+      padding: { left: area ? 16 : 4, right: area ? 32 : 10, top: area ? 12 : 2, bottom: 0 },
     },
     plotOptions: {
       bar: {
@@ -104,10 +131,13 @@ export function createChartOptions({
       },
     },
     xaxis: {
+      ...(integer && horizontal
+        ? { min: 0, max: countAxisMax, tickAmount: countAxisMax / countStep, decimalsInFloat: 0 }
+        : {}),
       categories: normalizedCategories,
       labels: {
         rotate: 0,
-        trim: true,
+        trim: !area,
         formatter: horizontal ? (value) => formatChartNumber(value, percent) : formatChartCategory,
         style: { fontSize: "11px", fontWeight: 500 },
       },
@@ -117,6 +147,9 @@ export function createChartOptions({
     yaxis: {
       min: horizontal ? undefined : 0,
       max: !horizontal && percent ? 100 : undefined,
+      ...(integer && !horizontal
+        ? { max: countAxisMax, tickAmount: countAxisMax / countStep, decimalsInFloat: 0 }
+        : {}),
       labels: {
         formatter: horizontal
           ? (value) => String(value ?? "")
@@ -142,7 +175,7 @@ export function createChartOptions({
         formatter: (value, context) => {
           const dataPointIndex = Number(context?.dataPointIndex);
           const category = Number.isInteger(dataPointIndex)
-            ? sourceCategories[dataPointIndex]
+            ? (tooltipCategories?.[dataPointIndex] ?? sourceCategories[dataPointIndex])
             : value;
           return formatChartTooltipCategory(category);
         },

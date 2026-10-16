@@ -626,11 +626,12 @@ function DisciplineCaseCard({
           <Box
             sx={{
               p: 1.5,
-              bgcolor: theme.ui.panelSubtleBg,
+              bgcolor: alpha(theme.palette.primary.main, 0.06),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
               borderRadius: "8px",
             }}
           >
-            <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
+            <FontStyle fontSize={12} fontWeight={600} sx={{ color: theme.palette.primary.main }}>
               Belum ada tindakan yang ditetapkan untuk kasus ini.
             </FontStyle>
           </Box>

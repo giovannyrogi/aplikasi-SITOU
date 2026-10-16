@@ -17,6 +17,8 @@ import ErrorState from "@/app/components/data-display/ErrorState";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import PageHeader from "@/app/components/layout/PageHeader";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
+import CategoryPieSummary from "./CategoryPieSummary";
+import ContractEndingSummary from "./ContractEndingSummary";
 import AreaTrendChart from "./AreaTrendChart";
 import DashboardActivityList from "./DashboardActivityList";
 import DashboardAttentionList from "./DashboardAttentionList";
@@ -28,6 +30,8 @@ import EmployeeCompositionSummary from "./EmployeeCompositionSummary";
 import HorizontalBarChart from "./HorizontalBarChart";
 import StackedBarChart from "./StackedBarChart";
 import BirthdaySpotlight from "./BirthdaySpotlight";
+import DashboardWorkspace from "./DashboardWorkspace";
+import EmployeeDashboard from "./EmployeeDashboard";
 
 const generatedAtFormatter = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
@@ -35,11 +39,12 @@ const generatedAtFormatter = new Intl.DateTimeFormat("id-ID", {
 });
 const DASHBOARD_TITLE = "Dashboard monitoring";
 
-/** Pegawai hanya mendapat header; komponen data organisasi tidak dipasang. */
-export default function DashboardClient() {
+/** Workspace dasar dan Inventaris memakai sumber data serta izin terpisah. */
+export default function DashboardClient({ initialAccess }) {
   const user = useAuthenticatedUser();
-  if (user.role_code === ROLES.EMPLOYEE) return <PageHeader title={DASHBOARD_TITLE} />;
-  return <OrganizationDashboard />;
+  return <DashboardWorkspace initialAccess={initialAccess}>
+    {user.role_code === ROLES.EMPLOYEE ? <EmployeeDashboard /> : <OrganizationDashboard />}
+  </DashboardWorkspace>;
 }
 
 /** Memastikan panel grafik tidak menggambar canvas kosong saat dataset bernilai nol. */
@@ -114,11 +119,26 @@ function buildChartDefinitions(data, showLocked = false) {
     },
     {
       key: "contracts",
-      title: "Kontrak berakhir per bulan",
+      title: "Jadwal Kontrak Berakhir",
       description:
-        "Tanggal akhir kontrak selama 12 bulan terakhir hingga hari ini, menurut status saat ini.",
+        "Kontrak aktif yang akan berakhir, mulai hari ini selama 12 bulan ke depan.",
       icon: "solar:document-text-bold-duotone",
-      Component: StackedBarChart,
+      Component: ContractEndingSummary,
+    },
+    {
+      key: "leave",
+      title: "Cuti & Izin tahun ini",
+      description: "Jumlah cuti dan izin yang disetujui per jenis tahun ini.",
+      icon: "navigation:leave",
+      Component: CategoryPieSummary,
+    },
+    {
+      key: "sanctions",
+      title: "Sanksi tahun ini",
+      description: "Jumlah tindakan resmi per jenis, termasuk histori yang berakhir atau dicabut. Tanpa draft.",
+      icon: "navigation:disciplinary-report",
+      Component: HorizontalBarChart,
+      props: { integer: true, scrollable: true },
     },
     {
       key: "retirement",
@@ -150,7 +170,7 @@ function metricSpan(index, count, columns) {
 }
 
 /** Dashboard utama yang mengubah data dan hierarchy visual berdasarkan role session. */
-function OrganizationDashboard() {
+function OrganizationDashboard({ navigation }) {
   const theme = useTheme();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
@@ -287,6 +307,7 @@ function OrganizationDashboard() {
         }
       />
 
+      {navigation}
       {state.error ? (
         <Paper elevation={0} sx={{ borderRadius: "8px", overflow: "hidden" }}>
           <ErrorState message={state.error} onRetry={loadDashboard} />
@@ -485,7 +506,7 @@ function OrganizationDashboard() {
                   description={chart.description || "Data dashboard sedang disiapkan."}
                   icon={chart.icon || "solar:chart-bold-duotone"}
                   loading={state.loading}
-                  empty={!state.loading && !hasChartValues(chartData)}
+                  empty={!state.loading && !["leave", "contracts"].includes(chart.key) && !hasChartValues(chartData)}
                 >
                   {Component ? <Component data={chartData} {...chart.props} /> : null}
                 </DashboardChart>

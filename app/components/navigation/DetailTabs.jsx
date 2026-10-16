@@ -10,6 +10,7 @@ export default function DetailTabs({
   onChange,
   ariaLabel = "Navigasi detail",
   embedded = false,
+  underline = false,
 }) {
   const theme = useTheme();
   const Root = embedded ? Box : Paper;
@@ -54,7 +55,7 @@ export default function DetailTabs({
         "& .ant-tabs-ink-bar": { height: 3, borderRadius: "3px 3px 0 0" },
         "& .ant-tabs-content-holder": { minWidth: 0, maxWidth: "100%" },
         "& .ant-tabs-tabpane": { minWidth: 0, maxWidth: "100%" },
-        ...(embedded
+        ...(embedded && !underline
           ? {
               [theme.breakpoints.down("sm")]: {
                 "& .ant-tabs-nav-wrap": { overflow: "visible" },

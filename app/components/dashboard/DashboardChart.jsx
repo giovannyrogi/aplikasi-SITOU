@@ -5,7 +5,7 @@ import { Box, Paper, Skeleton, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 
 /** Shell grafik dashboard dengan tinggi stabil serta state loading dan kosong yang seragam. */
-export default function DashboardChart({ title, description, icon, loading, empty, children }) {
+export default function DashboardChart({ title, description, icon, loading, empty, action, children }) {
   const theme = useTheme();
   return (
     <Paper
@@ -26,7 +26,7 @@ export default function DashboardChart({ title, description, icon, loading, empt
         },
       }}
     >
-      <Box sx={{ display: "flex", gap: 1.25, alignItems: "flex-start", minHeight: 54 }}>
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "flex-start", minHeight: 54 }}>
         <Box
           sx={{
             width: 36,
@@ -41,7 +41,7 @@ export default function DashboardChart({ title, description, icon, loading, empt
         >
           <AppIcon icon={icon} width={20} />
         </Box>
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: "1 1 180px" }}>
           <FontStyle component="h2" fontSize={15} fontWeight={700}>
             {title}
           </FontStyle>
@@ -49,6 +49,7 @@ export default function DashboardChart({ title, description, icon, loading, empt
             {description}
           </FontStyle>
         </Box>
+        {action}
       </Box>
       <Box sx={{ mt: 1.5, minHeight: 300, minWidth: 0 }}>
         {loading ? (

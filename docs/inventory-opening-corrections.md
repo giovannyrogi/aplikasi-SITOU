@@ -1,24 +1,24 @@
-# Saldo awal dan penerimaan terlambat — migration 057
+# Stok awal dan penerimaan terlambat — migration 057
 
 ## Aturan pengguna
 
-Saldo Awal adalah persediaan sebelum pencatatan operasional, sekali per barang–gudang. Pilihan hanya tersedia jika barang/gudang/link aktif, berizin, dan belum memiliki saldo awal maupun transaksi resmi. Draft dan batas minimum bukan transaksi resmi. Pembatalan seluruh transaksi tidak membuka kesempatan membuat saldo awal kedua.
+Stok Awal adalah persediaan sebelum pencatatan operasional, sekali per barang–gudang. Pilihan hanya tersedia jika barang/gudang/link aktif, berizin, dan belum memiliki stok awal maupun transaksi resmi. Draft dan batas minimum bukan transaksi resmi. Pembatalan seluruh transaksi tidak membuka kesempatan membuat stok awal kedua.
 
-Barang Masuk boleh menjadi transaksi pertama, dimulai dari nol tanpa membuat dokumen saldo awal nol. Sebelum riwayat tersedia, stok ditampilkan **Belum ada transaksi**. Setelah riwayat dimulai, saldo nol ditampilkan **Habis**. Barang Keluar dan Stok Opname memerlukan riwayat; tanggal pembuatan master tidak membatasi tanggal penerimaan.
+Barang Masuk boleh menjadi transaksi pertama, dimulai dari nol tanpa membuat dokumen stok awal nol. Sebelum riwayat tersedia, stok ditampilkan **Belum ada transaksi**. Setelah riwayat dimulai, saldo nol ditampilkan **Habis**. Barang Keluar dan Stok Opname memerlukan riwayat; tanggal pembuatan master tidak membatasi tanggal penerimaan.
 
-Saldo awal memakai tanggal acuan stok sebelum pencatatan dimulai. Tanggal sebelumnya tidak memerlukan alasan keterlambatan; batas tanggal 30 hari dan larangan masa depan tetap berlaku. Nomor referensi tidak ditawarkan pada input saldo awal baru; nilai lama tetap dipertahankan.
+Stok awal memakai tanggal acuan stok sebelum pencatatan dimulai. Tanggal sebelumnya tidak memerlukan alasan keterlambatan; batas tanggal 30 hari dan larangan masa depan tetap berlaku. Nomor referensi tidak ditawarkan pada input stok awal baru; nilai lama tetap dipertahankan.
 
-Penerimaan terlambat tetap Barang Masuk, memakai tanggal penerimaan sebenarnya, maksimal 30 hari sebelumnya dan alasan minimal 10 karakter. Tanggal dari zona organisasi/database, bukan jam browser. Jika mendahului saldo awal manual, pengguna berizin meninjau tanggal/jumlah saldo awal yang benar; tidak mengubah tanggal kejadian agar lolos.
+Penerimaan terlambat tetap Barang Masuk, memakai tanggal penerimaan sebenarnya, maksimal 30 hari sebelumnya dan alasan minimal 10 karakter. Tanggal dari zona organisasi/database, bukan jam browser. Jika mendahului stok awal manual, pengguna berizin meninjau tanggal/jumlah stok awal yang benar; tidak mengubah tanggal kejadian agar lolos.
 
 ## Koreksi dan izin
 
-`inventory.openings.correct` berasal dari paket tambahan `inventory_opening_corrector`, **Koreksi Saldo Awal**. Tidak ada grant otomatis. Pemberi hanya Superadmin atau admin HRD penuh. Penerima harus mempunyai `inventory_manager` dengan cakupan yang mencakup cakupan koreksi. Backend memeriksa kedua permission pada gudang yang sama setiap request. Pengelola Master tidak otomatis mendapat operasional atau koreksi.
+`inventory.openings.correct` berasal dari paket tambahan `inventory_opening_corrector`, **Koreksi Stok Awal**. Tidak ada grant otomatis. Pemberi hanya Superadmin atau admin HRD penuh. Penerima harus mempunyai `inventory_manager` dengan cakupan yang mencakup cakupan koreksi. Backend memeriksa kedua permission pada gudang yang sama setiap request. Pengelola Master tidak otomatis mendapat operasional atau koreksi.
 
-Modal menampilkan nilai lama, histori, nilai baru yang ditentukan pengguna, alasan, dan preview. Koreksi mandiri dikonfirmasi sebelum disimpan. Koreksi dari draft disiapkan di form, lalu disimpan atomik bersama penerimaan; kegagalan membatalkan keduanya. Tanggal saldo awal paling lambat transaksi operasional pertama; tanggal sama berarti posisi awal hari. Nilai tidak ditebak otomatis.
+Modal menampilkan nilai lama, histori, nilai baru yang ditentukan pengguna, alasan, dan preview. Koreksi mandiri dikonfirmasi sebelum disimpan. Koreksi dari draft disiapkan di form, lalu disimpan atomik bersama penerimaan; kegagalan membatalkan keduanya. Tanggal stok awal paling lambat transaksi operasional pertama; tanggal sama berarti posisi awal hari. Nilai tidak ditebak otomatis.
 
 ## API
 
-- `GET /api/inventory/openings?organizationId=...&warehouseId=...&itemId=...`: saldo awal asal/efektif, revisions, histori, current, version, fingerprint.
+- `GET /api/inventory/openings?organizationId=...&warehouseId=...&itemId=...`: stok awal asal/efektif, revisions, histori, current, version, fingerprint.
 - `POST /api/inventory/openings`: identity yang sama, `action: preview|correct`, UUID `operationId`, `correction: {occurredOn,quantity,reason,version,fingerprint}`. Preview tidak menyimpan. Retry operation identik mengembalikan hasil tersimpan; operasi berbeda dengan UUID sama ditolak.
 - Draft/preview/post transaksi menerima `openingCorrections?: [{itemId,occurredOn,quantity,reason,version,fingerprint}]`; hanya Barang Masuk dapat menggabungkan koreksi. Omission tetap kompatibel.
 - Preview transaksi mengembalikan `calculationVersions: [{itemId,version,fingerprint}]`; wizard mengirimnya saat commit. Sumber berubah menghasilkan `VERSION_CONFLICT` dan preview ulang. API lama tanpa field tetap divalidasi ulang server.

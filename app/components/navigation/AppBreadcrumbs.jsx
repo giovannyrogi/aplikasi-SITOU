@@ -130,7 +130,6 @@ export default function AppBreadcrumbs({ items, menuList = MENU_CONFIG, fallback
                 minHeight: 28,
                 color: theme.ui.mutedText,
                 borderRadius: 1,
-                fontFamily: "Poppins, sans-serif",
                 fontSize: 11.5,
                 fontWeight: 600,
                 "&:hover": { color: theme.palette.primary.main },

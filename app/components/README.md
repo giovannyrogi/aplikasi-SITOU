@@ -1,5 +1,7 @@
 # Katalog Komponen Reusable SITOU
 
+Font UI dipusatkan di `app/theme/typography.js` (`appFont`, `APP_FONT_FAMILY`, `APP_FONT_WEIGHTS`). Layout, CSS global, Material UI, Ant Design dan grafik membaca konfigurasi yang sama; FontStyle serta breadcrumb mengikuti theme. Jangan menentukan nama font per komponen. Cara mengganti font lokal: `docs/typography.md`.
+
 Periksa katalog dan folder `app/components` sebelum membuat komponen baru. Nama komponen mengikuti fungsi umum, bukan nama menu pertama yang memakainya.
 
 ## Layout dan Filter
@@ -74,7 +76,7 @@ Seluruh tanggal form memakai `DatePicker` dengan locale terpusat; komponen fitur
 
 | Komponen                             | Tujuan                                                                                                                                                 | Props penting                                                                                               |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `forms/AsyncSelect`                  | Select async umum dengan loading dan empty state.                                                                                                      | Props AntD `Select`, `loading`, `options`                                                                   |
+| `forms/AsyncSelect`                  | Dropdown pilihan wajib untuk form, filter, dan pagination: pencarian label selalu aktif; mendukung pencarian server melalui onSearch/filterOption. | Props AntD `Select`, `loading`, `options` |
 | `forms/OrganizationScopeField`       | Pemilih organisasi Superadmin atau organisasi session HRD yang terkunci.                                                                               | `disabled`                                                                                                  |
 | `forms/FormSettingSwitch`            | Satu-satunya kontrol on/off untuk form domain non-pegawai; menyatukan judul, penjelasan, kondisi terkunci, dan field lanjutan.                         | `name`, `title`, `description`, `notice.on/off`, `disabled`, `disabledReason`, `children`, `switchProps`, `formItemProps`    |
 | `forms/FileUploadField`              | Dropzone umum untuk Excel, PDF, gambar, dan dokumen; gambar selalu dilihat melalui `ImagePreviewModal`.                                                | `value`, `accept`, `maxSizeBytes`, `onSelect`, `onRemove`, `previewUrl`                                     |
@@ -141,7 +143,7 @@ Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender
 - `ACTION_TONES` tersedia melalui `theme.action`. Tombol AntD memakai `data-action-tone="detail|download|database|files|verify|danger"`: detail biru, paket lengkap teal, database biru, file ungu, verifikasi hijau, hapus merah. Styling terpusat mencakup hover, fokus keyboard, dan target sentuh 44px.
 - `system-backup/BackupProgressPanel` menerima `job`; ikon mengikuti tahap dan hasil, bergerak hanya saat proses aktif serta menghormati prefers-reduced-motion. Gagal memakai ikon error, siap dengan temuan memakai peringatan, dan siap tanpa temuan memakai centang.
 - Token BRAND_COLORS dan STATUS_TONES berada di themeprovider/ThemeProvider.jsx serta tersedia melalui theme.brand dan theme.status. Komponen MUI, AntD, badge, dan halaman fitur harus memakai sumber warna semantik yang sama.
-- Gunakan warna brand sebagai aksen yang relevan, bukan warna bawaan seluruh angka atau panel. Ikon dekoratif berlatar warna memakai `icons/AppIconTile` agar bentuk dan intensitas latarnya sama untuk semua tone; pilih `tone` sesuai makna. Pada ringkasan saldo awal, ikon Saldo awal memakai `info` biru dan ikon Stok saat ini memakai `brand` merah; kedua nilai stok tetap netral. Warna status/aksi lain mengikuti token semantik sesuai artinya.
+- Gunakan warna brand sebagai aksen yang relevan, bukan warna bawaan seluruh angka atau panel. Ikon dekoratif berlatar warna memakai `icons/AppIconTile` agar bentuk dan intensitas latarnya sama untuk semua tone; pilih `tone` sesuai makna. Pada ringkasan stok awal, ikon Stok awal memakai `info` biru dan ikon Stok saat ini memakai `brand` merah; kedua nilai stok tetap netral. Warna status/aksi lain mengikuti token semantik sesuai artinya.
 
 ## Kepegawaian dan Akses
 
@@ -153,7 +155,7 @@ Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender
 | `employees/EmployeeDetail`             | Workspace detail responsif dengan ringkasan identitas tanpa duplikasi, preview pas foto/KTP, tab jaminan, pendidikan terstruktur, histori kontrak beserta jejak audit pelaku/waktu, dokumen, disiplin, dan akun sesuai role. | `employeeId`; tab aktif melalui query `tab`            |
 | `employees/EmployeeLifecycleForms`     | Form record baru untuk rolling/mutasi dan kontrak tanpa menimpa histori.                                                                                                                                                     | `employee`, callback                                   |
 | `employees/EmployeeTerminationForm`    | Workflow terkonfirmasi untuk status Diberhentikan, Pensiun, atau Meninggal dunia; menutup data aktif tanpa menghapus histori.                                                                                                | `open`, `employee`, `organizationId`, callback         |
-| `discipline/DisciplineForms`           | Membuka kasus, mengedit draft tindakan, menerbitkan keputusan, dan mencabut tindakan aktif dengan alasan tanpa menghapus histori.                                                                                            | `organizationId`, `disciplineCase`, `action`, callback |
+| `discipline/DisciplineForms`           | Membuka kasus, mengedit draft tindakan, menerbitkan keputusan, dan mencabut tindakan aktif dengan alasan tanpa menghapus histori. PDF lokal dipertahankan selama sesi form dan dikirim bersama tombol simpan; pembaruan data induk tidak mereset isian. Jarak field 24px, bantuan/error 8px. | `organizationId`, `disciplineCase`, `action`, callback |
 | `discipline/DisciplineCaseDetailModal` | Detail lengkap kasus, pembelaan, tindakan, eskalasi, audit penerbit/pencabutan, dan satu aksi unduh surat melalui `AppModal`.                                                                                                | `open`, `disciplineCase`, `organizationId`, `onClose`  |
 | `access/OrganizationAccountForm`       | Membuat akun organisasi, tautan profil opsional untuk HRD/Pimpinan, wajib untuk Pegawai, serta mengatur scope.                                                                                                               | `item`, `organizationId`, callback                     |
 
@@ -197,7 +199,7 @@ Lebar panel `AppModal` dibatasi oleh kolom grid yang dapat menyusut sesuai viewp
 
 `organization-settings/RetirementPolicy` menampilkan usia berlaku, dasar perhitungan, audit terakhir, dan akses laporan. Tombol Ubah/Tetapkan membuka `RetirementPolicyEditor` berbasis AppModal. Form memakai schema bersama, snapshot versi, alasan dan konfirmasi, mempertahankan isian saat gagal, serta meminta konfirmasi sebelum membuang isian. Organisasi dipertahankan di URL; Pimpinan hanya membaca. Tidak ada perubahan status pegawai otomatis.
 
-`ResponsiveDataView` membatasi track grid mobile dengan `minmax(0, 1fr)` dan membolehkan Box dalam kartu menyusut. Nama/NIP dan metadata pegawai membungkus teks panjang; tombol RowActionMenu tetap 44px dan tidak menyusut. Jangan mengganti perbaikan ukuran dengan overflow hidden yang memotong isi. Tes browser `scripts/test-retirement-policy-ui.mjs` memeriksa batas elemen kartu, bukan hanya lebar dokumen, menggunakan data sintetis panjang pada tujuh menu.
+`ResponsiveDataView` membatasi track grid mobile dengan `minmax(0, 1fr)` dan membolehkan Box dalam kartu menyusut. Nama/NIP dan metadata pegawai membungkus teks panjang; tombol RowActionMenu tetap 44px dan tidak menyusut. Jangan mengganti perbaikan ukuran dengan overflow hidden yang memotong isi. Tes browser prosedur verifikasi fitur memeriksa batas elemen kartu, bukan hanya lebar dokumen, menggunakan data sintetis panjang pada tujuh menu.
 
 - `ConfirmDialog` mendukung ikon ilustrasi, subjudul, dan children untuk rincian dampak; pemanggilan lama tetap didukung. Ikon database, folder file, unduhan paket, mata, perisai, dan tempat sampah mengikuti objek/tindakan, dengan label atau tooltip yang jelas.
 - Backup berstatus dihapus menampilkan judul dan ZIP sebagai Dihapus, tanpa spinner atau unduhan. Temuan tetap menjadi histori pemeriksaan saat backup dibuat, bukan indikator kondisi penyimpanan terkini.
@@ -317,7 +319,7 @@ Teks catatan dibungkus aman dan justify dengan line-height 1.6.
 
 ## Komponen hak akses HRIS
 
-AppIcon menyediakan ikon semantik tambahan untuk transaksi Inventaris (saldo awal, masuk, keluar, pengembalian, stok opname, pembatalan, tambah, dan hapus). Gunakan ID ikon yang terdaftar; ID yang tidak ada akan menampilkan ikon tanda tanya.
+AppIcon menyediakan ikon semantik tambahan untuk transaksi Inventaris (stok awal, masuk, keluar, pengembalian, stok opname, pembatalan, tambah, dan hapus). Gunakan ID ikon yang terdaftar; ID yang tidak ada akan menampilkan ikon tanda tanya.
 
 HrisAccessFields menyusun kelompok menu utama, checkbox submenu dan tingkat
 Lihat Saja/Kelola dalam OrganizationAccountForm yang sama dengan Inventaris.
@@ -366,14 +368,25 @@ adapter yang sama. Scanner optional hanya development; production tetap fail clo
 
 LoadingBackdropProvider membedakan token proses (startLoading/runWithLoadingBackdrop)
 dan token navigasi. Token navigasi memiliki deadline 30 detik agar pembatalan stream
-RSC tidak mengunci overlay selamanya; timeout hanya melepas token navigasi dan
-menampilkan Notification agar pengguna dapat memilih menu/muat ulang. Back/Forward
+RSC tidak mengunci overlay selamanya. Jika href internal tersedia dan tidak ada proses upload/simpan aktif, timeout membuka tujuan yang sama lewat request dokumen baru. Tanpa href valid atau saat proses lain masih aktif, hanya token navigasi dilepas dan Notification pemulihan tampil. Back/Forward
 serta pageshow persisted juga melepas token navigasi. Timer lama dibatalkan ketika
 navigasi selesai/diganti atau provider dilepas. Token upload/simpan tidak diakhiri
 oleh pemulihan navigasi. Fase request login/logout memakai token proses, sedangkan
 perpindahan setelah respons memakai token navigasi; endpoint dan aturan auth tetap.
 
+### Export daftar Cuti & Izin
+
+`reports/LeaveBalanceFields` menyatukan label, angka, dan satuan Hak/Terpakai/Sisa pada tiga kolom desktop dan grup saldo mobile. `LeaveBalanceValue` menekankan Sisa dengan token brand serta menyediakan label aksesibel, tanpa memotong angka. `LeaveBalanceEmpty` membedakan saldo belum tersedia dari jenis tanpa saldo. Rekap memakai ReportIdentity/EmployeeAvatar dan ImagePreviewModal untuk foto privat profil.
+
+`reports/LeaveSummaryReport` menyusun PageHeader, OperationalFilterSection, DataPanel, ResponsiveDataView dan DataPagination untuk **Rekap Cuti & Izin**, tanpa kartu/grafik yang berulang dengan Dashboard. Cari pegawai berada sebelum Tahun; dropdown menggunakan AsyncSelect. `LeaveSummaryDetailsModal` memakai AppModal dengan API laporan sendiri. Ikon menu `navigation:leave-summary` berbeda dari kalender operasional. Filter tersimpan di URL; loading, kosong, dan error terpisah. Hak akses dan definisi angka: `docs/leave-summary-report.md`.
+
+`ProtectedShell` membedakan logout yang sedang berjalan dari sesi kedaluwarsa. Logout menghentikan polling, membatalkan request akses aktif, menonaktifkan timer sesi serta modal countdown, dan mengabaikan respons lama. Kegagalan logout memulihkan pemeriksaan sesi dan memungkinkan percobaan ulang; sesi yang benar-benar berakhir tetap menampilkan ExpiredSessionModal.
+
+Daftar Cuti & Izin memakai `DataPanel.exportConfig` dan `TableExportMenu` yang sama dengan tabel lain. Excel memakai query daftar tanpa pagination melalui `/api/leave-requests/export`; PDF tetap notifikasi Coming soon. Label jenis/status/satuan dipusatkan di `lib/leave/labels.mjs` dan diekspor ulang oleh `leave/leaveLabels` agar UI dan workbook konsisten. Kontrak ekspor: `docs/leave-export.md`.
+
 ### Metadata dan preview upload Inventaris
+
+`FileUploadField` membuat ulang pemilih file native setelah penghapusan berhasil agar file yang sama dapat dipilih kembali. Callback hapus yang mengembalikan `false` mempertahankan pilihan dan input; kegagalan hapus tidak dianggap berhasil.
 
 `FileUploadField` membaca metadata melalui `lib/ui/uploadMetadata.mjs`. File lokal,
 DTO Kepegawaian (`mime_type`, `size_bytes`), dan DTO Inventaris (`mimeType`,
@@ -421,3 +434,51 @@ Lihat docs/inventory-distribution.md. Distribusi memakai transaksi/line/reversal
 
 
 TableExportMenu menerima `formats` opsional (default Excel/PDF). Distribusi memilih `["excel"]` sehingga UI hanya menawarkan format yang sudah tersedia. Perhitungan kartu laporan menggunakan DashboardMetric bersama; error tidak dirender sebagai nilai nol.
+
+Ringkasan transaksi: satu InventoryItemCard rata kiri, beberapa kartu mengikuti grid responsif. Jumlah masuk/keluar/kembali berada dalam kelompok Perubahan stok gudang; jumlah perubahan memakai info/warning, hasil stok memakai statusnya. Stok awal dan seluruh label Inventaris memakai istilah stok, bukan saldo.
+
+`data-display/ActorIdentity` memakai `PhotoAvatar` dan `ImagePreviewModal` untuk nama pelaku serta pas foto dengan target 44px/keyboard. Metadata Inventaris memakai nama pertama–terakhir dari profil tertaut, fallback username; tidak berasal dari akun pembaca. URL avatar tetap `/api/uploads/:fileId`, terikat transaksi/pelaku/konteks baca dan scope gudang terbaru; tidak membuka izin profil HRIS. Ekspor menggunakan nama ringkas yang sama.
+
+Jabatan di bawah nama pelaku Inventaris berasal dari penempatan utama yang berlaku hari ini menurut timezone organisasi. `ActorIdentity` menerima `position` opsional; profil tanpa jabatan tidak menampilkan keterangan pengganti. Riwayat transaksi menempatkan Disimpan oleh sebelum Status.
+
+### Workspace Dashboard
+
+`dashboard/DashboardWorkspace` memakai `DetailTabs` embedded hanya jika Inventaris berizin. `EmployeeDashboard` memakai ringkasan self-service, PhotoAvatar dan ImagePreviewModal; `InventoryDashboard` memakai DashboardMetric, DashboardChart, StackedBarChart/HorizontalBarChart, ResponsiveDataView dan InventoryItemPhoto. Section data terpisah per permission/scope, status loading/kosong/error dan retry memakai helper API bersama. Jarak section 24px, kontrol 44px. Grafik bukan data contoh dan tidak menjumlahkan satuan barang berbeda.
+
+Dashboard Pegawai dan Inventaris: tab setelah header, tanpa Draft saya/Akses cepat. Aktivitas transaksi memakai area penuh dengan filter tahun, bulan, minggu; ringkasan tetap bulan ini. Warna jenis konsisten dengan riwayat.
+
+Dashboard Inventaris: tab memakai garis bawah. Stok menipis/habis memakai kartu produk horizontal yang dapat digeser dengan keyboard/sentuhan; transaksi bulanan berupa daftar jenis dan jumlah di atas kartu ringkasan. Tooltip aktivitas memakai tanggal lengkap, sumbu area menyisakan ruang puncak dan ujung label.
+
+DataPanel menerima action opsional di kanan judul. Aksi lihat semua stok memakai ikon action:view-all, tooltip, aria-label, dan target 44px; filter gudang dan organisasi tetap dibawa.
+
+Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.
+
+DonutChart mendukung type=pie dan unit untuk komposisi jumlah pencatatan, tanpa label pegawai yang keliru. Statistik sanksi memakai HorizontalBarChart integer/scrollable. Kartu Stok membuka TransactionDetailModal berizin di tempat tanpa navigasi dan tanpa aksi pembatalan.
+
+CategoryPieSummary menampilkan pie bersama total dan daftar jenis/jumlah termasuk nol, memakai warna tema yang sama. ContractEndingSummary menyajikan Rekap Akhir Kontrak berupa daftar bulanan berlabel status dan total. Keduanya memakai region scroll berkeyboard dan menyembunyikan scrollbar lokal.
+
+Cuti & Izin memakai donat dengan total pencatatan di tengah dan daftar jenis/jumlah. DonutChart memakai lubang 72%, angka total 30px tebal, label netral 12px, serta total tetap saat hover. Jenis kelamin memakai biru info dan merah brand palette.primary.main; kategori cuti memakai merah brand sebagai warna pertama disertai warna tema lainnya.
+
+Daftar CategoryPieSummary dibatasi lebar 288px dan tinggi scroll 240px; label 12px, jumlah 14px dengan angka tabular, padding kanan aman, nama panjang membungkus. Lebih dari lima jenis menampilkan petunjuk gulir; fokus keyboard dan scroll sentuhan tetap tersedia.
+
+Label pengguna pada donat Cuti & Izin memakai Total cuti & izin dan satuan tooltip cuti/izin. Jumlah tetap menghitung pengajuan/catatan approved per jenis, bukan hari atau pegawai unik.
+
+Jadwal Kontrak Berakhir menggantikan rekap histori kontrak: jumlah kontrak aktif yang telah mulai, pegawai aktif/probation/suspended, bertanggal akhir mulai hari ini menurut timezone organisasi sampai akhir bulan kalender ke-12. Query dashboard dan laporan memakai buildReportQuery yang sama dengan contractStatus=active; kontrak draft, dibatalkan, berakhir, diperpanjang, tanpa tanggal akhir, serta pegawai final tidak dihitung. Setiap bulan menampilkan jumlah kontrak akan berakhir. Lihat pegawai hanya tersedia bagi akun berizin laporan Kontrak Akan Berakhir, mempertahankan organisasi dan rentang bulan. Tidak memakai label Aktif/Selesai atau diperpanjang pada panel jadwal.
+
+Jadwal Kontrak Berakhir memakai ikon kalender per bulan (netral jika kosong, info jika ada kontrak), jumlah yang menonjol, serta aksi mata 44px dengan tooltip/aria-label. Bulan tanpa kontrak tidak memiliki aksi kosong; daftar tetap dapat digulir dan diakses keyboard.
+
+Jadwal Kontrak Berakhir memakai kalender brand merah untuk bulan dengan data. Ikon mata membuka ContractEmployeesModal di dashboard, memakai API laporan yang sama dan filter bulan/organisasi/status aktif. Modal memakai AppModal, ResponsiveDataView, DataPagination cursor, ReportIdentity/ReportRemaining, dan ImagePreviewModal untuk pas foto. Pemeriksaan izin laporan tetap di backend; menutup modal mempertahankan halaman serta posisi dashboard.
+
+LeaveBalanceFields memakai CompactInfoChip dan kondisi bersama leavePresentation.mjs. LeaveSummaryDetailsModal menampilkan identitas, ringkasan angka dan saldo, serta daftar kartu kejadian lima data per halaman memakai DataPagination keyset. Informasi privat tetap mengikuti izin laporan; loading, kosong, dan error memakai komponen bersama.
+
+Navigasi sidebar memakai useTransition agar loading selesai juga ketika redirect kembali ke pathname yang sama. href pemulihan hanya dikirim setelah guard isian menyetujui navigasi; tujuan wajib satu origin dan seluruh otorisasi server tetap berlaku. Token upload/simpan tidak dilepas oleh pemulihan navigasi.
+
+InventoryStockMetric menyatukan ukuran tile 36px, ikon 18px, label 11.5px dan nilai 13.5px pada ringkasan stok wizard. Tidak ada varian prominent. Jumlah mengikuti tone jenis transaksi, Sebelum netral, Sesudah info (nol memakai danger). Divider bersama memisahkan jumlah dari Sebelum/Sesudah; panel memakai padding dan gap 16px.
+
+HorizontalCarousel adalah daftar horizontal reusable dengan autoplay kondisional overflow, loop ke kiri, kontrol manual, jeda interaksi/visibilitas, dan reduced motion. Props: items, getKey, renderItem(item,{isClone}), label, paused. Semua elemen interaktif pada salinan visual wajib memakai tabIndex=-1. StockAttentionCard memakai InventoryItemPhoto (tabIndex opsional), CompactInfoChip, FontStyle dan token tema untuk panel Stok perlu diisi kembali.
+
+chartAdapter: fill grafik area memakai gradasi vertikal dari lighten(warna seri,0.76) ke lighten(warna seri,0.97) dengan opacity 1. Warna muda dibentuk sebelum dirender agar hue seri tetap terbaca saat bertumpuk; bukan lapisan alpha yang saling mencampur warna. Grafik non-area tetap memakai fill semula.
+
+StockAttentionCard: chip Stok segera habis/Stok habis, border atas, label/angka Stok tersedia dan permukaan stok memakai token brand SITOU. Kondisi tetap dihitung server; label segera habis hanya penyebutan stok di bawah minimum, tanpa prediksi.
+
+RecentInventoryTransactions memakai KindMark (tone override opsional), CompactInfoChip, ActorIdentity dan FontStyle untuk kartu Transaksi terbaru. Props: transactions, organizationId. Memuat label metadata yang jelas, status pembatalan, aksen/shadow tema, tautan detail, layout 1/2/4 bagian responsif, serta reduced motion. Ringkasan menerima DTO berizin. Aksi detail memakai API transaksi privat yang sudah tersedia serta TransactionDetailModal tanpa mutasi, dengan LoadingBackdropProvider/Notification dan pembatalan request saat unmount. Tombol ikon saja pada desktop/tablet, ikon+teks pada mobile; URL dan posisi halaman tetap.

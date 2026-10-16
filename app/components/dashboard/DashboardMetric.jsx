@@ -6,7 +6,7 @@ import FontStyle from "@/app/components/font-style/FontStyle";
 import MetricSparkline from "./MetricSparkline";
 
 /** Menampilkan KPI dashboard dengan aksen semantik yang tidak mendominasi panel. */
-export default function DashboardMetric({ metric, loading }) {
+export default function DashboardMetric({ metric, loading, refined = false }) {
   const theme = useTheme();
   const tone = theme.status[metric?.tone] || theme.status.info;
   return (
@@ -18,12 +18,12 @@ export default function DashboardMetric({ metric, loading }) {
         height: "100%",
         minHeight: 132,
         overflow: "hidden",
-        p: 2,
+        p: refined ? 3 : 2,
         border: `1px solid ${theme.ui.dashboardCardBorder}`,
-        borderTop: `3px solid ${tone.main}`,
+        borderTop: refined ? undefined : `3px solid ${tone.main}`,
         borderRadius: "8px",
         bgcolor: theme.ui.dashboardCardBg,
-        boxShadow: theme.ui.dashboardCardShadow,
+        boxShadow: refined ? "none" : theme.ui.dashboardCardShadow,
         color: "inherit",
         textDecoration: "none",
         cursor: "default",
@@ -46,10 +46,10 @@ export default function DashboardMetric({ metric, loading }) {
         <>
           <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1.5 }}>
             <Box sx={{ minWidth: 0 }}>
-              <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText, lineHeight: 1.5 }}>
+              <FontStyle fontSize={refined ? 13 : 11.5} sx={{ color: theme.ui.mutedText, lineHeight: 1.5 }}>
                 {metric.label}
               </FontStyle>
-              <FontStyle fontSize={28} fontWeight={700} sx={{ mt: 0.5 }}>
+              <FontStyle fontSize={refined ? 32 : 28} fontWeight={700} sx={{ mt: 0.5 }}>
                 {new Intl.NumberFormat("id-ID").format(metric.value)}
               </FontStyle>
             </Box>
@@ -73,7 +73,7 @@ export default function DashboardMetric({ metric, loading }) {
               <MetricSparkline data={metric.trendData} color={tone.main} />
             </Box>
           ) : (
-            <FontStyle fontSize={10.5} sx={{ mt: 1.2, color: theme.ui.mutedText }}>
+            <FontStyle fontSize={refined ? 12 : 10.5} sx={{ mt: 1.2, color: theme.ui.mutedText }}>
               {metric.description || "Data diperbarui dari kondisi operasional terkini."}
             </FontStyle>
           )}

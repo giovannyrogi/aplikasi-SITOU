@@ -2,7 +2,7 @@
 
 import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Button, DatePicker, Form, Input, Select } from "antd";
 import { Box, useTheme } from "@mui/material";
 import dayjs from "dayjs";
@@ -147,7 +147,10 @@ export function DisciplinaryActionForm({
   const [form] = Form.useForm();
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const [file, setFile] = useState(null);
+  const [fileError, setFileError] = useState("");
+  const initializedSession = useRef(null);
   const [actionTypes, setActionTypes] = useState([]);
+  const reportLoadError = useEffectEvent((message) => onError(message));
   const actionTypeId = Form.useWatch("actionTypeId", form);
   const actionStatus = Form.useWatch("status", form);
   const effectiveFrom = Form.useWatch("effectiveFrom", form);
@@ -178,12 +181,19 @@ export function DisciplinaryActionForm({
       .then(readApiResponse)
       .then((body) => setActionTypes(body.data || []))
       .catch((error) => {
-        if (error.name !== "AbortError") onError(error.message);
+        if (error.name !== "AbortError") reportLoadError(error.message);
       });
     return () => controller.abort();
-  }, [disciplineCase.organization_id, onError, open]);
+  }, [disciplineCase.organization_id, open]);
   useEffect(() => {
-    if (open) {
+    if (!open) {
+      initializedSession.current = null;
+      return;
+    }
+    // Refresh session/data induk tidak boleh menghapus isian dan PDF yang belum disimpan.
+    const sessionKey = `${disciplineCase.organization_id}:${disciplineCase.id}:${action?.id || "new"}`;
+    if (initializedSession.current !== sessionKey) {
+      initializedSession.current = sessionKey;
       form.resetFields();
       form.setFieldsValue({
         organizationId: disciplineCase.organization_id,
@@ -196,7 +206,9 @@ export function DisciplinaryActionForm({
         escalationReason: action?.escalation_reason || null,
         notes: action?.notes || null,
       });
-      queueMicrotask(() =>
+      queueMicrotask(() => {
+        if (initializedSession.current !== sessionKey) return;
+        setFileError("");
         setFile(
           action?.document_file_id
             ? {
@@ -206,8 +218,8 @@ export function DisciplinaryActionForm({
                 size_bytes: action.document_size_bytes,
               }
             : null,
-        ),
-      );
+        );
+      });
     }
   }, [action, disciplineCase, form, open]);
 
@@ -233,6 +245,7 @@ export function DisciplinaryActionForm({
         throw new Error("Nomor surat wajib diisi untuk tindakan tertulis ini.");
       }
       if (submittedRequiresDocument && !file) {
+        setFileError("Pilih PDF surat sebelum menyimpan tindakan aktif.");
         throw new Error("PDF surat wajib diunggah sebelum tindakan tertulis disimpan.");
       }
       await runWithLoadingBackdrop(
@@ -260,6 +273,8 @@ export function DisciplinaryActionForm({
       );
     } catch (error) {
       applyApiFieldErrors(form, error);
+      if (error.fieldErrors?.documentFileId || error.fieldErrors?.file)
+        setFileError(error.fieldErrors.documentFileId || error.fieldErrors.file);
       onError(error.message);
     }
   };
@@ -279,7 +294,21 @@ export function DisciplinaryActionForm({
         </>
       }
     >
-      <Form form={form} layout="vertical" onFinish={submit}>
+      <Box
+        component={Form}
+        form={form}
+        layout="vertical"
+        onFinish={submit}
+        scrollToFirstError={{ behavior: "smooth", block: "center" }}
+        sx={{
+          display: "grid",
+          gap: 3,
+          pb: 1,
+          "& .ant-form-item": { marginBottom: 0, minWidth: 0 },
+          "& .ant-form-item-extra, & .ant-form-item-explain": { paddingTop: 1, lineHeight: 1.6 },
+          "& .ant-picker, & .ant-select, & input.ant-input": { minHeight: 44 },
+        }}
+      >
         <Form.Item name="organizationId" hidden>
           <Input />
         </Form.Item>
@@ -349,12 +378,8 @@ export function DisciplinaryActionForm({
         <Form.Item
           label={requiresWrittenDocument ? "PDF surat tindakan" : "PDF pendukung (opsional)"}
           required={requiresWrittenDocument}
-          validateStatus={requiresWrittenDocument && !file ? "error" : undefined}
-          help={
-            requiresWrittenDocument && !file
-              ? "PDF surat wajib diunggah sebelum tindakan tertulis disimpan."
-              : undefined
-          }
+          validateStatus={fileError ? "error" : undefined}
+          help={fileError || undefined}
         >
           <FileUploadField
             value={file}
@@ -368,13 +393,22 @@ export function DisciplinaryActionForm({
             emptyTitle="Pilih atau tarik surat tindakan ke area ini"
             helpText="Gunakan PDF resmi maksimal 10 MB. Dokumen tertulis diperiksa kembali saat tindakan disimpan."
             selectedText="Dokumen terpilih dan siap disimpan"
-            onSelect={setFile}
-            onRemove={() => setFile(null)}
-            onError={onError}
+            onSelect={(selectedFile) => {
+              setFile(selectedFile);
+              setFileError("");
+            }}
+            onRemove={() => {
+              setFile(null);
+              setFileError("");
+            }}
+            onError={(message) => {
+              setFileError(message);
+              onError(message);
+            }}
           />
         </Form.Item>
         {supportsDirectEscalation ? (
-          <FormSettingsGroup sx={{ mb: 3 }}>
+          <FormSettingsGroup>
             <FormSettingSwitch
               name="directEscalation"
               title="Terbitkan langsung tanpa tahapan sebelumnya"
@@ -398,7 +432,7 @@ export function DisciplinaryActionForm({
         <Form.Item name="notes" label="Catatan internal">
           <Input.TextArea rows={2} maxLength={3000} />
         </Form.Item>
-      </Form>
+      </Box>
     </AppModal>
   );
 }

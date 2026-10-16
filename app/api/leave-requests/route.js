@@ -9,35 +9,17 @@ import {
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
-import { leaveListFilterSchema, leaveRequestCreateSchema } from "@/lib/leave/schemas";
+import { leaveListFilterSchema, leaveListFilterInput, leaveRequestCreateSchema } from "@/lib/leave/schemas";
 import { createLeaveRequest, listLeaveRequests } from "@/lib/leave/service";
 import { MAX_LEAVE_REQUEST_BYTES } from "@/lib/leave/requestRules.mjs";
 
-const filterInput = (params) => ({
-  organizationId: params.get("organizationId") || null,
-  employeeId: params.get("employeeId") || null,
-  leaveTypeId: params.get("leaveTypeId") || null,
-  locationId: params.get("locationId") || null,
-  organizationUnitId: params.get("organizationUnitId") || null,
-  positionId: params.get("positionId") || null,
-  requestStatus: params.get("requestStatus") || "all",
-  category: params.get("category") || "all",
-  periodState: params.get("periodState") || "all",
-  source: params.get("source") || "all",
-  balanceMode: params.get("balanceMode") || "all",
-  attachment: params.get("attachment") || "all",
-  employeeStatus: params.get("employeeStatus") || "all",
-  startDate: params.get("startDate") || null,
-  endDate: params.get("endDate") || null,
-  sort: params.get("sort") || "start_desc",
-});
 export async function GET(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("leave_requests.read");
   if (response) return response;
   try {
     const url = new URL(request.url);
-    const parsed = leaveListFilterSchema.safeParse(filterInput(url.searchParams));
+    const parsed = leaveListFilterSchema.safeParse(leaveListFilterInput(url.searchParams));
     if (!parsed.success)
       return errorResponse("VALIDATION_ERROR", "Filter cuti dan izin tidak valid.", 400, requestId);
     const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);

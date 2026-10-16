@@ -11,6 +11,8 @@ Dokumen ini adalah peta cepat database SITOU. Gunakan dokumen ini sebelum membuk
 
 ## Prinsip Umum
 
+- Migration `058` menambah seed menu HRIS `leave-summary-report` untuk Rekap Cuti & Izin. Tidak menambah tabel bisnis atau memberi grant otomatis. Laporan memakai `leave_requests`, `leave_entitlements`, dan `leave_balance_transactions`; lihat `docs/leave-summary-report.md`.
+
 - `organization_id` adalah batas organisasi utama pada semua tabel bisnis.
 - Histori pegawai tidak ditimpa: kontrak ada di `employment_contracts`, penempatan/rolling ada di `employee_assignments`, dan event absensi mentah ada di `attendance_events`.
 - File privat tidak pernah dikirim sebagai `object_key` langsung ke browser. Metadata file ada di `stored_files`, termasuk `employee_id` atau `onboarding_draft_id` untuk otorisasi pemilik.
@@ -362,16 +364,16 @@ perubahan tabel atau migration untuk penyesuaian Dashboard/editor ini.
 
 ## Transaksi stok Inventaris — migration 054
 
-`inventory_transactions` menyimpan header draft dan transaksi terposting, tanggal kejadian, waktu pencatatan sebenarnya, gudang, tujuan barang keluar, referensi, serta relasi asal/pembatalan. Draft menyimpan checkpoint parsial di `draft_payload` dan tidak mengubah stok. `inventory_transaction_lines` menyimpan barang, jumlah, selisih stok, dan referensi baris asal pengembalian. `inventory_stock_openings` menjamin saldo awal hanya satu kali per barang–gudang; `inventory_stock_movements` adalah riwayat stok append-only; `inventory_stock_balances` adalah saldo turunan yang diperbarui dalam transaksi database yang sama. `inventory_transaction_files` menyiapkan referensi lampiran privat tanpa menyimpan byte di database. Seluruh relasi bisnis memakai pasangan organisasi dan ID.
+`inventory_transactions` menyimpan header draft dan transaksi terposting, tanggal kejadian, waktu pencatatan sebenarnya, gudang, tujuan barang keluar, referensi, serta relasi asal/pembatalan. Draft menyimpan checkpoint parsial di `draft_payload` dan tidak mengubah stok. `inventory_transaction_lines` menyimpan barang, jumlah, selisih stok, dan referensi baris asal pengembalian. `inventory_stock_openings` menjamin stok awal hanya satu kali per barang–gudang; `inventory_stock_movements` adalah riwayat stok append-only; `inventory_stock_balances` adalah saldo turunan yang diperbarui dalam transaksi database yang sama. `inventory_transaction_files` menyiapkan referensi lampiran privat tanpa menyimpan byte di database. Seluruh relasi bisnis memakai pasangan organisasi dan ID.
 
 Migration 056 menambahkan checkpoint tahap, `updated_at`, masa berlaku, dan tanda draft dibuang pada header transaksi. Draft Transaksi Barang terpisah dari `employee_onboarding_drafts`; beberapa draft aktif boleh dimiliki satu petugas. Lampiran draft ditautkan privat melalui `stored_files.inventory_transaction_draft_id` dan slot per jenis bukti. Penyimpanan ulang memakai `version` agar dua tab tidak saling menimpa; draft kedaluwarsa/dibuang dan lampirannya dibersihkan oleh worker lifecycle tanpa mengubah riwayat transaksi terposting.
 
-Permission `inventory.transactions.create` dan `inventory.transactions.cancel` diberikan kepada Pengelola Gudang dalam scope grant-nya serta Superadmin; Lihat Saja tetap hanya membaca, Pengelola Master tidak memperoleh hak transaksi. Saldo awal nol sah. Posting memeriksa saldo historis tidak negatif, mengunci barang–gudang dalam urutan ID, dan mengaudit hasilnya. Kartu Stok nantinya membaca `inventory_stock_movements`, bukan ledger baru.
+Permission `inventory.transactions.create` dan `inventory.transactions.cancel` diberikan kepada Pengelola Gudang dalam scope grant-nya serta Superadmin; Lihat Saja tetap hanya membaca, Pengelola Master tidak memperoleh hak transaksi. Stok awal nol sah. Posting memeriksa saldo historis tidak negatif, mengunci barang–gudang dalam urutan ID, dan mengaudit hasilnya. Kartu Stok nantinya membaca `inventory_stock_movements`, bukan ledger baru.
 
-Migration 055 menambahkan kategori `inventory_transaction_attachment` untuk bukti pembelian, dokumen permintaan, dan foto serah terima. File disimpan privat dan hanya diunduh melalui ID setelah permission transaksi serta cakupan gudang diperiksa. Referensi lampiran transaksi terdaftar sebagai histori resmi di pemeliharaan file. Trigger database melarang edit/hapus transaksi terposting, rincian, saldo awal, dan riwayat gerakan stok; pembatalan tetap mencatat transaksi pembalik baru.
+Migration 055 menambahkan kategori `inventory_transaction_attachment` untuk bukti pembelian, dokumen permintaan, dan foto serah terima. File disimpan privat dan hanya diunduh melalui ID setelah permission transaksi serta cakupan gudang diperiksa. Referensi lampiran transaksi terdaftar sebagai histori resmi di pemeliharaan file. Trigger database melarang edit/hapus transaksi terposting, rincian, stok awal, dan riwayat gerakan stok; pembatalan tetap mencatat transaksi pembalik baru.
 
 
-## Revisi saldo awal — migration 057
+## Revisi stok awal — migration 057
 
 Lihat `docs/inventory-opening-corrections.md` untuk aturan eligibility, permission koreksi, kontrak API, proyeksi replay bersama, dan rollout legacy. `OpeningCorrectionModal` memakai AppModal, ConfirmDialog, AppNotice dan InventoryQuantityChip; koreksi dari draft hanya menyiapkan perubahan sampai Simpan transaksi. AppIcon mendaftarkan inventory:stock-card, inventory:minimum, inventory:opening-correction.
 
@@ -384,3 +386,7 @@ Tidak ada perubahan schema. Filter bloodType memakai employees.blood_type dan pi
 ### Laporan Distribusi Barang
 
 Lihat docs/inventory-distribution.md. Distribusi memakai transaksi/line/reversal existing, tanpa migration atau perubahan saldo. DistributionPanel menggunakan DataPanel, ResponsiveDataView, DataPagination, OperationalFilterSection, DashboardMetric, chip, modal dan preview terpusat. TransactionDetailModal/TransactionPresentationParts dipakai bersama dengan Transaksi Barang; onCancel hanya diberikan workspace transaksi berizin, bukan laporan.
+
+## Ringkasan Dashboard
+
+Dashboard Pegawai membaca profil tertaut dan histori penempatan/kontrak sendiri melalui permission self-service. Ringkasan Inventaris membaca proyeksi stok, transaksi resmi, draft sendiri dan lokasi penyaluran menurut scope setiap permission, tanpa tabel atau migration baru. Kontrak API/perhitungan tersedia di `docs/dashboard-workspace.md`.

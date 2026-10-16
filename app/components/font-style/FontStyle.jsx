@@ -1,8 +1,9 @@
 import { Typography } from "@mui/material";
+import { APP_FONT_WEIGHTS } from "@/app/theme/typography";
 
 const FontStyle = ({
   children,
-  fontWeight = 500,
+  fontWeight = APP_FONT_WEIGHTS.regular,
   fontSize = 12,
   explanation = false,
   sx = {},
@@ -13,7 +14,6 @@ const FontStyle = ({
       {...props}
       sx={{
         fontWeight,
-        fontFamily: "Poppins, sans-serif",
         fontSize: typeof fontSize === "number" ? `${fontSize}px` : fontSize,
         whiteSpace: "pre-line",
         wordBreak: "break-word",

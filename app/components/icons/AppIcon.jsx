@@ -2,6 +2,7 @@
 
 import {
   ApartmentOutlined,
+  ArrowRightOutlined,
   AppstoreOutlined,
   BankOutlined,
   BarChartOutlined,
@@ -89,6 +90,7 @@ const ICONS = {
   "navigation:employees": TeamOutlined,
   "navigation:employee-data": IdcardOutlined,
   "navigation:leave": CalendarOutlined,
+  "navigation:leave-summary": FileDoneOutlined,
   "navigation:reports": BarChartOutlined,
   "navigation:expiring-contract": FileTextOutlined,
   "navigation:retirement-projection": FieldTimeOutlined,
@@ -122,6 +124,7 @@ const ICONS = {
   "solar:chart-square-bold-duotone": BarChartOutlined,
   "clarity:contract-solid": FileTextOutlined,
   "solar:document-text-bold-duotone": FileTextOutlined,
+  "action:view-all": ArrowRightOutlined,
   "inventory:stock-card": UnorderedListOutlined,
   "inventory:minimum": SettingOutlined,
   "inventory:opening-correction": AuditOutlined,

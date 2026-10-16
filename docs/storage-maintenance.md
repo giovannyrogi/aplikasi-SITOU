@@ -79,9 +79,11 @@ Pesan yang lebih jelas tidak membuktikan penyebab jaringan telah diperbaiki.
 
 ## Verifikasi
 
-- `node scripts/test-storage-reference-cleanup-db.mjs`: membuat database bootstrap
+- prosedur verifikasi fitur: membuat database bootstrap
   serta direktori upload sementara; menguji dokumen resmi tanpa referensi, orphan,
   file hilang, race referensi, organisasi berbeda, dan retry tanpa data pengguna.
-- `node --test tests/storage-maintenance.test.mjs tests/storage-reference-policy.test.mjs`
-- `npm run test:storage-maintenance:http`: pemeriksaan akses Superadmin/HRD terhadap server lokal.
+- prosedur verifikasi fitur
+- prosedur verifikasi fitur: pemeriksaan akses Superadmin/HRD terhadap server lokal.
 - Lint, build produksi, dan regresi upload pegawai tetap wajib.
+
+Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.

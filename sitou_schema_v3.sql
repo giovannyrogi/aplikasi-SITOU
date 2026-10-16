@@ -1993,6 +1993,7 @@ CREATE TABLE hris_menu_definitions (
  route_path varchar(160) NOT NULL UNIQUE, can_manage boolean NOT NULL
 );
 INSERT INTO hris_menu_definitions(code,label,group_label,route_path,can_manage) VALUES
+ ('leave-summary-report','Rekap Cuti & Izin','Laporan','/reports/leave-summary',false),
  ('dashboard','Dashboard','Dashboard','/dashboard',false),
  ('master-locations','Lokasi','Data Master','/master-data/locations',true),
  ('master-organization-unit-types','Jenis Unit Organisasi','Data Master','/master-data/organization-unit-types',true),
