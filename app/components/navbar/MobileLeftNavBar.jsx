@@ -4,7 +4,7 @@ import { Drawer, useTheme } from "@mui/material";
 import { usePathname } from "next/navigation";
 import SidebarContent from "./SidebarContent";
 
-export default function MobileLeftNavBar({ menus, user, open, onClose, onNavigate }) {
+export default function MobileLeftNavBar({ menus, user, open, onClose, onNavigate, onRenew }) {
   const theme = useTheme();
   const pathname = usePathname();
 
@@ -30,6 +30,7 @@ export default function MobileLeftNavBar({ menus, user, open, onClose, onNavigat
       }}
     >
       <SidebarContent
+        onRenew={onRenew}
         menus={menus}
         user={user}
         pathname={pathname}

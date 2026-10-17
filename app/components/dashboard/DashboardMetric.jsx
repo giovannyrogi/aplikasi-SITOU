@@ -1,12 +1,62 @@
 "use client";
 
-import AppIcon from "@/app/components/icons/AppIcon";
-import { Box, Paper, Skeleton, useTheme } from "@mui/material";
+import AppIconTile from "@/app/components/icons/AppIconTile";
+import { Box, Paper, Skeleton, LinearProgress, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import MetricSparkline from "./MetricSparkline";
 
+function MetricValue({ metric, refined, balanced = false }) {
+  return (
+    <>
+      {metric.valueText ? (
+        <FontStyle
+          fontSize={20}
+          fontWeight={700}
+          sx={{ mt: balanced ? 0 : 1.5, overflowWrap: "anywhere" }}
+        >
+          {metric.valueText}
+        </FontStyle>
+      ) : (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            columnGap: 2.5,
+            rowGap: 1,
+            mt: balanced ? 0 : 1,
+          }}
+        >
+          {(metric.parts || [{ value: metric.value, unit: metric.unit }]).map((part, index) => (
+            <Box key={index} sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}>
+              <FontStyle
+                component="span"
+                fontSize={balanced ? { xs: 32, sm: 36, xl: 40 } : refined ? 32 : 28}
+                fontWeight={700}
+              >
+                {part.value == null ? "—" : new Intl.NumberFormat("id-ID").format(part.value)}
+              </FontStyle>
+              {part.unit ? (
+                <FontStyle component="span" fontSize={12} sx={{ color: "text.secondary" }}>
+                  {part.unit}
+                </FontStyle>
+              ) : null}
+            </Box>
+          ))}
+        </Box>
+      )}
+    </>
+  );
+}
+
 /** Menampilkan KPI dashboard dengan aksen semantik yang tidak mendominasi panel. */
-export default function DashboardMetric({ metric, loading, refined = false }) {
+export default function DashboardMetric({
+  metric,
+  loading,
+  refined = false,
+  selection,
+  balanced = false,
+}) {
   const theme = useTheme();
   const tone = theme.status[metric?.tone] || theme.status.info;
   return (
@@ -15,6 +65,8 @@ export default function DashboardMetric({ metric, loading, refined = false }) {
       elevation={0}
       sx={{
         position: "relative",
+        display: "flex",
+        flexDirection: "column",
         height: "100%",
         minHeight: 132,
         overflow: "hidden",
@@ -45,38 +97,48 @@ export default function DashboardMetric({ metric, loading, refined = false }) {
       ) : (
         <>
           <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1.5 }}>
-            <Box sx={{ minWidth: 0 }}>
-              <FontStyle fontSize={refined ? 13 : 11.5} sx={{ color: theme.ui.mutedText, lineHeight: 1.5 }}>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <FontStyle
+                fontSize={refined ? 13 : 11.5}
+                sx={{ color: theme.ui.mutedText, lineHeight: 1.5 }}
+              >
                 {metric.label}
               </FontStyle>
-              <FontStyle fontSize={refined ? 32 : 28} fontWeight={700} sx={{ mt: 0.5 }}>
-                {new Intl.NumberFormat("id-ID").format(metric.value)}
-              </FontStyle>
+              {selection ? <Box sx={{ mt: 1.5, minWidth: 0 }}>{selection}</Box> : null}
+              {!balanced ? <MetricValue metric={metric} refined={refined} /> : null}
             </Box>
-            <Box
-              sx={{
-                width: 42,
-                height: 42,
-                borderRadius: "8px",
-                display: "grid",
-                placeItems: "center",
-                bgcolor: tone.background,
-                color: tone.main,
-                flexShrink: 0,
-              }}
-            >
-              <AppIcon icon={metric.icon} width={23} />
-            </Box>
+            <AppIconTile icon={metric.icon} tone={metric.tone || "info"} size={40} iconSize={20} />
           </Box>
+          {balanced ? (
+            <Box sx={{ flex: 1, display: "flex", alignItems: "center", minHeight: 88, py: 2 }}>
+              <MetricValue metric={metric} refined={refined} balanced />
+            </Box>
+          ) : null}
           {metric.trendData?.length ? (
-            <Box sx={{ mt: 0.5 }}>
+            <Box sx={{ mt: "auto", pt: 0.5 }}>
               <MetricSparkline data={metric.trendData} color={tone.main} />
             </Box>
           ) : (
-            <FontStyle fontSize={refined ? 12 : 10.5} sx={{ mt: 1.2, color: theme.ui.mutedText }}>
+            <FontStyle
+              fontSize={refined ? 12 : 10.5}
+              sx={{
+                mt: Number.isFinite(metric.progress) ? 1.2 : "auto",
+                pt: balanced ? 1.5 : Number.isFinite(metric.progress) ? 0 : 1.2,
+                borderTop: balanced ? `1px solid ${theme.ui.panelBorderSubtle}` : undefined,
+                color: theme.ui.mutedText,
+              }}
+            >
               {metric.description || "Data diperbarui dari kondisi operasional terkini."}
             </FontStyle>
           )}
+          {Number.isFinite(metric.progress) ? (
+            <LinearProgress
+              variant="determinate"
+              value={Math.max(0, Math.min(100, metric.progress))}
+              aria-label={`Pemakaian ${metric.label}`}
+              sx={{ mt: 2, height: 5, borderRadius: 3 }}
+            />
+          ) : null}
         </>
       )}
     </Paper>

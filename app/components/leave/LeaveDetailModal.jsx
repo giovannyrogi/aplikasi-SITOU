@@ -2,6 +2,7 @@
 import { Button } from "antd";
 import { FileSearchOutlined } from "@ant-design/icons";
 import { Box, Divider, useTheme } from "@mui/material";
+import LeaveBalanceFields from "@/app/components/reports/LeaveBalanceFields";
 import AppModal from "@/app/components/modals/AppModal";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import FontStyle from "@/app/components/font-style/FontStyle";
@@ -27,7 +28,7 @@ const Field = ({ label, value, wide }) => (
     </FontStyle>
   </Box>
 );
-export default function LeaveDetailModal({ item, onClose }) {
+export default function LeaveDetailModal({ item, onClose, balance, balanceYear }) {
   const theme = useTheme();
   if (!item) return null;
   const status = LEAVE_STATUS[item.status] || [item.status, "neutral"];
@@ -42,6 +43,11 @@ export default function LeaveDetailModal({ item, onClose }) {
       onClose={onClose}
       footer={<Button onClick={onClose}>Tutup</Button>}
     >
+      {balance ? (
+        <Box sx={{ mb: 3 }}>
+          <LeaveBalanceFields row={balance} year={balanceYear} />
+        </Box>
+      ) : null}
       <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mb: 2 }}>
         <CompactInfoChip label={status[0]} tone={status[1]} />
         <CompactInfoChip label={category[0]} tone={category[1]} />

@@ -1,22 +1,45 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Divider, IconButton, Menu, MenuItem, Paper, Tooltip, useTheme } from "@mui/material";
+import {
+  Avatar,
+  ButtonBase,
+  Box,
+  Divider,
+  IconButton,
+  Menu,
+  MenuItem,
+  Paper,
+  Tooltip,
+  useTheme,
+} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
-import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import FontStyle from "../font-style/FontStyle";
-import SubscriptionStatus from "../subscription/SubscriptionStatus";
+import { actorDisplayName } from "@/lib/identity/actorPresentation.mjs";
+import { ROLE_LABELS } from "@/app/constants/roles";
 
 export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
   const theme = useTheme();
   const [settingsAnchor, setSettingsAnchor] = useState(null);
   const settingsOpen = Boolean(settingsAnchor);
+  const name = actorDisplayName(
+    ["employee", "platform"].includes(user?.identity_source) ? user?.display_name : null,
+    user?.username,
+  );
+  const position = user?.position_name || ROLE_LABELS[user?.role_code] || "Pengguna";
+  const photo =
+    user?.identity_source === "employee" && user?.profile_photo_file_id
+      ? user.role_code === "employee"
+        ? `/api/uploads/profile_self?photoVersion=${encodeURIComponent(user.profile_photo_file_id)}`
+        : `/api/uploads/${encodeURIComponent(user.profile_photo_file_id)}?organizationId=${encodeURIComponent(user.organization_id)}`
+      : undefined;
   const actionSx = {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     color: theme.palette.primary.main,
     bgcolor: theme.ui.iconButtonBg,
     border: `1px solid ${theme.ui.navUserBorder}`,
@@ -65,29 +88,70 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
         <MenuIcon />
       </IconButton>
       <Box sx={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
-        <SubscriptionStatus
-          status={user?.organization_subscription_status}
-          endsOn={user?.organization_subscription_ends_on}
-          graceEndsOn={user?.organization_subscription_grace_ends_on}
-          daysRemaining={user?.organization_days_remaining}
-        />
+        <FontStyle
+          fontSize={12}
+          fontWeight={600}
+          noWrap
+          sx={{ display: { xs: "none", sm: "block" }, color: "text.secondary" }}
+        >
+          Ruang kerja SITOU
+        </FontStyle>
       </Box>
       <Tooltip title="Notifikasi belum tersedia">
         <IconButton aria-label="Notifikasi belum tersedia" aria-disabled="true" sx={actionSx}>
           <NotificationsNoneRoundedIcon />
         </IconButton>
       </Tooltip>
-      <Tooltip title="Pengaturan">
-        <IconButton
+      <Tooltip title={`${name} · ${position}`}>
+        <ButtonBase
           onClick={(event) => setSettingsAnchor(event.currentTarget)}
-          aria-label="Buka pengaturan"
+          aria-label={`Buka menu akun ${name}`}
           aria-controls={settingsOpen ? "settings-menu" : undefined}
           aria-haspopup="menu"
           aria-expanded={settingsOpen ? "true" : undefined}
-          sx={actionSx}
+          sx={{
+            minHeight: 48,
+            maxWidth: { xs: 212, sm: 300 },
+            minWidth: 0,
+            p: 0.5,
+            gap: 1.5,
+            borderRadius: 2,
+            textAlign: "left",
+            "&:hover": { bgcolor: theme.ui.navItemHover },
+            "&.Mui-focusVisible": {
+              outline: `2px solid ${theme.palette.primary.main}`,
+              outlineOffset: 2,
+            },
+          }}
         >
-          <SettingsRoundedIcon />
-        </IconButton>
+          <Avatar
+            src={photo}
+            alt={name}
+            sx={{
+              width: 40,
+              height: 40,
+              bgcolor: theme.ui.navUserBg,
+              color: "primary.main",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {name
+              .split(/\s+/)
+              .map((word) => word[0])
+              .slice(0, 2)
+              .join("")}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <FontStyle fontSize={12} fontWeight={700} noWrap>
+              {name}
+            </FontStyle>
+            <FontStyle fontSize={11} noWrap sx={{ mt: 0.5, color: "text.secondary" }}>
+              {position}
+            </FontStyle>
+          </Box>
+          <ExpandMoreRoundedIcon sx={{ fontSize: 18, flexShrink: 0 }} />
+        </ButtonBase>
       </Tooltip>
       <Menu
         id="settings-menu"

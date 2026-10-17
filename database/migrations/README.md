@@ -191,3 +191,5 @@ Draft Pegawai tidak berubah. Setelah migrasi, deploy API dan UI dalam satu rilis
 uji melanjutkan draft, unggah/hapus lampiran, posting, dan pembersihan draft
 kedaluwarsa. Jalankan `npm run inventory-drafts:expire` secara terjadwal seperti
 `employee-drafts:expire`. Draft tidak mengubah saldo stok.
+
+Migration `059` menambahkan dua permission baca pribadi dashboard Pegawai: cuti/izin/saldo dan ringkasan sanksi resmi. Hanya role employee menerima grant, tidak ada grant administrasi/approval/file. Seed idempotent dan bootstrap sudah memuat kondisi akhir. Diuji pada database kosong serta diterapkan pada development dalam perubahan ini.

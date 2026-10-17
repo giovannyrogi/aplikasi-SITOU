@@ -3,6 +3,7 @@
 import {
   ApartmentOutlined,
   ArrowRightOutlined,
+  RightOutlined,
   AppstoreOutlined,
   BankOutlined,
   BarChartOutlined,
@@ -96,6 +97,7 @@ const ICONS = {
   "navigation:retirement-projection": FieldTimeOutlined,
   "navigation:disciplinary-report": AuditOutlined,
   "navigation:access": KeyOutlined,
+  "subscription:access": SafetyCertificateOutlined,
   "navigation:organization-account": UserSwitchOutlined,
   "navigation:organization-settings": SettingOutlined,
   "navigation:leave-settings": ScheduleOutlined,
@@ -125,6 +127,7 @@ const ICONS = {
   "clarity:contract-solid": FileTextOutlined,
   "solar:document-text-bold-duotone": FileTextOutlined,
   "action:view-all": ArrowRightOutlined,
+  "action:chevron-right": RightOutlined,
   "inventory:stock-card": UnorderedListOutlined,
   "inventory:minimum": SettingOutlined,
   "inventory:opening-correction": AuditOutlined,

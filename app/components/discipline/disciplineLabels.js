@@ -26,6 +26,7 @@ export const ACTION_LABELS = {
 };
 
 export const ACTION_STATUS = {
+  scheduled: ["Belum mulai", "info"],
   draft: ["Draft", "neutral"],
   active: ["Aktif", "danger"],
   expired: ["Berakhir", "neutral"],

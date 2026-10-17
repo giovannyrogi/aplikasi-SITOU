@@ -482,3 +482,22 @@ chartAdapter: fill grafik area memakai gradasi vertikal dari lighten(warna seri,
 StockAttentionCard: chip Stok segera habis/Stok habis, border atas, label/angka Stok tersedia dan permukaan stok memakai token brand SITOU. Kondisi tetap dihitung server; label segera habis hanya penyebutan stok di bawah minimum, tanpa prediksi.
 
 RecentInventoryTransactions memakai KindMark (tone override opsional), CompactInfoChip, ActorIdentity dan FontStyle untuk kartu Transaksi terbaru. Props: transactions, organizationId. Memuat label metadata yang jelas, status pembatalan, aksen/shadow tema, tautan detail, layout 1/2/4 bagian responsif, serta reduced motion. Ringkasan menerima DTO berizin. Aksi detail memakai API transaksi privat yang sudah tersedia serta TransactionDetailModal tanpa mutasi, dengan LoadingBackdropProvider/Notification dan pembatalan request saat unmount. Tombol ikon saja pada desktop/tablet, ikon+teks pada mobile; URL dan posisi halaman tetap.
+
+### Ruang kerja Pegawai dan navigasi akun
+
+EmployeeDashboard memakai DataPanel, AppIconTile, PhotoAvatar, LeaveBalanceFields, CompactInfoChip, dan AppModal untuk ringkasan pribadi berizin. Tidak memakai data contoh atau memberi hak administrasi. Akses cepat memfokuskan section yang dituju dan menghormati reduced motion.
+
+SubscriptionAccessCard({ user, onRenew }) menampilkan masa akses organisasi dari tanggal/status/sisa hari server. SidebarContent, LeftNavBar dan MobileLeftNavBar menerima onRenew dari ProtectedShell; notifikasi Coming soon menggunakan Notification bersama. TopMenu mengganti ikon pengaturan dengan avatar dan nama ringkas actorDisplayName; menu tetap Profil/Keluar. Sidebar menampilkan organisasi dan location_name dari penempatan utama milik akun.
+
+
+DashboardMetric adalah kartu angka bersama Dashboard HRD, Pegawai dan Inventaris. `metric.unit` menampilkan satuan kecil, `metric.parts` menampilkan beberapa angka/satuan (masa kerja), dan `metric.progress` opsional untuk pemakaian. AppIconTile memusatkan ikon kartu. EmployeeLeavePanel memakai DataPanel, CompactInfoChip, AppModal dan LeaveDetailModal bersama; LeaveDetailModal menerima `balance`/`balanceYear` opsional tanpa mengubah pemakai operasional.
+
+EmployeeDisciplinePanel menyajikan tindakan resmi pribadi di bawah daftar cuti, memakai DataPanel/AppIconTile/CompactInfoChip dan DisciplineCaseDetailModal bersama. DashboardMetric mendukung pasangan tahun/bulan/hari dengan jarak dan wrapping. action:chevron-right di AppIcon dipakai untuk navigasi baris tanpa batang panah.
+
+
+EmployeeBalanceMetric mengisi DashboardMetric melalui slot selection dan metric.valueText, dengan AsyncSelect dan pilihan bersaldo per akun/organisasi. DisciplineHistoryList menyajikan baris sanksi pribadi; jumlah sanksi aktif memakai description DataPanel di bawah judul. EmployeeDisciplinePanel mengelola keyset DataPagination, loading/error/cancel serta transisi ke DisciplineCaseDetailModal tanpa modal bertumpuk.
+
+
+EmployeeProfileBanner berada di DashboardWorkspace di atas tab dan dipakai pada kedua tab Pegawai; EmployeeDashboard menerima dashboardState dari workspace. Keterangan DashboardMetric berada di bawah kecuali kartu berindikator progress. SidebarContent memakai satu scroll container dengan SubscriptionAccessCard ringkas. EmployeeDisciplinePanel menampilkan daftar terbaru tanpa tombol/modal Riwayat; detail kasus tetap memakai modal bersama.
+
+DashboardMetric menerima balanced untuk susunan header → angka tengah → footer berdivider pada Masa kerja/Sanksi aktif. MetricValue menjaga format angka/satuan konsisten dengan susunan standar.

@@ -4,7 +4,7 @@ import { Paper, useTheme } from "@mui/material";
 import { usePathname } from "next/navigation";
 import SidebarContent from "./SidebarContent";
 
-export default function LeftNavBar({ menus, user, onNavigate }) {
+export default function LeftNavBar({ menus, user, onNavigate, onRenew }) {
   const theme = useTheme();
   const pathname = usePathname();
 
@@ -22,7 +22,13 @@ export default function LeftNavBar({ menus, user, onNavigate }) {
         borderRight: `1px solid ${theme.ui.navBorder}`,
       }}
     >
-      <SidebarContent menus={menus} user={user} pathname={pathname} onNavigate={onNavigate} />
+      <SidebarContent
+        onRenew={onRenew}
+        menus={menus}
+        user={user}
+        pathname={pathname}
+        onNavigate={onNavigate}
+      />
     </Paper>
   );
 }

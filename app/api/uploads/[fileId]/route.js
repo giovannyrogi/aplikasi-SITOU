@@ -1,3 +1,5 @@
+import { authorizeSelfDisciplineLetter } from "@/lib/discipline/selfAccess";
+import { authorizeSelfLeaveAttachment } from "@/lib/leave/selfAccess";
 import pool from "@/lib/dbConfig";
 import { writeAudit } from "@/lib/audit";
 import {
@@ -89,7 +91,13 @@ export async function GET(request, { params }) {
     const file = await getStoredFile(fileId, organizationId);
     if (request.method === "DELETE" && !canUseHrisFile(user,file.category,true)) throw new ServiceError("FILE_FORBIDDEN","Pengubahan lampiran ini belum diberikan.",403);
     const actorPhoto = file.category === "employee_photo" && new URL(request.url).searchParams.has("inventoryActorTransactionId");
-    if (actorPhoto) {
+    const selfLeave = user.role_code === "employee" && file.category === "leave_attachment";
+    const selfDiscipline = user.role_code === "employee" && file.category === "discipline_letter";
+    if (selfDiscipline) {
+      await authorizeSelfDisciplineLetter(user, file);
+    } else if (selfLeave) {
+      await authorizeSelfLeaveAttachment(user, file);
+    } else if (actorPhoto) {
       await authorizeInventoryActorPhoto(user, file, new URL(request.url).searchParams);
     } else if (file.category === "inventory_item_photo") {
       await requireInventoryAccess(user, organizationId, "inventory.catalog.read");
@@ -111,7 +119,7 @@ export async function GET(request, { params }) {
       await requireInventoryAccess(user,organizationId,linked.rows[0].status==='draft'?"inventory.transactions.create":"inventory.transactions.read",linked.rows[0].warehouse_id);
     } else if (!sensitive)
       throw new ServiceError("FILE_FORBIDDEN", "Anda tidak memiliki akses ke file tersebut.", 403);
-    if (!actorPhoto) await enforceFileScope(user, file);
+    if (!actorPhoto && !selfLeave && !selfDiscipline) await enforceFileScope(user, file);
     await assertStoredFileAvailable(file);
     const mode =
       new URL(request.url).searchParams.get("download") === "1" ? "attachment" : "inline";

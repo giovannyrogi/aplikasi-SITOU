@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import {
-  Avatar,
-  ButtonBase,
   Box,
   Collapse,
   Divider,
@@ -16,42 +14,26 @@ import {
 } from "@mui/material";
 import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
-import { ROLES, ROLE_LABELS } from "@/app/constants/roles";
 import FontStyle from "../font-style/FontStyle";
 import AppLogo from "../branding/AppLogo";
-import ImagePreviewModal from "../modals/ImagePreviewModal";
+import AppIconTile from "../icons/AppIconTile";
+import SubscriptionAccessCard from "../subscription/SubscriptionAccessCard";
 
 const APP_VERSION = "v0.1.0";
-
-const getInitials = (name = "") =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
 
 const isPathActive = (pathname, path) =>
   Boolean(path) &&
   (pathname === path || (path !== "/dashboard" && pathname.startsWith(`${path}/`)));
 
-export default function SidebarContent({ menus, user, pathname, onNavigate, compact = false }) {
+export default function SidebarContent({
+  menus,
+  user,
+  pathname,
+  onNavigate,
+  onRenew,
+  compact = false,
+}) {
   const theme = useTheme();
-  const profileLinked = user?.identity_source === "employee";
-  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
-  const photoUrl =
-    profileLinked && user?.profile_photo_file_id
-      ? user.role_code === ROLES.EMPLOYEE
-        ? `/api/uploads/profile_self?photoVersion=${encodeURIComponent(user.profile_photo_file_id)}`
-        : `/api/uploads/${encodeURIComponent(user.profile_photo_file_id)}?organizationId=${encodeURIComponent(user.organization_id)}`
-      : undefined;
-  const primaryIdentity = profileLinked
-    ? user?.preferred_name || user?.username
-    : user?.username || "Pengguna";
-  const secondaryIdentity = profileLinked
-    ? user?.position_name || "Jabatan belum ditentukan"
-    : ROLE_LABELS[user?.role_code] || user?.role_code || "-";
   const activeParent = menus.find((menu) =>
     menu.submenu?.some((submenu) => isPathActive(pathname, submenu.path)),
   );
@@ -77,10 +59,20 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
   });
 
   return (
-    <Box sx={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        height: "100%",
+        minHeight: 0,
+        overflowY: "auto",
+        overscrollBehaviorY: "contain",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <Box
         sx={{
           minHeight: 58,
+          flexShrink: 0,
           px: compact ? 0.5 : 1,
           pb: 2,
           display: "flex",
@@ -104,70 +96,33 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
 
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: "44px minmax(0, 1fr)",
-          gap: 1.25,
+          flexShrink: 0,
+          display: "flex",
+          gap: 1.5,
           alignItems: "center",
-          p: 1.25,
+          p: 2,
           mb: 2,
           borderRadius: 2,
-          bgcolor: theme.ui.navUserBg,
-          border: `1px solid ${theme.ui.navUserBorder}`,
+          border: "1px solid",
+          borderColor: theme.ui.panelBorderSubtle,
+          bgcolor: theme.ui.panelSubtleBg,
         }}
       >
-        <ButtonBase
-          disabled={!photoUrl}
-          onClick={() => setPhotoPreviewOpen(true)}
-          aria-label="Lihat pas foto profil"
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
-            "&.Mui-focusVisible": {
-              outline: `2px solid ${theme.palette.primary.main}`,
-              outlineOffset: 2,
-            },
-          }}
-        >
-          <Avatar
-            // Endpoint privat mempertahankan pemeriksaan organisasi dan izin; inisial menjadi fallback.
-            src={photoUrl}
-            alt={`Pas foto ${primaryIdentity}`}
-            sx={{
-              width: 42,
-              height: 42,
-              color: theme.palette.primary.main,
-              bgcolor: theme.ui.iconButtonBg,
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            {getInitials(primaryIdentity) || "U"}
-          </Avatar>
-        </ButtonBase>
+        <AppIconTile icon="navigation:organization" size={36} iconSize={18} />
         <Box sx={{ minWidth: 0 }}>
-          <FontStyle fontSize={12.5} fontWeight={600} noWrap title={primaryIdentity || ""}>
-            {primaryIdentity}
+          <FontStyle fontSize={12} fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
+            {user?.organization_name || "Administrasi SITOU"}
           </FontStyle>
           <FontStyle
             fontSize={11}
-            fontWeight={500}
-            noWrap
-            title={secondaryIdentity}
-            sx={{ mt: 0.25, color: theme.palette.primary.main }}
+            sx={{ mt: 1, color: "text.secondary", overflowWrap: "anywhere" }}
           >
-            {secondaryIdentity}
+            {user?.location_name ||
+              (user?.organization_id ? "Ruang kerja organisasi" : "Pengelolaan platform")}
           </FontStyle>
         </Box>
       </Box>
 
-      <ImagePreviewModal
-        open={photoPreviewOpen && Boolean(photoUrl)}
-        onClose={() => setPhotoPreviewOpen(false)}
-        imageUrl={photoUrl}
-        title="Pas foto profil"
-        alt={`Pas foto ${primaryIdentity}`}
-      />
       <Divider sx={{ mb: 2, borderColor: theme.ui.navDivider }} />
       <FontStyle
         fontSize={10.5}
@@ -182,9 +137,9 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
         className="hide-scrollbar"
         aria-label="Navigasi utama"
         sx={{
-          flex: 1,
+          flex: "1 0 auto",
           minHeight: 0,
-          overflowY: "auto",
+          overflow: "visible",
           pr: 0.25,
           scrollbarWidth: "none",
           msOverflowStyle: "none",
@@ -274,6 +229,9 @@ export default function SidebarContent({ menus, user, pathname, onNavigate, comp
             );
           })}
         </List>
+      </Box>
+      <Box sx={{ mt: "auto", pt: 2, flexShrink: 0 }}>
+        <SubscriptionAccessCard user={user} onRenew={onRenew} />
       </Box>
     </Box>
   );

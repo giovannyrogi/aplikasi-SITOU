@@ -390,3 +390,5 @@ Lihat docs/inventory-distribution.md. Distribusi memakai transaksi/line/reversal
 ## Ringkasan Dashboard
 
 Dashboard Pegawai membaca profil tertaut dan histori penempatan/kontrak sendiri melalui permission self-service. Ringkasan Inventaris membaca proyeksi stok, transaksi resmi, draft sendiri dan lokasi penyaluran menurut scope setiap permission, tanpa tabel atau migration baru. Kontrak API/perhitungan tersedia di `docs/dashboard-workspace.md`.
+
+Migration 059 hanya menambah permission `leave_requests.read_self` dan `disciplinary_actions.read_self` serta grant role Pegawai. Tidak menambah tabel/kolom atau mengubah data cuti/sanksi. Dashboard pribadi membaca employees.user_id dan organization_id sesi, ledger saldo, histori cuti nondraft, dan ringkasan sanksi nondraft. Tidak memberikan akses administrasi atau dokumen sanksi.

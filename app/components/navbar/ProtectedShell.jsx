@@ -11,7 +11,6 @@ import { getMenusByRole } from "../menu/getMenuByRole";
 import LeftNavBar from "./LeftNavBar";
 import MobileLeftNavBar from "./MobileLeftNavBar";
 import TopMenu from "./TopMenu";
-import SubscriptionBanner from "../subscription/SubscriptionBanner";
 import ExpiredSessionModal from "../modals/ExpiredSessionModal";
 import AccessChangedModal from "../modals/AccessChangedModal";
 import { AuthenticatedUserProvider } from "../auth/AuthenticatedUserProvider";
@@ -268,6 +267,8 @@ export default function ProtectedShell({ user, children }) {
     }
   };
 
+  const renew = () => setNotification({ open: true, message: "Coming soon - fitur perpanjangan akses sedang disiapkan.", severity: "info" });
+
   return (
     <Box
       sx={{
@@ -295,11 +296,12 @@ export default function ProtectedShell({ user, children }) {
             zIndex: theme.zIndex.appBar,
           }}
         >
-          <LeftNavBar menus={menus} user={user} onNavigate={navigate} />
+          <LeftNavBar onRenew={renew} menus={menus} user={user} onNavigate={navigate} />
         </Box>
       </Box>
 
       <MobileLeftNavBar
+        onRenew={renew}
         menus={menus}
         user={user}
         open={drawerOpen}
@@ -336,22 +338,6 @@ export default function ProtectedShell({ user, children }) {
             p: { xs: 2, sm: 3, lg: 4 },
           }}
         >
-          <Box sx={{ mb: user.organization_subscription_ends_on ? 3 : 0 }}>
-            <SubscriptionBanner
-              status={user.organization_subscription_status}
-              endsOn={user.organization_subscription_ends_on}
-              graceEndsOn={user.organization_subscription_grace_ends_on}
-              daysRemaining={user.organization_days_remaining}
-              onRenew={() =>
-                setNotification({
-                  open: true,
-                  message:
-                    "Permintaan perpanjangan akan tersedia pada tahap pengembangan berikutnya.",
-                  severity: "info",
-                })
-              }
-            />
-          </Box>
           <AuthenticatedUserProvider key={contentRevision} user={{ ...user, access }}>
             {accessChange === "redirect" ||
             !pageAccessState(user.role_code, access, pathname).canRead
