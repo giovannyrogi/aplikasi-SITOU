@@ -14,6 +14,7 @@ export default function DashboardWorkspace({ initialAccess, children }) {
   const access = user.access || initialAccess;
   const employee = user.role_code === "employee";
   const employeeState = useDashboardData(employee ? "/api/dashboard/employee_self" : null);
+  const accountState = useDashboardData(!employee && user.employee_id ? "/api/account/profile" : null);
   const query = useSearchParams(),
     pathname = usePathname();
   const visible = !!access?.inventoryVisible;
@@ -49,26 +50,21 @@ export default function DashboardWorkspace({ initialAccess, children }) {
   return (
     <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>
       {employee ? (
-        <>
-          {employeeState.data ? (
-            <EmployeeProfileBanner data={employeeState.data} />
-          ) : employeeState.error ? (
-            <ErrorState message={employeeState.error.message} onRetry={employeeState.retry} />
-          ) : (
-            <Skeleton variant="rounded" height={220} />
-          )}
-          {navigation}
-        </>
-      ) : null}
+        employeeState.data ? (
+          <EmployeeProfileBanner data={employeeState.data} user={user} />
+        ) : employeeState.error ? (
+          <ErrorState message={employeeState.error.message} onRetry={employeeState.retry} />
+        ) : (
+          <Skeleton variant="rounded" height={220} />
+        )
+      ) : (
+        <EmployeeProfileBanner user={user} accountProfile={accountState.data} />
+      )}
+      {navigation}
       {active === "inventory" ? (
-        <InventoryDashboard
-          hideHeader={employee}
-          navigation={employee ? null : navigation}
-          onForbidden={refresh}
-        />
+        <InventoryDashboard onForbidden={refresh} />
       ) : (
         cloneElement(children, {
-          navigation: employee ? null : navigation,
           dashboardState: employeeState,
         })
       )}

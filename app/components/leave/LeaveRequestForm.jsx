@@ -215,7 +215,7 @@ export default function LeaveRequestForm({
         open={open}
         onClose={onClose}
         title="Catat cuti atau izin"
-        description="Pencatatan oleh HRD langsung disetujui. Jika jenis cuti menggunakan saldo, saldo berkurang setelah berhasil disimpan."
+        description="Cuti atau izin yang dibuat HRD langsung disetujui. Jika memakai jatah, sisanya berkurang setelah disimpan."
         icon="solar:calendar-add-bold-duotone"
         size="lg"
         disableClose={saving}
@@ -238,7 +238,7 @@ export default function LeaveRequestForm({
         <AppNotice
           tone="info"
           title="Periksa data sebelum menyimpan"
-          description="Data yang tersimpan tidak dapat diedit atau dihapus. Jika ada kesalahan, batalkan pencatatan dengan alasan, lalu catat ulang. Saldo yang terpotong akan dikembalikan saat pembatalan."
+          description="Cuti atau izin yang sudah disimpan tidak dapat diedit atau dihapus. Jika salah, batalkan dengan alasan, lalu buat lagi. Jatah yang terpakai akan dikembalikan saat dibatalkan."
           style={{ marginBottom: 20 }}
         />
         <Form form={form} name="leave-request" layout="vertical" disabled={saving || confirm}>
@@ -333,7 +333,7 @@ export default function LeaveRequestForm({
                         ) : null}
                         <div>
                           {balance.remaining <= 0
-                            ? "Saldo sudah habis. Pencatatan jenis cuti ini tidak dapat disimpan."
+                            ? "Jatah sudah habis. Cuti atau izin ini tidak dapat disimpan."
                             : balance.after < 0
                               ? `Jumlah yang dibebankan melebihi sisa saldo. Maksimal ${balance.remaining} ${LEAVE_UNIT[selectedType.unit]}.`
                               : `Perkiraan sisa setelah disimpan: ${balance.after} ${LEAVE_UNIT[selectedType.unit]}.`}
@@ -428,7 +428,7 @@ export default function LeaveRequestForm({
                   disabled={saving || confirm}
                   emptyTitle="Pilih atau tarik dokumen ke area ini"
                   helpText="Satu file JPG, PNG, WebP, atau PDF. Maksimal 10 MB."
-                  selectedText="Lampiran siap disimpan bersama pencatatan"
+                  selectedText="Lampiran siap disimpan bersama cuti atau izin"
                   fullWidth
                 />
               </Form.Item>
@@ -464,7 +464,7 @@ export default function LeaveRequestForm({
               <span>
                 {confirmation.type.uses_balance
                   ? `Saldo akan berkurang ${confirmation.values.requestedUnits} ${LEAVE_UNIT[confirmation.type.unit]} setelah berhasil disimpan.`
-                  : "Pencatatan ini tidak mengurangi saldo."}
+                  : "Cuti atau izin ini tidak mengurangi jatah."}
                 {confirmation.balance ? (
                   <>
                     <br />
@@ -475,8 +475,8 @@ export default function LeaveRequestForm({
                 ) : null}
               </span>
               <span>
-                Pencatatan langsung disetujui. Koreksi dilakukan melalui pembatalan dengan alasan,
-                lalu pencatatan ulang.
+                Cuti atau izin ini langsung disetujui. Jika salah, batalkan dengan alasan,
+                lalu buat lagi.
               </span>
             </span>
           ) : (

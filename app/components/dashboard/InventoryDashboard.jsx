@@ -4,9 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import RecentInventoryTransactions from "./RecentInventoryTransactions";
 import { Box, Skeleton, useTheme, IconButton, Tooltip } from "@mui/material";
-import dayjs from "dayjs";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
-import PageHeader from "@/app/components/layout/PageHeader";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import DataPanel from "@/app/components/data-display/DataPanel";
@@ -57,7 +55,7 @@ function KindIcon({ kind }) {
     </Box>
   );
 }
-export default function InventoryDashboard({ onForbidden, navigation, hideHeader = false }) {
+export default function InventoryDashboard({ onForbidden }) {
   const user = useAuthenticatedUser(),
     theme = useTheme(),
     query = useSearchParams();
@@ -153,29 +151,18 @@ export default function InventoryDashboard({ onForbidden, navigation, hideHeader
   ];
   return (
     <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>
-      {!hideHeader ? (
-        <PageHeader
-          title="Dashboard Inventaris"
-          description={
-            data
-              ? `Dashboard Inventaris · ${data.organization.name}  /  ${dayjs(data.period.start).format("D MMM")}–${dayjs(data.period.end).format("D MMM YYYY")}`
-              : "Ringkasan persediaan gudang."
-          }
-          action={
-            user.role_code === "superadmin" ? (
-              <OrganizationSelect
-                value={selectedOrg || undefined}
-                onChange={(id) => {
-                  setSelectedOrg(id || "");
-                  setWarehouseId("");
-                }}
-                style={{ width: "100%", minWidth: 200 }}
-              />
-            ) : null
-          }
-        />
+      {user.role_code === "superadmin" ? (
+        <Box sx={{ width: { xs: "100%", sm: 280 }, justifySelf: "end" }}>
+          <OrganizationSelect
+            value={selectedOrg || undefined}
+            onChange={(id) => {
+              setSelectedOrg(id || "");
+              setWarehouseId("");
+            }}
+            style={{ width: "100%", minHeight: 44 }}
+          />
+        </Box>
       ) : null}
-      {navigation}
       {!organizationId ? (
         <EmptyState description="Pilih organisasi untuk melihat Inventaris." />
       ) : error ? (

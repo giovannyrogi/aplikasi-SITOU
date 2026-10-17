@@ -7,19 +7,33 @@ import PhotoAvatar from "@/app/components/data-display/PhotoAvatar";
 import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import { EMPLOYEE_STATUS_PRESENTATION } from "@/app/components/employees/employeeStatus";
+import { ROLE_LABELS } from "@/app/constants/roles";
 
-/** Profil pribadi bersama di atas tab Dashboard dan Inventaris. */
-export default function EmployeeProfileBanner({ data }) {
+/** Header identitas bersama; informasi kepegawaian hanya ditampilkan bila profil tertaut. */
+export default function EmployeeProfileBanner({ data, user, accountProfile }) {
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [preview, setPreview] = useState(null);
-  const name = data.profile.name;
-  const status = EMPLOYEE_STATUS_PRESENTATION[data.employment.status]?.[0] || "Belum tersedia";
+  const linked = Boolean(data?.profile || user?.identity_source === "employee" && user?.employee_id);
+  const name = data?.profile?.name || accountProfile?.full_name ||
+    (user?.identity_source === "employee" ? user?.display_name : null) ||
+    accountProfile?.platform_full_name || user?.display_name || user?.username || "Pengguna";
+  const nip = data?.profile?.nip || accountProfile?.employee_no;
+  const statusKey = data?.employment?.status || accountProfile?.employment_status || user?.employment_status;
+  const status = EMPLOYEE_STATUS_PRESENTATION[statusKey]?.[0];
+  const photoUrl = data?.profile?.photoUrl || (linked && user?.profile_photo_file_id
+    ? user.role_code === "employee"
+      ? `/api/uploads/profile_self?photoVersion=${encodeURIComponent(user.profile_photo_file_id)}`
+      : `/api/uploads/${encodeURIComponent(user.profile_photo_file_id)}?organizationId=${encodeURIComponent(user.organization_id)}`
+    : undefined);
+  const badges = linked
+    ? [status, data?.employment?.type || accountProfile?.employment_type_name]
+    : [ROLE_LABELS[user?.role_code], user?.organization_name];
   return (
     <>
       <Box
         component="section"
-        aria-label="Profil pegawai"
+        aria-label={linked ? "Profil pegawai" : "Profil akun"}
         sx={{
           position: "relative",
           overflow: "hidden",
@@ -61,7 +75,7 @@ export default function EmployeeProfileBanner({ data }) {
           >
             <PhotoAvatar
               name={name}
-              photoUrl={data.profile.photoUrl}
+              photoUrl={photoUrl}
               size={mobile ? 80 : 96}
               photoLabel="Pas foto"
               onPreview={setPreview}
@@ -73,7 +87,7 @@ export default function EmployeeProfileBanner({ data }) {
               fontWeight={600}
               sx={{ mb: 1, color: "inherit", letterSpacing: 1 }}
             >
-              PROFIL PEGAWAI
+              {linked ? "PROFIL PEGAWAI" : "PROFIL AKUN"}
             </FontStyle>
             <FontStyle
               fontSize={{ xs: 20, sm: 24 }}
@@ -83,10 +97,11 @@ export default function EmployeeProfileBanner({ data }) {
               {name}
             </FontStyle>
             <FontStyle fontSize={15} fontWeight={600} sx={{ mt: 1, color: theme.ui.featureText }}>
-              NIP {data.profile.nip || "belum tersedia"}
+              {linked ? `NIP ${nip || "belum tersedia"}` : user?.role_code === "superadmin"
+                ? "Administrasi platform SITOU" : "Belum tertaut ke profil pegawai"}
             </FontStyle>
             <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {[status, data.employment.type].filter(Boolean).map((text, index) => (
+              {badges.filter(Boolean).map((text, index) => (
                 <Box
                   key={index}
                   sx={{

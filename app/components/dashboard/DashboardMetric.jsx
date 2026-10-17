@@ -10,7 +10,7 @@ function MetricValue({ metric, refined, balanced = false }) {
     <>
       {metric.valueText ? (
         <FontStyle
-          fontSize={20}
+          fontSize={{ xs: 17, sm: 19 }}
           fontWeight={700}
           sx={{ mt: balanced ? 0 : 1.5, overflowWrap: "anywhere" }}
         >
@@ -22,7 +22,7 @@ function MetricValue({ metric, refined, balanced = false }) {
             display: "flex",
             alignItems: "baseline",
             flexWrap: "wrap",
-            columnGap: 2.5,
+            columnGap: { xs: 1.25, md: 1.5 },
             rowGap: 1,
             mt: balanced ? 0 : 1,
           }}
@@ -31,7 +31,7 @@ function MetricValue({ metric, refined, balanced = false }) {
             <Box key={index} sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}>
               <FontStyle
                 component="span"
-                fontSize={balanced ? { xs: 32, sm: 36, xl: 40 } : refined ? 32 : 28}
+                fontSize={balanced ? { xs: 26, sm: 28, lg: 30, xl: 34 } : refined ? { xs: 26, sm: 30 } : 28}
                 fontWeight={700}
               >
                 {part.value == null ? "—" : new Intl.NumberFormat("id-ID").format(part.value)}
@@ -104,11 +104,11 @@ export default function DashboardMetric({
               >
                 {metric.label}
               </FontStyle>
-              {selection ? <Box sx={{ mt: 1.5, minWidth: 0 }}>{selection}</Box> : null}
-              {!balanced ? <MetricValue metric={metric} refined={refined} /> : null}
             </Box>
             <AppIconTile icon={metric.icon} tone={metric.tone || "info"} size={40} iconSize={20} />
           </Box>
+          {selection ? <Box sx={{ mt: 1.5, minWidth: 0 }}>{selection}</Box> : null}
+          {!balanced ? <MetricValue metric={metric} refined={refined} /> : null}
           {balanced ? (
             <Box sx={{ flex: 1, display: "flex", alignItems: "center", minHeight: 88, py: 2 }}>
               <MetricValue metric={metric} refined={refined} balanced />
@@ -132,12 +132,26 @@ export default function DashboardMetric({
             </FontStyle>
           )}
           {Number.isFinite(metric.progress) ? (
-            <LinearProgress
-              variant="determinate"
-              value={Math.max(0, Math.min(100, metric.progress))}
-              aria-label={`Pemakaian ${metric.label}`}
-              sx={{ mt: 2, height: 5, borderRadius: 3 }}
-            />
+            <Box sx={{ mt: 1.5 }}>
+              {metric.progressStatus ? (
+                <FontStyle fontSize={11} fontWeight={600} sx={{ mb: 0.75, color: (theme.status[metric.progressTone] || tone).text }}>
+                  {metric.progressStatus}
+                </FontStyle>
+              ) : null}
+              <LinearProgress
+                variant="determinate"
+                value={Math.max(0, Math.min(100, metric.progress))}
+                aria-label={metric.progressAriaLabel || `Kemajuan ${metric.label}`}
+                sx={{
+                  height: 6,
+                  borderRadius: 3,
+                  bgcolor: (theme.status[metric.progressTone] || theme.status.neutral).background,
+                  "& .MuiLinearProgress-bar": {
+                    bgcolor: (theme.status[metric.progressTone] || tone).main,
+                  },
+                }}
+              />
+            </Box>
           ) : null}
         </>
       )}

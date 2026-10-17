@@ -72,7 +72,12 @@ export default function SubscriptionAccessCard({ user, onRenew }) {
           </FontStyle>
         ) : null}
       </Box>
-      <Button fullWidth variant="contained" onClick={onRenew} sx={{ mt: 1.5, minHeight: 44 }}>
+      <Button
+        fullWidth
+        variant="contained"
+        onClick={onRenew}
+        sx={{ mt: 1.25, minHeight: 38, py: 0.5, fontSize: 12 }}
+      >
         Perpanjang akses
       </Button>
     </Box>

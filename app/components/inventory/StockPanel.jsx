@@ -80,7 +80,7 @@ function StockHistoryModal({ row, organizationId, onClose }) {
   return <AppModal open onClose={onClose} title={`Kartu Stok · ${row.name}`} description={`${row.warehouse_name} · ${row.unit_name}`} icon="solar:clipboard-list-bold-duotone" size="xl">
     <Box sx={{display:"grid",gap:3,minWidth:0}}>
       <AppNotice title={row.has_history ? "Riwayat perubahan stok" : "Belum ada transaksi"}
-        description={row.has_history ? "Stok dihitung menurut tanggal transaksi. Jika transaksi dibatalkan, perubahan stoknya juga dibatalkan." : "Pencatatan stok belum dimulai. Gunakan Barang Masuk untuk penerimaan pertama, atau Stok Awal untuk persediaan yang sudah dimiliki sebelum pencatatan dimulai."}/>
+        description={row.has_history ? "Stok dihitung menurut tanggal transaksi. Transaksi yang dibatalkan tidak lagi mengubah stok." : "Belum ada transaksi stok. Gunakan Barang Masuk untuk penerimaan pertama, atau Saldo Awal untuk barang yang sudah ada di gudang."}/>
       <Box sx={{display:"grid",gridTemplateColumns:{xs:"minmax(0,1fr)",sm:"repeat(2,minmax(0,1fr))"},gap:2}}>
         {[['from','Tanggal awal'],['to','Tanggal akhir']].map(([key,label])=><Box key={key}><FontStyle fontSize={12} sx={{mb:1}}>{label}</FontStyle><DatePicker aria-label={label} value={dates[key] ? dayjs(dates[key]) : null} onChange={(value)=>setDates({...dates,[key]:value?.format("YYYY-MM-DD") || ""})} style={{width:"100%",minHeight:44}}/></Box>)}
       </Box>

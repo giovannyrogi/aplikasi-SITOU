@@ -376,7 +376,7 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
             ? {
                 items: "Kelola barang dan batas minimum per gudang.",
                 categories: "Kelompokkan barang agar mudah ditemukan.",
-                units: "Kelola satuan untuk pencatatan jumlah barang.",
+                units: "Kelola satuan yang digunakan untuk menghitung jumlah barang.",
               }[kind]
             : "Pilih organisasi pada filter untuk membuka data."
         }
@@ -795,12 +795,12 @@ function CatalogForm({ kind, item, organizationId, options, onClose, onSaved, on
               on: {
                 title: `${STATUS_NAMES[kind]} aktif`,
                 description:
-                  "Data ini dapat dipilih untuk pencatatan baru. Data dan riwayat sebelumnya tetap tersimpan.",
+                  "Data ini dapat dipilih saat membuat transaksi baru. Riwayat sebelumnya tetap tersimpan.",
               },
               off: {
                 title: `${STATUS_NAMES[kind]} tidak aktif`,
                 description:
-                  "Jika dinonaktifkan, data ini tidak dapat dipilih untuk pencatatan baru. Data dan riwayat sebelumnya tetap tersimpan.",
+                  "Jika dinonaktifkan, data ini tidak dapat dipilih saat membuat transaksi baru. Riwayat sebelumnya tetap tersimpan.",
               },
             }}
           />

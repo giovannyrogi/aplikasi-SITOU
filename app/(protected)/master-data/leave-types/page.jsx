@@ -70,7 +70,7 @@ export default function LeaveTypesPage() {
         </Box>
       ),
     },
-    { title: "Pemakaian", render: (_, item) => `${item.request_count} pencatatan` },
+    { title: "Pemakaian", render: (_, item) => `${item.request_count} cuti/izin` },
     {
       title: "Status",
       render: (_, item) => <CompactInfoChip status={item.is_active ? "active" : "inactive"} />,

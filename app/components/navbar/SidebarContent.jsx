@@ -64,6 +64,9 @@ export default function SidebarContent({
         height: "100%",
         minHeight: 0,
         overflowY: "auto",
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+        "&::-webkit-scrollbar": { display: "none", width: 0, height: 0 },
         overscrollBehaviorY: "contain",
         display: "flex",
         flexDirection: "column",
@@ -109,13 +112,13 @@ export default function SidebarContent({
         }}
       >
         <AppIconTile icon="navigation:organization" size={36} iconSize={18} />
-        <Box sx={{ minWidth: 0 }}>
-          <FontStyle fontSize={12} fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
+        <Box sx={{ minWidth: 0, display: "grid", alignContent: "center", gap: 0.25 }}>
+          <FontStyle fontSize={12} fontWeight={700} sx={{ lineHeight: 1.35, overflowWrap: "anywhere" }}>
             {user?.organization_name || "Administrasi SITOU"}
           </FontStyle>
           <FontStyle
             fontSize={11}
-            sx={{ mt: 1, color: "text.secondary", overflowWrap: "anywhere" }}
+            sx={{ lineHeight: 1.35, color: "text.secondary", overflowWrap: "anywhere" }}
           >
             {user?.location_name ||
               (user?.organization_id ? "Ruang kerja organisasi" : "Pengelolaan platform")}

@@ -5,7 +5,7 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import { LEAVE_UNIT } from "@/lib/leave/labels.mjs";
-import { selectableBalances, selectedBalance } from "@/lib/dashboard/personalPresentation.mjs";
+import { displayLeaveBalance, leaveBalanceIndicator, selectableBalances, selectedBalance } from "@/lib/dashboard/personalPresentation.mjs";
 import DashboardMetric from "./DashboardMetric";
 
 const memory = new Map();
@@ -33,6 +33,8 @@ export default function EmployeeBalanceMetric({ balances, year }) {
   );
   const rows = selectableBalances(balances);
   const row = selectedBalance(rows, selectedId);
+  const shown = displayLeaveBalance(row);
+  const indicator = leaveBalanceIndicator(shown);
   const choose = (id) => {
     try {
       localStorage.setItem(storageKey, id);
@@ -42,26 +44,27 @@ export default function EmployeeBalanceMetric({ balances, year }) {
     memory.set(storageKey, id);
     window.dispatchEvent(new Event("sitou:balance-selection"));
   };
-  const available = row?.balance != null;
   return (
     <DashboardMetric
       refined
       metric={{
-        label: "Saldo cuti & izin",
+        label: shown?.official ? "Sisa cuti & izin" : "Jatah cuti & izin",
         icon: "navigation:leave",
         tone: "brand",
-        value: available ? Number(row.balance) : null,
-        unit: available ? LEAVE_UNIT[row.unit] : null,
-        valueText: available ? null : row ? "Belum ditetapkan" : "Belum tersedia",
-        description: available
-          ? `Terpakai ${row.used} dari ${row.allocated} ${LEAVE_UNIT[row.unit]} · ${year}`
-          : row
-            ? `Hak saldo tahun ${year} belum ditetapkan.`
-            : "Belum ada jenis cuti/izin dengan saldo.",
-        progress:
-          available && Number(row.allocated) > 0
-            ? (Number(row.used) / Number(row.allocated)) * 100
-            : undefined,
+        value: shown?.value,
+        unit: shown ? LEAVE_UNIT[row.unit] : null,
+        valueText: shown ? null : "Belum tersedia",
+        description: shown
+          ? shown.official
+            ? `Terpakai ${shown.used} dari ${shown.allocated} ${LEAVE_UNIT[row.unit]} · ${year}`
+            : `Jatah tahun ${year}.`
+          : "Belum ada jenis cuti atau izin dengan jatah tahunan.",
+        progress: indicator?.percent,
+        progressTone: indicator?.tone,
+        progressStatus: indicator?.label,
+        progressAriaLabel: shown
+          ? `Sisa jatah ${shown.value} dari ${shown.allocated} ${LEAVE_UNIT[row.unit]}`
+          : undefined,
       }}
       selection={
         rows.length > 1 ? (
@@ -69,13 +72,8 @@ export default function EmployeeBalanceMetric({ balances, year }) {
             sx={{
               width: "100%",
               minWidth: 0,
-              "& .ant-select-selection-item": {
-                whiteSpace: "normal",
-                overflowWrap: "anywhere",
-                lineHeight: "20px",
-                paddingBlock: "8px",
-              },
-              "& .ant-select-selector": { minHeight: 44, height: "auto !important" },
+              "& .ant-select-selection-item": { overflow: "hidden", textOverflow: "ellipsis" },
+              "& .ant-select-selector": { minHeight: 44 },
             }}
           >
             <AsyncSelect

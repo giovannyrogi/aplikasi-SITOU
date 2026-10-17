@@ -2075,7 +2075,7 @@ export default function EmployeeDetail({ employeeId }) {
             <InfoField label="Tanggal efektif" value={formatDate(employee.termination_date)} />
             <InfoField label="Dicatat oleh" value={employee.termination_recorded_by_name} />
             <InfoField
-              label="Waktu pencatatan"
+              label="Disimpan pada"
               value={formatDateTime(employee.termination_recorded_at)}
             />
             <InfoField
@@ -2106,7 +2106,7 @@ export default function EmployeeDetail({ employeeId }) {
       <AppModal
         open={Boolean(assignmentDetail)}
         title="Detail penempatan"
-        description="Informasi organisasi, periode, dokumen, dan jejak pencatatan penempatan."
+        description="Informasi organisasi, periode, dokumen, dan riwayat penempatan."
         icon={<EnvironmentOutlined />}
         size="md"
         onClose={() => setAssignmentDetail(null)}
@@ -2183,7 +2183,7 @@ export default function EmployeeDetail({ employeeId }) {
               />
               <InfoField label="Dicatat oleh" value={assignmentDetail.created_by_name} />
               <InfoField
-                label="Waktu pencatatan"
+                label="Disimpan pada"
                 value={formatDateTime(assignmentDetail.created_at)}
               />
               {assignmentDetail.updated_audit_at ? (

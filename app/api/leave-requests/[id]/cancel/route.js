@@ -17,7 +17,7 @@ export async function POST(request, { params }) {
   if (rejected) return rejected;
   const { id } = await params;
   if (!/^\d+$/.test(id))
-    return errorResponse("INVALID_ID", "ID pencatatan tidak valid.", 400, requestId);
+    return errorResponse("INVALID_ID", "ID cuti atau izin tidak valid.", 400, requestId);
   const parsed = await readJson(request, leaveCancelSchema, requestId);
   if (parsed.response) return parsed.response;
   try {
@@ -25,7 +25,7 @@ export async function POST(request, { params }) {
     const data = await cancelLeaveRequest(id, { ...parsed.data, organizationId }, user, requestId);
     return successResponse(data, {
       code: "LEAVE_REQUEST_CANCELLED",
-      message: "Pencatatan cuti atau izin berhasil dibatalkan dan saldo telah dikembalikan.",
+      message: "Cuti atau izin berhasil dibatalkan. Jatah yang terpakai telah dikembalikan.",
     });
   } catch (error) {
     return handleRouteError("leave-requests.cancel", error, requestId);

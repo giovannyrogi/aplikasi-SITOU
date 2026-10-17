@@ -175,7 +175,7 @@ export default function LeaveTypeForm({
                 <FormSettingSwitch
                   name="requiresAttachment"
                   title="Dokumen harus diunggah"
-                  description="Aktifkan jika pencatatan baru hanya boleh disetujui setelah dokumen pendukung dilengkapi."
+                  description="Aktifkan jika cuti atau izin baru hanya boleh disetujui setelah dokumen pendukung dilengkapi."
                 >
                   <Form.Item
                     name="requiredAttachmentCategory"
@@ -201,7 +201,7 @@ export default function LeaveTypeForm({
                   off: {
                     title: "Jenis cuti atau izin tidak aktif",
                     description:
-                      "Jika dinonaktifkan, jenis ini tidak dapat dipilih untuk pencatatan baru. Pencatatan dan riwayat yang sudah ada tetap tersimpan.",
+                      "Jika dinonaktifkan, jenis ini tidak dapat dipilih untuk cuti atau izin baru. Riwayat sebelumnya tetap tersimpan.",
                   },
                 }}
               />

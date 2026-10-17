@@ -89,7 +89,7 @@ export default function LeaveDetailModal({ item, onClose, balance, balanceYear }
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
         <Field label="Dicatat oleh" value={item.created_by_name} />
         <Field
-          label="Waktu pencatatan"
+          label="Disimpan pada"
           value={item.created_at ? new Date(item.created_at).toLocaleString("id-ID") : "-"}
         />
         <Field label="Diputuskan oleh" value={item.decided_by_name} />

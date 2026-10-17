@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
   if (response) return response;
   const { id } = await params;
   if (!/^\d+$/.test(id))
-    return errorResponse("INVALID_ID", "ID pencatatan tidak valid.", 400, requestId);
+    return errorResponse("INVALID_ID", "ID cuti atau izin tidak valid.", 400, requestId);
   try {
     const organizationId = resolvePermissionOrganization(
       user,

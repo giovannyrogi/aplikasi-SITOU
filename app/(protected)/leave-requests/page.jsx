@@ -398,7 +398,7 @@ export default function LeaveRequestsPage() {
       <PageHeader
         title="Cuti & Izin"
         description="Catat, telusuri, dan pantau cuti, izin, sakit, dinas, saldo, serta dokumen pegawai."
-        metadata={<CompactInfoChip label={`${list.pagination.total} pencatatan`} tone="info" />}
+        metadata={<CompactInfoChip label={`${list.pagination.total} cuti/izin`} tone="info" />}
         action={
           canManage ? (
             <Button

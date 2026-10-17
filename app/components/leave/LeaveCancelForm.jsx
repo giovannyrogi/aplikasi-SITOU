@@ -40,7 +40,7 @@ export default function LeaveCancelForm({ item, onClose, onSaved, onError }) {
         <>
           <Button onClick={onClose}>Kembali</Button>
           <Button danger type="primary" onClick={() => form.submit()}>
-            Batalkan pencatatan
+            Batalkan cuti atau izin
           </Button>
         </>
       }

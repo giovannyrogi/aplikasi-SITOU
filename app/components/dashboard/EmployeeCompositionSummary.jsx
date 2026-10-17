@@ -75,8 +75,7 @@ export default function EmployeeCompositionSummary({ data, loading }) {
     {
       key: "employmentType",
       title: "Jenis kepegawaian",
-      description:
-        "Berdasarkan kontrak yang berlaku hari ini. Tanpa kontrak aktif berarti pegawai belum memiliki kontrak yang berlaku saat ini.",
+      description: "Berdasarkan kontrak aktif. Pegawai tanpa kontrak aktif ditampilkan terpisah.",
       icon: "solar:case-round-bold-duotone",
       content: (
         <HorizontalBarChart data={data?.employmentType} colors={[theme.palette.primary.main]} />

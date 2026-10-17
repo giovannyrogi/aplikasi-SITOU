@@ -15,7 +15,6 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import ErrorState from "@/app/components/data-display/ErrorState";
 import FontStyle from "@/app/components/font-style/FontStyle";
-import PageHeader from "@/app/components/layout/PageHeader";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import CategoryPieSummary from "./CategoryPieSummary";
 import ContractEndingSummary from "./ContractEndingSummary";
@@ -32,12 +31,6 @@ import StackedBarChart from "./StackedBarChart";
 import BirthdaySpotlight from "./BirthdaySpotlight";
 import DashboardWorkspace from "./DashboardWorkspace";
 import EmployeeDashboard from "./EmployeeDashboard";
-
-const generatedAtFormatter = new Intl.DateTimeFormat("id-ID", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-const DASHBOARD_TITLE = "Dashboard monitoring";
 
 /** Workspace dasar dan Inventaris memakai sumber data serta izin terpisah. */
 export default function DashboardClient({ initialAccess }) {
@@ -135,7 +128,7 @@ function buildChartDefinitions(data, showLocked = false) {
     {
       key: "sanctions",
       title: "Sanksi tahun ini",
-      description: "Jumlah tindakan resmi per jenis, termasuk histori yang berakhir atau dicabut. Tanpa draft.",
+      description: "Jumlah sanksi yang diterbitkan tahun ini, menurut jenisnya.",
       icon: "navigation:disciplinary-report",
       Component: HorizontalBarChart,
       props: { integer: true, scrollable: true },
@@ -170,7 +163,7 @@ function metricSpan(index, count, columns) {
 }
 
 /** Dashboard utama yang mengubah data dan hierarchy visual berdasarkan role session. */
-function OrganizationDashboard({ navigation }) {
+function OrganizationDashboard() {
   const theme = useTheme();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
@@ -253,61 +246,24 @@ function OrganizationDashboard({ navigation }) {
           }))
         : (state.data?.metrics || []).map((metric) => ({ key: metric.key, metric }));
   const attentionCount = state.data?.attentionItems?.length || 0;
-  const pageDescription = isSuperadmin
-    ? organizationId
-      ? "Pantau kesiapan dan kondisi operasional organisasi yang dipilih."
-      : "Pantau pertumbuhan, masa akses, dan kesiapan seluruh organisasi SITOU."
-    : user.role_code === ROLES.LEADER
-      ? "Ringkasan organisasi untuk membantu pemantauan dan pengambilan keputusan."
-      : "Pantau kondisi kepegawaian dan prioritas administrasi dari satu tempat.";
-
   return (
     <Box sx={{ minWidth: 0, display: "grid", gap: { xs: 2, md: 3 } }}>
-      <PageHeader
-        title={DASHBOARD_TITLE}
-        description={pageDescription}
-        metadata={
-          <>
-            <CompactInfoChip
-              label={restricted ? "Akses dashboard terbatas" : "Kondisi operasional saat ini"}
-              tone={restricted ? "warning" : "info"}
-            />
-            {state.data?.generatedAt ? (
-              <CompactInfoChip
-                label={`Diperbarui ${generatedAtFormatter.format(new Date(state.data.generatedAt))}`}
-                tone="neutral"
+      {restricted || isSuperadmin ? (
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+          {restricted ? <CompactInfoChip label="Akses dashboard terbatas" tone="warning" /> : null}
+          {isSuperadmin ? (
+            <Box sx={{ width: { xs: "100%", sm: 280 } }}>
+              <OrganizationSelect
+                allowClear
+                value={organizationId}
+                onChange={changeOrganization}
+                placeholder="Semua organisasi"
+                style={{ width: "100%", minHeight: 44 }}
               />
-            ) : null}
-          </>
-        }
-        action={
-          isSuperadmin ? (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  md: "minmax(230px, 1fr)",
-                },
-                gap: 1,
-                minWidth: { md: 280 },
-              }}
-            >
-              {isSuperadmin ? (
-                <OrganizationSelect
-                  allowClear
-                  value={organizationId}
-                  onChange={changeOrganization}
-                  placeholder="Semua organisasi"
-                  style={{ width: "100%", minHeight: 44 }}
-                />
-              ) : null}
             </Box>
-          ) : null
-        }
-      />
-
-      {navigation}
+          ) : null}
+        </Box>
+      ) : null}
       {state.error ? (
         <Paper elevation={0} sx={{ borderRadius: "8px", overflow: "hidden" }}>
           <ErrorState message={state.error} onRetry={loadDashboard} />

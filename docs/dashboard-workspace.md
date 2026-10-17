@@ -1,6 +1,6 @@
 # Dashboard Pegawai dan Inventaris
 
-Dashboard tetap halaman login. Tanpa Inventaris berizin, navigasi tab tidak ditampilkan. Dengan akses, tab Dashboard dan Inventaris memakai URL `?tab=inventory`; default Dashboard. HRD/Pimpinan/platform tetap menggunakan dashboard sebelumnya.
+Dashboard tetap halaman login. Tanpa Inventaris berizin, navigasi tab tidak ditampilkan. Dengan akses, tab Dashboard dan Inventaris memakai URL `?tab=inventory`; default Dashboard. Semua role memakai header identitas yang sama di atas tab, tanpa PageHeader dashboard terpisah. Akun yang tertaut ke pegawai menampilkan nama, NIP, dan status yang tersedia; akun tanpa tautan menampilkan identitas akun tanpa mengarang informasi kepegawaian. Pemilih organisasi Superadmin tetap tersedia di konten Dashboard dan Inventaris.
 
 ## API pribadi
 
@@ -34,7 +34,7 @@ prosedur verifikasi fitur membuat dan membersihkan database uji terpisah, server
 
 Schema dan grant historis tetap; tidak ada migration baru. UI tidak menambahkan absensi, pengajuan, prediksi/valuasi persediaan, approval atau aset.
 
-Tab berada setelah PageHeader. Dashboard Pegawai dan Dashboard Inventaris memakai judul eksplisit. Draft tidak dikirim API dashboard. Pegawai memiliki akses cepat ke bagian informasi pribadi yang sudah berizin. Grafik area penuh memakai empat warna yang sama dengan ringkasan dan ikon transaksi terbaru. Label bulan disingkat pada layar kecil.
+Tab berada setelah header profil bersama. Draft tidak dikirim API dashboard. Pegawai memiliki akses cepat ke bagian informasi pribadi yang sudah berizin. Grafik area penuh memakai empat warna yang sama dengan ringkasan dan ikon transaksi terbaru. Label bulan disingkat pada layar kecil.
 
 Dashboard Inventaris: tab memakai garis bawah. Stok menipis/habis memakai kartu produk horizontal yang dapat digeser dengan keyboard/sentuhan; transaksi bulanan berupa daftar jenis dan jumlah di atas kartu ringkasan. Tooltip aktivitas memakai tanggal lengkap, sumbu area menyisakan ruang puncak dan ujung label.
 
@@ -88,7 +88,7 @@ Verifikasi perubahan: schema bootstrap serta migration idempotent di database se
 
 ## Penyederhanaan Dashboard Pegawai
 
-PageHeader dipakai oleh Pegawai dan Inventaris untuk sambutan. DashboardMetric menjadi komponen kartu angka bersama HRD/Inventaris/Pegawai, mendukung value + unit, parts untuk tahun/bulan, dan progress pemakaian. Bila ada saldo yang ditetapkan, kartu pertama menampilkan saldo satu jenis pertama sesuai urutan nama server dengan nama jenis eksplisit; saldo jenis terkait tersedia pada modal rincian cuti/izin. Tanpa saldo ditetapkan, kartu menampilkan jumlah pencatatan disetujui tahun organisasi. Saldo lintas jenis maupun satuan tidak dijumlahkan.
+Header profil bersama dipakai oleh seluruh role pada tab Dashboard dan Inventaris. Profil pegawai yang tertaut menampilkan status dan jenis kepegawaian dari kontrak yang berlaku atau histori terakhir, tanpa chip role akun. DashboardMetric menjadi komponen kartu angka bersama HRD/Inventaris/Pegawai, mendukung value + unit, parts untuk tahun/bulan, dan progress pemakaian. Kartu sisa cuti memilih satu jenis dengan jatah; jika hak tahunan sudah ada, angka berasal dari ledger. Jika belum ada hak tahunan tetapi aturan memberi jatah positif, kartu menampilkan jatah dari aturan sebagai informasi awal dan menjelaskan bahwa saldo resmi dibuat saat cuti pertama disimpan. Jenis dan satuan tidak dijumlahkan. Pilihan jenis yang tersedia berada selebar kartu di atas angka.
 
 Banner menampilkan nama lengkap, NIP yang diperjelas, status dan jenis pegawai. Jabatan/divisi dan atasan langsung berada di Penempatan saya. Tanggal akhir mengikuti requires_end_date master jenis pegawai, termasuk modal kontrak.
 
@@ -134,4 +134,4 @@ Ikon masa akses menggunakan alias semantik subscription:access yang dipetakan ke
 
 Jumlah sanksi aktif pada Sanksi & teguran ditampilkan melalui description DataPanel tepat di bawah judul, tanpa kotak pemberitahuan terpisah. Baris pertama tidak menambah garis di atas divider header agar pembatas tetap tipis dan rapi.
 
-Kartu Masa kerja/Sanksi aktif memakai varian balanced DashboardMetric: header dan ikon di atas, angka responsif 32–40px pada area tengah flex, keterangan di bawah divider tipis. Render angka/satuan memakai MetricValue yang sama dengan layout standar. Kartu saldo mempertahankan selector dan progress. Browser 320–1920 px memverifikasi tinggi kartu dan footer sejajar, angka lebih besar, serta wrapping untuk masa kerja panjang dan kondisi nol.
+Kartu Masa kerja/Sanksi aktif memakai varian balanced DashboardMetric: header dan ikon di atas, angka responsif 26–34px pada area tengah flex, keterangan di bawah divider tipis. Render angka/satuan memakai MetricValue yang sama dengan layout standar. Kartu jatah/sisa cuti menempatkan pemilih jenis selebar kartu agar nama panjang tidak berbenturan dengan ikon. Indikator bawah menunjukkan persentase jatah yang masih tersedia, termasuk jatah awal dari aturan: penuh hijau, sebagian terpakai kuning, tersisa maksimal 25% merah. Keterangan angka tetap menjelaskan pemakaian sehingga warna bukan satu-satunya petunjuk. Browser 320–1920 px perlu memverifikasi tinggi kartu, footer sejajar, dan wrapping untuk masa kerja panjang serta kondisi nol.
