@@ -16,7 +16,6 @@ import {
   CheckCircleOutlined,
   CheckOutlined,
   CloseCircleFilled,
-  DashboardOutlined,
   DatabaseOutlined,
   AuditOutlined,
   BranchesOutlined,
@@ -37,6 +36,7 @@ import {
   LinkOutlined,
   LockOutlined,
   PictureOutlined,
+  PieChartOutlined,
   ProfileOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
@@ -53,6 +53,7 @@ import {
   NodeIndexOutlined,
   TagsOutlined,
   ShopOutlined,
+  StockOutlined,
   BookOutlined,
   BarcodeOutlined,
   NumberOutlined,
@@ -67,6 +68,7 @@ import {
   WarningFilled,
   WarningOutlined,
 } from "@ant-design/icons";
+import SpaceDashboardOutlinedIcon from "@mui/icons-material/SpaceDashboardOutlined";
 
 const ICONS = {
   "navigation:inventory": AppstoreOutlined,
@@ -80,7 +82,10 @@ const ICONS = {
   "navigation:inventory-warehouse": ShopOutlined,
   "inventory:catalog": BookOutlined,
   "inventory:warehouse": ShopOutlined,
-  "navigation:dashboard": DashboardOutlined,
+  "navigation:dashboard": SpaceDashboardOutlinedIcon,
+  "navigation:dashboard-staff": PieChartOutlined,
+  "navigation:dashboard-personal": UserOutlined,
+  "navigation:dashboard-inventory": StockOutlined,
   "navigation:master-data": DatabaseOutlined,
   "navigation:organization": BankOutlined,
   "navigation:location": EnvironmentOutlined,

@@ -33,10 +33,9 @@ import DashboardWorkspace from "./DashboardWorkspace";
 import EmployeeDashboard from "./EmployeeDashboard";
 
 /** Workspace dasar dan Inventaris memakai sumber data serta izin terpisah. */
-export default function DashboardClient({ initialAccess }) {
-  const user = useAuthenticatedUser();
-  return <DashboardWorkspace initialAccess={initialAccess}>
-    {user.role_code === ROLES.EMPLOYEE ? <EmployeeDashboard /> : <OrganizationDashboard />}
+export default function DashboardClient({ view }) {
+  return <DashboardWorkspace view={view}>
+    {view === "personal" ? <EmployeeDashboard /> : view === "staff" ? <OrganizationDashboard /> : null}
   </DashboardWorkspace>;
 }
 

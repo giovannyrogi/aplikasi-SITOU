@@ -4,12 +4,12 @@
 
 Satu membership tetap memiliki satu role dasar. Administrasi HRIS hanya diberikan
 kepada role HRD; Pegawai tetap memakai self-service dan akses Inventaris terpisah.
-Superadmin menetapkan satu admin HRD penuh aktif per organisasi melalui modal
-Tambah/Edit akun organisasi. Akun HRD aktif pertama yang dibuat Superadmin menjadi
-admin penuh; pada organisasi lama penetapan dilakukan secara eksplisit.
+Superadmin dapat menetapkan paling banyak satu admin HRD penuh aktif per organisasi
+melalui modal Tambah/Edit akun organisasi. Penetapan selalu eksplisit, termasuk
+untuk akun HRD pertama. Organisasi boleh sementara tanpa admin penuh.
 
 Admin penuh membaca/mengelola seluruh menu HRIS yang terdaftar, seluruh lokasi,
-serta akun HRD, Pimpinan, dan Pegawai. Hanya Superadmin boleh mengalihkan admin.
+serta akun HRD, Pimpinan, dan Pegawai. Hanya Superadmin boleh menetapkan atau mencabut admin.
 Admin penuh membagikan submenu dan tingkat Lihat Saja/Kelola kepada HRD lain pada
 modal akun yang sama. Cakupan lokasi tetap satu per akun HRD, mengikuti aturan
 lama. Inventaris dan fitur mendatang tidak otomatis diperoleh dari admin penuh.
@@ -40,7 +40,7 @@ Dashboard selalu menjadi halaman login; tanpa hak statistik hanya header tampil.
 
 Migration `051` menambah:
 
-- `organization_hris_access_policies`: satu admin penuh, status konfigurasi, versi.
+- `organization_hris_access_policies`: admin penuh opsional, status konfigurasi, versi.
 - `hris_menu_definitions`: katalog sistem bersama, tanpa organization_id.
 - `user_hris_menu_grants`: level per submenu dan membership organisasi.
 - `user_hris_access_settings`: penanda peninjauan eksplisit, termasuk grant kosong.
@@ -62,23 +62,25 @@ sudah diatur tidak ditimpa. Setelah itu tidak ada fallback akses lama: akun bias
 hanya mengikuti pilihan yang tersimpan. Akun HRD baru atau baru beralih ke HRD
 tanpa pilihan mulai tanpa menu. Superadmin dapat mengurangi hak akun lama lewat
 dashboard, tanpa menunggu penetapan admin penuh. Admin penuh tetap mendapat semua
-hak HRIS dan harus dialihkan sebelum haknya dapat dibatasi.
+hak HRIS selama ditetapkan.
 
 Backend membaca membership/policy/grant terbaru setiap request. Proxy menimpa
 header konteks path/method; session/browser bukan sumber izin. Sidebar, halaman,
 API dan file kategori menerapkan guard yang konsisten. Account mutation mengecek
 ulang kewenangan di transaksi dengan lock organisasi, version dan audit
-`hris.admin.assign` / `hris.menu.update`. Transfer tidak menghapus grant akun lama;
-akun itu kembali mengikuti grant tersimpan dan cakupannya.
+`hris.admin.assign` / `hris.admin.revoke` / `hris.menu.update`. Pengalihan langsung
+ke admin baru tidak menghapus grant akun lama jika tetap HRD; akun itu kembali
+mengikuti grant tersimpan dan cakupannya.
 
-Admin penuh tidak dapat dinonaktifkan, diturunkan role/cakupannya, atau diakhiri
-hubungan kerjanya sebelum dialihkan melalui Superadmin. Guard lifecycle ini telah
-disetujui; perhitungan, penutupan histori, tanggal dan alur HRIS lain tetap berlaku.
-Khusus edit role admin penuh menjadi Pegawai, Superadmin memilih akun HRD aktif lain
-sebagai pengganti pada formulir yang sama. Pengalihan admin, perubahan role, dan
-pencabutan grant menu serta kewenangan akun HRIS lama disimpan atomik dan diaudit.
-Pengganti memperoleh cakupan seluruh lokasi. Jika belum ada pengganti, perubahan
-tidak dapat disimpan. Hak Inventaris akun lama tidak ikut dicabut otomatis.
+Superadmin boleh mencabut admin penuh dengan switch, atau mengubah role/statusnya,
+tanpa menyiapkan pengganti. Pencabutan mengosongkan grant menu dan kewenangan Akun
+Organisasi akun lama dalam transaksi yang sama; hak Inventaris dan histori tetap.
+Kebijakan tetap enabled dengan primary_membership_id NULL, artinya belum ada admin
+penuh. Superadmin boleh menetapkan akun yang sama atau HRD lain kemudian. Perubahan
+role/status HRD aktif terakhir oleh Superadmin juga diizinkan, tetapi penonaktifan
+diri sendiri tetap dilarang. Workflow pengakhiran hubungan kerja masih meminta
+pencabutan admin penuh lebih dulu. Versi kebijakan diperiksa saat menetapkan atau
+mencabut admin; perubahan diaudit dan berlaku pada request berikutnya.
 
 ## UI dan pengujian
 

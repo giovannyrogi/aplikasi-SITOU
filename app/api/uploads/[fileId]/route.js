@@ -91,8 +91,9 @@ export async function GET(request, { params }) {
     const file = await getStoredFile(fileId, organizationId);
     if (request.method === "DELETE" && !canUseHrisFile(user,file.category,true)) throw new ServiceError("FILE_FORBIDDEN","Pengubahan lampiran ini belum diberikan.",403);
     const actorPhoto = file.category === "employee_photo" && new URL(request.url).searchParams.has("inventoryActorTransactionId");
-    const selfLeave = user.role_code === "employee" && file.category === "leave_attachment";
-    const selfDiscipline = user.role_code === "employee" && file.category === "discipline_letter";
+    const selfView = new URL(request.url).searchParams.get("view") === "self";
+    const selfLeave = (selfView || user.role_code === "employee") && file.category === "leave_attachment";
+    const selfDiscipline = (selfView || user.role_code === "employee") && file.category === "discipline_letter";
     if (selfDiscipline) {
       await authorizeSelfDisciplineLetter(user, file);
     } else if (selfLeave) {

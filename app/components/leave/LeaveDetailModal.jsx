@@ -28,7 +28,7 @@ const Field = ({ label, value, wide }) => (
     </FontStyle>
   </Box>
 );
-export default function LeaveDetailModal({ item, onClose, balance, balanceYear }) {
+export default function LeaveDetailModal({ item, onClose, balance, balanceYear, selfView = false }) {
   const theme = useTheme();
   if (!item) return null;
   const status = LEAVE_STATUS[item.status] || [item.status, "neutral"];
@@ -120,7 +120,7 @@ export default function LeaveDetailModal({ item, onClose, balance, balanceYear }
               <Button
                 key={file.id}
                 icon={<FileSearchOutlined />}
-                href={`/api/uploads/${file.id}?organizationId=${item.organization_id}`}
+                href={`/api/uploads/${file.id}?organizationId=${item.organization_id}${selfView ? "&view=self" : ""}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

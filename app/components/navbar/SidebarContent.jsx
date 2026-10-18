@@ -37,7 +37,9 @@ export default function SidebarContent({
   const activeParent = menus.find((menu) =>
     menu.submenu?.some((submenu) => isPathActive(pathname, submenu.path)),
   );
-  const [openDropdown, setOpenDropdown] = useState(activeParent?.value || null);
+  const [dropdownOverride, setDropdownOverride] = useState(null);
+  const openDropdown = dropdownOverride?.pathname === pathname
+    ? dropdownOverride.value : activeParent?.value || null;
 
   const menuButtonSx = (active, nested = false) => ({
     minHeight: nested ? 42 : 46,
@@ -163,7 +165,7 @@ export default function SidebarContent({
                     selected={active}
                     onClick={() =>
                       menu.submenu
-                        ? setOpenDropdown(expanded ? null : menu.value)
+                        ? setDropdownOverride({ pathname, value: expanded ? null : menu.value })
                         : onNavigate(menu.path)
                     }
                     sx={menuButtonSx(active)}

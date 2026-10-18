@@ -79,10 +79,9 @@ export default function FeatureAccessFields({
           Referensi akses fitur belum tersedia. Penyimpanan dibuka setelah data berhasil dimuat.
         </FontStyle>
       ) : null}
-      {canHris && !options.hrisConfigured && !showHris ? (
+      {canHris && !options.hasFullHrisAdmin && !showHris ? (
         <FontStyle explanation fontSize={12}>
-          Tetapkan admin HRD penuh melalui fitur HRIS untuk mengaktifkan pembagian hak menu
-          organisasi.
+          Belum ada admin HRD penuh. Superadmin tetap dapat memberikan hak menu secara langsung.
         </FontStyle>
       ) : null}
       {selectableFeatures.length ? (

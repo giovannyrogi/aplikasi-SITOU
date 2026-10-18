@@ -75,6 +75,7 @@ export default function DisciplineCaseDetailModal({
   disciplineCase,
   organizationId,
   onClose,
+  selfView = false,
 }) {
   const theme = useTheme();
   if (!disciplineCase) return null;
@@ -266,7 +267,7 @@ export default function DisciplineCaseDetailModal({
                   </Box>
                   <Button
                     icon={<DownloadOutlined />}
-                    href={`/api/uploads/${action.document_file_id}?organizationId=${organizationId}&download=1`}
+                    href={`/api/uploads/${action.document_file_id}?organizationId=${organizationId}&download=1${selfView ? "&view=self" : ""}`}
                   >
                     Unduh surat
                   </Button>

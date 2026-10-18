@@ -85,6 +85,12 @@ try {
         FROM permissions p JOIN role_permissions rp ON rp.permission_id=p.id
         JOIN roles r ON r.id=rp.role_id WHERE p.code='employees.export_sensitive')
         AS has_employee_sensitive_export,
+      (SELECT count(*)=12 FROM role_permissions rp
+        JOIN roles r ON r.id=rp.role_id JOIN permissions p ON p.id=rp.permission_id
+        WHERE r.code IN ('hrd','leader') AND p.code IN (
+          'employees.read_self','assignments.read_self','contracts.read_self',
+          'leave_requests.read_self','disciplinary_actions.read_self','private_files.read_self'
+        )) AS has_dashboard_personal_grants,
       NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema='public' AND table_name='employee_dependents'

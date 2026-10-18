@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Segmented, Select } from "antd";
 import { Box } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
-import AppNotice from "@/app/components/data-display/AppNotice";
 import OrganizationScopeField from "@/app/components/forms/OrganizationScopeField";
 import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
@@ -38,7 +37,6 @@ export default function OrganizationAccountForm({
     warehouses: [],
     inventoryEnabled: false,
     canGrantAll: false,
-    hrisSuccessors: [],
   });
   const dirtyRef = useRef(false);
   const { close: closeGuard, navigate: navigatePrerequisite } = usePrerequisiteNavigation(
@@ -67,7 +65,10 @@ export default function OrganizationAccountForm({
   }, [fullAdmin, form]);
   const editing = Boolean(item);
   const isHrd = user.role_code === ROLES.HRD && !user.access?.hris?.fullAdmin;
-  const needsHrisSuccessor = Boolean(item?.hrisAccess?.fullAdmin && roleCode === "employee");
+  const revokesFullAdmin = (values) => Boolean(
+    item?.hrisAccess?.fullAdmin &&
+      (values.isHrisAdmin === false || values.roleCode !== "hrd" || !values.isActive),
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -81,7 +82,6 @@ export default function OrganizationAccountForm({
       isActive: true,
       packageAccess: [],
       isHrisAdmin: false,
-      hrisSuccessorAccountId: null,
       hrisMenuAccess: [],
       expandedHrisGroups: ["Kepegawaian"],
       expandedFeatureSections: item
@@ -130,7 +130,6 @@ export default function OrganizationAccountForm({
           warehouses: [],
           inventoryEnabled: false,
           canGrantAll: false,
-          hrisSuccessors: [],
         });
         setOptionsReady(false);
         setOptionsLoading(true);
@@ -153,15 +152,10 @@ export default function OrganizationAccountForm({
           canSetHrisAdmin: Boolean(body.data?.canSetHrisAdmin),
           canGrantHris: Boolean(body.data?.canGrantHris),
           canDelegateNonHris: Boolean(body.data?.canDelegateNonHris),
-          hrisSuccessors: body.data?.hrisSuccessors || [],
           hrisConfigured: Boolean(body.data?.hrisConfigured),
+          hasFullHrisAdmin: Boolean(body.data?.hasFullHrisAdmin),
           hrisPolicyVersion: body.data?.hrisPolicyVersion || 0,
-          needsFirstHrisAdmin: Boolean(body.data?.needsFirstHrisAdmin),
         });
-        if (!item && body.data?.needsFirstHrisAdmin && body.data?.canSetHrisAdmin) {
-          form.setFieldValue("isHrisAdmin", true);
-          form.setFieldValue("expandedFeatureSections", ["hris"]);
-        }
         setOptionsReady(true);
       })
       .catch((error) => {
@@ -184,7 +178,8 @@ export default function OrganizationAccountForm({
       expandedHrisGroups: _expandedHrisGroups,
       ...accountValues
     } = values;
-    const revokingHris = editing && item.role_code === "hrd" && values.roleCode !== "hrd";
+    const revokingHris = revokesFullAdmin(values) ||
+      (editing && item.role_code === "hrd" && values.roleCode !== "hrd");
     if (savingRef.current || !optionsReady) return;
     savingRef.current = true;
     setSaving(true);
@@ -207,7 +202,7 @@ export default function OrganizationAccountForm({
                 ...(values.roleCode === "hrd" && options.canGrantHris
                   ? {
                       hrisMenuAccess: values.hrisMenuAccess || [],
-                      isHrisAdmin: values.isHrisAdmin,
+                      isHrisAdmin: revokingHris ? false : values.isHrisAdmin,
                       hrisAccountAccess: values.hrisAccountAccess,
                     }
                   : {
@@ -216,14 +211,9 @@ export default function OrganizationAccountForm({
                       hrisAccountAccess: revokingHris ? "none" : undefined,
                     }),
                 hrisPolicyVersion:
-                  needsHrisSuccessor && options.canSetHrisAdmin
+                  (revokingHris && options.canSetHrisAdmin) ||
+                  (values.roleCode === "hrd" && options.canGrantHris)
                     ? options.hrisPolicyVersion
-                    : values.roleCode === "hrd" && options.canGrantHris
-                      ? options.hrisPolicyVersion
-                      : undefined,
-                hrisSuccessorAccountId:
-                  needsHrisSuccessor && options.canSetHrisAdmin
-                    ? values.hrisSuccessorAccountId
                     : undefined,
                 packageAccess: options.canDelegateNonHris ? values.packageAccess : undefined,
                 ...(editing ? { version: item.updated_at } : {}),
@@ -291,7 +281,7 @@ export default function OrganizationAccountForm({
       reduced ||
       hrisReduced ||
       accountReduced ||
-      needsHrisSuccessor ||
+      revokesFullAdmin(values) ||
       (values.isHrisAdmin && !item?.hrisAccess?.fullAdmin)
     )
       setPending(values);
@@ -325,11 +315,7 @@ export default function OrganizationAccountForm({
             <Button
               type="primary"
               loading={saving}
-              disabled={
-                !optionsReady ||
-                optionsLoading ||
-                (needsHrisSuccessor && (!options.canSetHrisAdmin || !options.hrisSuccessors.length))
-              }
+              disabled={!optionsReady || optionsLoading}
               onClick={() => form.submit()}
             >
               Simpan akun
@@ -340,8 +326,12 @@ export default function OrganizationAccountForm({
         <Form
           form={form}
           layout="vertical"
-          onValuesChange={() => {
+          onValuesChange={(changed) => {
             dirtyRef.current = true;
+            if (changed.isHrisAdmin === false && item?.hrisAccess?.fullAdmin) {
+              form.setFieldValue("hrisMenuAccess", []);
+              form.setFieldValue("hrisAccountAccess", "none");
+            }
           }}
           onFinish={confirmSubmit}
           onFinishFailed={({ errorFields }) => {
@@ -416,42 +406,6 @@ export default function OrganizationAccountForm({
             >
               <Input maxLength={80} autoComplete="off" />
             </Form.Item>
-            {needsHrisSuccessor ? (
-              <Box sx={{ gridColumn: "1 / -1", mb: 2 }}>
-                {options.canSetHrisAdmin ? (
-                  options.hrisSuccessors.length ? (
-                    <Form.Item
-                      name="hrisSuccessorAccountId"
-                      label="Admin HRD penuh pengganti"
-                      extra="Pengganti mendapat akses penuh HRIS dan seluruh lokasi. Hak HRIS akun ini dicabut saat role berubah menjadi Pegawai."
-                      rules={[{ required: true, message: "Pilih admin HRD penuh pengganti." }]}
-                    >
-                      <Select
-                        showSearch
-                        optionFilterProp="label"
-                        placeholder="Pilih akun HRD aktif"
-                        options={options.hrisSuccessors.map((successor) => ({
-                          value: successor.id,
-                          label: `${successor.name} · ${successor.username}`,
-                        }))}
-                      />
-                    </Form.Item>
-                  ) : (
-                    <AppNotice
-                      tone="warning"
-                      title="Belum ada admin pengganti"
-                      description="Buat atau aktifkan akun HRD lain terlebih dahulu, lalu pilih sebagai pengganti."
-                    />
-                  )
-                ) : (
-                  <AppNotice
-                    tone="warning"
-                    title="Admin HRD penuh perlu dialihkan"
-                    description="Minta Superadmin memilih admin pengganti sebelum akun ini diubah menjadi Pegawai."
-                  />
-                )}
-              </Box>
-            ) : null}
             {!editing ? (
               <>
                 <Form.Item name="password" label="Password" rules={PASSWORD_FORM_RULES}>
@@ -542,15 +496,15 @@ export default function OrganizationAccountForm({
         title={
           pending?.isHrisAdmin && !item?.hrisAccess?.fullAdmin
             ? "Tetapkan admin HRD penuh?"
-            : needsHrisSuccessor
-              ? "Alihkan admin dan ubah role akun?"
+            : revokesFullAdmin(pending || {})
+              ? "Cabut admin HRD penuh?"
               : "Ubah cakupan akses?"
         }
         message={
           pending?.isHrisAdmin && !item?.hrisAccess?.fullAdmin
             ? "Akun ini menjadi satu-satunya admin HRD penuh. Admin sebelumnya mengikuti hak menu yang tersimpan. Inventaris tetap terpisah."
-            : needsHrisSuccessor
-              ? `Admin HRD penuh dialihkan ke ${options.hrisSuccessors.find((successor) => successor.id === pending?.hrisSuccessorAccountId)?.name || "akun HRD yang dipilih"}. Akun ini menjadi Pegawai dan seluruh hak HRIS-nya dicabut.`
+            : revokesFullAdmin(pending || {})
+              ? "Hak penuh dan semua izin HRIS akun ini dicabut. Organisasi boleh sementara tanpa admin HRD penuh. Akses Inventaris tetap ada."
               : "Hak menu dan cakupan diganti sesuai pilihan baru. Perubahan berlaku pada permintaan berikutnya, termasuk akun yang masih login."
         }
         confirmText="Simpan perubahan"

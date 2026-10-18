@@ -49,6 +49,7 @@ export default function EmployeeDisciplinePanel({ discipline }) {
       </DataPanel>
       <DisciplineCaseDetailModal
         open={!!detail}
+        selfView
         disciplineCase={detail}
         organizationId={detail?.organization_id}
         onClose={() => setDetail(null)}

@@ -14,17 +14,16 @@ export default function EmployeeProfileBanner({ data, user, accountProfile }) {
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [preview, setPreview] = useState(null);
-  const linked = Boolean(data?.profile || user?.identity_source === "employee" && user?.employee_id);
+  const linked = Boolean(data?.profile || accountProfile?.employee_no || user?.identity_source === "employee" && user?.employee_id);
   const name = data?.profile?.name || accountProfile?.full_name ||
     (user?.identity_source === "employee" ? user?.display_name : null) ||
     accountProfile?.platform_full_name || user?.display_name || user?.username || "Pengguna";
   const nip = data?.profile?.nip || accountProfile?.employee_no;
   const statusKey = data?.employment?.status || accountProfile?.employment_status || user?.employment_status;
   const status = EMPLOYEE_STATUS_PRESENTATION[statusKey]?.[0];
-  const photoUrl = data?.profile?.photoUrl || (linked && user?.profile_photo_file_id
-    ? user.role_code === "employee"
-      ? `/api/uploads/profile_self?photoVersion=${encodeURIComponent(user.profile_photo_file_id)}`
-      : `/api/uploads/${encodeURIComponent(user.profile_photo_file_id)}?organizationId=${encodeURIComponent(user.organization_id)}`
+  const photoVersion = user?.profile_photo_file_id || accountProfile?.employee_id;
+  const photoUrl = data?.profile?.photoUrl || (linked && photoVersion
+    ? `/api/uploads/profile_self?photoVersion=${encodeURIComponent(photoVersion)}`
     : undefined);
   const badges = linked
     ? [status, data?.employment?.type || accountProfile?.employment_type_name]

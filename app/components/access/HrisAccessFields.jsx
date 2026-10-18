@@ -56,13 +56,7 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
         <FormSettingSwitch
           name="isHrisAdmin"
           title="Admin HRD penuh"
-          disabled={Boolean(item?.hrisAccess?.fullAdmin || (!item && options.needsFirstHrisAdmin))}
-          disabledReason={
-            item?.hrisAccess?.fullAdmin
-              ? "Untuk mengganti admin, pilih akun HRD lain melalui Superadmin."
-              : "Akun HRD aktif pertama otomatis menjadi admin penuh."
-          }
-          description="Hanya satu akun per organisasi. Jika diaktifkan, akun ini menggantikan admin HRD penuh sebelumnya."
+          description="Hanya satu akun per organisasi. Aktifkan untuk menetapkan akun ini; nonaktifkan untuk mencabut hak penuhnya."
         />
       ) : null}
       <Form.Item name="expandedHrisGroups" hidden>
@@ -71,9 +65,9 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
       <Form.Item name="hrisMenuAccess" hidden>
         <GrantValue />
       </Form.Item>
-      {!options.hrisConfigured && !full ? (
+      {!options.hasFullHrisAdmin && !full ? (
         <FontStyle explanation fontSize={12}>
-          Admin HRD penuh belum ditetapkan. Hak menu yang disimpan tetap berlaku untuk akun ini.
+          Belum ada admin HRD penuh. Hak menu yang diberikan langsung tetap berlaku.
         </FontStyle>
       ) : null}
       {full ? (

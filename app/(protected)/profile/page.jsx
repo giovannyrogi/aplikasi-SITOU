@@ -263,6 +263,7 @@ export default function ProfilePage() {
           setPendingLink(null);
           setLinkModalOpen(false);
           showNotification(body.message);
+          window.dispatchEvent(new Event("sitou:access-changed"));
           router.refresh();
         },
         { message: "Mengaitkan profil..." },

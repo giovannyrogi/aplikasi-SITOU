@@ -145,6 +145,7 @@ export default function EmployeeLeavePanel({ leave, year }) {
       </DataPanel>
       <LeaveDetailModal
         item={detail}
+        selfView
         onClose={() => setDetail(null)}
         balance={selectedBalance}
         balanceYear={year}

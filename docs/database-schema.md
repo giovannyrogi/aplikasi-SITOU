@@ -330,8 +330,10 @@ master bagi inventory_manager pada tahap 049.
 
 ## HRIS menu access — migration 051
 
-organization_hris_access_policies menyimpan satu primary_membership_id, enabled,
-version serta actor/waktu per organisasi. user_hris_menu_grants memetakan membership
+organization_hris_access_policies menyimpan paling banyak satu primary_membership_id, enabled,
+version serta actor/waktu per organisasi. Sejak migration 061, primary_membership_id boleh NULL
+meski enabled=true: belum ada admin penuh, bukan HRIS nonaktif. Admin pertama ditetapkan
+secara eksplisit oleh Superadmin. user_hris_menu_grants memetakan membership
 ke hris_menu_definitions dengan level read/manage; user_hris_access_settings mencatat
 peninjauan eksplisit termasuk grant kosong. Composite FK mengunci organisasi.
 Migration 053 membekukan hak efektif akun HRD lama yang belum diatur menjadi grant
@@ -394,3 +396,5 @@ Lihat docs/inventory-distribution.md. Distribusi memakai transaksi/line/reversal
 Dashboard Pegawai membaca profil tertaut dan histori penempatan/kontrak sendiri melalui permission self-service. Ringkasan Inventaris membaca proyeksi stok, transaksi resmi, draft sendiri dan lokasi penyaluran menurut scope setiap permission, tanpa tabel atau migration baru. Kontrak API/perhitungan tersedia di `docs/dashboard-workspace.md`.
 
 Migration 059 hanya menambah permission `leave_requests.read_self` dan `disciplinary_actions.read_self` serta grant role Pegawai. Tidak menambah tabel/kolom atau mengubah data cuti/sanksi. Dashboard pribadi membaca employees.user_id dan organization_id sesi, ledger saldo, histori cuti nondraft, dan ringkasan sanksi nondraft. Tidak memberikan akses administrasi atau dokumen sanksi.
+
+Migration 062 memberi grant baca `*_self` yang sama kepada HRD dan Pimpinan untuk Ringkasan Pribadi jika profil pegawai tertaut. Endpoint tetap mengunci `organization_id` dan `employees.user_id` dari sesi; rincian dan file pribadi tidak dapat digunakan untuk membaca data pegawai lain. Tidak ada tabel atau kolom baru.

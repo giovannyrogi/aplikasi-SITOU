@@ -195,3 +195,15 @@ kedaluwarsa. Jalankan `npm run inventory-drafts:expire` secara terjadwal seperti
 `employee-drafts:expire`. Draft tidak mengubah saldo stok.
 
 Migration `059` menambahkan dua permission baca pribadi dashboard Pegawai: cuti/izin/saldo dan ringkasan sanksi resmi. Hanya role employee menerima grant, tidak ada grant administrasi/approval/file. Seed idempotent dan bootstrap sudah memuat kondisi akhir. Diuji pada database kosong serta diterapkan pada development dalam perubahan ini.
+
+## 061 — Admin HRD penuh opsional
+
+Terapkan `20261018_061_optional_full_hris_admin.sql` pada database berjalan
+sebelum kode pencabutan tanpa pengganti digunakan. Constraint yang mewajibkan
+`primary_membership_id` ketika kebijakan HRIS aktif dihapus. Nilai NULL berarti
+belum ada admin penuh, bukan HRIS nonaktif; grant HRIS eksplisit tetap berlaku.
+Bootstrap `sitou_schema_v3.sql` mencerminkan constraint akhir.
+
+## 062 — Ringkasan Pribadi HRD dan Pimpinan
+
+Terapkan `20261018_062_dashboard_personal_access.sql` sebelum submenu Ringkasan Pribadi digunakan HRD/Pimpinan. Migration idempotent ini memberi enam grant baca `*_self` kepada kedua role tanpa menambah tabel/kolom atau izin administrasi. Service tetap mengunci organisasi dan pemilik profil dari sesi.

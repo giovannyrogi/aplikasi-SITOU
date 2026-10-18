@@ -1823,6 +1823,15 @@ SELECT role.id,permission.id FROM roles role CROSS JOIN permissions permission
 WHERE role.code='employee' AND permission.code IN ('leave_requests.read_self','disciplinary_actions.read_self')
 ON CONFLICT DO NOTHING;
 
+-- Ringkasan pribadi HRD/Pimpinan (migration 062). Service tetap mengunci ke profil sesi.
+INSERT INTO role_permissions(role_id, permission_id)
+SELECT role.id, permission.id FROM roles role CROSS JOIN permissions permission
+WHERE role.code IN ('hrd','leader') AND permission.code IN (
+  'employees.read_self','assignments.read_self','contracts.read_self',
+  'leave_requests.read_self','disciplinary_actions.read_self','private_files.read_self'
+)
+ON CONFLICT DO NOTHING;
+
 COMMIT;
 
 -- CATATAN DEPLOYMENT:
@@ -1998,9 +2007,10 @@ CREATE TABLE organization_hris_access_policies (
  enabled boolean NOT NULL DEFAULT false, primary_membership_id bigint,
  version integer NOT NULL DEFAULT 1, updated_at timestamptz NOT NULL DEFAULT now(),
  updated_by_user_id bigint REFERENCES users(id),
- CHECK(NOT enabled OR primary_membership_id IS NOT NULL),
  FOREIGN KEY(organization_id,primary_membership_id) REFERENCES user_organization_roles(organization_id,id)
 );
+COMMENT ON COLUMN organization_hris_access_policies.primary_membership_id IS
+ 'NULL berarti belum ada admin HRD penuh; grant HRIS eksplisit tetap berlaku.';
 CREATE TABLE hris_menu_definitions (
  code varchar(80) PRIMARY KEY, label varchar(120) NOT NULL, group_label varchar(80) NOT NULL,
  route_path varchar(160) NOT NULL UNIQUE, can_manage boolean NOT NULL
