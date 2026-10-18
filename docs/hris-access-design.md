@@ -74,6 +74,11 @@ akun itu kembali mengikuti grant tersimpan dan cakupannya.
 Admin penuh tidak dapat dinonaktifkan, diturunkan role/cakupannya, atau diakhiri
 hubungan kerjanya sebelum dialihkan melalui Superadmin. Guard lifecycle ini telah
 disetujui; perhitungan, penutupan histori, tanggal dan alur HRIS lain tetap berlaku.
+Khusus edit role admin penuh menjadi Pegawai, Superadmin memilih akun HRD aktif lain
+sebagai pengganti pada formulir yang sama. Pengalihan admin, perubahan role, dan
+pencabutan grant menu serta kewenangan akun HRIS lama disimpan atomik dan diaudit.
+Pengganti memperoleh cakupan seluruh lokasi. Jika belum ada pengganti, perubahan
+tidak dapat disimpan. Hak Inventaris akun lama tidak ikut dicabut otomatis.
 
 ## UI dan pengujian
 
@@ -82,6 +87,12 @@ kelompok menu yang dapat dilipat, checkbox submenu dan tingkat akses. Ringkasan
 tabel hanya satu chip fitur +N fitur lainnya; rincian melalui Aksi → Lihat hak akses,
 tanpa menumpuk seluruh grant di tabel. Gunakan layout responsif, teks sederhana,
 justify untuk bantuan, spacing dan komponen SITOU yang sudah ada.
+
+Daftar dan pencarian Akun Organisasi tidak menampilkan akun yang sedang login,
+termasuk pada total/paginasi. Endpoint Akun Organisasi juga menolak detail,
+perubahan, dan reset password akun sendiri meskipun ID dikirim langsung. Pengguna
+melihat informasi serta mengubah password sendiri di Profil; role dan hak akses
+akunnya hanya dapat diubah oleh pengelola lain yang berwenang.
 
 prosedur verifikasi fitur memeriksa resolver/schema. Runner
 prosedur verifikasi fitur mencakup bootstrap/upgrade 051–052, regresi Inventaris,

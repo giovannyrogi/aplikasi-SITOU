@@ -192,8 +192,8 @@ export default function OrganizationAccountsPage() {
           isSuperadmin
             ? "Kelola akun HRD, Pimpinan, dan Pegawai pada organisasi yang dipilih."
             : user.access?.hris?.fullAdmin
-              ? "Kelola akun dan hak akses dalam organisasi Anda."
-              : "Buat dan kelola akun Pegawai yang terhubung dengan profil pegawai."
+              ? "Kelola akun lain dan hak akses dalam organisasi Anda. Akun Anda tersedia di Profil."
+              : "Buat dan kelola akun Pegawai lain. Akun Anda tersedia di Profil."
         }
         action={
           <Button
@@ -212,8 +212,8 @@ export default function OrganizationAccountsPage() {
           isSuperadmin
             ? "Role Superadmin tidak dapat diberikan melalui menu ini."
             : user.access?.hris?.fullAdmin
-              ? "Kelola akun dan pembagian akses dalam organisasi Anda."
-              : "Daftar hanya menampilkan akun Pegawai yang dapat Anda kelola."
+              ? "Kelola akun lain dan pembagian akses dalam organisasi Anda."
+              : "Daftar hanya menampilkan akun Pegawai lain yang dapat Anda kelola."
         }
         toolbar={
           <DataToolbar
@@ -248,7 +248,7 @@ export default function OrganizationAccountsPage() {
           emptyDescription={
             isSuperadmin && !organizationId
               ? "Pilih organisasi untuk menampilkan akun dan hak akses."
-              : "Belum ada akun organisasi."
+              : "Tidak ada akun lain yang sesuai."
           }
         />
       </DataPanel>

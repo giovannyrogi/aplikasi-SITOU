@@ -1,7 +1,42 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { leaveAdjustmentSchema, leaveRequestCreateSchema, leaveTypeCreateSchema } from "../lib/leave/schemas.js";
+import {
+  leaveAdjustmentSchema,
+  leaveRequestCreateSchema,
+  leaveTypeCreateSchema,
+} from "../lib/leave/schemas.js";
+import { isLeaveTypeEligible } from "../lib/leave/eligibility.mjs";
+
+test("aturan cuti hanya berlaku untuk jenis kelamin profil yang sesuai", () => {
+  for (const gender of ["male", "female", "other", "undisclosed", null]) {
+    assert.equal(isLeaveTypeEligible("all", gender), true);
+    assert.equal(isLeaveTypeEligible("male", gender), gender === "male");
+    assert.equal(isLeaveTypeEligible("female", gender), gender === "female");
+  }
+});
+
+test("aturan baru default semua pegawai dan menolak pilihan lain", () => {
+  const base = {
+    organizationId: 1,
+    name: "Cuti tahunan",
+    category: "leave",
+    unit: "day",
+    requiresAttachment: false,
+    usesBalance: true,
+    annualAllowance: 12,
+    isActive: true,
+  };
+  assert.equal(leaveTypeCreateSchema.parse(base).eligibleGender, "all");
+  assert.equal(
+    leaveTypeCreateSchema.safeParse({ ...base, eligibleGender: "female" }).success,
+    true,
+  );
+  assert.equal(
+    leaveTypeCreateSchema.safeParse({ ...base, eligibleGender: "other" }).success,
+    false,
+  );
+});
 
 test("jenis bersaldo wajib memiliki jatah tahunan", () => {
   const result = leaveTypeCreateSchema.safeParse({
@@ -80,7 +115,10 @@ test("penyesuaian saldo menolak nilai nol dan alasan pendek", () => {
 
 test("migration dan schema bootstrap memisahkan cuti dari status pegawai", async () => {
   const [migration, integerMigration, schema] = await Promise.all([
-    readFile(new URL("../database/migrations/20260901_022_leave_management.sql", import.meta.url), "utf8"),
+    readFile(
+      new URL("../database/migrations/20260901_022_leave_management.sql", import.meta.url),
+      "utf8",
+    ),
     readFile(
       new URL("../database/migrations/20260901_024_integer_leave_units.sql", import.meta.url),
       "utf8",
@@ -125,10 +163,7 @@ test("daftar cuti memakai section filter utama tanpa drawer dan toolbar lama", a
 test("form cuti menyusun komponen upload reusable untuk banyak lampiran", async () => {
   const [form, uploadList] = await Promise.all([
     readFile(new URL("../app/components/leave/LeaveRequestForm.jsx", import.meta.url), "utf8"),
-    readFile(
-      new URL("../app/components/forms/FileUploadListField.jsx", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../app/components/forms/FileUploadListField.jsx", import.meta.url), "utf8"),
   ]);
   assert.match(form, /<FileUploadListField/);
   assert.doesNotMatch(form, /Upload\.Dragger/);

@@ -1,9 +1,13 @@
 "use client";
 
+import { keyframes } from "@emotion/react";
 import AppIconTile from "@/app/components/icons/AppIconTile";
 import { Box, Paper, Skeleton, LinearProgress, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import MetricSparkline from "./MetricSparkline";
+
+const slideInNext = keyframes`from { opacity: 0.35; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); }`;
+const slideInPrevious = keyframes`from { opacity: 0.35; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); }`;
 
 function MetricValue({ metric, refined, balanced = false }) {
   return (
@@ -31,7 +35,9 @@ function MetricValue({ metric, refined, balanced = false }) {
             <Box key={index} sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}>
               <FontStyle
                 component="span"
-                fontSize={balanced ? { xs: 26, sm: 28, lg: 30, xl: 34 } : refined ? { xs: 26, sm: 30 } : 28}
+                fontSize={
+                  balanced ? { xs: 26, sm: 28, lg: 30, xl: 34 } : refined ? { xs: 26, sm: 30 } : 28
+                }
                 fontWeight={700}
               >
                 {part.value == null ? "—" : new Intl.NumberFormat("id-ID").format(part.value)}
@@ -56,11 +62,17 @@ export default function DashboardMetric({
   refined = false,
   selection,
   balanced = false,
+  slide,
+  navigation,
+  surfaceRef,
+  surfaceProps,
 }) {
   const theme = useTheme();
   const tone = theme.status[metric?.tone] || theme.status.info;
   return (
     <Paper
+      ref={surfaceRef}
+      {...surfaceProps}
       component="div"
       elevation={0}
       sx={{
@@ -100,6 +112,8 @@ export default function DashboardMetric({
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <FontStyle
                 fontSize={refined ? 13 : 11.5}
+                aria-live={slide ? (slide.autoplaying ? "off" : "polite") : undefined}
+                aria-atomic={slide ? "true" : undefined}
                 sx={{ color: theme.ui.mutedText, lineHeight: 1.5 }}
               >
                 {metric.label}
@@ -107,51 +121,100 @@ export default function DashboardMetric({
             </Box>
             <AppIconTile icon={metric.icon} tone={metric.tone || "info"} size={40} iconSize={20} />
           </Box>
-          {selection ? <Box sx={{ mt: 1.5, minWidth: 0 }}>{selection}</Box> : null}
-          {!balanced ? <MetricValue metric={metric} refined={refined} /> : null}
-          {balanced ? (
-            <Box sx={{ flex: 1, display: "flex", alignItems: "center", minHeight: 88, py: 2 }}>
-              <MetricValue metric={metric} refined={refined} balanced />
-            </Box>
-          ) : null}
-          {metric.trendData?.length ? (
-            <Box sx={{ mt: "auto", pt: 0.5 }}>
-              <MetricSparkline data={metric.trendData} color={tone.main} />
-            </Box>
-          ) : (
-            <FontStyle
-              fontSize={refined ? 12 : 10.5}
+          <Box
+            {...slide?.interactionProps}
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              minWidth: 0,
+              touchAction: slide ? "pan-y" : undefined,
+              userSelect: slide ? "none" : undefined,
+              "&:focus-visible": slide
+                ? {
+                    outline: "2px solid",
+                    outlineColor: "primary.main",
+                    outlineOffset: 3,
+                    borderRadius: 1,
+                  }
+                : undefined,
+            }}
+          >
+            <Box
+              key={slide?.key || "metric"}
+              aria-live={slide ? (slide.autoplaying ? "off" : "polite") : undefined}
+              aria-atomic={slide ? "true" : undefined}
               sx={{
-                mt: Number.isFinite(metric.progress) ? 1.2 : "auto",
-                pt: balanced ? 1.5 : Number.isFinite(metric.progress) ? 0 : 1.2,
-                borderTop: balanced ? `1px solid ${theme.ui.panelBorderSubtle}` : undefined,
-                color: theme.ui.mutedText,
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 0,
+                animation: slide?.animate
+                  ? `${slide.direction === -1 ? slideInPrevious : slideInNext} 220ms ease-out both`
+                  : undefined,
+                "@media (prefers-reduced-motion: reduce)": { animation: "none" },
               }}
             >
-              {metric.description || "Data diperbarui dari kondisi operasional terkini."}
-            </FontStyle>
-          )}
-          {Number.isFinite(metric.progress) ? (
-            <Box sx={{ mt: 1.5 }}>
-              {metric.progressStatus ? (
-                <FontStyle fontSize={11} fontWeight={600} sx={{ mb: 0.75, color: (theme.status[metric.progressTone] || tone).text }}>
-                  {metric.progressStatus}
+              {selection ? <Box sx={{ mt: 1.5, minWidth: 0 }}>{selection}</Box> : null}
+              {!balanced ? <MetricValue metric={metric} refined={refined} /> : null}
+              {balanced ? (
+                <Box sx={{ flex: 1, display: "flex", alignItems: "center", minHeight: 88, py: 2 }}>
+                  <MetricValue metric={metric} refined={refined} balanced />
+                </Box>
+              ) : null}
+              {metric.trendData?.length ? (
+                <Box sx={{ mt: "auto", pt: 0.5 }}>
+                  <MetricSparkline data={metric.trendData} color={tone.main} />
+                </Box>
+              ) : metric.description !== "" ? (
+                <FontStyle
+                  fontSize={refined ? 12 : 10.5}
+                  sx={{
+                    mt: Number.isFinite(metric.progress) ? 1.2 : "auto",
+                    pt: balanced ? 1.5 : Number.isFinite(metric.progress) ? 0 : 1.2,
+                    borderTop: balanced ? `1px solid ${theme.ui.panelBorderSubtle}` : undefined,
+                    color: theme.ui.mutedText,
+                  }}
+                >
+                  {metric.description ?? "Data diperbarui dari kondisi operasional terkini."}
                 </FontStyle>
               ) : null}
-              <LinearProgress
-                variant="determinate"
-                value={Math.max(0, Math.min(100, metric.progress))}
-                aria-label={metric.progressAriaLabel || `Kemajuan ${metric.label}`}
-                sx={{
-                  height: 6,
-                  borderRadius: 3,
-                  bgcolor: (theme.status[metric.progressTone] || theme.status.neutral).background,
-                  "& .MuiLinearProgress-bar": {
-                    bgcolor: (theme.status[metric.progressTone] || tone).main,
-                  },
-                }}
-              />
+              {Number.isFinite(metric.progress) ? (
+                <Box
+                  sx={{
+                    mt: metric.description === "" ? "auto" : 1.5,
+                    pt: metric.description === "" ? 1.5 : 0,
+                  }}
+                >
+                  {metric.progressStatus ? (
+                    <FontStyle
+                      fontSize={11}
+                      fontWeight={600}
+                      sx={{ mb: 0.75, color: (theme.status[metric.progressTone] || tone).text }}
+                    >
+                      {metric.progressStatus}
+                    </FontStyle>
+                  ) : null}
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.max(0, Math.min(100, metric.progress))}
+                    aria-label={metric.progressAriaLabel || `Kemajuan ${metric.label}`}
+                    sx={{
+                      height: 6,
+                      borderRadius: 3,
+                      bgcolor: (theme.status[metric.progressTone] || theme.status.neutral)
+                        .background,
+                      "& .MuiLinearProgress-bar": {
+                        bgcolor: (theme.status[metric.progressTone] || tone).main,
+                      },
+                    }}
+                  />
+                </Box>
+              ) : null}
             </Box>
+          </Box>
+          {navigation ? (
+            <Box sx={{ mt: 0.25, display: "flex", justifyContent: "center" }}>{navigation}</Box>
           ) : null}
         </>
       )}

@@ -26,7 +26,7 @@ export default function LeaveRequestForm({
   const user = useAuthenticatedUser();
   const onErrorRef = useRef(onError);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
-  const [types, setTypes] = useState([]);
+  const [typeState, setTypeState] = useState({ key: null, data: [] });
   const [confirm, setConfirm] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -35,6 +35,8 @@ export default function LeaveRequestForm({
   const watchedTypeId = Form.useWatch("leaveTypeId", form);
   const period = Form.useWatch("period", form);
   const employeeId = Form.useWatch("employeeId", form);
+  const typeKey = `${organizationId}:${employeeId}`;
+  const types = typeState.key === typeKey ? typeState.data : [];
   const units = Form.useWatch("requestedUnits", form);
   const selectedType = types.find((item) => item.id === String(watchedTypeId));
   const year =
@@ -85,7 +87,6 @@ export default function LeaveRequestForm({
   }, [onError]);
   useEffect(() => {
     if (!open || !organizationId) return;
-    const controller = new AbortController();
     form.resetFields();
     form.setFieldsValue({
       organizationId,
@@ -93,16 +94,28 @@ export default function LeaveRequestForm({
       requestedUnits: 1,
       attachmentFiles: [],
     });
-    fetch(`/api/leave-types?organizationId=${organizationId}&options=true`, {
-      signal: controller.signal,
-    })
+  }, [form, open, organizationId, presetEmployeeId]);
+  useEffect(() => {
+    if (!open || !organizationId) return undefined;
+    form.setFieldValue("leaveTypeId", undefined);
+    const controller = new AbortController();
+    Promise.resolve().then(() => {
+      if (!controller.signal.aborted) setTypeState({ key: null, data: [] });
+    });
+    if (!employeeId) return () => controller.abort();
+    fetch(
+      `/api/leave-types?organizationId=${encodeURIComponent(organizationId)}&options=true&employeeId=${encodeURIComponent(employeeId)}`,
+      { signal: controller.signal },
+    )
       .then(readApiResponse)
-      .then((body) => setTypes(body.data || []))
+      .then((body) => {
+        if (!controller.signal.aborted) setTypeState({ key: typeKey, data: body.data || [] });
+      })
       .catch((error) => {
         if (error.name !== "AbortError") onErrorRef.current?.(error.message);
       });
     return () => controller.abort();
-  }, [form, open, organizationId, presetEmployeeId]);
+  }, [form, open, organizationId, employeeId, typeKey]);
   useEffect(() => {
     if (period?.[0] && period?.[1] && selectedType?.unit === "day")
       form.setFieldValue(
@@ -268,6 +281,12 @@ export default function LeaveRequestForm({
                 <Select
                   showSearch
                   optionFilterProp="label"
+                  disabled={!employeeId || typeState.key !== typeKey}
+                  notFoundContent={
+                    employeeId
+                      ? "Tidak ada jenis cuti atau izin yang sesuai."
+                      : "Pilih pegawai terlebih dahulu."
+                  }
                   options={types.map((item) => ({
                     value: item.id,
                     label: item.name,
@@ -475,8 +494,8 @@ export default function LeaveRequestForm({
                 ) : null}
               </span>
               <span>
-                Cuti atau izin ini langsung disetujui. Jika salah, batalkan dengan alasan,
-                lalu buat lagi.
+                Cuti atau izin ini langsung disetujui. Jika salah, batalkan dengan alasan, lalu buat
+                lagi.
               </span>
             </span>
           ) : (

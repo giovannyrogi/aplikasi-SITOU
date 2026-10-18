@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Form, Input, Select, Tag } from "antd";
+import { Button, Form, Input, Select } from "antd";
 import { Avatar, Box, Paper, useTheme } from "@mui/material";
 import AppIcon from "@/app/components/icons/AppIcon";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/app/components/layout/PageHeader";
 import AppModal from "@/app/components/modals/AppModal";
@@ -341,11 +342,12 @@ export default function ProfilePage() {
               {displayName || "Memuat profil..."}
             </FontStyle>
             <Box sx={{ mt: 0.75, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-              <Tag color="red">{roleLabel}</Tag>
-              <Tag color={profile?.is_active ? "green" : "default"}>
-                {profile?.is_active ? "Akun aktif" : "Akun tidak aktif"}
-              </Tag>
-              {profileLinked ? <Tag color="blue">Profil terhubung</Tag> : null}
+              <CompactInfoChip label={roleLabel} tone="danger" />
+              <CompactInfoChip
+                label={profile?.is_active ? "Akun aktif" : "Akun tidak aktif"}
+                status={profile?.is_active ? "active" : "inactive"}
+              />
+              {profileLinked ? <CompactInfoChip label="Profil terhubung" tone="info" /> : null}
             </Box>
           </Box>
         </Box>

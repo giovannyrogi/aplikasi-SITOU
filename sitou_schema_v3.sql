@@ -1092,6 +1092,7 @@ CREATE TABLE leave_types (
   required_attachment_category varchar(40), -- Contoh medical_letter untuk izin sakit.
   uses_balance boolean NOT NULL DEFAULT true, -- Mengurangi saldo atau tidak.
   annual_allowance integer, -- Hak tahunan default dalam bilangan bulat.
+  eligible_gender varchar(10) NOT NULL DEFAULT 'all' CONSTRAINT ck_leave_types_eligible_gender CHECK (eligible_gender IN ('all','male','female')), -- Pegawai yang dapat memakai jenis ini.
   is_active boolean NOT NULL DEFAULT true, -- Status master.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu master dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Versi optimistic concurrency.

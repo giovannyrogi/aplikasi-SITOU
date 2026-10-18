@@ -33,6 +33,7 @@ export default function LeaveTypeForm({
             name: item.name,
             category: item.category,
             unit: item.unit,
+            eligibleGender: item.eligible_gender,
             requiresAttachment: item.requires_attachment,
             requiredAttachmentCategory: item.required_attachment_category,
             usesBalance: item.uses_balance,
@@ -43,6 +44,7 @@ export default function LeaveTypeForm({
             organizationId: presetOrganizationId,
             category: "leave",
             unit: "day",
+            eligibleGender: "all",
             requiresAttachment: false,
             usesBalance: true,
             isActive: true,
@@ -83,7 +85,7 @@ export default function LeaveTypeForm({
         open={open}
         onClose={closeGuard.requestClose}
         title={editing ? "Ubah aturan cuti & izin" : "Tambah aturan cuti & izin"}
-        description="Atur kelompok, satuan, saldo, dan kebutuhan dokumen."
+        description="Atur kelompok, pegawai yang dapat menggunakan, jatah, dan dokumen."
         icon="solar:calendar-add-bold-duotone"
         size="lg"
         footer={
@@ -146,6 +148,24 @@ export default function LeaveTypeForm({
                   options={[
                     { value: "day", label: "Hari" },
                     { value: "hour", label: "Jam" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24}>
+              <Form.Item
+                name="eligibleGender"
+                label="Berlaku untuk"
+                extra="Jenis cuti atau izin ini hanya muncul saat pegawai yang dipilih memenuhi ketentuan."
+                rules={[
+                  { required: true, message: "Pilih pegawai yang dapat menggunakan jenis ini." },
+                ]}
+              >
+                <Select
+                  options={[
+                    { value: "all", label: "Semua pegawai" },
+                    { value: "male", label: "Laki-laki" },
+                    { value: "female", label: "Perempuan" },
                   ]}
                 />
               </Form.Item>

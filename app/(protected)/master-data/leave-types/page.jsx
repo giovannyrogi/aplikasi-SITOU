@@ -19,6 +19,8 @@ import useAppNotification from "@/app/hooks/useAppNotification";
 import LeaveTypeForm from "@/app/components/leave/LeaveTypeForm";
 import { LEAVE_CATEGORY, LEAVE_UNIT, formatLeaveUnits } from "@/app/components/leave/leaveLabels";
 
+const ELIGIBLE_GENDER = { all: "Semua pegawai", male: "Laki-laki", female: "Perempuan" };
+
 export default function LeaveTypesPage() {
   const user = useAuthenticatedUser();
   const superadmin = user.role_code === ROLES.SUPERADMIN;
@@ -64,6 +66,10 @@ export default function LeaveTypesPage() {
             }
             tone={item.uses_balance ? "info" : "neutral"}
           />
+          <CompactInfoChip
+            label={ELIGIBLE_GENDER[item.eligible_gender] || "Semua pegawai"}
+            tone="neutral"
+          />
           {item.requires_attachment ? (
             <CompactInfoChip label="Dokumen wajib" tone="warning" />
           ) : null}
@@ -99,6 +105,7 @@ export default function LeaveTypesPage() {
               : "Tidak mengurangi jatah"
           }
         />
+        <CompactInfoChip label={ELIGIBLE_GENDER[item.eligible_gender] || "Semua pegawai"} />
         <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
       </Box>
     </Box>

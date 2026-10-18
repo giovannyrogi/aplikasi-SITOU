@@ -70,9 +70,7 @@ export default function EmployeeDashboard({ dashboardState }) {
               gap: 3,
             }}
           >
-            {data.leave ? (
-              <EmployeeBalanceMetric balances={data.leave.balances} year={data.today.slice(0, 4)} />
-            ) : null}
+            {data.leave ? <EmployeeBalanceMetric balances={data.leave.balances} /> : null}
             <DashboardMetric
               balanced
               refined

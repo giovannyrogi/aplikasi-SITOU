@@ -1,5 +1,7 @@
 # Migration Database SITOU
 
+Migration `060` menambahkan sasaran jenis kelamin pada master cuti/izin. Semua aturan lama tetap berlaku untuk semua pegawai (`all`). Terapkan sebelum deploy API dan UI yang menyaring jenis cuti berdasarkan profil; migration ini tidak mengubah riwayat atau saldo.
+
 Migration `058` mendaftarkan menu **Rekap Cuti & Izin** (`leave-summary-report`) sebagai laporan read-only. Tidak menambah grant HRD terdelegasi secara otomatis; atur melalui Akun & Akses. Bootstrap baru sudah memuat menu ini.
 
 Migration `054` menambahkan transaksi stok multi-barang, draft, saldo awal per barang–gudang, riwayat stok append-only, saldo turunan, referensi pengembalian/pembatalan, dan permission mutasi untuk Pengelola Gudang. Terapkan setelah migration `053`, lalu deploy API dan UI transaksi dalam satu rilis. Backup database development/produksi sesuai prosedur sebelum upgrade; jangan menjalankan migration ini dua kali. Kartu Stok tetap tahap berikutnya dan membaca riwayat yang sama.

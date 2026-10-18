@@ -22,8 +22,17 @@ export async function GET(request) {
       url.searchParams.get("organizationId") || null,
       { optional: true },
     );
-    if (url.searchParams.get("options") === "true")
-      return successResponse(await getLeaveTypeOptions(organizationId, true));
+    if (url.searchParams.get("options") === "true") {
+      const rawEmployeeId = url.searchParams.get("employeeId");
+      if (rawEmployeeId !== null && !/^[1-9]\d*$/.test(rawEmployeeId))
+        return errorResponse(
+          "VALIDATION_ERROR",
+          "Pegawai yang dipilih tidak valid.",
+          400,
+          requestId,
+        );
+      return successResponse(await getLeaveTypeOptions(organizationId, true, rawEmployeeId, user));
+    }
     const query = parseListQuery(url.searchParams);
     const result = await listLeaveTypes({ ...query, organizationId });
     return successResponse(result.data, {
