@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   accessChangeImpact,
+  accessEntitlementsChanged,
+  accessScopeChanged,
   dashboardSectionsChanged,
   pageAccessState,
 } from "../lib/access/liveAccessPolicy.mjs";
@@ -10,6 +12,36 @@ const hrd = (grants) => ({ hris: { configured: true, fullAdmin: false, grants },
 const inventory = (read, writes = []) => ({
   permissions: read ? ["inventory.master.read"] : [],
   writePermissions: writes,
+});
+
+test("perubahan cakupan terdeteksi meski izin menu dan bagian dashboard tetap sama", () => {
+  const before = { scopeRevision: "scope-a", dashboardSections: ["employees"] };
+  const after = { scopeRevision: "scope-b", dashboardSections: ["employees"] };
+  assert.equal(dashboardSectionsChanged(before, after), false);
+  assert.equal(accessScopeChanged(before, after), true);
+  assert.equal(accessScopeChanged(after, { ...after }), false);
+  assert.equal(accessScopeChanged({}, after), false);
+});
+
+test("pesan perubahan hak hanya muncul saat hak efektif berubah", () => {
+  const before = {
+    permissions: ["inventory.master.read"],
+    dashboardSections: ["employees"],
+    hris: { grants: [{ key: "employees", level: "read" }] },
+  };
+  assert.equal(accessEntitlementsChanged(before, { ...before, scopeRevision: "baru" }), false);
+  assert.equal(
+    accessEntitlementsChanged(before, { ...before, permissions: ["inventory.master.read", "inventory.stock.read"] }),
+    true,
+  );
+  assert.equal(
+    accessEntitlementsChanged(before, { ...before, hris: { grants: [{ key: "employees", level: "manage" }] } }),
+    true,
+  );
+  assert.equal(
+    accessEntitlementsChanged(before, { ...before, hris: { grants: [{ key: "employees", level: "read" }] } }),
+    false,
+  );
 });
 
 test("hak kelola HRIS yang dicabut menutup form tanpa mengusir pembaca", () => {

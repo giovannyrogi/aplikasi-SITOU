@@ -68,7 +68,7 @@ bahwa file boleh dihapus. Worker tetap memeriksa kondisi terkini pada setiap aks
 ## Diagnosis koneksi
 
 UI menampilkan kegagalan jaringan dalam Bahasa Indonesia, satu pesan koneksi dengan
-Coba lagi, polling berurutan, dan membatalkan request saat organisasi/halaman berubah.
+Coba lagi, Muat ulang, dan pembatalan request saat organisasi/halaman berubah tetap tersedia. Data dimuat saat halaman dibuka, organisasi berganti, atau tab kembali aktif. Polling berurutan setiap 10 detik hanya berjalan saat ada pemeriksaan atau penghapusan berstatus menunggu/berjalan dan tab terlihat; polling berhenti saat selesai atau tab tersembunyi. Kegagalan jaringan pada pekerjaan aktif dicoba lagi tanpa request bertumpuk. Saat tidak ada pekerjaan aktif, pembaruan melalui fokus tab atau Muat ulang.
 Respons API mempertahankan request ID ketika tersedia.
 
 “Failed to fetch” di VPS belum dapat dipastikan hanya dari screenshot. Cocokkan waktu

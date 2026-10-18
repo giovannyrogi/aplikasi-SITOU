@@ -44,6 +44,7 @@ import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import Notification from "@/app/components/Notifications/Notification";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import useAppNotification from "@/app/hooks/useAppNotification";
+import { hasPendingStorageRun } from "@/lib/storage-maintenance/polling.mjs";
 
 const statusLabels = {
   eligible: "Siap dibersihkan",
@@ -690,9 +691,11 @@ export default function StorageMaintenancePage() {
   const [organization, setOrganization] = useState({ id: null, name: "" });
   const overviewController = useRef(null);
   const itemsController = useRef(null);
+  const lastFocusRefreshAt = useRef(0);
   const [connectionError, setConnectionError] = useState("");
   const [summary, setSummary] = useState(null);
   const [runs, setRuns] = useState([]);
+  const [itemsReloadKey, setItemsReloadKey] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(10);
   const [activeTab, setActiveTab] = useState("candidate");
@@ -722,7 +725,7 @@ export default function StorageMaintenancePage() {
     () => runs.find((run) => run.status === "queued" || run.status === "running") || null,
     [runs],
   );
-  const hasActiveRun = Number(summary?.active_run_count || 0) > 0;
+  const hasActiveRun = hasPendingStorageRun(summary, runs);
   const visibleHistoryPage = Math.min(historyPage, Math.max(1, Math.ceil(runs.length / historyPageSize)));
   const activeRunLabel = activeRun?.run_type === "cleanup" ? "Penghapusan file" : "Pemeriksaan";
 
@@ -840,17 +843,6 @@ export default function StorageMaintenancePage() {
     setSelectedItems(new Map());
     setItemState({ data: [], loading: false, error: "", page: 1, pageSize: 20, total: 0 });
     let active = true;
-    let timer;
-    const refresh = async () => {
-      try {
-        await refreshOverview();
-      } catch (error) {
-        if (active && error.name !== "AbortError")
-          setConnectionError(normalizeRequestError(error).message);
-      } finally {
-        if (active) timer = window.setTimeout(refresh, 10000);
-      }
-    };
     setConnectionError("");
     setRelationshipItem(null);
     setRecoveryItem(null);
@@ -858,19 +850,72 @@ export default function StorageMaintenancePage() {
     setPreview(null);
     setConfirmOpen(false);
     setActionDialog(null);
-    refresh();
+    refreshOverview().catch((error) => {
+      if (active && error.name !== "AbortError")
+        setConnectionError(normalizeRequestError(error).message);
+    });
     return () => {
       active = false;
-      window.clearTimeout(timer);
       overviewController.current?.abort();
       itemsController.current?.abort();
     };
   }, [organizationId, refreshOverview]);
 
   useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== "visible" || Date.now() - lastFocusRefreshAt.current < 1000)
+        return;
+      lastFocusRefreshAt.current = Date.now();
+      refreshOverview()
+        .then(() => setItemsReloadKey((key) => key + 1))
+        .catch((error) => {
+          if (error.name !== "AbortError")
+            setConnectionError(normalizeRequestError(error).message);
+        });
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshOverview]);
+
+  useEffect(() => {
+    if (!hasActiveRun) return undefined;
+    let active = true;
+    let timer;
+    const poll = async () => {
+      if (!active || document.visibilityState !== "visible") return;
+      try {
+        await refreshOverview();
+      } catch (error) {
+        if (active && error.name !== "AbortError")
+          setConnectionError(normalizeRequestError(error).message);
+      } finally {
+        if (active && document.visibilityState === "visible")
+          timer = window.setTimeout(poll, 10000);
+      }
+    };
+    const schedule = () => {
+      window.clearTimeout(timer);
+      if (document.visibilityState === "visible") timer = window.setTimeout(poll, 10000);
+    };
+    schedule();
+    window.addEventListener("focus", schedule);
+    document.addEventListener("visibilitychange", schedule);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", schedule);
+      document.removeEventListener("visibilitychange", schedule);
+    };
+  }, [hasActiveRun, refreshOverview]);
+
+  useEffect(() => {
     loadItems(1);
     return () => itemsController.current?.abort();
-  }, [loadItems, summary?.latest_scan_at, summary?.latest_scan_status]);
+  }, [loadItems, summary?.latest_scan_at, summary?.latest_scan_status, itemsReloadKey]);
 
   useEffect(() => {
     setSelectedItems(new Map());
@@ -1351,7 +1396,19 @@ export default function StorageMaintenancePage() {
               }
             />
           </Box>
-          <Box sx={{ display: "flex", justifyContent: { xs: "stretch", md: "flex-end" } }}>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: { xs: "stretch", md: "flex-end" } }}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => refreshOverview()
+                .then(() => setItemsReloadKey((key) => key + 1))
+                .catch((error) => {
+                  if (error.name !== "AbortError")
+                    setConnectionError(normalizeRequestError(error).message);
+                })}
+              block={mobile}
+            >
+              Muat ulang
+            </Button>
             <Button
               type="primary"
               icon={<ScanOutlined />}

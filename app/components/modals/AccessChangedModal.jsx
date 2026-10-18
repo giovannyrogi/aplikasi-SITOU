@@ -1,12 +1,20 @@
 "use client";
 
 import { Button } from "antd";
-import AppNotice from "../data-display/AppNotice";
+import { Box, useTheme } from "@mui/material";
+import AppIcon from "../icons/AppIcon";
+import FontStyle from "../font-style/FontStyle";
 import AppModal from "./AppModal";
 import AccessCountdownPanel from "./AccessCountdownPanel";
 
 /** Keputusan izin berasal dari server; modal ini hanya menjelaskan dampaknya. */
-export default function AccessChangedModal({ mode, secondsRemaining = 5, onContinue }) {
+export default function AccessChangedModal({
+  mode,
+  secondsRemaining = 5,
+  onContinue,
+  showUnsavedNotice = false,
+}) {
+  const theme = useTheme();
   const redirect = mode === "redirect";
   const reduced = mode === "write-reduced";
   return (
@@ -16,58 +24,73 @@ export default function AccessChangedModal({ mode, secondsRemaining = 5, onConti
         redirect
           ? "Akses halaman dicabut"
           : reduced
-            ? "Sebagian akses mengelola dicabut"
-            : "Akses mengelola dicabut"
+            ? "Sebagian izin mengubah data dicabut"
+            : "Izin mengubah data dicabut"
       }
       description={
         redirect
-          ? "Halaman ini tidak lagi tersedia untuk akun Anda."
+          ? "Anda tidak lagi dapat membuka halaman ini."
           : reduced
             ? "Sebagian tindakan pada halaman ini tidak lagi tersedia."
-            : "Halaman tetap dapat dibaca, tetapi tidak dapat diubah."
+            : "Halaman ini masih dapat dilihat, tetapi datanya tidak dapat diubah."
       }
       icon="solar:lock-password-bold-duotone"
       size="sm"
-      contentSx={{ display: "grid", gap: 3, alignContent: "start" }}
+      contentSx={{ display: "grid", gap: 2, alignContent: "start" }}
       showCloseButton={false}
       disableClose
       closeOnBackdrop={false}
       closeOnEscape={false}
       footer={
-        <Button type="primary" onClick={onContinue}>
-          {redirect ? "Ke Dashboard sekarang" : reduced ? "Lanjutkan" : "Lanjut membaca"}
+        <Button type="primary" onClick={onContinue} style={{ minHeight: 44 }}>
+          {redirect ? "Ke Dashboard" : reduced ? "Lanjutkan" : "Lanjut membaca"}
         </Button>
       }
     >
-      <AppNotice
-        tone="warning"
-        title="Hak akses Anda telah berubah"
-        description={
-          redirect
-            ? "Form dan data halaman ini telah ditutup. Perubahan yang belum disimpan tidak tersimpan."
-            : "Form yang sedang dibuka telah ditutup. Perubahan yang belum disimpan tidak tersimpan."
-        }
-      />
+      {showUnsavedNotice ? (
+        <Box
+          role="status"
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1.25,
+            p: 1.75,
+            borderRadius: 2,
+            bgcolor: theme.status.warning.background,
+            color: theme.status.warning.text,
+          }}
+        >
+          <AppIcon
+            icon="solar:danger-triangle-bold"
+            width={20}
+            color={theme.status.warning.main}
+            aria-hidden="true"
+            style={{ flexShrink: 0, marginTop: 1 }}
+          />
+          <FontStyle fontSize={12.5} sx={{ lineHeight: 1.55 }}>
+            Jika ada isian yang belum disimpan, perubahan tersebut tidak tersimpan.
+          </FontStyle>
+        </Box>
+      ) : null}
       <AccessCountdownPanel
         secondsRemaining={secondsRemaining}
         destination={
           redirect ? "Dashboard" : reduced ? "halaman dengan izin terbaru" : "halaman baca-saja"
         }
-        label={redirect ? "Pengalihan otomatis" : "Pembaruan tampilan otomatis"}
-        icon="solar:lock-keyhole-linear"
+        label={redirect ? "Pengalihan otomatis" : "Pembaruan otomatis"}
+        compact
+        tone="brand"
         actionText={
           redirect
-            ? undefined
+            ? "Dashboard akan terbuka sebentar lagi."
             : reduced
-              ? "Sebagian tindakan akan dinonaktifkan."
-              : "Halaman ini akan menjadi baca-saja."
+              ? "Tampilan akan menyesuaikan izin terbaru."
+              : "Halaman akan menjadi baca-saja."
         }
         description={
           redirect
-            ? "Anda tetap dapat menggunakan menu lain yang masih diizinkan."
-            : reduced
-              ? "Tindakan yang izinnya dicabut akan disembunyikan."
-              : "Tindakan tambah, ubah, dan hapus yang tidak lagi diizinkan akan disembunyikan."
+            ? "Menu lain yang masih diizinkan tetap dapat digunakan."
+            : "Tindakan yang tidak lagi diizinkan akan disembunyikan."
         }
       />
     </AppModal>

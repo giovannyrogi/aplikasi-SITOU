@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, LinearProgress, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import AppIcon from "../icons/AppIcon";
 import FontStyle from "../font-style/FontStyle";
 
@@ -13,9 +14,75 @@ export default function AccessCountdownPanel({
   label = "Pengalihan otomatis",
   icon,
   totalSeconds = 5,
+  compact = false,
+  tone = "info",
 }) {
   const theme = useTheme();
   const seconds = Math.max(0, Math.min(totalSeconds, Number(secondsRemaining) || 0));
+  if (compact) {
+    const accent = tone === "brand" ? theme.brand.primaryDark : theme.status.info.main;
+    return (
+      <Box
+        data-testid="access-countdown-panel"
+        sx={{
+          display: "grid",
+          gap: 1.5,
+          minWidth: 0,
+          p: { xs: 2, sm: 2.25 },
+          borderRadius: 2,
+          border: `1px solid ${alpha(accent, 0.2)}`,
+          bgcolor: alpha(accent, 0.045),
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
+          <FontStyle fontSize={12} fontWeight={700} sx={{ color: accent }}>
+            {label}
+          </FontStyle>
+          <Box
+            aria-label={`${seconds} detik tersisa`}
+            sx={{
+              px: 1.25,
+              py: 0.5,
+              borderRadius: 999,
+              bgcolor: theme.palette.background.paper,
+              border: `1px solid ${alpha(accent, 0.22)}`,
+              color: accent,
+              fontSize: 12,
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {seconds} detik
+          </Box>
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <FontStyle fontSize={13.5} fontWeight={600} sx={{ lineHeight: 1.5 }}>
+            {actionText || `Anda akan diarahkan ke ${destination}.`}
+          </FontStyle>
+          {description ? (
+            <FontStyle fontSize={12.5} sx={{ mt: 0.5, color: theme.ui.mutedText, lineHeight: 1.5 }}>
+              {description}
+            </FontStyle>
+          ) : null}
+        </Box>
+        <LinearProgress
+          variant="determinate"
+          value={((totalSeconds - seconds) / totalSeconds) * 100}
+          aria-label={`${label} dalam ${seconds} detik`}
+          sx={{
+            height: 5,
+            borderRadius: 999,
+            bgcolor: alpha(accent, 0.13),
+            "& .MuiLinearProgress-bar": {
+              bgcolor: accent,
+              borderRadius: 999,
+              "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+            },
+          }}
+        />
+      </Box>
+    );
+  }
   return (
     <Box
       data-testid="access-countdown-panel"

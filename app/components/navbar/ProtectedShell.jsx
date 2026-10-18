@@ -2,6 +2,8 @@
 
 import {
   accessChangeImpact,
+  accessEntitlementsChanged,
+  accessScopeChanged,
   dashboardSectionsChanged,
   pageAccessState,
 } from "@/lib/access/liveAccessPolicy.mjs";
@@ -108,16 +110,24 @@ export default function ProtectedShell({ user, children }) {
           return;
         const before = accessRef.current;
         const next = body.data;
+        const scopeChanged = accessScopeChanged(before, next);
+        const entitlementsChanged = accessEntitlementsChanged(before, next);
         accessRef.current = next;
         setAccess(next);
         const impact = accessChangeImpact(user.role_code, pathname, before, next);
         const page = pageAccessState(user.role_code, next, pathname);
+        if (scopeChanged) {
+          // Remount seluruh konten agar data, modal, dan isian dari scope lama tidak tertinggal.
+          setContentRevision((revision) => revision + 1);
+          if (page.canRead) router.refresh();
+        }
         if (impact) {
+          setNotification((current) => ({ ...current, open: false }));
           changeModeRef.current = impact;
           setAccessChange(impact);
           setAccessCountdown(5);
           setDrawerOpen(false);
-          setContentRevision((revision) => revision + 1);
+          if (!scopeChanged) setContentRevision((revision) => revision + 1);
         } else if (changeModeRef.current === "redirect" && page.canRead) {
           // Jika izin dipulihkan sebelum hitungan berakhir, jangan tetap mengalihkan pengguna.
           changeModeRef.current = null;
@@ -129,11 +139,20 @@ export default function ProtectedShell({ user, children }) {
           setAccessChange("redirect");
           setAccessCountdown(5);
           setDrawerOpen(false);
+        } else if ((scopeChanged || entitlementsChanged) && page.canRead) {
+          setNotification({
+            open: true,
+            message: scopeChanged
+              ? "Akses diperbarui. Halaman dimuat ulang."
+              : "Hak akses Anda diperbarui.",
+            severity: "info",
+          });
         }
         if (
           pathname === "/dashboard/staff" &&
           page.canRead &&
           !impact &&
+          !scopeChanged &&
           dashboardSectionsChanged(before, next)
         )
           setContentRevision((revision) => revision + 1);
@@ -350,7 +369,7 @@ export default function ProtectedShell({ user, children }) {
           }}
         >
           <AuthenticatedUserProvider key={contentRevision} user={{ ...user, access }}>
-            {accessChange === "redirect" ||
+            {sessionExpired || loggingOut || accessChange === "redirect" ||
             !pageAccessState(user.role_code, access, pathname).canRead
               ? null
               : children}
@@ -371,6 +390,7 @@ export default function ProtectedShell({ user, children }) {
       />
       <AccessChangedModal
         mode={sessionExpired || loggingOut ? null : accessChange}
+        showUnsavedNotice={!pathname.startsWith("/dashboard")}
         secondsRemaining={accessCountdown}
         onContinue={() => {
           if (accessChange === "redirect") router.replace("/dashboard");
