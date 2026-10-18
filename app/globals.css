@@ -4,6 +4,51 @@
   margin: 0;
 }
 
+.app-dashboard-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+.app-dashboard-icon-static {
+  display: none;
+}
+
+.app-dashboard-icon-animated {
+  transform-origin: center;
+  animation: app-dashboard-icon-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes app-dashboard-icon-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.88);
+    opacity: 0.82;
+  }
+}
+
+.MuiListItemButton-root:hover .app-dashboard-icon-animated,
+.MuiListItemButton-root:focus-visible .app-dashboard-icon-animated {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-dashboard-icon-animated {
+    display: none;
+  }
+
+  .app-dashboard-icon-static {
+    display: inline-block;
+  }
+}
+
 html,
 body {
   font-family: var(--sitou-font-family);

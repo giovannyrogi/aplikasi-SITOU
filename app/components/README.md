@@ -191,7 +191,7 @@ Semua tabel AntD disusun melalui `data-display/NumberedTable.jsx`, yang menambah
 
 # Pengaturan organisasi
 
-Seluruh role masuk melalui `/dashboard`, lalu diarahkan ke Ringkasan Pegawai, Ringkasan Pribadi, atau Inventaris yang berizin. Jika lebih dari satu tersedia, sidebar menampilkan submenu Dashboard; jika hanya satu, Dashboard menjadi tautan langsung. `DashboardClient` memasang `OrganizationDashboard` hanya pada Ringkasan Pegawai dan `EmployeeDashboard` hanya pada Ringkasan Pribadi. Rute lama `/employee-dashboard` tetap mengarah ke `/dashboard`.
+Seluruh role masuk melalui `/dashboard`, lalu diarahkan ke Ringkasan Kepegawaian, Ringkasan Pribadi, atau Inventaris yang berizin. Jika lebih dari satu tersedia, sidebar menampilkan submenu Dashboard; jika hanya satu, Dashboard menjadi tautan langsung. `DashboardClient` memasang `OrganizationDashboard` hanya pada Ringkasan Kepegawaian dan `EmployeeDashboard` hanya pada Ringkasan Pribadi. Rute lama `/employee-dashboard` tetap mengarah ke `/dashboard`.
 
 `AppModal` menyediakan `role=dialog`, `aria-modal`, dan hubungan judul/deskripsi pada panel konten agar konfirmasi dapat dikenali pembaca layar.
 
@@ -320,6 +320,8 @@ Teks catatan dibungkus aman dan justify dengan line-height 1.6.
 ## Komponen hak akses HRIS
 
 AppIcon menyediakan ikon semantik tambahan untuk transaksi Inventaris (stok awal, masuk, keluar, pengembalian, stok opname, pembatalan, tambah, dan hapus). Gunakan ID ikon yang terdaftar; ID yang tidak ada akan menampilkan ikon tanda tanya.
+
+Ikon navigasi dan aksi akun topbar (notifikasi, Profil, Keluar) pada `AppIcon` memakai data Iconify lokal, bukan pemuatan nama ikon dari API Iconify. Untuk menggantinya, ubah nama Iconify di `icons/navigationIconSources.mjs`; ID semantik dan komponen tidak perlu diubah. `npm run dev` membuat data saat mulai dan memantau perubahan file tersebut, sedangkan `npm run build` membuat ulang sebelum kompilasi. `npm run icons:check` tetap tersedia untuk memeriksa data tanpa menulis file. Pertahankan gaya Solar bold-duotone untuk seluruh menu dan aksi akun topbar. Dashboard utama memakai animasi skala halus berulang dengan pengganti statis saat pengurangan gerak aktif. Ikon lain yang belum dimigrasikan tetap memakai pemetaan lama.
 
 HrisAccessFields menyusun kelompok menu utama, checkbox submenu dan tingkat
 Lihat Saja/Kelola dalam OrganizationAccountForm yang sama dengan Inventaris.

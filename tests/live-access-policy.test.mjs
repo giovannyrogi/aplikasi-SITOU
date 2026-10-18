@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accessChangeImpact, pageAccessState } from "../lib/access/liveAccessPolicy.mjs";
+import {
+  accessChangeImpact,
+  dashboardSectionsChanged,
+  pageAccessState,
+} from "../lib/access/liveAccessPolicy.mjs";
 
 const hrd = (grants) => ({ hris: { configured: true, fullAdmin: false, grants }, permissions: [] });
 const inventory = (read, writes = []) => ({
@@ -29,4 +33,14 @@ test("izin tulis Inventaris dipisahkan dari izin baca dan fitur lain", () => {
   assert.equal(accessChangeImpact("hrd", "/master-data/inventory-items", before, inventory(true)), "read-only");
   assert.equal(accessChangeImpact("hrd", "/master-data/inventory-items", before, inventory(false)), "redirect");
   assert.equal(accessChangeImpact("hrd", "/master-data/positions", before, after), null);
+});
+
+test("perubahan sebagian bagian dashboard tetap meminta data baru", () => {
+  const before = { dashboardSections: ["employees", "contracts", "leave"] };
+  const after = { dashboardSections: ["employees", "contracts"] };
+  assert.equal(pageAccessState("hrd", after, "/dashboard/staff").canRead, true);
+  assert.equal(accessChangeImpact("hrd", "/dashboard/staff", before, after), null);
+  assert.equal(dashboardSectionsChanged(before, after), true);
+  assert.equal(dashboardSectionsChanged(after, { dashboardSections: ["employees", "contracts"] }), false);
+  assert.equal(pageAccessState("hrd", { dashboardSections: [] }, "/dashboard/staff").canRead, false);
 });

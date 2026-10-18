@@ -9,23 +9,18 @@ import {
   BarChartOutlined,
   BellOutlined,
   CalendarOutlined,
-  ClockCircleOutlined,
-  ClusterOutlined,
   CarryOutOutlined,
   CheckCircleFilled,
   CheckCircleOutlined,
-  CheckOutlined,
   CloseCircleFilled,
   DatabaseOutlined,
   AuditOutlined,
-  BranchesOutlined,
   DeleteOutlined,
   EnvironmentOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
   FileAddOutlined,
   FileDoneOutlined,
-  FieldTimeOutlined,
   FileTextOutlined,
   FilterOutlined,
   FolderOpenOutlined,
@@ -36,80 +31,33 @@ import {
   LinkOutlined,
   LockOutlined,
   PictureOutlined,
-  PieChartOutlined,
-  ProfileOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
-  ScheduleOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
-  SwapOutlined,
   InboxOutlined,
   ImportOutlined,
   ExportOutlined,
   RollbackOutlined,
   UndoOutlined,
   PlusCircleOutlined,
-  NodeIndexOutlined,
-  TagsOutlined,
   ShopOutlined,
-  StockOutlined,
   BookOutlined,
-  BarcodeOutlined,
-  NumberOutlined,
-  SolutionOutlined,
   TeamOutlined,
   UnorderedListOutlined,
   UserDeleteOutlined,
   UserOutlined,
-  UserSwitchOutlined,
   WalletOutlined,
-  ToolOutlined,
   WarningFilled,
   WarningOutlined,
 } from "@ant-design/icons";
-import SpaceDashboardOutlinedIcon from "@mui/icons-material/SpaceDashboardOutlined";
+import { Icon } from "@iconify/react/dist/offline";
+import { LOCAL_ICON_DATA } from "./localIconData.mjs";
 
 const ICONS = {
-  "navigation:inventory": AppstoreOutlined,
-  "navigation:inventory-stock": InboxOutlined,
-  "navigation:inventory-transactions": SwapOutlined,
-  "navigation:inventory-reports": NodeIndexOutlined,
-  "navigation:inventory-master": BookOutlined,
-  "navigation:inventory-category": TagsOutlined,
-  "navigation:inventory-unit": NumberOutlined,
-  "navigation:inventory-item": BarcodeOutlined,
-  "navigation:inventory-warehouse": ShopOutlined,
   "inventory:catalog": BookOutlined,
   "inventory:warehouse": ShopOutlined,
-  "navigation:dashboard": SpaceDashboardOutlinedIcon,
-  "navigation:dashboard-staff": PieChartOutlined,
-  "navigation:dashboard-personal": UserOutlined,
-  "navigation:dashboard-inventory": StockOutlined,
-  "navigation:master-data": DatabaseOutlined,
-  "navigation:organization": BankOutlined,
-  "navigation:location": EnvironmentOutlined,
-  "navigation:organization-unit-type": ClusterOutlined,
-  "navigation:organization-unit": BranchesOutlined,
-  "navigation:position": SolutionOutlined,
-  "navigation:employment-type": ProfileOutlined,
-  "navigation:employees": TeamOutlined,
-  "navigation:employee-data": IdcardOutlined,
-  "navigation:leave": CalendarOutlined,
-  "navigation:leave-summary": FileDoneOutlined,
-  "navigation:reports": BarChartOutlined,
-  "navigation:expiring-contract": FileTextOutlined,
-  "navigation:retirement-projection": FieldTimeOutlined,
-  "navigation:disciplinary-report": AuditOutlined,
-  "navigation:access": KeyOutlined,
   "subscription:access": SafetyCertificateOutlined,
-  "navigation:organization-account": UserSwitchOutlined,
-  "navigation:organization-settings": SettingOutlined,
-  "navigation:leave-settings": ScheduleOutlined,
-  "navigation:disciplinary-settings": SafetyCertificateOutlined,
-  "navigation:retirement-policy": ClockCircleOutlined,
-  "navigation:system-maintenance": ToolOutlined,
-  "navigation:storage-maintenance": FolderOpenOutlined,
   "solar:widget-5-bold-duotone": AppstoreOutlined,
   "solar:database-bold-duotone": DatabaseOutlined,
   "solar:buildings-2-bold-duotone": BankOutlined,
@@ -183,8 +131,24 @@ const ICONS = {
 };
 
 export default function AppIcon({ icon, width, height, fontSize, color, style, ...props }) {
-  const IconComponent = ICONS[icon] || QuestionCircleOutlined;
   const size = fontSize ?? width ?? height;
+  const iconData = LOCAL_ICON_DATA[icon];
+  if (icon === "navigation:dashboard") {
+    return (
+      <span
+        {...props}
+        className={["app-dashboard-icon", props.className].filter(Boolean).join(" ")}
+        style={{ fontSize: size, color, ...style }}
+      >
+        <Icon icon={iconData} className="app-dashboard-icon-animated" aria-hidden="true" />
+        <Icon icon={LOCAL_ICON_DATA["navigation:dashboard-static"]} className="app-dashboard-icon-static" aria-hidden="true" />
+      </span>
+    );
+  }
+  if (iconData) {
+    return <Icon icon={iconData} width={size} height={size} style={{ color, ...style }} {...props} />;
+  }
+  const IconComponent = ICONS[icon] || QuestionCircleOutlined;
   return (
     <IconComponent
       {...props}

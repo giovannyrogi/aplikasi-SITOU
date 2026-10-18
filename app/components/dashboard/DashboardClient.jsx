@@ -187,7 +187,6 @@ function OrganizationDashboard() {
     const query = new URLSearchParams();
     if (isSuperadmin && organizationId) query.set("organizationId", organizationId);
     let inFlight = false;
-    let lastSections = null;
     const refresh = async () => {
       if (inFlight || controller.signal.aborted) return;
       inFlight = true;
@@ -198,10 +197,6 @@ function OrganizationDashboard() {
         });
         const body = await readApiResponse(response, "Dashboard belum dapat dimuat.");
         if (!controller.signal.aborted) {
-          const nextSections = isHrd ? JSON.stringify(body.data?.sections || []) : null;
-          if (lastSections !== null && nextSections !== lastSections)
-            window.dispatchEvent(new Event("sitou:access-changed"));
-          lastSections = nextSections;
           setState({ loading: false, data: body.data, error: "" });
         }
       } catch (error) {
@@ -214,22 +209,8 @@ function OrganizationDashboard() {
       }
     };
     void refresh();
-    const refreshIfVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    // Izin dapat diubah dari sesi lain; tab aktif memeriksanya tanpa perlu reload halaman.
-    const interval = isHrd ? window.setInterval(refreshIfVisible, 8000) : null;
-    if (isHrd) {
-      window.addEventListener("focus", refreshIfVisible);
-      document.addEventListener("visibilitychange", refreshIfVisible);
-    }
     return () => {
       controller.abort();
-      if (interval !== null) window.clearInterval(interval);
-      if (isHrd) {
-        window.removeEventListener("focus", refreshIfVisible);
-        document.removeEventListener("visibilitychange", refreshIfVisible);
-      }
     };
   }, [isHrd, isSuperadmin, organizationId, reloadKey]);
 

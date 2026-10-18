@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/run-dev-with-icons.mjs",
+    "prebuild": "npm run icons:generate",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "icons:generate": "node scripts/generate-local-icons.mjs",
+    "icons:check": "node scripts/generate-local-icons.mjs --check",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "seed:superadmin": "node scripts/seed-superadmin.mjs",
@@ -37,6 +40,7 @@
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@iconify/react": "^6.0.2",
     "@mui/icons-material": "^9.3.1",
     "@mui/material": "^9.3.1",
     "@mui/material-nextjs": "^9.4.0",
@@ -75,6 +79,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@iconify-json/line-md": "^1.2.16",
+    "@iconify-json/solar": "^1.2.13",
+    "@iconify-json/svg-spinners": "^1.2.4",
+    "@iconify/utils": "^3.1.7",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "prettier": "^3.9.6"

@@ -23,6 +23,7 @@
 
 # misc
 .DS_Store
+.tmp-icon-automation-*/
 *.pem
 # hris_perumda_postgresql.sql
 /uploads/*
@@ -33,6 +34,9 @@
 !/database/migrations/*.sql
 !/database/migrations/README.md
 /scripts/*
+!/scripts/generate-local-icons.mjs
+!/scripts/watch-local-icons.mjs
+!/scripts/run-dev-with-icons.mjs
 !/scripts/README.md
 !/scripts/expire-inventory-transaction-drafts.mjs
 !/scripts/run-system-backup.mjs

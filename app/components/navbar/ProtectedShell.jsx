@@ -1,6 +1,10 @@
 "use client";
 
-import { accessChangeImpact, pageAccessState } from "@/lib/access/liveAccessPolicy.mjs";
+import {
+  accessChangeImpact,
+  dashboardSectionsChanged,
+  pageAccessState,
+} from "@/lib/access/liveAccessPolicy.mjs";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Box, useTheme } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
@@ -126,6 +130,13 @@ export default function ProtectedShell({ user, children }) {
           setAccessCountdown(5);
           setDrawerOpen(false);
         }
+        if (
+          pathname === "/dashboard/staff" &&
+          page.canRead &&
+          !impact &&
+          dashboardSectionsChanged(before, next)
+        )
+          setContentRevision((revision) => revision + 1);
       } catch (error) {
         // Kegagalan jaringan mempertahankan snapshot terakhir; jangan kembali ke izin role legacy.
         if (error.name === "AbortError") return;
@@ -142,7 +153,7 @@ export default function ProtectedShell({ user, children }) {
       if (document.visibilityState === "visible") void refresh();
     };
     const interval =
-      user.role_code === "superadmin" ? null : window.setInterval(refreshIfVisible, 8000);
+      user.role_code === "superadmin" ? null : window.setInterval(refreshIfVisible, 20000);
     window.addEventListener("focus", refreshIfVisible);
     document.addEventListener("visibilitychange", refreshIfVisible);
     window.addEventListener("sitou:access-changed", refreshForced);

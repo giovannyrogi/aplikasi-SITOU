@@ -14,11 +14,9 @@ import {
   useTheme,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
-import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
-import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import FontStyle from "../font-style/FontStyle";
+import AppIcon from "../icons/AppIcon";
 import { actorDisplayName } from "@/lib/identity/actorPresentation.mjs";
 import { ROLE_LABELS } from "@/app/constants/roles";
 
@@ -99,7 +97,7 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
       </Box>
       <Tooltip title="Notifikasi belum tersedia">
         <IconButton aria-label="Notifikasi belum tersedia" aria-disabled="true" sx={actionSx}>
-          <NotificationsNoneRoundedIcon />
+          <AppIcon icon="account:notifications" fontSize={22} aria-hidden="true" />
         </IconButton>
       </Tooltip>
       <Tooltip title={`${name} · ${position}`}>
@@ -142,11 +140,41 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
               .slice(0, 2)
               .join("")}
           </Avatar>
-          <Box sx={{ minWidth: 0 }}>
-            <FontStyle fontSize={12} fontWeight={700} noWrap>
+          <Box
+            sx={{
+              minWidth: 0,
+              height: 40,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: "2px",
+              overflow: "hidden",
+            }}
+          >
+            <FontStyle
+              fontSize={12}
+              fontWeight={700}
+              noWrap
+              sx={{
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
               {name}
             </FontStyle>
-            <FontStyle fontSize={11} noWrap sx={{ mt: 0.5, color: "text.secondary" }}>
+            <FontStyle
+              fontSize={11}
+              noWrap
+              sx={{
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                color: "text.secondary",
+              }}
+            >
               {position}
             </FontStyle>
           </Box>
@@ -198,7 +226,7 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
               bgcolor: theme.ui.iconButtonBg,
             }}
           >
-            <PersonOutlineRoundedIcon sx={{ fontSize: 20 }} />
+            <AppIcon icon="account:profile" fontSize={20} aria-hidden="true" />
           </Box>
           <FontStyle component="span" fontSize={12.5} fontWeight={600}>
             Profil
@@ -226,7 +254,7 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
               bgcolor: theme.status.danger.background,
             }}
           >
-            <LogoutRoundedIcon sx={{ fontSize: 20 }} />
+            <AppIcon icon="account:logout" fontSize={20} aria-hidden="true" />
           </Box>
           <FontStyle component="span" fontSize={12.5} fontWeight={600}>
             Keluar
