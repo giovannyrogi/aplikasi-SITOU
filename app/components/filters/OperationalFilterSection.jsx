@@ -41,7 +41,11 @@ export default function OperationalFilterSection({
       >
         <Box sx={{ minWidth: 0 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <AppIcon icon="solar:filter-bold-duotone" width={20} color={theme.palette.primary.main} />
+            <AppIcon
+              icon="solar:filter-bold-duotone"
+              width={20}
+              color={theme.palette.primary.main}
+            />
             <FontStyle component="h2" fontSize={{ xs: 15, sm: 16 }} fontWeight={700}>
               {title}
             </FontStyle>
@@ -56,7 +60,7 @@ export default function OperationalFilterSection({
           <Button
             icon={<AppIcon icon="solar:restart-linear" width={18} />}
             onClick={onReset}
-            style={{ minHeight: 40 }}
+            style={{ minHeight: 44 }}
           >
             Atur ulang
           </Button>
@@ -74,13 +78,13 @@ export default function OperationalFilterSection({
             md: "repeat(3, minmax(0, 1fr))",
             lg: `repeat(${Math.min(4, Math.max(1, wideColumns))}, minmax(0, 1fr))`,
           },
-          gap: { xs: 1.5, lg: 2 },
+          gap: 2,
           "& .ant-picker, & .ant-select": { width: "100%", minHeight: 44 },
         }}
       >
         {items.map((item) => (
           <Box key={item.key} sx={{ minWidth: 0, gridColumn: item.gridColumn }}>
-            <FontStyle fontSize={11.5} fontWeight={600} sx={{ mb: 0.75 }}>
+            <FontStyle fontSize={11.5} fontWeight={600} sx={{ mb: 1 }}>
               {item.label}
             </FontStyle>
             {item.control}

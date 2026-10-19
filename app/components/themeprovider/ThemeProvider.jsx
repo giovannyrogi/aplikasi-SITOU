@@ -172,6 +172,22 @@ export default function AppThemeProvider({ children }) {
     <ThemeProvider theme={appTheme}>
       <GlobalStyles
         styles={{
+          // Popup dropdown dirender ke body; ukuran mobile juga harus berlaku di luar form asal.
+          "@media (max-width:767px)": {
+            ":root": { "--sitou-mobile-font-min": "14px" },
+            "body .ant-input, body .ant-input-number-input, body .ant-picker-input > input, body .ant-select, body .ant-select-input, body .ant-select-content, body .ant-select-placeholder, body .ant-select-selection-placeholder, body .ant-select-selection-item, body .ant-select-item-option-content, body .ant-select-item-empty, body .ant-btn[aria-haspopup='dialog']":
+              {
+                fontSize: 16,
+              },
+            "body .ant-form-item-label > label, body .ant-form-item-extra, body .ant-form-item-explain, body .ant-upload-list-item-name, body .MuiFormHelperText-root":
+              {
+                fontSize: 14,
+                lineHeight: 1.5,
+              },
+            "body .ant-btn": { fontSize: 14, minHeight: 44 },
+            "body .ant-select-item-option": { minHeight: 44 },
+            "body .ant-select-item-option-content": { whiteSpace: "normal", lineHeight: 1.5 },
+          },
           ".ant-form-item-extra": {
             paddingTop: 8,
             paddingBottom: 4,

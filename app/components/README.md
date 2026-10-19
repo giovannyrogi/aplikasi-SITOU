@@ -519,3 +519,7 @@ Gunakan `forms/ResponsiveRangePicker` untuk seluruh rentang tanggal. Desktop (mu
 ### Typography data mobile
 
 `data-display/mobileDataTypography.mjs` dipakai DataPanel, ResponsiveDataView, ModernTableFrame, dan DataPagination pada lebar di bawah 768px. Teks data mobile minimal 14px; FontStyle menambah 2px pada ukuran dasar dengan batas minimum tersebut sehingga nama dan angka utama tetap lebih besar (misalnya 14 menjadi 16px). Metadata, status, nomor baris, dan pagination ikut terbaca. FontStyle membaca variabel CSS area data; font desktop dan area lain tidak berubah. Typography lama dan sel tabel AntD mendapat minimum 14px melalui selector terpusat. Jangan mengecilkan font per fitur atau memotong isi untuk menghindari scroll; angka/nama panjang tetap membungkus.
+
+### Keterbacaan filter dan form mobile
+
+Pada lebar di bawah 768px, ThemeProvider menetapkan minimum FontStyle 14px untuk label/metadata/teks bantuan di luar area tabel juga. Pengaturan area data tetap dipertahankan. Kontrol input, angka, tanggal, pemilih rentang, pilihan Select dan dropdown portal memakai 16px; label Form dan pesan bantuan/error memakai 14px. Opsi dropdown dan tombol memiliki target minimal 44px. OperationalFilterSection memakai jarak antar-field 16px dan label-kontrol 8px. Ukuran desktop tetap mengikuti nilai asal. Saat mengubah kontrol, verifikasi placeholder, opsi panjang, pesan error, keyboard, navigasi akun, dan overflow pada 320–1920px.

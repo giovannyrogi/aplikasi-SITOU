@@ -79,6 +79,7 @@ const RangePickerControl = forwardRef(function RangePickerControl(props, ref) {
     background: theme.palette.background.paper,
     color: theme.palette.text.primary,
     font: "inherit",
+    fontSize: 16,
     fontWeight: 600,
     textAlign: "center",
   };

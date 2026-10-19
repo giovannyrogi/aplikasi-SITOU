@@ -11,7 +11,7 @@ const readableSize = (size) => {
     );
   const base = typeof size === "number" ? `${size}px` : size;
   return base
-    ? `max(var(--sitou-data-font-min, 0px), calc(${base} + var(--sitou-data-font-boost, 0px)))`
+    ? `max(var(--sitou-data-font-min, var(--sitou-mobile-font-min, 0px)), calc(${base} + var(--sitou-data-font-boost, 0px)))`
     : base;
 };
 
