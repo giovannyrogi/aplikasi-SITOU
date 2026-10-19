@@ -505,3 +505,5 @@ EmployeeProfileBanner berada di DashboardWorkspace di atas tab dan dipakai pada 
 Badge profil pegawai yang tertaut memakai status dan jenis kepegawaian, bukan role akun. EmployeeBalanceMetric memakai saldo ledger bila hak tahunan sudah terbentuk; sebelum itu kartu menampilkan jatah positif dari aturan sebagai informasi awal, bukan saldo resmi. Pemilih jenis menempati lebar kartu di atas angka, dan angka DashboardMetric lebih kecil pada layar sempit.
 
 DashboardMetric menerima balanced untuk susunan header → angka tengah → footer berdivider pada Masa kerja/Sanksi aktif. MetricValue menjaga format angka/satuan konsisten dengan susunan standar.
+
+Laporan Stok memakai StockReportPanel, AppModal, ResponsiveDataView, DataPagination dan TableExportMenu bersama. Rincian membaca proyeksi Kartu Stok dengan permission laporan; dokumen memerlukan izin transaksi tersendiri. Tidak menambahkan perhitungan atau saldo client. Lihat docs/inventory-stock-report.md.

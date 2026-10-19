@@ -10,6 +10,7 @@ export const PROTECTED_ROUTES = [
     path: `/master-data/inventory-${kind}`,
     roles: ALL_ROLE_CODES,
   })),
+  { path: "/reports/inventory-stock", roles: ALL_ROLE_CODES },
   { path: "/reports/inventory-distribution", roles: ALL_ROLE_CODES },
   { path: "/inventory", roles: ALL_ROLE_CODES },
   {

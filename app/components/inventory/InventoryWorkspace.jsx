@@ -9,6 +9,7 @@ import WarehousePanel from "./WarehousePanel";
 import CatalogPanel from "./CatalogPanel";
 import TransactionPanel from "./TransactionPanel";
 import DistributionPanel from "./DistributionPanel";
+import StockReportPanel from "./StockReportPanel";
 import StockPanel from "./StockPanel";
 /** Menjaga konteks organisasi URL dan mereset panel ketika organisasi berubah. */
 export default function InventoryWorkspace({ section }) {
@@ -64,8 +65,33 @@ export default function InventoryWorkspace({ section }) {
         initialWarehouseId={query.get("warehouseId")}
       />
     );
-  if (section === "reports") return <DistributionPanel key={organizationId||"empty"} organizationId={organizationId} organizationFilter={organizationFilter} initialWarehouseId={query.get("warehouseId")}/>;
-  if (section === "stock") return <StockPanel key={`${organizationId || "empty"}:${query.get("condition")}:${query.get("warehouseId")}`} organizationId={organizationId} organizationFilter={organizationFilter} initialCondition={query.get("condition")} initialWarehouseId={query.get("warehouseId")}/>;
+  if (section === "stock-report")
+    return (
+      <StockReportPanel
+        key={organizationId || "empty"}
+        organizationId={organizationId}
+        organizationFilter={organizationFilter}
+      />
+    );
+  if (section === "reports")
+    return (
+      <DistributionPanel
+        key={organizationId || "empty"}
+        organizationId={organizationId}
+        organizationFilter={organizationFilter}
+        initialWarehouseId={query.get("warehouseId")}
+      />
+    );
+  if (section === "stock")
+    return (
+      <StockPanel
+        key={`${organizationId || "empty"}:${query.get("condition")}:${query.get("warehouseId")}`}
+        organizationId={organizationId}
+        organizationFilter={organizationFilter}
+        initialCondition={query.get("condition")}
+        initialWarehouseId={query.get("warehouseId")}
+      />
+    );
   return (
     <PageHeader
       title={

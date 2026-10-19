@@ -43,6 +43,7 @@ export const NAVIGATION_ICON_SOURCES = Object.freeze({
   "navigation:inventory": "solar:box-bold-duotone",
   "navigation:inventory-stock": "solar:inbox-bold-duotone",
   "navigation:inventory-transactions": "solar:transfer-horizontal-bold-duotone",
+  "navigation:inventory-stock-report": "solar:clipboard-check-bold-duotone",
   "navigation:inventory-reports": "solar:chart-square-bold-duotone",
   "navigation:inventory-master": "solar:book-bold-duotone",
   "navigation:employees": "solar:users-group-rounded-bold-duotone",

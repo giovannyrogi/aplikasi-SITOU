@@ -24,7 +24,10 @@ export default async function InventoryPage({ searchParams, section }) {
       const masterScope = await readPermissionScope(user, organizationId, "inventory.master.read");
       if (masterScope !== null && !masterScope.length) redirect("/dashboard");
     }
-    const permission = `inventory.${["items", "categories", "units"].includes(section) ? "catalog" : section}.read`;
+    const permission =
+      section === "stock-report"
+        ? "inventory.reports.read"
+        : `inventory.${["items", "categories", "units"].includes(section) ? "catalog" : section}.read`;
     const scope = await readPermissionScope(user, organizationId, permission);
     if (scope !== null && !scope.length) redirect("/dashboard");
   }

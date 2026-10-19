@@ -18,12 +18,11 @@ Tujuan lokasi/unit dan penerima berasal dari header transaksi asal. Rolling Pega
 
 ## Filter dan tampilan
 
-Filter: organisasi (Superadmin), tanggal awal/akhir, gudang asal, barang, lokasi tujuan, Divisi & Unit tujuan, Pegawai penerima, nama/kode barang/penerima/nomor memo, status `effective|cancelled|all`, tampilan `details|summary`. Semua filter digabung sebagai irisan.
+Filter: organisasi (Superadmin), Cari data (nama/kode barang, penerima atau nomor memo), Periode penyaluran melalui DatePicker.RangePicker bersama, gudang asal, Nama barang, lokasi tujuan, Divisi & Unit tujuan, Pegawai penerima, status `effective|cancelled|all`. Semua filter digabung sebagai irisan.
 
 - Rincian: satu baris per barang dalam satu transaksi penyaluran, jumlah efektif/return/bersih, status pada akhir periode, dan rincian transaksi berizin.
-- Rekap: per gudang–barang–lokasi–unit, jumlah transaksi serta kuantitas per satuan barang. Aksi membuka rincian dengan dimensi yang sama.
-- Kartu jumlah transaksi, jenis barang, pasangan lokasi/unit tujuan, penerima mengikuti seluruh filter/status. Tidak ada penjumlahan lintas satuan.
-- Pagination keyset, ukuran 10/20/50, cursor terikat seluruh filter dan scope. Hasil, total dan metrik dibaca pada snapshot PostgreSQL `REPEATABLE READ READ ONLY` yang sama; tanpa cache payload.
+- Halaman berfokus pada filter dan tabel, tanpa empat kartu ringkasan transaksi/barang/tujuan/penerima. Total/pagination tetap memakai filter yang sama. Tidak ada penjumlahan lintas satuan.
+- Pagination keyset, ukuran 10/20/50, cursor terikat seluruh filter dan scope. Hasil dan total dibaca pada snapshot PostgreSQL `REPEATABLE READ READ ONLY` yang sama; tanpa cache payload.
 - Loading/error/kosong dibedakan. Error tidak ditampilkan sebagai statistik nol.
 
 ## Hak akses dan rincian
@@ -36,9 +35,9 @@ Respons memakai `private, no-store`; organisasi tidak diambil dari body yang dip
 
 ## Ekspor
 
-`export=xlsx` memakai filter/view/scope/periode yang sama, seluruh baris maksimal 5.000. Lebih dari batas ditolak dengan pesan dan field error, tanpa pemotongan. Lima ekspor per lima menit. Ekspor berhasil diaudit; file tidak menyimpan object key, ID file privat, NIK, rekening, atau data profil sensitif.
+`export=xlsx` memakai filter/scope/periode yang sama, seluruh baris maksimal 5.000. Lebih dari batas ditolak dengan pesan dan field error, tanpa pemotongan. Lima ekspor per lima menit. Ekspor berhasil diaudit; file tidak menyimpan object key, ID file privat, NIK, rekening, atau data profil sensitif.
 
-Workbook berisi Petunjuk dan Distribusi, waktu server menurut zona organisasi, cutoff pengembalian/pembatalan, filter, serta satuan per barang. Teks selalu literal, bukan formula; kuantitas yang melebihi ketelitian aman JavaScript ditulis sebagai teks desimal tepat. Tidak membuat penomoran dokumen baru.
+Workbook berisi Informasi Laporan pada sheet pertama (helper reportWorkbookInfo bersama Laporan Stok): waktu server menurut zona organisasi, cutoff pengembalian/pembatalan dan filter. Sheet Distribusi kedua hanya berisi tabel data mulai header baris 1, dengan satuan per barang. Teks selalu literal, bukan formula; kuantitas yang melebihi ketelitian aman JavaScript ditulis sebagai teks desimal tepat. Tidak membuat penomoran dokumen baru.
 
 ## Database dan pengujian
 
@@ -46,10 +45,41 @@ Tidak perlu migration: memakai `inventory_transactions`, `inventory_transaction_
 
 Jalankan prosedur verifikasi fitur. Runner bootstrap database terpisah, menguji periode sebelum/setelah return dan reversal, status, scope/gabungan master, organisasi, modul, session dicabut, keyset, export literal/audit/batas, tujuan sesudah rolling, EXPLAIN, modal read-only, serta browser 320–1920. Database uji dibersihkan otomatis.
 
-Label laporan menggunakan Jumlah disalurkan, Dikembalikan, dan Belum dikembalikan. Filter Status penyaluran membedakan Tidak dibatalkan/Dibatalkan/Semua status sesuai tanggal akhir. Kolom status tersendiri, panel Cara membaca periode, dan kotak informasi Belum dikembalikan tidak ditampilkan; transaksi dibatalkan tetap ditandai pada identitas barang. Penjelasan perhitungan pada ekspor Excel tetap tersedia. Aturan perhitungan historis dan kontrak DTO tidak berubah.
+Label laporan menggunakan Jumlah disalurkan, Dikembalikan, dan Penyaluran bersih. Filter Status penyaluran membedakan Tidak dibatalkan/Dibatalkan/Semua status sesuai tanggal akhir. Kolom status tersendiri, panel Cara membaca periode, dan kotak informasi Penyaluran bersih tidak ditampilkan; transaksi dibatalkan tetap ditandai pada identitas barang. Penjelasan perhitungan pada ekspor Excel tetap tersedia. Aturan perhitungan historis dan kontrak DTO tidak berubah.
 
 Identitas pencatat memakai nama pertama–terakhir dari profil Pegawai pada organisasi dokumen, atau profil platform, dengan fallback username. DTO rincian membawa actor_photo_file_id saja; tidak mengirim data profil lain. Avatar melalui GET /api/uploads/:fileId dengan inventoryActorTransactionId, inventoryActorRole=creator|cancelled dan inventoryActorView=transaction|stock|distribution. Server mencocokkan foto aktif milik pelaku dokumen dan memeriksa izin/konteks/gudang terbaru, lalu memeriksa file serta mengaudit preview. Scope Inventaris tidak membuka akses foto/profil HRIS umum. Ekspor memakai actor_name ringkas yang sama.
 
 Format jumlah pada Excel mengikuti presisi setiap nilai: bilangan bulat tanpa pemisah desimal, pecahan maksimal tiga desimal tanpa nol tambahan. Jangan memakai format desimal opsional `#,##0.###` yang dapat menghasilkan titik/koma kosong. Jumlah biasa tetap numeric; jumlah di luar batas presisi aman tetap teks agar tidak dibulatkan.
 
 Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.
+
+Cari data berada sebelum Periode penyaluran. Rentang tanggal memperbarui from/to
+secara bersamaan; menghapus rentang atau Atur ulang kembali ke awal bulan sampai
+hari ini berdasarkan timezone organisasi. Tidak menambah dua input tanggal terpisah.
+Pencarian memakai Input bersama dengan ikon cari dan hapus, debounce 300 ms,
+parameter search yang sama untuk tabel dan Excel, tanpa field Barang atau nomor
+memo terpisah. Filter atau periode berubah mereset cursor melalui signature.
+
+Nama barang memakai AsyncSelect yang dapat dicari. Pilihan berupa Nama · Kode ·
+Satuan, unik berdasarkan ID, hanya dari histori penyaluran resmi dalam organisasi
+dan scope gudang. Kode/satuan memperjelas pilihan nama serupa; barang nonaktif
+dengan histori tetap dapat dicari. Tidak membuka stok, profil, atau dokumen lain.
+
+Bahasa UI dan Excel memakai Nama barang, Tanggal penyaluran, Tujuan penyaluran,
+Pegawai penerima, dan Jumlah transaksi. Pesan kosong: Tidak ada data penyaluran
+yang sesuai dengan pencarian dan filter. Penjelasan jumlah tetap menyebut satuan
+barang dan pembatalan sampai akhir periode; perhitungan historis tidak berubah.
+
+Penyaluran bersih berarti jumlah disalurkan dikurangi pengembalian sampai akhir
+periode. Angka ini bukan stok gudang, sisa barang pada penerima, atau kewajiban
+pengembalian. Label tabel, kartu mobile, dan Excel memakai distributionLabels.mjs;
+net_quantity serta perhitungan historis tetap sama.
+
+Distribusi Barang hanya memiliki Rincian penyaluran, tanpa filter Tampilan atau
+rekap barang dan tujuan. Query pengelompokan dan jumlah kelompok dihapus;
+setiap barang pada tiap transaksi tetap baris terpisah, termasuk bila barang
+dan tujuannya sama. API dan Excel tidak menyediakan mode rekap. Parameter view
+yang lama ditolak sebagai filter tidak valid; cursor lama dimuat ulang dari
+halaman pertama karena fingerprint filter berubah. Excel selalu memuat tanggal,
+penerima, nomor memo, jumlah penyaluran awal, pelaku, dan tanggal pembatalan.
+Tidak ada perubahan stok, cutoff pengembalian, audit, batas ekspor atau scope.
