@@ -1,7 +1,9 @@
 "use client";
+import InventoryReportCardContent from "./InventoryReportCardContent";
+import ResponsiveRangePicker from "@/app/components/forms/ResponsiveRangePicker";
 import { useEffect, useRef, useState } from "react";
 import { Box } from "@mui/material";
-import { Button, DatePicker, Input, Tooltip } from "antd";
+import { Button, Input, Tooltip } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
@@ -22,7 +24,10 @@ import Notification from "@/app/components/Notifications/Notification";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { readApiResponse } from "@/lib/api/clientError";
-import { STOCK_REPORT_HELP, STOCK_REPORT_QUANTITIES } from "@/lib/inventory/stockReportPolicy.mjs";
+import {
+  STOCK_REPORT_DESCRIPTION,
+  STOCK_REPORT_QUANTITIES,
+} from "@/lib/inventory/stockReportPolicy.mjs";
 import TransactionDetailModal from "./TransactionDetailModal";
 import { transactionPresentations } from "./transactionPresentations";
 const amount = (v) =>
@@ -358,7 +363,7 @@ export default function StockReportPanel({ organizationId, organizationFilter })
     <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", minWidth: 0 }}>
       <InventoryItemPhoto item={row} organizationId={organizationId} onPreview={setPreview} />
       <Box sx={{ minWidth: 0 }}>
-        <FontStyle fontWeight={600} sx={{ overflowWrap: "anywhere" }}>
+        <FontStyle fontSize={14} fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
           {row.name}
         </FontStyle>
         <FontStyle fontSize={12} sx={{ color: "text.secondary" }}>
@@ -367,14 +372,16 @@ export default function StockReportPanel({ organizationId, organizationFilter })
       </Box>
     </Box>
   );
-  const action = (row) => (
+  const action = (row, mobile = false) => (
     <Tooltip title="Lihat rincian stok">
       <Button
         aria-label={`Lihat rincian stok ${row.name}`}
         icon={<AppIcon icon="inventory:stock-card" width={18} />}
         onClick={() => setDetail(row)}
-        style={{ minWidth: 44, minHeight: 44 }}
-      />
+        style={{ minWidth: 44, minHeight: 44, width: mobile ? "100%" : undefined }}
+      >
+        {mobile ? "Lihat kartu stok" : null}
+      </Button>
     </Tooltip>
   );
   const columns = [
@@ -436,7 +443,7 @@ export default function StockReportPanel({ organizationId, organizationFilter })
             key: "period",
             label: "Periode laporan",
             control: (
-              <DatePicker.RangePicker
+              <ResponsiveRangePicker
                 aria-label="Periode laporan"
                 value={params.from && params.to ? [dayjs(params.from), dayjs(params.to)] : null}
                 format="D MMM YYYY"
@@ -478,7 +485,7 @@ export default function StockReportPanel({ organizationId, organizationFilter })
       {organizationId ? (
         <DataPanel
           title="Rincian stok barang"
-          description={STOCK_REPORT_HELP}
+          description={STOCK_REPORT_DESCRIPTION}
           action={
             <TableExportMenu
               enabled
@@ -499,26 +506,16 @@ export default function StockReportPanel({ organizationId, organizationFilter })
             scrollX={filters.warehouseId ? 1100 : 1280}
             emptyDescription="Tidak ada riwayat stok sesuai periode dan filter yang dipilih."
             renderCard={(row) => (
-              <Box sx={{ display: "grid", gap: 2, minWidth: 0 }}>
-                {identity(row)}
-                <FontStyle fontSize={12}>
-                  {row.warehouse_name} · {row.unit_name}
-                </FontStyle>
-                <Box sx={{ display: "grid", gap: 1 }}>
-                  {STOCK_REPORT_QUANTITIES.map(([key, label]) => (
-                    <Box
-                      key={key}
-                      sx={{ display: "flex", gap: 2, justifyContent: "space-between" }}
-                    >
-                      <FontStyle fontSize={12}>{label}</FontStyle>
-                      <FontStyle fontWeight={key === "closing_balance" ? 700 : 500}>
-                        {amount(row[key])} {row.unit_name}
-                      </FontStyle>
-                    </Box>
-                  ))}
-                </Box>
-                {action(row)}
-              </Box>
+              <InventoryReportCardContent
+                identity={identity(row)}
+                facts={[{ label: "Gudang", value: row.warehouse_name, fullWidth: true }]}
+                quantities={STOCK_REPORT_QUANTITIES.map(([key, label]) => ({
+                  label,
+                  value: amount(row[key]) + " " + row.unit_name,
+                  emphasis: key === "closing_balance",
+                }))}
+                action={action(row, true)}
+              />
             )}
           />
           <Box sx={{ p: 2 }}>

@@ -3,6 +3,7 @@
 import { Box, Divider, Paper, useTheme } from "@mui/material";
 import FontStyle from "../font-style/FontStyle";
 import TableExportMenu from "./TableExportMenu";
+import { mobileDataTypography } from "./mobileDataTypography.mjs";
 
 /** Membungkus judul daftar, toolbar, dan data view dalam satu permukaan operasional. */
 export default function DataPanel({
@@ -22,6 +23,7 @@ export default function DataPanel({
       elevation={0}
       sx={{
         minWidth: 0,
+        ...mobileDataTypography,
         overflow: "hidden",
         bgcolor: theme.ui.panelBg,
         border: `1px solid ${theme.ui.panelBorder}`,
@@ -35,33 +37,49 @@ export default function DataPanel({
             px: { xs: 2, sm: 2.5, lg: 3 },
             pt: { xs: 2, sm: 2.5 },
             pb: 2,
-            display: "grid",
+            display: { xs: "flow-root", sm: "grid" },
             gridTemplateColumns: "minmax(0, 1fr) auto",
-            gap: 2,
-            alignItems: "start",
+            columnGap: 2,
+            rowGap: description ? 1 : 0,
+            alignItems: "center",
           }}
         >
-          <Box sx={{ minWidth: 0 }}>
+          {action || exportConfig?.enabled ? (
+            <Box
+              sx={{
+                display: "flex",
+                float: { xs: "right", sm: "none" },
+                ml: { xs: 2, sm: 0 },
+                gap: 1.5,
+                alignItems: "center",
+                alignSelf: "start",
+                gridColumn: 2,
+                gridRow: { xs: 1, sm: description ? "1 / span 2" : 1 },
+              }}
+            >
+              {action}
+              {exportConfig?.enabled ? <TableExportMenu {...exportConfig} /> : null}
+            </Box>
+          ) : null}
+          <Box
+            sx={{ minWidth: 0, gridColumn: 1, gridRow: 1, mb: { xs: description ? 1 : 0, sm: 0 } }}
+          >
             {title ? (
               <FontStyle component="h2" fontSize={{ xs: 15, sm: 16 }} fontWeight={700}>
                 {title}
               </FontStyle>
             ) : null}
-            {description ? (
-              <FontStyle
-                explanation
-                component="div"
-                fontSize={11.5}
-                sx={{ mt: 0.5, color: theme.ui.mutedText }}
-              >
-                {description}
-              </FontStyle>
-            ) : null}
           </Box>
-          {action || exportConfig?.enabled ? <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-            {action}
-            {exportConfig?.enabled ? <TableExportMenu {...exportConfig} /> : null}
-          </Box> : null}
+          {description ? (
+            <FontStyle
+              explanation
+              component="div"
+              fontSize={12}
+              sx={{ gridColumn: { xs: "1 / -1", sm: 1 }, gridRow: 2, color: theme.ui.mutedText }}
+            >
+              {description}
+            </FontStyle>
+          ) : null}
         </Box>
       )}
       {toolbar ? (

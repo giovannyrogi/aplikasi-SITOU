@@ -8,6 +8,8 @@ import EmptyState from "./EmptyState";
 import ErrorState from "./ErrorState";
 import ModernTableFrame from "./ModernTableFrame";
 import DataPagination from "./DataPagination";
+import FontStyle from "../font-style/FontStyle";
+import { mobileDataTypography } from "./mobileDataTypography.mjs";
 
 /** Menampilkan dataset yang sama sebagai tabel modern pada layar besar dan kartu pada mobile. */
 export default function ResponsiveDataView({
@@ -29,6 +31,7 @@ export default function ResponsiveDataView({
   const theme = useTheme();
   const mobile = useMediaQuery("(max-width:767px)");
   const mobileShellSx = {
+    ...mobileDataTypography,
     p: { xs: 2, sm: 2.5 },
     minWidth: 0,
     maxWidth: "100%",
@@ -110,14 +113,14 @@ export default function ResponsiveDataView({
                 ...mobileCardSx,
               }}
             >
-              <Box sx={{ color: "text.secondary", fontSize: 12, mb: 1 }}>
+              <FontStyle fontSize={12} sx={{ color: "text.secondary", mb: 1 }}>
                 No {offset + index + 1}
-              </Box>
+              </FontStyle>
               {renderCard(item)}
             </Box>
           ))}
         </Box>
-        <DataPagination pagination={pagination} onPageChange={onPageChange}/>
+        <DataPagination pagination={pagination} onPageChange={onPageChange} />
       </Box>
     );
   }
@@ -135,7 +138,18 @@ export default function ResponsiveDataView({
         locale={{ emptyText: <EmptyState description={emptyDescription} /> }}
         pagination={false}
       />
-      {pagination ? <Box sx={{px:{xs:2,sm:2.5,lg:3},pb:2,borderTop:"1px solid",borderColor:theme.ui.panelBorderSubtle}}><DataPagination pagination={pagination} onPageChange={onPageChange} loading={loading}/></Box> : null}
+      {pagination ? (
+        <Box
+          sx={{
+            px: { xs: 2, sm: 2.5, lg: 3 },
+            pb: 2,
+            borderTop: "1px solid",
+            borderColor: theme.ui.panelBorderSubtle,
+          }}
+        >
+          <DataPagination pagination={pagination} onPageChange={onPageChange} loading={loading} />
+        </Box>
+      ) : null}
     </ModernTableFrame>
   );
 }

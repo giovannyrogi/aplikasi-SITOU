@@ -1,9 +1,10 @@
 "use client";
+import ResponsiveRangePicker from "@/app/components/forms/ResponsiveRangePicker";
 import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
-import { Button, DatePicker, Select } from "antd";
+import { Button, Select } from "antd";
 import { CloseCircleOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import dayjs from "dayjs";
@@ -161,7 +162,7 @@ export default function LeaveRequestsPage() {
       key: "dateRange",
       label: "Rentang tanggal",
       control: (
-        <DatePicker.RangePicker
+        <ResponsiveRangePicker
           allowClear={false}
           aria-label="Rentang tanggal cuti dan izin"
           value={[dayjs(list.filters.startDate), dayjs(list.filters.endDate)]}

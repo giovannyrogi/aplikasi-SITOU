@@ -1,9 +1,10 @@
 "use client";
+import ResponsiveRangePicker from "@/app/components/forms/ResponsiveRangePicker";
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Box, Typography } from "@mui/material";
-import { Button, DatePicker, Input, Select, Tooltip } from "antd";
+import { Button, Input, Select, Tooltip } from "antd";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
@@ -247,7 +248,7 @@ export default function EmployeeReport({ kind }) {
             key: "startDate",
             label: "Rentang tanggal",
             control: (
-              <DatePicker.RangePicker
+              <ResponsiveRangePicker
                 aria-label="Rentang tanggal laporan"
                 status={fieldErrors.startDate || fieldErrors.endDate ? "error" : undefined}
                 value={

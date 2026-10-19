@@ -1,9 +1,10 @@
 "use client";
+import ResponsiveRangePicker from "@/app/components/forms/ResponsiveRangePicker";
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Box, Typography } from "@mui/material";
-import { Button, DatePicker, Input, Select, Tooltip } from "antd";
+import { Button, Input, Select, Tooltip } from "antd";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import { HistoryOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -181,7 +182,7 @@ export default function DisciplinaryReport() {
       key: "dateRange",
       label: "Tanggal penerbitan",
       control: (
-        <DatePicker.RangePicker
+        <ResponsiveRangePicker
           allowClear
           aria-label="Rentang tanggal penerbitan sanksi"
           status={fieldErrors.startDate || fieldErrors.endDate ? "error" : undefined}

@@ -5,6 +5,7 @@ import AsyncSelect from "../forms/AsyncSelect";
 import { Box } from "@mui/material";
 import FontStyle from "../font-style/FontStyle";
 import { paginationCountLabel } from "./rowNumbers.mjs";
+import { mobileDataTypography } from "./mobileDataTypography.mjs";
 
 /** Footer pagination bersama untuk daftar bernomor maupun keyset/cursor. */
 export default function DataPagination({
@@ -38,6 +39,7 @@ export default function DataPagination({
       component="nav"
       aria-label={ariaLabel}
       sx={{
+        ...mobileDataTypography,
         display: { xs: "grid", sm: "flex" },
         gridTemplateColumns: "minmax(0, 1fr)",
         alignItems: "center",

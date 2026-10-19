@@ -1,6 +1,7 @@
 "use client";
+import ResponsiveRangePicker from "@/app/components/forms/ResponsiveRangePicker";
 import { useEffect, useRef, useState } from "react";
-import { Button, Col, DatePicker, Form, Input, InputNumber, Row, Select } from "antd";
+import { Button, Col, Form, Input, InputNumber, Row, Select } from "antd";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import AppModal from "@/app/components/modals/AppModal";
 import EmployeeSelect from "@/app/components/selects/EmployeeSelect";
@@ -379,7 +380,8 @@ export default function LeaveRequestForm({
                 rules={[{ required: true, message: "Tanggal mulai dan selesai wajib dipilih." }]}
               >
                 {/* Garis penanda fokus AntD dapat menyimpan posisi lama setelah resize; batasi pada control. */}
-                <DatePicker.RangePicker
+                <ResponsiveRangePicker
+                  formField
                   format="DD MMM YYYY"
                   style={{ width: "100%", overflow: "hidden" }}
                 />

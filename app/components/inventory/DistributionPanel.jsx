@@ -1,13 +1,15 @@
 "use client";
+import InventoryReportCardContent from "./InventoryReportCardContent";
+import ResponsiveRangePicker from "@/app/components/forms/ResponsiveRangePicker";
 import {
   DISTRIBUTION_QUANTITY_LABELS,
-  DISTRIBUTION_NET_HELP,
+  DISTRIBUTION_REPORT_DESCRIPTION,
 } from "@/lib/inventory/distributionLabels.mjs";
 import InventoryRecipientIdentity from "./InventoryRecipientIdentity";
 import ActorIdentity from "@/app/components/data-display/ActorIdentity";
 import { inventoryActorPhotoUrl } from "@/lib/identity/actorPresentation.mjs";
 import { useEffect, useState } from "react";
-import { Button, DatePicker, Input, Tooltip } from "antd";
+import { Button, Input, Tooltip } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
 import dayjs from "dayjs";
@@ -27,7 +29,6 @@ import useAppNotification from "@/app/hooks/useAppNotification";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { readApiResponse, normalizeRequestError } from "@/lib/api/clientError";
 import InventoryItemPhoto from "./InventoryItemPhoto";
-import InventoryQuantityChip from "./InventoryQuantityChip";
 import TransactionDetailModal from "./TransactionDetailModal";
 const initial = {
   from: "",
@@ -186,22 +187,26 @@ export default function DistributionPanel({
         onPreview={setPreview}
       />
       <Box sx={{ minWidth: 0 }}>
-        <FontStyle fontWeight={600}>{row.item_name}</FontStyle>
-        <FontStyle fontSize={12}>
+        <FontStyle fontSize={14} fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
+          {row.item_name}
+        </FontStyle>
+        <FontStyle fontSize={12} sx={{ color: "text.secondary" }}>
           {row.item_code} · {row.unit_name}
         </FontStyle>
       </Box>
     </Box>
   );
-  const action = (row) =>
+  const action = (row, mobile = false) =>
     row.canReadTransaction ? (
       <Tooltip title="Lihat detail penyaluran">
         <Button
           aria-label={`Lihat detail penyaluran ${row.item_name}`}
           icon={<AppIcon icon="solar:eye-linear" width={18} />}
           onClick={() => openDetail(row)}
-          style={{ minWidth: 44, minHeight: 44 }}
-        />
+          style={{ minWidth: 44, minHeight: 44, width: mobile ? "100%" : undefined }}
+        >
+          {mobile ? "Lihat rincian penyaluran" : null}
+        </Button>
       </Tooltip>
     ) : null;
   const qty = (row, key) => `${amount(row[key])} ${row.unit_name}`;
@@ -325,7 +330,7 @@ export default function DistributionPanel({
             key: "dateRange",
             label: "Periode penyaluran",
             control: (
-              <DatePicker.RangePicker
+              <ResponsiveRangePicker
                 aria-label="Rentang tanggal penyaluran"
                 format="DD MMM YYYY"
                 allowClear
@@ -403,7 +408,7 @@ export default function DistributionPanel({
         <>
           <DataPanel
             title="Rincian penyaluran"
-            description={`Jumlah mengikuti satuan barang. ${DISTRIBUTION_NET_HELP} Penyaluran yang dibatalkan sampai akhir periode dihitung 0.`}
+            description={DISTRIBUTION_REPORT_DESCRIPTION}
             exportConfig={{
               enabled: !!data,
               formats: ["excel"],
@@ -420,58 +425,75 @@ export default function DistributionPanel({
               scrollX={2100}
               emptyDescription="Tidak ada data penyaluran yang sesuai dengan pencarian dan filter."
               renderCard={(row) => (
-                <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
-                  {identity(row)}
-                  <CompactInfoChip
-                    label={row.cancelled_on ? "Dibatalkan" : "Berlaku"}
-                    tone={row.cancelled_on ? "warning" : "success"}
-                  />
-                  <InventoryRecipientIdentity
-                    recipient={row}
-                    organizationId={organizationId}
-                    transactionId={row.transaction_id}
-                    view="distribution"
-                  />
-                  <FontStyle>
-                    {row.warehouse_name} → {row.location_name || "Tidak tersedia"}
-                  </FontStyle>
-                  <FontStyle>{row.destination_unit_name || "Tidak tersedia"}</FontStyle>
-                  {row.occurred_on ? (
-                    <FontStyle>{dayjs(row.occurred_on).format("D MMM YYYY")}</FontStyle>
-                  ) : null}
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                    {["distributed_quantity", "returned_quantity", "net_quantity"].map((key, i) => (
-                      <InventoryQuantityChip
-                        key={key}
-                        label={`${DISTRIBUTION_QUANTITY_LABELS[i]}: ${qty(row, key)}`}
-                        tone={i === 2 ? "success" : "info"}
-                      />
-                    ))}
-                  </Box>
-                  {row.actor_name ? (
-                    <Box>
-                      <FontStyle fontSize={12} sx={{ mb: 1 }}>
-                        Disimpan oleh
-                      </FontStyle>
-                      <ActorIdentity
-                        position={row.actor_position_name}
-                        name={row.actor_name}
-                        photoUrl={inventoryActorPhotoUrl(
-                          row.actor_photo_file_id,
-                          organizationId,
-                          row.transaction_id,
-                          "distribution",
-                        )}
-                      />
-                    </Box>
-                  ) : null}
-                  {action(row)}
-                </Box>
+                <InventoryReportCardContent
+                  identity={identity(row)}
+                  status={
+                    <CompactInfoChip
+                      label={row.cancelled_on ? "Dibatalkan" : "Berlaku"}
+                      tone={row.cancelled_on ? "warning" : "success"}
+                    />
+                  }
+                  facts={[
+                    {
+                      label: "Tanggal penyaluran",
+                      value: row.occurred_on ? dayjs(row.occurred_on).format("D MMM YYYY") : null,
+                    },
+                    { label: "Gudang asal", value: row.warehouse_name },
+                    { label: "Lokasi tujuan", value: row.location_name, fullWidth: true },
+                    {
+                      label: "Divisi & Unit tujuan",
+                      value: row.destination_unit_name,
+                      fullWidth: true,
+                    },
+                    ...(row.reference_no
+                      ? [{ label: "Nomor memo", value: row.reference_no, fullWidth: true }]
+                      : []),
+                  ]}
+                  people={
+                    <>
+                      <Box>
+                        <FontStyle fontSize={12} sx={{ mb: 1, color: "text.secondary" }}>
+                          Pegawai penerima
+                        </FontStyle>
+                        <InventoryRecipientIdentity
+                          recipient={row}
+                          organizationId={organizationId}
+                          transactionId={row.transaction_id}
+                          view="distribution"
+                        />
+                      </Box>
+                      <Box>
+                        <FontStyle fontSize={12} sx={{ mb: 1, color: "text.secondary" }}>
+                          Disimpan oleh
+                        </FontStyle>
+                        <ActorIdentity
+                          position={row.actor_position_name}
+                          name={row.actor_name || "Tidak tersedia"}
+                          photoUrl={inventoryActorPhotoUrl(
+                            row.actor_photo_file_id,
+                            organizationId,
+                            row.transaction_id,
+                            "distribution",
+                          )}
+                        />
+                      </Box>
+                    </>
+                  }
+                  quantities={["distributed_quantity", "returned_quantity", "net_quantity"].map(
+                    (key, index) => ({
+                      label: DISTRIBUTION_QUANTITY_LABELS[index],
+                      value: qty(row, key),
+                      emphasis: key === "net_quantity",
+                    }),
+                  )}
+                  action={action(row, true)}
+                />
               )}
             />
             <Box sx={{ p: 2 }}>
               <DataPagination
                 total={data?.total}
+                displayedCount={data?.data?.length || 0}
                 loading={loading}
                 pageSize={pageSize}
                 onPageSizeChange={setPageSize}

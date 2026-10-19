@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, useTheme } from "@mui/material";
+import { mobileDataTypography } from "./mobileDataTypography.mjs";
 
 /** Menyatukan styling tabel Ant Design agar seluruh modul memakai surface SITOU yang sama. */
 export default function ModernTableFrame({ children, sx, outlined = false }) {
@@ -75,6 +76,7 @@ export default function ModernTableFrame({ children, sx, outlined = false }) {
           alignItems: "center",
         },
         ...sx,
+        ...mobileDataTypography,
       }}
     >
       {children}
