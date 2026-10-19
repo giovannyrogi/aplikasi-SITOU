@@ -3,6 +3,7 @@ import {
   DISTRIBUTION_QUANTITY_LABELS,
   DISTRIBUTION_NET_HELP,
 } from "@/lib/inventory/distributionLabels.mjs";
+import InventoryRecipientIdentity from "./InventoryRecipientIdentity";
 import ActorIdentity from "@/app/components/data-display/ActorIdentity";
 import { inventoryActorPhotoUrl } from "@/lib/identity/actorPresentation.mjs";
 import { useEffect, useState } from "react";
@@ -37,7 +38,7 @@ const initial = {
   unitId: "",
   recipientId: "",
   search: "",
-  status: "effective",
+  status: "all",
 };
 const amount = (v) =>
   new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 }).format(Number(v));
@@ -189,7 +190,6 @@ export default function DistributionPanel({
         <FontStyle fontSize={12}>
           {row.item_code} · {row.unit_name}
         </FontStyle>
-        {row.cancelled_on ? <CompactInfoChip label="Dibatalkan" tone="warning" /> : null}
       </Box>
     </Box>
   );
@@ -213,6 +213,17 @@ export default function DistributionPanel({
       render: (value) => dayjs(value).format("D MMM YYYY"),
       width: 135,
     },
+    {
+      key: "status",
+      title: "Status penyaluran",
+      width: 155,
+      render: (_, row) => (
+        <CompactInfoChip
+          label={row.cancelled_on ? "Dibatalkan" : "Berlaku"}
+          tone={row.cancelled_on ? "warning" : "success"}
+        />
+      ),
+    },
     { key: "item", title: "Nama barang", render: (_, r) => identity(r), width: 245 },
     { key: "warehouse", title: "Gudang asal", dataIndex: "warehouse_name", width: 185 },
     {
@@ -232,7 +243,12 @@ export default function DistributionPanel({
       width: 225,
       render: (_, row) => (
         <Box>
-          <FontStyle>{row.recipient_name || "Tidak tersedia"}</FontStyle>
+          <InventoryRecipientIdentity
+            recipient={row}
+            organizationId={organizationId}
+            transactionId={row.transaction_id}
+            view="distribution"
+          />
           {row.reference_no ? (
             <FontStyle fontSize={12}>Nomor memo: {row.reference_no}</FontStyle>
           ) : null}
@@ -308,7 +324,6 @@ export default function DistributionPanel({
           {
             key: "dateRange",
             label: "Periode penyaluran",
-            gridColumn: { xs: "auto", sm: "span 2" },
             control: (
               <DatePicker.RangePicker
                 aria-label="Rentang tanggal penyaluran"
@@ -360,9 +375,9 @@ export default function DistributionPanel({
             control: select(
               "status",
               [
-                { value: "effective", label: "Tidak dibatalkan" },
-                { value: "cancelled", label: "Dibatalkan" },
                 { value: "all", label: "Semua status" },
+                { value: "effective", label: "Berlaku" },
+                { value: "cancelled", label: "Dibatalkan" },
               ],
               "Status penyaluran",
             ),
@@ -388,7 +403,7 @@ export default function DistributionPanel({
         <>
           <DataPanel
             title="Rincian penyaluran"
-            description={`Jumlah mengikuti satuan barang. ${DISTRIBUTION_NET_HELP} Penyaluran yang dibatalkan sampai akhir periode dihitung 0.}`}
+            description={`Jumlah mengikuti satuan barang. ${DISTRIBUTION_NET_HELP} Penyaluran yang dibatalkan sampai akhir periode dihitung 0.`}
             exportConfig={{
               enabled: !!data,
               formats: ["excel"],
@@ -402,20 +417,27 @@ export default function DistributionPanel({
               loading={loading}
               error={optionsError || (state.key === requestKey ? state.error : "")}
               onRetry={() => setReload((n) => n + 1)}
-              scrollX={1950}
+              scrollX={2100}
               emptyDescription="Tidak ada data penyaluran yang sesuai dengan pencarian dan filter."
               renderCard={(row) => (
                 <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
                   {identity(row)}
+                  <CompactInfoChip
+                    label={row.cancelled_on ? "Dibatalkan" : "Berlaku"}
+                    tone={row.cancelled_on ? "warning" : "success"}
+                  />
+                  <InventoryRecipientIdentity
+                    recipient={row}
+                    organizationId={organizationId}
+                    transactionId={row.transaction_id}
+                    view="distribution"
+                  />
                   <FontStyle>
                     {row.warehouse_name} → {row.location_name || "Tidak tersedia"}
                   </FontStyle>
                   <FontStyle>{row.destination_unit_name || "Tidak tersedia"}</FontStyle>
                   {row.occurred_on ? (
-                    <FontStyle>
-                      {dayjs(row.occurred_on).format("D MMM YYYY")} ·{" "}
-                      {row.recipient_name || "Tidak tersedia"}
-                    </FontStyle>
+                    <FontStyle>{dayjs(row.occurred_on).format("D MMM YYYY")}</FontStyle>
                   ) : null}
                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                     {["distributed_quantity", "returned_quantity", "net_quantity"].map((key, i) => (

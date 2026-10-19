@@ -20,6 +20,7 @@ import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import AppIcon from "@/app/components/icons/AppIcon";
 import Notification from "@/app/components/Notifications/Notification";
 import useAppNotification from "@/app/hooks/useAppNotification";
+import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { readApiResponse } from "@/lib/api/clientError";
 import { STOCK_REPORT_HELP, STOCK_REPORT_QUANTITIES } from "@/lib/inventory/stockReportPolicy.mjs";
 import TransactionDetailModal from "./TransactionDetailModal";
@@ -81,6 +82,7 @@ function Pagination({ result, pageSize, onSize }) {
   );
 }
 function StockReportDetail({ row, params, onClose }) {
+  const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const [size, setSize] = useState(20),
     [retry, setRetry] = useState(0),
     [transaction, setTransaction] = useState(null),
@@ -120,12 +122,17 @@ function StockReportDetail({ row, params, onClose }) {
     const abort = new AbortController();
     controller.current = abort;
     try {
-      const response = await fetch(
-        `/api/inventory/transactions/${entry.transaction_id}?organizationId=${params.organizationId}`,
-        { cache: "no-store", signal: abort.signal },
+      await runWithLoadingBackdrop(
+        async () => {
+          const response = await fetch(
+            `/api/inventory/transactions/${entry.transaction_id}?organizationId=${params.organizationId}`,
+            { cache: "no-store", signal: abort.signal },
+          );
+          const responseBody = await readApiResponse(response);
+          if (!abort.signal.aborted) setTransaction(responseBody.data);
+        },
+        { message: "Membuka detail transaksi..." },
       );
-      const responseBody = await readApiResponse(response);
-      if (!abort.signal.aborted) setTransaction(responseBody.data);
     } catch (error) {
       if (!abort.signal.aborted) setDetailError(error.message);
     } finally {
@@ -340,7 +347,7 @@ export default function StockReportPanel({ organizationId, organizationFilter })
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showNotification("Laporan stok berhasil diunduh.");
+      showNotification("Rekap stok berhasil diunduh.");
     } catch (error) {
       if (!abort.signal.aborted) showNotification(error.message, "error");
     } finally {
@@ -390,17 +397,17 @@ export default function StockReportPanel({ organizationId, organizationFilter })
   return (
     <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>
       <PageHeader
-        title="Laporan Stok"
+        title="Rekap Stok"
         description="Lihat stok awal, barang masuk, barang keluar, dan stok akhir pada periode yang dipilih."
       />
       {!organizationId ? (
         <AppNotice
           title="Pilih organisasi"
-          description="Pilih organisasi untuk melihat laporan stok."
+          description="Pilih organisasi untuk melihat rekap stok."
         />
       ) : null}
       <OperationalFilterSection
-        title="Filter laporan stok"
+        title="Filter rekap stok"
         onReset={() => {
           setFilters(initial);
           setSearch("");

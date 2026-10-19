@@ -1,4 +1,6 @@
 "use client";
+import InventoryRecipientIdentity from "./InventoryRecipientIdentity";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, DatePicker, Input, InputNumber, Steps } from "antd";
 import { Box, Divider, Paper, useMediaQuery, useTheme } from "@mui/material";
@@ -347,6 +349,7 @@ export default function TransactionWizard({organizationId,draftId,onClose,onSave
           {field("destinationLocationId","Lokasi tujuan *",<AsyncSelect value={data.destinationLocationId?String(data.destinationLocationId):undefined} onChange={(value)=>update({destinationLocationId:Number(value),destinationUnitId:null,recipientEmployeeId:null})} options={(options?.locations || []).map((row)=>({value:row.id,label:row.name}))} placeholder="Pilih lokasi" style={{width:"100%",minHeight:44}}/>)}
           {field("destinationUnitId","Divisi & Unit tujuan *",<AsyncSelect value={data.destinationUnitId?String(data.destinationUnitId):undefined} onChange={(value)=>update({destinationUnitId:Number(value),recipientEmployeeId:null})} options={(options?.units || []).filter((row)=>row.location_id===String(data.destinationLocationId)).map((row)=>({value:row.id,label:row.name}))} placeholder="Pilih Divisi & Unit" disabled={!data.destinationLocationId} style={{width:"100%",minHeight:44}}/>)}
           {field("recipientEmployeeId","Pegawai penerima *",<AsyncSelect value={data.recipientEmployeeId?String(data.recipientEmployeeId):undefined} onChange={(value)=>update({recipientEmployeeId:Number(value)})} options={recipients.map((row)=>({value:row.id,label:`${row.full_name} · ${row.employee_no}`}))} placeholder="Pilih pegawai" disabled={!data.destinationUnitId||!data.occurredOn} style={{width:"100%",minHeight:44}}/>)}
+          {data.recipientEmployeeId ? <InventoryRecipientIdentity recipient={recipients.find((entry)=>entry.id===String(data.recipientEmployeeId))} organizationId={organizationId} selection={data}/> : null}
           {referenceField}
         </Box></>:null}
         {data.kind==="receipt"?<Box sx={{display:"grid",gridTemplateColumns:{xs:"minmax(0,1fr)",sm:"repeat(2,minmax(0,1fr))"},gap:2}}>{referenceField}</Box>:null}
@@ -391,14 +394,14 @@ export default function TransactionWizard({organizationId,draftId,onClose,onSave
           ["Jenis",kinds.find((entry)=>entry.value===data.kind)?.label],["Gudang",warehouse?.name],
           [data.kind==="return"?"Tanggal pengembalian ke gudang":"Tanggal transaksi",data.occurredOn?dayjs(data.occurredOn).format("D MMM YYYY"):"—"],
           ["Barang",`${data.kind==="return"?selected.length:data.lines.length} jenis`],...(data.referenceNo?[[transactionReferenceLabel(data.kind),data.referenceNo]]:[]),
-          ...(data.kind==="issue"?[["Pegawai penerima",recipients.find((entry)=>entry.id===String(data.recipientEmployeeId))?.full_name || "—"]]:[]),
+          ...(data.kind==="issue"?[["Pegawai penerima",<InventoryRecipientIdentity key="recipient" recipient={recipients.find((entry)=>entry.id===String(data.recipientEmployeeId))} organizationId={organizationId} selection={data}/>]]:[]),
           ...(data.kind==="return"&&returnSource?[
             ["Tanggal penyaluran sebelumnya",dayjs(returnSource.occurred_on).format("D MMM YYYY")],
             ["Lokasi penyaluran",returnSource.destination_location_name || "Tidak tersedia"],
             ["Divisi & Unit penyaluran",returnSource.destination_unit_name || "Tidak tersedia"],
-            ["Penerima penyaluran",returnSource.recipient_name || "Tidak tersedia"],
+            ["Penerima penyaluran",<InventoryRecipientIdentity key="source-recipient" recipient={returnSource} organizationId={organizationId} transactionId={returnSource.id}/>],
           ]:[]),
-        ].map(([name,value])=><Box key={name}><FontStyle fontSize={12} sx={{color:"text.secondary"}}>{name}</FontStyle><FontStyle fontSize={14} fontWeight={600} sx={{overflowWrap:"anywhere"}}>{value}</FontStyle></Box>)}</Box>
+        ].map(([name,value])=><Box key={name}><FontStyle fontSize={12} sx={{color:"text.secondary"}}>{name}</FontStyle>{typeof value==="string"?<FontStyle fontSize={14} fontWeight={600} sx={{overflowWrap:"anywhere"}}>{value}</FontStyle>:value}</Box>)}</Box>
         {stockPreview?.occurredOn!==stockPreview?.asOf?<AppNotice tone="info" title="Transaksi bertanggal sebelumnya" description={data.kind==="opening"?`Stok awal berlaku mulai ${dayjs(data.occurredOn).format("D MMM YYYY")}. Stok saat ini juga mencakup transaksi setelah tanggal itu.`:`Angka Sebelum dan Sesudah berlaku pada ${dayjs(data.occurredOn).format("D MMM YYYY")}. Saat ini juga mencakup transaksi setelah tanggal itu.`} compact/>:null}
         <Box component="section" aria-label={reviewTitles[data.kind] || "Rincian barang"} sx={{display:"grid",gap:1.5,minWidth:0}}>
         <FontStyle component="h2" fontSize={15} fontWeight={700}>{reviewTitles[data.kind] || "Rincian barang"}</FontStyle>

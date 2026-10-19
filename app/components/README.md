@@ -506,4 +506,4 @@ Badge profil pegawai yang tertaut memakai status dan jenis kepegawaian, bukan ro
 
 DashboardMetric menerima balanced untuk susunan header → angka tengah → footer berdivider pada Masa kerja/Sanksi aktif. MetricValue menjaga format angka/satuan konsisten dengan susunan standar.
 
-Laporan Stok memakai StockReportPanel, AppModal, ResponsiveDataView, DataPagination dan TableExportMenu bersama. Rincian membaca proyeksi Kartu Stok dengan permission laporan; dokumen memerlukan izin transaksi tersendiri. Tidak menambahkan perhitungan atau saldo client. Lihat docs/inventory-stock-report.md.
+Rekap Stok memakai StockReportPanel, AppModal, ResponsiveDataView, DataPagination dan TableExportMenu bersama. Rincian membaca proyeksi Kartu Stok dengan permission laporan; dokumen memerlukan izin transaksi tersendiri. Tidak menambahkan perhitungan atau saldo client. Lihat docs/inventory-stock-report.md.

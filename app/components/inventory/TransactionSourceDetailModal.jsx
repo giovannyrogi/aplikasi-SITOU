@@ -1,4 +1,5 @@
 "use client";
+import InventoryRecipientIdentity from "./InventoryRecipientIdentity";
 import ActorIdentity from "@/app/components/data-display/ActorIdentity";
 import { inventoryActorPhotoUrl } from "@/lib/identity/actorPresentation.mjs";
 import {useState} from "react";
@@ -19,7 +20,7 @@ export default function TransactionSourceDetailModal({source,organizationId,onCl
     <Box sx={{display:"grid",gap:3,minWidth:0}}>
       <AppNotice description="Pengembalian hanya dapat menggunakan barang dari penyaluran ini. Jumlahnya tidak boleh melebihi sisa yang belum dikembalikan."/>
       <Box sx={{display:"grid",gridTemplateColumns:{xs:"minmax(0,1fr)",sm:"repeat(2,minmax(0,1fr))"},gap:2}}>
-        {[["Tanggal penyaluran",dayjs(source.occurred_on).format("D MMM YYYY")],["Gudang asal",source.warehouse_name],["Lokasi tujuan",source.destination_location_name || "Tidak tersedia"],["Divisi & Unit tujuan",source.destination_unit_name || "Tidak tersedia"],["Pegawai penerima",source.recipient_name || "Tidak tersedia"],...(source.reference_no?[["Nomor memo/permintaan",source.reference_no]]:[]),["Disimpan oleh",source.actor_name]].map(([label,value])=><Box key={label}><FontStyle fontSize={12} sx={{color:"text.secondary"}}>{label}</FontStyle>{label==="Disimpan oleh"?<ActorIdentity position={source.actor_position_name} name={source.actor_name} photoUrl={inventoryActorPhotoUrl(source.actor_photo_file_id,organizationId,source.id)}/>:<FontStyle fontWeight={700} sx={{overflowWrap:"anywhere"}}>{value}</FontStyle>}</Box>)}
+        {[["Tanggal penyaluran",dayjs(source.occurred_on).format("D MMM YYYY")],["Gudang asal",source.warehouse_name],["Lokasi tujuan",source.destination_location_name || "Tidak tersedia"],["Divisi & Unit tujuan",source.destination_unit_name || "Tidak tersedia"],["Pegawai penerima",source.recipient_name || "Tidak tersedia"],...(source.reference_no?[["Nomor memo/permintaan",source.reference_no]]:[]),["Disimpan oleh",source.actor_name]].map(([label,value])=><Box key={label}><FontStyle fontSize={12} sx={{color:"text.secondary"}}>{label}</FontStyle>{label==="Disimpan oleh"?<ActorIdentity position={source.actor_position_name} name={source.actor_name} photoUrl={inventoryActorPhotoUrl(source.actor_photo_file_id,organizationId,source.id)}/>:label==="Pegawai penerima"?<InventoryRecipientIdentity recipient={source} organizationId={organizationId} transactionId={source.id}/>:<FontStyle fontWeight={700} sx={{overflowWrap:"anywhere"}}>{value}</FontStyle>}</Box>)}
       </Box>
       <FontStyle fontWeight={700}>Barang yang disalurkan</FontStyle>
       {source.lines.map((line)=><Box key={line.itemId} sx={{display:"grid",gap:2,pb:2,borderBottom:"1px solid",borderColor:"divider",minWidth:0}}>
