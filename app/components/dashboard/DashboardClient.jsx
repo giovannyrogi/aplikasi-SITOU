@@ -360,8 +360,7 @@ function OrganizationDashboard() {
             ))}
           </Box>
 
-          {(!isSuperadmin || organizationId) &&
-          (state.loading || isHrd || state.data?.birthdaySummary) ? (
+          {state.loading || isHrd || state.data?.birthdaySummary ? (
             isHrd && !state.loading && !sections.has("employees") ? (
               <DashboardCardPlaceholder title="Ulang tahun pegawai" kind="birthday" />
             ) : (

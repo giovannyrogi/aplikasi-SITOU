@@ -196,6 +196,14 @@ kedaluwarsa. Jalankan `npm run inventory-drafts:expire` secara terjadwal seperti
 
 Migration `059` menambahkan dua permission baca pribadi dashboard Pegawai: cuti/izin/saldo dan ringkasan sanksi resmi. Hanya role employee menerima grant, tidak ada grant administrasi/approval/file. Seed idempotent dan bootstrap sudah memuat kondisi akhir. Diuji pada database kosong serta diterapkan pada development dalam perubahan ini.
 
+## 060 — Aturan cuti berdasarkan jenis kelamin
+
+Terapkan `20261018_060_leave_type_gender_eligibility.sql` sebelum memakai kode
+aturan cuti terbaru. Kolom `leave_types.eligible_gender` menerima `all`, `male`,
+atau `female`; aturan lama otomatis bernilai `all`. Pemeriksaan berlaku pada
+pilihan dan penyimpanan cuti/izin baru serta saldo aktif, tanpa mengubah histori.
+Migration ini tidak boleh diulang jika kolom tersebut sudah tersedia.
+
 ## 061 — Admin HRD penuh opsional
 
 Terapkan `20261018_061_optional_full_hris_admin.sql` pada database berjalan
@@ -207,3 +215,13 @@ Bootstrap `sitou_schema_v3.sql` mencerminkan constraint akhir.
 ## 062 — Ringkasan Pribadi HRD dan Pimpinan
 
 Terapkan `20261018_062_dashboard_personal_access.sql` sebelum submenu Ringkasan Pribadi digunakan HRD/Pimpinan. Migration idempotent ini memberi enam grant baca `*_self` kepada kedua role tanpa menambah tabel/kolom atau izin administrasi. Service tetap mengunci organisasi dan pemilik profil dari sesi.
+
+### Pemeriksaan setelah pull pada development
+
+Runner `apply-development-migration.mjs` menjalankan satu file dalam transaksi,
+tetapi belum menyimpan tabel riwayat migration. Periksa kondisi schema/grant
+sebelum menjalankan file; jangan mengulang semua migration secara membabi buta.
+Untuk 060 periksa kolom dan constraint `eligible_gender`, untuk 061 pastikan
+constraint `organization_hris_access_policies_check` sudah tidak ada, dan untuk
+062 periksa enam grant pribadi pada masing-masing role HRD/Pimpinan.
+Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` setelah upgrade.

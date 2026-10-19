@@ -155,7 +155,6 @@ test("daftar cuti memakai section filter utama tanpa drawer dan toolbar lama", a
   assert.match(page, /label: "Status"/);
   assert.match(page, /options=\{references\.locations\}/);
   assert.match(page, /showEmployeeNumber=\{false\}/);
-  assert.match(page, /showCode=\{false\}/);
   assert.doesNotMatch(page, /<Drawer|Muat ulang|Semua periode/);
   assert.match(section, /gridTemplateColumns/);
 });

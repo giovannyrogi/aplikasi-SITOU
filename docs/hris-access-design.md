@@ -208,3 +208,14 @@ ProtectedShell memeriksa snapshot izin server setiap 20 detik ketika tab organis
 Snapshot `/api/access/me` memuat `writePermissions` Inventaris dan `scopeRevision` untuk mendeteksi perubahan cakupan; keduanya tidak memberikan izin baru. `readApiResponse` dan form Data Master yang membaca respons sendiri meminta pemeriksaan ulang izin ketika menerima `403`. Kegagalan jaringan tidak ditafsirkan sebagai pencabutan izin. Pengalihan karena sesi login berakhir tetap menuju Login dan menggunakan varian standar panel hitungan mundur yang sama.
 
 Catatan pemeliharaan: tes akses terpilih berada di `tests/` dan dapat dijalankan dengan `node --test`. Lint, build, dan pemeriksaan dua sesi browser tetap diperlukan untuk perubahan alur akses.
+
+Ringkasan ulang tahun juga tampil bagi Superadmin pada Semua organisasi: hanya
+organisasi aktif, tanggal kalender dari timezone tiap organisasi, dan nama organisasi
+pada daftar gabungan. Memilih satu organisasi menggunakan query organisasi yang
+sama dengan HRD. Izin Data Pegawai dan cakupan lokasi HRD tetap berlaku.
+
+Aktivitas terbaru organisasi dibatasi pelaku HRD dengan membership organisasi
+yang berlaku saat kejadian. Login memerlukan snapshot audit role_code=hrd,
+bukan role saat ini saja. Aktivitas Pegawai/Pimpinan/Superadmin tidak masuk
+feed organisasi; filter izin dan scope tetap berlaku sebelum LIMIT lima data.
+Audit login dan histori bisnis tidak diubah atau dihapus.

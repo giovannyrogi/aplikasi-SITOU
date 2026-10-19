@@ -36,6 +36,8 @@ import {
   getEmployeeCompletenessOption,
 } from "@/lib/employees/completenessOptions";
 import { BLOOD_TYPE_OPTIONS } from "@/lib/employees/profileOptions";
+import AsyncSelect from "@/app/components/forms/AsyncSelect";
+import { EMPLOYEE_SANCTION_OPTIONS } from "@/lib/employees/sanctionFilter.mjs";
 import EmployeeAvatar from "./EmployeeAvatar";
 import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import EmployeeForm from "./EmployeeForm";
@@ -68,6 +70,7 @@ export default function EmployeeDirectory() {
     positions: [],
     employmentTypes: [],
     createdByUsers: [],
+    sanctionTypes: [],
   });
   const organizationId = isSuperadmin ? list.filters.organizationId : String(user.organization_id);
 
@@ -80,6 +83,7 @@ export default function EmployeeDirectory() {
           positions: [],
           employmentTypes: [],
           createdByUsers: [],
+          sanctionTypes: [],
         }),
       );
       return;
@@ -96,6 +100,7 @@ export default function EmployeeDirectory() {
           positions: body.data?.positions || [],
           employmentTypes: body.data?.employmentTypes || [],
           createdByUsers: body.data?.createdByUsers || [],
+          sanctionTypes: body.data?.sanctionTypes || [],
         }),
       )
       .catch((error) => {
@@ -256,6 +261,29 @@ export default function EmployeeDirectory() {
           optionFilterProp="label"
           options={EMPLOYEE_COMPLETENESS_OPTIONS.map(({ value, label }) => ({ value, label }))}
         />
+      ),
+    },
+    {
+      key: "sanction",
+      label: "Status sanksi",
+      control: (
+        <AsyncSelect aria-label="Status sanksi" value={list.filters.sanction || "all"}
+          options={EMPLOYEE_SANCTION_OPTIONS}
+          onChange={(value) => list.updateFilters({ ...list.filters, sanction: value,
+            ...(value === "all" ? { sanctionTypeId: undefined } : {}) })} />
+      ),
+    },
+    {
+      key: "sanctionTypeId",
+      label: "Jenis sanksi",
+      control: (
+        <AsyncSelect aria-label="Jenis sanksi" allowClear placeholder="Semua jenis sanksi"
+          value={list.filters.sanctionTypeId} disabled={!organizationId}
+          options={references.sanctionTypes.map((item) => ({ value: item.id,
+            label: item.is_active ? item.name : `${item.name} (nonaktif)` }))}
+          onChange={(value) => list.updateFilters({ ...list.filters, sanctionTypeId: value || undefined,
+            sanction: value && (!list.filters.sanction || list.filters.sanction === "all")
+              ? "with_history" : list.filters.sanction })} />
       ),
     },
     {
@@ -575,7 +603,7 @@ export default function EmployeeDirectory() {
       />
       <OperationalFilterSection
         title="Filter data pegawai"
-        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian, status, golongan darah, kelengkapan data, dan akun pencatat."
+        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian, status, sanksi, golongan darah, kelengkapan data, dan akun pencatat."
         items={filterItems}
         onReset={resetFilters}
         wideColumns={4}

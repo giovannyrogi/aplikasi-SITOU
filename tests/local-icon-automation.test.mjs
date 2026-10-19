@@ -27,6 +27,10 @@ test("generator membaca nama baru, tetapi nama salah tidak menimpa SVG lama", as
     await writeFile(sourcePath, source("solar:widget-2-bold-duotone"));
     assert.equal((await generateLocalIcons({ sourcePath, outputPath })).changed, true);
     const first = await readFile(outputPath, "utf8");
+    await writeFile(outputPath, first.replaceAll("\n", "\r\n"));
+    assert.equal((await generateLocalIcons({ sourcePath, outputPath, check: true })).changed, false);
+    assert.equal((await generateLocalIcons({ sourcePath, outputPath })).changed, false);
+    await writeFile(outputPath, first);
     assert.equal((await generateLocalIcons({ sourcePath, outputPath, check: true })).changed, false);
 
     await writeFile(sourcePath, source("solar:widget-4-bold-duotone"));

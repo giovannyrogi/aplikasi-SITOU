@@ -45,7 +45,8 @@ export async function generateLocalIcons({ sourcePath = ICON_SOURCE_PATH, output
   }
 
   const output = `// Dihasilkan otomatis dari navigationIconSources.mjs. Jangan edit manual.\nexport const LOCAL_ICON_DATA = ${JSON.stringify(selectedIcons, null, 2)};\n`;
-  const current = await readCurrent(outputPath);
+  // Checkout Windows dapat memakai CRLF; perbedaan akhir baris bukan perubahan data SVG.
+  const current = (await readCurrent(outputPath)).replaceAll("\r\n", "\n");
   if (check) {
     if (current !== output) throw new Error("Data ikon lokal belum sesuai. Jalankan npm run icons:generate.");
     return { count: Object.keys(selectedIcons).length, changed: false };

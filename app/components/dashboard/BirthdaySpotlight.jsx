@@ -261,7 +261,9 @@ function BirthdayListGroup({ title, description, items, onPreview, onOpenEmploye
                     {item.positionName || "Jabatan belum ditentukan"}
                   </MetaItem>
                   <MetaItem icon={PlaceOutlinedIcon}>
-                    {item.locationName || "Belum ditempatkan"}
+                    {[item.organizationName, item.locationName || "Belum ditempatkan"]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </MetaItem>
                   <MetaItem icon={CakeRoundedIcon} textSx={{ transform: "translateY(2px)" }} strong>
                     {formatBirthdayAge(item.ageTurning)}
@@ -544,7 +546,9 @@ export default function BirthdaySpotlight({ data, loading }) {
                     {current.positionName || "Jabatan belum ditentukan"}
                   </MetaItem>
                   <MetaItem icon={PlaceOutlinedIcon}>
-                    {current.locationName || "Belum ditempatkan"}
+                    {[current.organizationName, current.locationName || "Belum ditempatkan"]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </MetaItem>
                   <MetaItem icon={CalendarMonthRoundedIcon} strong>
                     {formatBirthdayDate(current.celebrationDate)}
