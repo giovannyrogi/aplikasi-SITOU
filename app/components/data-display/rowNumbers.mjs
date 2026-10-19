@@ -27,3 +27,17 @@ export function paginationTotalLabel(total) {
     return "Total data belum tersedia";
   return `Total: ${Number(total).toLocaleString("id-ID")} data`;
 }
+
+/** Total hasil berizin dan jumlah aktual pada halaman, bukan ukuran halaman yang diminta. */
+export function paginationCountLabel(total, displayedCount) {
+  const totalLabel = paginationTotalLabel(total);
+  if (
+    total == null ||
+    !Number.isSafeInteger(Number(total)) ||
+    Number(total) <= 0 ||
+    !Number.isSafeInteger(displayedCount) ||
+    displayedCount < 0
+  )
+    return totalLabel;
+  return `${totalLabel} · Ditampilkan: ${displayedCount.toLocaleString("id-ID")}`;
+}

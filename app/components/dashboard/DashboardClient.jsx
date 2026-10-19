@@ -1,4 +1,5 @@
 "use client";
+import { ACTIVITY_PRESENTATION_VERSION } from "@/lib/dashboard/activityPresentation.mjs";
 import {
   dashboardMetricCards,
   ORGANIZATION_CHART_SECTIONS,
@@ -35,7 +36,7 @@ import EmployeeDashboard from "./EmployeeDashboard";
 /** Workspace dasar dan Inventaris memakai sumber data serta izin terpisah. */
 export default function DashboardClient({ view }) {
   return <DashboardWorkspace view={view}>
-    {view === "personal" ? <EmployeeDashboard /> : view === "staff" ? <OrganizationDashboard /> : null}
+    {view === "personal" ? <EmployeeDashboard /> : view === "staff" ? <OrganizationDashboard key={ACTIVITY_PRESENTATION_VERSION} /> : null}
   </DashboardWorkspace>;
 }
 
@@ -473,7 +474,7 @@ function OrganizationDashboard() {
               restricted ? (
                 <DashboardCardPlaceholder title="Aktivitas terbaru" kind="list" />
               ) : (
-                <DashboardActivityList items={state.data?.activities} loading={state.loading} />
+                <DashboardActivityList items={state.data?.activities} loading={state.loading} canViewHistory={isHrd} />
               )
             ) : null}
           </Box>

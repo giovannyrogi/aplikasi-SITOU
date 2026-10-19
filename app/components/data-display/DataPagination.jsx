@@ -4,7 +4,7 @@ import { Button } from "antd";
 import AsyncSelect from "../forms/AsyncSelect";
 import { Box } from "@mui/material";
 import FontStyle from "../font-style/FontStyle";
-import { paginationTotalLabel } from "./rowNumbers.mjs";
+import { paginationCountLabel } from "./rowNumbers.mjs";
 
 /** Footer pagination bersama untuk daftar bernomor maupun keyset/cursor. */
 export default function DataPagination({
@@ -16,6 +16,7 @@ export default function DataPagination({
   onPageSizeChange,
   loading = false,
   total,
+  displayedCount,
   pageSize,
   pageSizeOptions = [10, 20, 50],
   ariaLabel = "Navigasi halaman data",
@@ -37,13 +38,15 @@ export default function DataPagination({
       component="nav"
       aria-label={ariaLabel}
       sx={{
-        display: "flex",
+        display: { xs: "grid", sm: "flex" },
+        gridTemplateColumns: "minmax(0, 1fr)",
         alignItems: "center",
         justifyContent: "flex-end",
         flexWrap: "wrap",
-        gap: 1,
+        gap: 1.5,
         minWidth: 0,
         pt: 2,
+        "& > .ant-btn": { width: { xs: "100%", sm: "auto" } },
         ...sx,
       }}
     >
@@ -53,7 +56,7 @@ export default function DataPagination({
         fontSize={12.5}
         sx={{ color: "text.secondary", mr: { sm: "auto" }, flexBasis: { xs: "100%", sm: "auto" } }}
       >
-        {summary || paginationTotalLabel(currentTotal)}
+        {summary || paginationCountLabel(currentTotal, displayedCount)}
       </FontStyle>
       <Button
         onClick={cursor ? onPrevious : () => onPageChange?.(currentPage - 1, currentSize)}
@@ -70,14 +73,16 @@ export default function DataPagination({
         Berikutnya
       </Button>
       {pageSizeOptions.length ? (
-        <AsyncSelect
-          aria-label="Jumlah baris per halaman"
-          value={currentSize}
-          onChange={changeSize}
-          disabled={loading}
-          options={pageSizeOptions.map((value) => ({ value, label: `${value} / halaman` }))}
-          style={{ minWidth: 132, minHeight: 44 }}
-        />
+        <Box sx={{ width: { xs: "100%", sm: 156 }, minWidth: 0 }}>
+          <AsyncSelect
+            aria-label="Jumlah baris per halaman"
+            value={currentSize}
+            onChange={changeSize}
+            disabled={loading}
+            options={pageSizeOptions.map((value) => ({ value, label: `${value} / halaman` }))}
+            style={{ width: "100%", minHeight: 44 }}
+          />
+        </Box>
       ) : null}
     </Box>
   );

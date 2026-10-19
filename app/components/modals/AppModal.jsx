@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Box, Divider, IconButton, Modal, Tooltip, useTheme } from "@mui/material";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import AppIconTile from "@/app/components/icons/AppIconTile";
@@ -20,6 +20,8 @@ export default function AppModal({
   contentSx = {},
   paperSx = {},
   footer,
+  pagination,
+  contentResetKey,
   showCloseButton = true,
   disableClose = false,
   closeOnBackdrop = true,
@@ -30,6 +32,10 @@ export default function AppModal({
   children,
 }) {
   const theme = useTheme();
+  const contentRef = useRef(null);
+  useEffect(() => {
+    if (contentResetKey !== undefined && contentRef.current) contentRef.current.scrollTop = 0;
+  }, [contentResetKey]);
   const titleId = useId();
   const descriptionId = useId();
   const resolvedDescription = description || titleDescription;
@@ -129,9 +135,17 @@ export default function AppModal({
           ) : null}
         </Box>
         <Divider />
-        <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: { xs: 2, sm: 2.5 }, ...contentSx }}>
+        <Box ref={contentRef} sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: { xs: 2, sm: 2.5 }, ...contentSx }}>
           {children}
         </Box>
+        {pagination ? (
+          <>
+            <Divider />
+            <Box sx={{ flexShrink: 0, minWidth: 0, px: { xs: 2, sm: 2.5 }, py: 1.5 }}>
+              {pagination}
+            </Box>
+          </>
+        ) : null}
         {footer ? (
           <>
             <Divider />
