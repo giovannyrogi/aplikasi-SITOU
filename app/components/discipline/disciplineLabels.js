@@ -27,10 +27,10 @@ export const ACTION_LABELS = {
 
 export const ACTION_STATUS = {
   scheduled: ["Belum mulai", "info"],
-  draft: ["Draft", "neutral"],
-  active: ["Aktif", "danger"],
-  expired: ["Berakhir", "neutral"],
-  revoked: ["Dicabut", "warning"],
-  appealed: ["Dalam banding", "info"],
-  superseded: ["Digantikan", "neutral"],
+  draft: ["Draft", "info"],
+  active: ["Aktif", "success"],
+  expired: ["Berakhir", "info"],
+  revoked: ["Dicabut", "danger"],
+  appealed: ["Dalam banding", "warning"],
+  superseded: ["Digantikan", "warning"],
 };

@@ -53,9 +53,6 @@ export default function StockAttentionCard({ item, organizationId, onPreview, is
         sx={{
           display: "grid",
           placeItems: "center",
-          bgcolor: theme.ui.panelSubtleBg,
-          borderRadius: 2,
-          p: 1,
         }}
       >
         <InventoryItemPhoto
@@ -65,6 +62,7 @@ export default function StockAttentionCard({ item, organizationId, onPreview, is
           size="100%"
           height={{ xs: 184, sm: 160 }}
           fit="contain"
+          frameless
           tabIndex={isClone ? -1 : undefined}
         />
       </Box>

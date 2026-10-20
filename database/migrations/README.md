@@ -225,3 +225,9 @@ Untuk 060 periksa kolom dan constraint `eligible_gender`, untuk 061 pastikan
 constraint `organization_hris_access_policies_check` sudah tidak ada, dan untuk
 062 periksa enam grant pribadi pada masing-masing role HRD/Pimpinan.
 Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` setelah upgrade.
+
+- 063: hubungan penggantian sanksi untuk pemulihan terkonfirmasi dan penghapusan logis kasus tanpa tindakan. Backfill hanya dari audit yang terbukti; pencabutan lama tidak diperbaiki otomatis. Lihat docs/disciplinary-restoration.md.
+
+- 064: counter atomik nomor kasus per organisasi/tahun pencatatan, backfill dari
+  nomor tertinggi termasuk kasus terhapus, serta index urutan histori pegawai.
+  Jalankan setelah 063; tidak mengubah nomor lama atau status sanksi.

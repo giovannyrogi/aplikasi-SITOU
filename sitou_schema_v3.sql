@@ -2272,3 +2272,64 @@ INSERT INTO access_package_permissions(package_code,permission_id)
  SELECT 'inventory_opening_corrector',id FROM permissions WHERE code='inventory.openings.correct';
 INSERT INTO role_permissions(role_id,permission_id)
  SELECT r.id,p.id FROM roles r CROSS JOIN permissions p WHERE r.code='superadmin' AND p.code='inventory.openings.correct';
+
+-- Migration 063: relasi pemulihan sanksi dan hapus kasus tanpa tindakan.
+-- Relasi penggantian eksplisit dan penghapusan logis kasus tanpa tindakan.
+ALTER TABLE discipline_cases ADD COLUMN deleted_at timestamptz,
+  ADD COLUMN deleted_by_user_id bigint REFERENCES users(id);
+ALTER TABLE disciplinary_actions ADD CONSTRAINT uq_actions_org_employee_id UNIQUE(organization_id,employee_id,id);
+CREATE TABLE disciplinary_action_replacements (
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  employee_id bigint NOT NULL,
+  predecessor_action_id bigint NOT NULL,
+  successor_action_id bigint NOT NULL,
+  created_by_user_id bigint NOT NULL REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(organization_id,predecessor_action_id,successor_action_id),
+  CHECK(predecessor_action_id<>successor_action_id),
+  FOREIGN KEY(organization_id,employee_id,predecessor_action_id) REFERENCES disciplinary_actions(organization_id,employee_id,id),
+  FOREIGN KEY(organization_id,employee_id,successor_action_id) REFERENCES disciplinary_actions(organization_id,employee_id,id)
+);
+CREATE INDEX ix_action_replacement_successor ON disciplinary_action_replacements(organization_id,successor_action_id);
+-- Histori hanya dihubungkan bila audit membuktikan satu publikasi pada request/pelaku yang sama.
+WITH publication AS (
+ SELECT organization_id,actor_user_id,request_id,entity_id,occurred_at,
+ count(*) OVER(PARTITION BY organization_id,actor_user_id,request_id) AS n
+ FROM audit_logs WHERE entity_type='disciplinary_action'
+ AND action IN ('disciplinary_action.create','disciplinary_action.update')
+ AND after_data->>'status'='active' AND request_id IS NOT NULL
+)
+INSERT INTO disciplinary_action_replacements(organization_id,employee_id,predecessor_action_id,successor_action_id,created_by_user_id,created_at)
+SELECT DISTINCT old_action.organization_id,old_action.employee_id,old_action.id,new_action.id,p.actor_user_id,p.occurred_at
+FROM publication p JOIN audit_logs old_audit ON old_audit.organization_id=p.organization_id
+ AND old_audit.actor_user_id=p.actor_user_id AND old_audit.request_id=p.request_id
+ AND old_audit.action='disciplinary_action.supersede' AND old_audit.entity_type='disciplinary_action'
+JOIN disciplinary_actions old_action ON old_action.organization_id=p.organization_id AND old_action.id::text=old_audit.entity_id
+JOIN disciplinary_actions new_action ON new_action.organization_id=p.organization_id AND new_action.id::text=p.entity_id
+ AND new_action.employee_id=old_action.employee_id
+WHERE p.n=1 AND old_action.id<>new_action.id ON CONFLICT DO NOTHING;
+
+-- Migration 064: counter nomor kasus per organisasi dan tahun pencatatan.
+-- Nomor tidak bergantung pada tanggal kejadian yang dapat dikoreksi.
+CREATE TABLE discipline_case_number_counters (
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  case_year integer NOT NULL CHECK (case_year BETWEEN 1 AND 9999),
+  last_value bigint NOT NULL DEFAULT 0 CHECK (last_value >= 0),
+  PRIMARY KEY (organization_id,case_year)
+);
+
+-- Sertakan kasus terhapus; baca tahun dan angka dari nomor yang sudah diterbitkan.
+-- Nomor lama tidak diubah. Suffix yang melampaui bigint menggagalkan migration
+-- agar data tersebut ditinjau, bukan diabaikan lalu berisiko digunakan ulang.
+INSERT INTO discipline_case_number_counters(organization_id,case_year,last_value)
+SELECT organization_id,(parts)[1]::integer,max((parts)[2]::numeric)::bigint
+FROM (
+  SELECT organization_id,regexp_match(case_no,'^KASUS-([0-9]{4})-([0-9]+)$') AS parts
+  FROM discipline_cases
+) numbered
+WHERE parts IS NOT NULL
+GROUP BY organization_id,(parts)[1]::integer;
+
+CREATE INDEX ix_discipline_cases_employee_recorded
+  ON discipline_cases(organization_id,employee_id,opened_at DESC,id DESC)
+  WHERE deleted_at IS NULL;

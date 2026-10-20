@@ -255,6 +255,13 @@ Aturan utama:
 - Daftar kasus pada detail pegawai memakai kartu ringkas untuk pemindaian dan `AppModal` untuk uraian, pembelaan, tindakan, eskalasi, audit penerbit, serta surat. Kartu tindakan yang dicabut wajib menampilkan status, pelaku, waktu, dan ringkasan alasan maksimal dua baris; alasan utuh tetap berada di modal detail. Jangan memadatkan seluruh informasi sensitif di kartu atau membuat halaman/modal shell lain.
 - Tindakan tertulis aktif wajib memiliki nomor surat dan satu PDF berizin. Teguran lisan tidak mewajibkan nomor maupun dokumen surat. Pimpinan hanya dapat membaca detail dan mengunduh surat sesuai permission; kontrol perubahan tetap khusus HRD/Superadmin.
 
+- Tanggal tindakan wajib mengikuti tanggal kejadian <= tanggal terbit <= mulai
+  berlaku, termasuk draft. Saat Aktif, tanggal terbit/mulai tidak boleh melewati
+  hari ini di zona organisasi; tanggal mendatang hanya draft. Kalender menonaktifkan
+  tanggal di luar batas, form memvalidasi ketergantungan field, dan service memeriksa
+  ulang tanggal kejadian dari kasus yang dikunci saat create/edit/penerbitan draft.
+  Jangan menyesuaikan tanggal pengguna diam-diam atau mengubah keputusan resmi lama.
+
 Sistem hanya membentuk `discipline_indicators`. HRD harus:
 
 1. Meninjau bukti.
@@ -265,7 +272,7 @@ Sistem hanya membentuk `discipline_indicators`. HRD harus:
 
 Dilarang membuat job yang otomatis mengubah indikator menjadi SP/PHK. Direct SP2/SP3 wajib menyimpan `direct_escalation=true` dan alasan. Dokumen dan uraian kasus hanya boleh terlihat oleh role berwenang.
 
-Lifecycle tindakan disiplin wajib mempertahankan histori: status `draft` masih dapat diedit dan boleh belum memiliki surat lengkap; perubahan ke `active` memvalidasi ulang nomor serta PDF tindakan tertulis. Tindakan `active` dilarang ditimpa atau dihapus dan hanya dapat menjadi `revoked` melalui aksi pencabutan beralasan yang menyimpan waktu, pelaku, audit, serta seluruh data dan dokumen keputusan asal.
+Lifecycle tindakan disiplin wajib mempertahankan histori: status `draft` masih dapat diedit dan boleh belum memiliki surat lengkap; perubahan ke `active` memvalidasi ulang nomor serta PDF tindakan tertulis. Tindakan `active` dilarang ditimpa atau dihapus. Pencabutan `revoked` wajib beralasan dengan pelaku/waktu/audit; penerbitan sanksi baru dapat mengubah keputusan aktif sebelumnya menjadi `superseded` dalam transaksi terkonfirmasi, sementara masa berlaku lewat menjadi `expired`. Seluruh data dan dokumen asal tetap tersimpan.
 
 ## 14. File privat
 
@@ -419,7 +426,61 @@ Endpoint awal yang disarankan:
 
 ## 20. Testing wajib
 
-Minimal sebelum pekerjaan dianggap selesai:
+### QA wajib setiap perubahan
+
+Setiap penambahan fitur, perubahan alur, perbaikan bug, migration, dan perubahan
+UI wajib ditutup dengan QA yang disiplin sesuai risiko perubahan. Perlakukan
+pengujian sebagai pekerjaan QA profesional: pahami kebutuhan, susun skenario,
+jalankan pada sistem sebenarnya, periksa hasil serta efek samping, dan catat
+buktinya. Lint atau build berhasil saja tidak cukup untuk menyatakan fitur benar.
+
+1. Sebelum menguji, susun di chat cakupan, aturan bisnis, hasil yang diharapkan, risiko,
+   dan bagian terkait yang perlu regresi. Sesuaikan kedalaman dengan dampak;
+   jangan mengulang seluruh modul yang tidak terpengaruh tanpa alasan.
+2. Uji alur normal, kondisi batas, input invalid, kondisi kosong, kegagalan
+   request/transaksi, batal/konfirmasi, pengulangan klik atau retry, serta state
+   setelah reload. Untuk bug, reproduksi kondisi asal lalu buktikan perbaikannya.
+3. Uji keamanan pada backend, bukan hanya tombol UI: tanpa sesi, sesi tidak valid,
+   role tanpa izin, HRD Lihat Saja/Kelola dan scope lokasi bila terkait, manipulasi
+   ID/payload, serta akses lintas organisasi dan lintas pegawai. Untuk mutasi,
+   periksa validasi origin, validasi schema, dan tidak adanya perubahan pada
+   request yang ditolak. Untuk file, uji akses privat dan kebocoran metadata.
+4. Untuk perubahan data, periksa invariant, constraint, nomor unik, histori,
+   audit pelaku/waktu, rollback, dan request bersamaan sesuai risikonya. Migration
+   wajib diuji pada upgrade berisi data sintetis serta bootstrap kosong; nomor,
+   tanggal, dokumen, dan histori lama tidak boleh berubah tanpa aturan eksplisit.
+5. Jalankan pengujian integrasi terhadap service/database dan endpoint nyata
+   untuk perilaku penting. Fixture atau mock UI boleh melengkapi pengujian,
+   tetapi tidak membuktikan authorization, transaksi, atau mutasi backend nyata.
+   Sebutkan secara jelas bagian mana yang memakai mock atau respons yang dicegat.
+6. Untuk UI/alur yang berubah, periksa browser pada lebar 320/375/768/1024/1366
+   serta desktop lebar, layar pendek, keyboard/fokus, keterjangkauan aksi, loading,
+   feedback sukses/gagal, pemeliharaan isian, overflow, dan console/runtime serta
+   warning API deprecated. Periksa regresi komponen bersama pada pemakai terkait.
+7. Jalankan lint, build, dan pemeriksaan diff/format yang relevan pada source akhir.
+   Bila ditemukan bug, perbaiki, ulangi skenario yang gagal dan regresi terkait;
+   jelaskan skenario reproduksi/regresi di chat atau tambahkan pada suite test
+   yang sesuai bila diperlukan untuk menjaga perilaku penting.
+8. Gunakan database/akun/file sintetis terisolasi. Jangan menjalankan uji destruktif,
+   penetration test, atau load test pada VPS/data nyata tanpa izin eksplisit.
+   Bersihkan database, file, sesi, dan server QA milik pengujian setelah selesai;
+   jangan menghentikan layanan lain atau mengubah data nyata demi membuat tes lolos.
+9. Setiap pekerjaan selesai wajib menyertakan ringkasan QA langsung pada jawaban
+   akhir di chat: cakupan perubahan, lingkungan, apa yang diuji, hasil aktual
+   dibanding harapan, kegagalan dan perbaikan, bukti perintah/respons yang relevan,
+   bagian yang belum diuji, serta risiko tersisa. Dilarang membuat file atau folder
+   baru di proyek untuk laporan, checklist, bukti, atau ringkasan hasil QA, kecuali
+   pengguna secara eksplisit meminta artefak tersebut. Dokumentasi fitur/schema
+   dan source test yang diperlukan tetap mengikuti aturan masing-masing; keduanya
+   bukan tempat memindahkan laporan QA. Artefak pengujian sementara harus
+   dibersihkan setelah selesai. Jangan menyebut tes lulus bila belum dijalankan
+   atau menyamakan keberhasilan lokal dengan verifikasi VPS.
+10. Perubahan belum boleh dinyatakan siap rilis bila ada temuan kritis/tinggi,
+    kegagalan invariant/akses, atau pemeriksaan wajib yang belum selesai. Laporkan
+    hambatan serta cakupan yang belum terbukti. QA mengurangi risiko; dilarang
+    menjanjikan sistem 100% bebas bug atau seluruh celah berdasarkan tes terbatas.
+
+Skenario wajib per domain berikut dijalankan ketika domain tersebut terdampak:
 
 - Unit test aturan shift fixed, flexible, field, lintas tengah malam, toleransi, pulang awal, dan kandidat lembur.
 - Unit test mangkir 1, 3 berturut-turut, 5 berturut-turut, dan 9 dalam sebulan menghasilkan indikator yang tepat tetapi tidak membuat sanksi.
@@ -444,6 +505,17 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 - Daftar organisasi Superadmin menampilkan **Fitur aktif** dari konfigurasi server, termasuk pada kartu mobile. Belum ada aktivasi ditampilkan sebagai **Belum ada fitur tambahan**; jangan menebak dari role akun atau menyamakan aktivasi fitur dengan izin semua pengguna. Form akses fitur menjelaskan tempat membuat gudang: Data Master → Gudang.
 
 - Teks penjelasan/informasi memakai Bahasa Indonesia yang sederhana, singkat, dan langsung menjelaskan fungsi atau dampak aksi. Utamakan 1–3 kalimat; hindari pengulangan, istilah teknis yang tidak diperlukan, dan paragraf bertele-tele. Detail lanjutan ditempatkan pada dokumentasi atau konteks yang relevan.
+- Panjang teks wajib mengikuti perannya. Judul menyebut tindakan/objek secara
+  ringkas (utamakan 2–5 kata), bukan kalimat penjelasan panjang. Subjudul cukup
+  satu kalimat pendek sebagai konteks, tanpa mengulang judul. Deskripsi boleh
+  lebih rinci (umumnya 1–3 kalimat), tetapi tetap singkat, jelas, dan menjelaskan
+  dampak serta informasi yang diperlukan pengguna untuk mengambil keputusan.
+  Pakai kata umum yang mudah dipahami pengguna nonteknis; hindari istilah samar
+  seperti "semula" bila acuannya tidak jelas. Sebut objek, tanggal, atau keadaan
+  secara langsung, misalnya "Tanggal berakhirnya tidak berubah". Judul,
+  subjudul, deskripsi, tombol, dan validasi harus menyampaikan makna yang
+  konsisten; jangan menghilangkan dampak penting hanya agar teks lebih pendek.
+  Periksa pembungkusan dan keterbacaan pada mobile tanpa memotong informasi.
 - Paragraf penjelasan/informasi memakai alignment justify dengan baris terakhir mengikuti perilaku paragraf normal. Gunakan `FontStyle explanation` atau komponen deskripsi terpusat; jangan menerapkan justify pada judul, label field, angka, metadata, atau tabel. Penjelasan yang sengaja didesain center, seperti pesan utama modal hapus backup, tetap center melalui override eksplisit. Uji pada mobile agar kata, jarak, dan lebar paragraf tetap mudah dibaca.
 
 - Seluruh antarmuka Bahasa Indonesia dan dapat dipahami pengguna nonteknis.
@@ -904,3 +976,11 @@ Dashboard Pegawai memakai banner profil, tiga ringkasan sesuai izin, saldo per j
 - Kartu mobile master dan operasional Inventaris memakai InventoryMobileCardContent bersama laporan: identitas/ikon semantik, status sesuai isi, fakta berlabel, angka bersatuan dalam area netral bila diperlukan, dan aksi teks selebar kartu di footer minimal 44px. Kategori/Satuan/Gudang memakai InventoryMasterCardContent; edit langsung membuka form berizin, bukan menu tambahan untuk satu aksi. Kode kategori/gudang tetap CompactInfoChip info di bawah nama. Tidak membuat bingkai/nomor kedua, footer kosong atau status selebar kartu. Stok membedakan batas minimum dan tersedia; transaksi tidak menjumlahkan barang/satuan dan menyebut barang tambahan di detail. Font mengikuti mobileDataTypography/FontStyle terpusat, nama/angka panjang tetap utuh. Desktop serta izin server tidak berubah. Lihat docs/inventory-mobile-ui.md.
 
 - Identitas kartu master dan Transaksi Barang memakai InventoryCardIdentity: chip status di bawah nama/jenis pada kolom teks, sebaris dengan kode jika ada dan ruang cukup (wrap pada layar sempit). Ikon 48px/glyph 24px sejajar tengah dengan blok identitas. Aksi edit master memakai pensil outline EditOutlined; ukuran KindMark di pemakai lain tidak berubah.
+
+- Laporan Sanksi Pegawai memakai kolom ringkas: Lokasi, Divisi & Unit, Jabatan, status dan Total sanksi terpisah; hitungan Sesuai filter serta Aktif / banding tidak tampil pada UI/Excel; jangan menumpuk nama sanksi/status/eskalasi dalam satu sel. Total sanksi mencakup seluruh tindakan resmi nondraft, termasuk dicabut/berakhir/digantikan. Uraian kejadian dan penjelasan pegawai menjadi dua kolom fakta utama; area bawah khusus eskalasi/pencabutan. ACTION_STATUS bersama memakai Aktif success, Berakhir/Belum mulai/Draft info, Dicabut danger, Dalam banding/Digantikan warning. Data sekunder tetap pada Riwayat sanksi: lima tindakan resmi per halaman, satu accordion rincian terbuka, status setiap histori terlihat, pagination pada slot tetap AppModal. Penempatan/ringkasan dapat dibuka terpisah, aksi mata desktop dan daftar berteks mobile. Endpoint histori existing tetap seluruh data (pagination presentasi), filter laporan tidak membatasi daftar riwayat. Lihat docs/disciplinary-report-ui.md.
+
+- Filter Status tindakan laporan sanksi hanya menampilkan status dengan alur tersedia: Aktif, Berakhir, Dicabut, Digantikan. Jangan menawarkan Dalam banding sebelum workflow keberatan tersedia; status histori/API lama tetap dipertahankan. Pilihan UI memakai DISCIPLINARY_FILTER_STATUSES, terpisah dari OFFICIAL_ACTION_STATUSES untuk kompatibilitas histori.
+
+- Penerbitan sanksi memakai konteks kasus berizin GET /api/discipline/cases/:id/actions dan ConfirmDialog bersama tanpa dua modal bertumpuk. Jenis sama serta tahap teguran lisan/SP1/SP2/SP3 yang sama/lebih rendah diblokir ketika masih berlaku, berdasarkan ID/system_key, bukan nama. Jenis lain tidak diberi peringkat buatan. Backend mengunci pegawai dan keputusan berjalan, memverifikasi replacementActionIds serta scope/tanggal organisasi sebelum draft/publikasi. Draft tidak mengganti keputusan lama; tanggal mendatang hanya draft sampai scheduler tersedia. Pesan konfirmasi menyebut sanksi berjalan dan pengganti, batal mempertahankan isian/file. Rincian: docs/disciplinary-issuance.md.
+
+- Pencabutan sanksi menelusuri rantai disciplinary_action_replacements dan memulihkan satu pendahulu terdekat berstatus superseded yang masih berlaku, hanya bila tidak ada keputusan lain berjalan. Lewati pendahulu dicabut/kedaluwarsa tanpa mengaktifkannya, cegah siklus, dan jangan menebak hubungan dari tanggal. Konfirmasi memverifikasi restorationActionIds dalam transaksi; tanggal/surat asal tidak diubah, audit restore wajib. Kasus tanpa tindakan (termasuk draft) boleh dihapus logis dengan scope, konfirmasi, dan audit; kasus bertindakan tetap dipertahankan. Daftar kasus memakai opened_at/id terbaru; riwayat sanksi memakai tanggal terbit/id terbaru. Nomor kasus memakai counter atomik organisasi/tahun pencatatan zona organisasi, diinisialisasi dari nomor lama termasuk terhapus; koreksi tanggal kejadian tidak mengubah nomor atau counter. Lihat docs/disciplinary-restoration.md.

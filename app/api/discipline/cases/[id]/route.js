@@ -6,8 +6,32 @@ import {
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
-import { disciplineCaseUpdateSchema } from "@/lib/discipline/schemas";
-import { getDisciplineCaseForActor, updateDisciplineCase } from "@/lib/discipline/service";
+import { disciplineCaseUpdateSchema, disciplineCaseDeleteSchema } from "@/lib/discipline/schemas";
+import {
+  getDisciplineCaseForActor,
+  updateDisciplineCase,
+  deleteDisciplineCase,
+} from "@/lib/discipline/service";
+
+/** Hapus hanya kasus yang belum mempunyai tindakan; histori tindakan tidak dihapus. */
+export async function DELETE(request, { params }) {
+  const requestId = getRequestId(request);
+  const { user, response } = await requirePermission("discipline.manage");
+  if (response) return response;
+  const rejected = await validateMutationRequest(request, user.id, requestId);
+  if (rejected) return rejected;
+  const parsed = await readJson(request, disciplineCaseDeleteSchema, requestId);
+  if (parsed.response) return parsed.response;
+  try {
+    const { id } = await params;
+    const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);
+    return successResponse(await deleteDisciplineCase(id, organizationId, user, requestId), {
+      message: "Kasus berhasil dihapus dari daftar.",
+    });
+  } catch (error) {
+    return handleRouteError("discipline.cases.delete", error, requestId);
+  }
+}
 
 /** Mengambil detail kasus beserta histori tindakan. */
 export async function GET(request, { params }) {

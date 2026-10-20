@@ -7,14 +7,33 @@ import {
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
 import { disciplinaryActionCreateSchema } from "@/lib/discipline/schemas";
-import { createDisciplinaryAction } from "@/lib/discipline/service";
+import { createDisciplinaryAction, getDisciplinaryActionContext } from "@/lib/discipline/service";
+
+/** Konteks pilihan dan konfirmasi hanya untuk pengelola kasus pada scope yang sama. */
+export async function GET(request, { params }) {
+  const requestId = getRequestId(request);
+  const { user, response } = await requirePermission("discipline.manage");
+  if (response) return response;
+  try {
+    const { id } = await params;
+    const organizationId = resolvePermissionOrganization(
+      user,
+      new URL(request.url).searchParams.get("organizationId"),
+    );
+    return successResponse(await getDisciplinaryActionContext(id, organizationId, user));
+  } catch (error) {
+    return handleRouteError("discipline.actions.context", error, requestId);
+  }
+}
 
 /** Menerbitkan tindakan resmi yang tetap memerlukan keputusan manusia dari HRD. */
 export async function POST(request, { params }) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("discipline.manage");
   if (response) return response;
-  const rejected = await validateMutationRequest(request, user.id, requestId, { maxBytes: 11 * 1024 * 1024 });
+  const rejected = await validateMutationRequest(request, user.id, requestId, {
+    maxBytes: 11 * 1024 * 1024,
+  });
   if (rejected) return rejected;
   const parsed = await readMultipartJson(request, disciplinaryActionCreateSchema, requestId);
   if (parsed.response) return parsed.response;

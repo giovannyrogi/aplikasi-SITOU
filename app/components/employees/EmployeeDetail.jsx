@@ -1,4 +1,6 @@
 "use client";
+import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
+import { readApiResponse } from "@/lib/api/clientError";
 import { hrisLevel, accountCapabilities } from "@/lib/access/hrisPolicy.mjs";
 
 import { useCallback, useEffect, useState } from "react";
@@ -11,6 +13,7 @@ import {
   ContactsOutlined,
   CloseCircleOutlined,
   EditOutlined,
+  DeleteOutlined,
   EnvironmentOutlined,
   EyeOutlined,
   FileTextOutlined,
@@ -444,6 +447,7 @@ function DisciplineCaseCard({
   onEditDraft,
   onRevoke,
   onCreateAction,
+  onDelete,
 }) {
   const theme = useTheme();
   const action = disciplineCase.actions?.[0] || null;
@@ -671,6 +675,14 @@ function DisciplineCaseCard({
               onClick={() => onRevoke(action)}
             />
           ) : null}
+          {!readOnly && !disciplineCase.actions?.length ? (
+            <ResponsiveActionButton
+              label="Hapus kasus"
+              icon={<DeleteOutlined />}
+              danger
+              onClick={() => onDelete(disciplineCase)}
+            />
+          ) : null}
           {!readOnly && !action && disciplineCase.status !== "closed_no_action" ? (
             <ResponsiveActionButton
               type="primary"
@@ -728,6 +740,8 @@ export default function EmployeeDetail({ employeeId }) {
   });
   const [modal, setModal] = useState(null);
   const [actionCase, setActionCase] = useState(null);
+  const [caseToDelete, setCaseToDelete] = useState(null);
+  const [deletingCase, setDeletingCase] = useState(false);
   const [revokeAction, setRevokeAction] = useState(null);
   const [detailCase, setDetailCase] = useState(null);
   const [assignmentDetail, setAssignmentDetail] = useState(null);
@@ -1835,7 +1849,7 @@ export default function EmployeeDetail({ employeeId }) {
         <Box sx={contentSx}>
           <TabSectionHeader
             title="Disiplin dan sanksi"
-            description="Kasus dicatat untuk pemeriksaan HRD. Sistem tidak menerbitkan sanksi secara otomatis."
+            description="Kasus yang baru dicatat ditampilkan lebih dahulu. HRD menetapkan sanksi setelah pemeriksaan."
             action={
               canManageEmployee ? (
                 <ResponsiveActionButton
@@ -1859,6 +1873,7 @@ export default function EmployeeDetail({ employeeId }) {
                   onEditDraft={setActionCase}
                   onRevoke={setRevokeAction}
                   onCreateAction={setActionCase}
+                  onDelete={setCaseToDelete}
                 />
               ))}
             </Box>
@@ -2027,6 +2042,40 @@ export default function EmployeeDetail({ employeeId }) {
           onError={(message) => showNotification(message, "error")}
         />
       ) : null}
+      <ConfirmDialog
+        open={Boolean(caseToDelete)}
+        title="Hapus kasus tanpa sanksi?"
+        message="Kasus akan dihapus dari daftar. Kasus yang sudah memiliki tindakan, termasuk draft, tidak dapat dihapus."
+        messageAlign="left"
+        confirmText="Hapus kasus"
+        danger
+        fullWidthMobile
+        loading={deletingCase}
+        onClose={() => setCaseToDelete(null)}
+        onConfirm={async () => {
+          setDeletingCase(true);
+          try {
+            await runWithLoadingBackdrop(
+              async () => {
+                const response = await fetch(`/api/discipline/cases/${caseToDelete.id}`, {
+                  method: "DELETE",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ organizationId }),
+                });
+                const body = await readApiResponse(response);
+                setCaseToDelete(null);
+                showNotification(body.message);
+                await load();
+              },
+              { message: "Menghapus kasus..." },
+            );
+          } catch (error) {
+            showNotification(error.message, "error");
+          } finally {
+            setDeletingCase(false);
+          }
+        }}
+      />
       {canManageEmployee && revokeAction ? (
         <DisciplinaryActionRevokeForm
           open

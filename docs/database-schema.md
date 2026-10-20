@@ -398,3 +398,16 @@ Dashboard Pegawai membaca profil tertaut dan histori penempatan/kontrak sendiri 
 Migration 059 hanya menambah permission `leave_requests.read_self` dan `disciplinary_actions.read_self` serta grant role Pegawai. Tidak menambah tabel/kolom atau mengubah data cuti/sanksi. Dashboard pribadi membaca employees.user_id dan organization_id sesi, ledger saldo, histori cuti nondraft, dan ringkasan sanksi nondraft. Tidak memberikan akses administrasi atau dokumen sanksi.
 
 Migration 062 memberi grant baca `*_self` yang sama kepada HRD dan Pimpinan untuk Ringkasan Pribadi jika profil pegawai tertaut. Endpoint tetap mengunci `organization_id` dan `employees.user_id` dari sesi; rincian dan file pribadi tidak dapat digunakan untuk membaca data pegawai lain. Tidak ada tabel atau kolom baru.
+
+## Pemulihan sanksi — migration 063
+
+Migration 063 menambah disciplinary_action_replacements dengan relasi organisasi/pegawai dan kolom penghapusan logis discipline_cases.deleted_at/deleted_by_user_id. Pendahulu dalam rantai yang masih berlaku dapat dipulihkan saat penggantinya dicabut; kasus hanya dapat dihapus bila belum memiliki tindakan termasuk draft. Lihat docs/disciplinary-restoration.md.
+
+Migration 064 menambah `discipline_case_number_counters` dengan primary key
+`(organization_id,case_year)` dan `last_value` bigint. Backfill memakai suffix
+tertinggi dari nomor kasus lama, termasuk terhapus. Alokasi atomik memakai tahun
+pencatatan zona organisasi, bukan tanggal kejadian yang dapat dikoreksi. Index
+`ix_discipline_cases_employee_recorded` mendukung urutan `opened_at DESC,id DESC`
+pada histori kasus pegawai yang tidak dihapus. Pemulihan sanksi kini menelusuri
+rantai penggantian untuk satu pendahulu terdekat yang masih berlaku; tidak ada
+perubahan status historis secara otomatis oleh migration.

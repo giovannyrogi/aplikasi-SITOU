@@ -8,6 +8,7 @@ import FontStyle from "../font-style/FontStyle";
 export default function ConfirmDialog({
   open,
   title,
+  description = "Pastikan tindakan ini memang diperlukan.",
   message,
   messageAlign = "justify",
   illustration,
@@ -22,13 +23,17 @@ export default function ConfirmDialog({
 }) {
   const theme = useTheme();
   const mobile = useMediaQuery("(max-width:599px)");
-  const mobileButtonStyle = { minHeight: 44, width: fullWidthMobile && mobile ? "100%" : undefined };
+  const mobileButtonStyle = {
+    minHeight: 44,
+    width: fullWidthMobile && mobile ? "100%" : undefined,
+  };
   return (
     <AppModal
       open={open}
       onClose={onClose}
       title={title}
-      description="Pastikan tindakan ini memang diperlukan."
+      description={description}
+      descriptionAlign={messageAlign}
       icon="solar:danger-triangle-bold-duotone"
       size="sm"
       disableClose={loading}

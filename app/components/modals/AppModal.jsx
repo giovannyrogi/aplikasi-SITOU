@@ -12,6 +12,7 @@ export default function AppModal({
   open,
   title,
   description,
+  descriptionAlign = "justify",
   titleDescription,
   icon = "solar:document-text-bold-duotone",
   size = "md",
@@ -113,7 +114,7 @@ export default function AppModal({
                 id={descriptionId}
                 explanation
                 fontSize={12.5}
-                sx={{ mt: 0.5, color: theme.ui.mutedText, lineHeight: 1.6 }}
+                sx={{ mt: 0.5, color: theme.ui.mutedText, lineHeight: 1.6, textAlign: descriptionAlign }}
               >
                 {resolvedDescription}
               </FontStyle>

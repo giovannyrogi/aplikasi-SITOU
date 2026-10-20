@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Box, Typography } from "@mui/material";
 import { Button, Input, Select, Tooltip } from "antd";
 import AppNotice from "@/app/components/data-display/AppNotice";
-import { HistoryOutlined } from "@ant-design/icons";
+import { EyeOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
@@ -21,12 +21,11 @@ import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProv
 import { readApiResponse, normalizeRequestError } from "@/lib/api/clientError";
 import { validDate } from "@/lib/reports/policy.mjs";
 import {
-  OFFICIAL_ACTION_STATUSES,
+  DISCIPLINARY_FILTER_STATUSES,
   DISCIPLINE_SEVERITIES,
   changeDisciplinaryReportFilters,
 } from "@/lib/reports/disciplinaryPolicy.mjs";
 import { ACTION_STATUS, SEVERITY } from "@/app/components/discipline/disciplineLabels";
-import { formatDisciplinaryValidityPeriod } from "@/lib/discipline/presentation.mjs";
 import { EMPLOYEE_STATUS_PRESENTATION } from "@/app/components/employees/employeeStatus";
 import { ReportIdentity, ReportCardFields, reportDate } from "./ReportEmployeeFields";
 import DisciplinaryHistoryModal from "./DisciplinaryHistoryModal";
@@ -145,6 +144,11 @@ export default function DisciplinaryReport() {
       value={input[key] || ALL}
       status={fieldErrors[key] ? "error" : undefined}
       showSearch
+      labelRender={
+        key === "actionStatus"
+          ? ({ label, value }) => label || ACTION_STATUS[value]?.[0] || value
+          : undefined
+      }
       optionFilterProp="label"
       options={[{ value: ALL, label: placeholder }, ...selectOptions]}
       onChange={(value) => change(key, value)}
@@ -262,7 +266,7 @@ export default function DisciplinaryReport() {
       label: "Status tindakan",
       control: select(
         "actionStatus",
-        OFFICIAL_ACTION_STATUSES.map((value) => ({ value, label: ACTION_STATUS[value][0] })),
+        DISCIPLINARY_FILTER_STATUSES.map((value) => ({ value, label: ACTION_STATUS[value][0] })),
         "Semua status tindakan",
       ),
     },
@@ -310,142 +314,80 @@ export default function DisciplinaryReport() {
     router.push(`/employees/${row.employee_id}?organizationId=${organizationId}&tab=discipline`);
   }
   const actionButton = (row) => (
-    <Tooltip title="Lihat histori sanksi">
+    <Tooltip title="Lihat riwayat sanksi">
       <Button
-        aria-label={`Lihat histori sanksi ${row.full_name}`}
-        icon={<HistoryOutlined />}
+        aria-label={`Lihat riwayat sanksi ${row.full_name}`}
+        icon={<EyeOutlined />}
         onClick={() => setHistoryEmployee(row)}
         style={{ width: 44, height: 44 }}
       />
     </Tooltip>
   );
+  // Ringkasan hanya berisi informasi pemindaian; dokumen dan uraian tersedia di riwayat.
   const columns = [
     {
       key: "employee",
       title: "Pegawai",
-      width: 230,
-      render: (_, row) => {
-        const employment = EMPLOYEE_STATUS_PRESENTATION[row.employment_status] || [
-          row.employment_status,
-          "neutral",
-        ];
-        return (
-          <Box>
-            <ReportIdentity row={row} onPreview={setPhotoPreview} />
-            <Box sx={{ mt: 1 }}>
-              <CompactInfoChip label={employment[0]} tone={employment[1]} />
-            </Box>
-          </Box>
-        );
-      },
+      width: 240,
+      render: (_, row) => <ReportIdentity row={row} onPreview={setPhotoPreview} />,
     },
     {
-      key: "placement",
-      title: "Penempatan",
-      width: 220,
-      render: (_, row) => (
-        <Box>
-          <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>
-            {row.location_name || "Belum ditempatkan"}
-          </Typography>
-          <Typography sx={{ fontSize: 11.5, color: "text.secondary", mt: 0.4 }}>
-            {row.unit_name || "Unit belum ditentukan"} ·{" "}
-            {row.position_name || "Jabatan belum ditentukan"}
-          </Typography>
-        </Box>
-      ),
+      key: "location",
+      title: "Lokasi",
+      width: 180,
+      render: (_, row) => row.location_name || "Belum ditempatkan",
+    },
+    {
+      key: "unit",
+      title: "Divisi & Unit",
+      width: 190,
+      render: (_, row) => row.unit_name || "Belum ditentukan",
+    },
+    {
+      key: "position",
+      title: "Jabatan",
+      width: 170,
+      render: (_, row) => row.position_name || "Belum ditentukan",
     },
     {
       key: "sanction",
       title: "Sanksi terbaru",
-      width: 190,
+      width: 160,
       render: (_, row) => (
-        <Box sx={{ display: "grid", gap: 0.75, justifyItems: "start" }}>
-          <CompactInfoChip label={row.action_name_snapshot} tone="danger" />
-          <CompactInfoChip
-            label={ACTION_STATUS[row.action_status]?.[0] || row.action_status}
-            tone={ACTION_STATUS[row.action_status]?.[1] || "neutral"}
-          />
-          {row.direct_escalation ? (
-            <CompactInfoChip label="Eskalasi langsung" tone="warning" />
-          ) : null}
-        </Box>
+        <Typography sx={{ fontSize: 13, fontWeight: 600, overflowWrap: "anywhere" }}>
+          {row.action_name_snapshot}
+        </Typography>
       ),
     },
     {
-      key: "severity",
-      title: "Tingkat",
-      width: 110,
+      key: "status",
+      title: "Status sanksi",
+      width: 130,
       render: (_, row) => (
         <CompactInfoChip
-          label={SEVERITY[row.severity]?.[0] || row.severity}
-          tone={SEVERITY[row.severity]?.[1] || "neutral"}
+          label={ACTION_STATUS[row.action_status]?.[0] || row.action_status}
+          tone={ACTION_STATUS[row.action_status]?.[1] || "neutral"}
         />
       ),
     },
     {
-      key: "caseNumber",
-      title: "Nomor kasus",
-      width: 165,
-      render: (_, row) => row.case_no,
-    },
-    {
-      key: "incidentDate",
-      title: "Tanggal kejadian",
-      width: 145,
-      render: (_, row) => reportDate(row.incident_date),
-    },
-    {
-      key: "letterNumber",
-      title: "Nomor surat",
-      width: 155,
-      render: (_, row) =>
-        row.letter_no ||
-        (!row.requires_document_snapshot ? "Tidak memerlukan surat" : "Belum tersedia"),
-    },
-    {
       key: "issuedDate",
       title: "Tanggal terbit",
-      width: 140,
+      width: 130,
       render: (_, row) => reportDate(row.issued_date),
     },
     {
-      key: "validity",
-      title: "Masa berlaku",
-      width: 250,
-      render: (_, row) =>
-        formatDisciplinaryValidityPeriod(row.effective_from, row.effective_until, reportDate),
-    },
-    {
-      key: "issuer",
-      title: "Penerbit",
-      width: 170,
-      render: (_, row) => row.issued_by_name || "Belum tersedia",
-    },
-    {
-      key: "counts",
-      title: "Ringkasan",
-      width: 170,
-      render: (_, row) => (
-        <Box sx={{ display: "grid", gap: 0.7 }}>
-          <CompactInfoChip label={`${row.matched_action_count} sesuai filter`} tone="info" />
-          <CompactInfoChip label={`${row.total_official_actions} total riwayat`} tone="neutral" />
-          <Tooltip title="Tindakan yang masih aktif atau sedang dalam proses banding.">
-            <span tabIndex={0}>
-              <CompactInfoChip
-                label={`${row.active_or_appealed_count} belum selesai`}
-                tone={row.active_or_appealed_count ? "warning" : "neutral"}
-              />
-            </span>
-          </Tooltip>
-        </Box>
-      ),
+      key: "total",
+      title: "Total sanksi",
+      width: 110,
+      align: "center",
+      render: (_, row) => row.total_official_actions,
     },
     {
       key: "action",
       title: "Aksi",
       fixed: "right",
-      width: 70,
+      width: 72,
       align: "center",
       render: (_, row) => actionButton(row),
     },
@@ -474,7 +416,7 @@ export default function DisciplinaryReport() {
       ) : (
         <DataPanel
           title="Hasil laporan"
-          description="Daftar pegawai beserta sanksi terbaru dan ringkasan riwayat sesuai filter."
+          description="Sanksi terbaru mengikuti filter. Total sanksi mencakup seluruh sanksi resmi pegawai, termasuk yang berakhir, dicabut, atau digantikan."
           exportConfig={{
             enabled: true,
             onExcel: exportExcel,
@@ -496,94 +438,73 @@ export default function DisciplinaryReport() {
               setReload((value) => value + 1);
             }}
             pagination={false}
-            scrollX={2050}
+            scrollX={1550}
             emptyDescription="Belum ada pegawai dengan tindakan disiplin resmi yang sesuai filter."
             renderCard={(row) => (
-              <Box>
-                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <ReportIdentity row={row} onPreview={setPhotoPreview} />
+              <Box sx={{ display: "grid", gap: 2 }}>
+                <ReportIdentity row={row} onPreview={setPhotoPreview} />
+                <Box
+                  sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1.5, display: "grid", gap: 1 }}
+                >
+                  <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+                    Sanksi terbaru sesuai filter
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, overflowWrap: "anywhere" }}>
+                    {row.action_name_snapshot}
+                  </Typography>
+                  <Box>
+                    <CompactInfoChip
+                      label={ACTION_STATUS[row.action_status]?.[0] || row.action_status}
+                      tone={ACTION_STATUS[row.action_status]?.[1] || "neutral"}
+                    />
                   </Box>
-                  {actionButton(row)}
-                </Box>
-                <Box sx={{ mt: 1.5, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-                  <CompactInfoChip
-                    label={
-                      (EMPLOYEE_STATUS_PRESENTATION[row.employment_status] || [
-                        row.employment_status,
-                      ])[0]
-                    }
-                    tone={
-                      (EMPLOYEE_STATUS_PRESENTATION[row.employment_status] || [null, "neutral"])[1]
-                    }
+                  <ReportCardFields
+                    fields={[
+                      ["Tanggal terbit", reportDate(row.issued_date)],
+                      ["Lokasi", row.location_name || "Belum ditempatkan"],
+                      ["Divisi & Unit", row.unit_name || "Belum ditentukan"],
+                      ["Jabatan", row.position_name || "Belum ditentukan"],
+                      ["Tingkat", SEVERITY[row.severity]?.[0] || row.severity],
+                    ]}
                   />
-                  <CompactInfoChip label={row.action_name_snapshot} tone="danger" />
-                  <CompactInfoChip
-                    label={ACTION_STATUS[row.action_status]?.[0] || row.action_status}
-                    tone={ACTION_STATUS[row.action_status]?.[1] || "neutral"}
-                  />
-                  <CompactInfoChip
-                    label={SEVERITY[row.severity]?.[0] || row.severity}
-                    tone={SEVERITY[row.severity]?.[1] || "neutral"}
-                  />
-                  {row.direct_escalation ? (
-                    <CompactInfoChip label="Eskalasi langsung" tone="warning" />
-                  ) : null}
                 </Box>
                 <ReportCardFields
-                  fields={[
-                    ["Nomor kasus", row.case_no],
-                    ["Tanggal kejadian", reportDate(row.incident_date)],
-                    [
-                      "Nomor surat",
-                      row.letter_no ||
-                        (!row.requires_document_snapshot ? "Tidak diperlukan" : "Belum tersedia"),
-                    ],
-                    ["Tanggal terbit", reportDate(row.issued_date)],
-                    [
-                      "Masa berlaku",
-                      formatDisciplinaryValidityPeriod(
-                        row.effective_from,
-                        row.effective_until,
-                        reportDate,
-                      ),
-                    ],
-                    [
-                      "Penempatan",
-                      `${row.location_name || "Belum ditempatkan"} · ${row.unit_name || "Unit belum ditentukan"}`,
-                    ],
-                    ["Penerbit", row.issued_by_name || "Belum tersedia"],
-                    [
-                      "Ringkasan",
-                      <Box key="mobile-summary" component="span">
-                        {row.matched_action_count} sesuai filter · {row.total_official_actions}{" "}
-                        total riwayat ·{" "}
-                        <Tooltip title="Tindakan yang masih aktif atau sedang dalam proses banding.">
-                          <Box
-                            component="span"
-                            tabIndex={0}
-                            sx={{ textDecoration: "underline dotted" }}
-                          >
-                            {row.active_or_appealed_count} belum selesai
-                          </Box>
-                        </Tooltip>
-                      </Box>,
-                    ],
-                  ]}
+                  fields={[["Total sanksi", `${row.total_official_actions} sanksi`]]}
                 />
+                <Button
+                  block
+                  icon={<UnorderedListOutlined />}
+                  onClick={() => setHistoryEmployee(row)}
+                  style={{ minHeight: 44 }}
+                >
+                  Lihat riwayat sanksi
+                </Button>
               </Box>
             )}
           />
-          <Box sx={{p:2}}><DataPagination
-            cursor={{page:cursorHistory.length+1,next:!dateBlocked&&!currentError?report?.nextCursor:null}}
-            total={!dateBlocked&&!currentError?report?.total:null}
-            pageSize={Number(input.pageSize || 10)}
-            loading={dateBlocked||pending}
-            onPrevious={()=>{const previous=cursorHistory.at(-1);setCursorHistory(cursorHistory.slice(0,-1));navigate({...input,cursor:previous});}}
-            onNext={()=>{setCursorHistory([...cursorHistory,input.cursor]);navigate({...input,cursor:report.nextCursor});}}
-            onPageSizeChange={(value)=>change("pageSize",value)}
-            sx={{pt:0}}
-          /></Box>
+          <Box sx={{ p: 2 }}>
+            <DataPagination
+              cursor={{
+                page: cursorHistory.length + 1,
+                next: !dateBlocked && !currentError ? report?.nextCursor : null,
+              }}
+              displayedCount={report?.rows?.length}
+              total={!dateBlocked && !currentError ? report?.total : null}
+              pageSize={Number(input.pageSize || 10)}
+              loading={dateBlocked || pending}
+              onPrevious={() => {
+                const previous = cursorHistory.at(-1);
+                setCursorHistory(cursorHistory.slice(0, -1));
+                navigate({ ...input, cursor: previous });
+              }}
+              onNext={() => {
+                setCursorHistory([...cursorHistory, input.cursor]);
+                navigate({ ...input, cursor: report.nextCursor });
+              }}
+              onPageSizeChange={(value) => change("pageSize", value)}
+              sx={{ pt: 0 }}
+            />
+          </Box>
         </DataPanel>
       )}
       <DisciplinaryHistoryModal
