@@ -15,6 +15,8 @@ import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserPro
 import useDataList from "@/app/hooks/useDataList";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import WarehouseForm from "./WarehouseForm";
+import { InventoryCardAction } from "./InventoryMobileCardContent";
+import InventoryMasterCardContent, { InventoryMasterCardField } from "./InventoryMasterCardContent";
 export default function WarehousePanel({ organizationId, organizationFilter }) {
   const user = useAuthenticatedUser();
   const list = useDataList("/api/inventory/warehouses", {
@@ -32,6 +34,8 @@ export default function WarehousePanel({ organizationId, organizationFilter }) {
   const actions = (row) =>
     row.canEdit ? (
       <RowActionMenu
+        triggerIcon={<EditOutlined style={{ fontSize: 19 }} />}
+        triggerLabel={`Edit gudang ${row.name}`}
         items={[
           {
             key: "edit",
@@ -72,21 +76,26 @@ export default function WarehousePanel({ organizationId, organizationFilter }) {
     },
   ];
   const card = (row) => (
-    <Box sx={{ display: "grid", gap: 1.5 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 2 }}>
-        <Box>
-          <FontStyle fontWeight={700}>{row.name}</FontStyle>
-          <Box sx={{ mt: 0.75 }}>
-            <CompactInfoChip label={row.code} tone="info" />
-          </Box>
-        </Box>
-        {actions(row)}
-      </Box>
-      <FontStyle fontSize={13}>{row.location_name}</FontStyle>
-      <Box>
-        <CompactInfoChip status={row.is_active ? "active" : "inactive"} />
-      </Box>
-    </Box>
+    <InventoryMasterCardContent
+      name={row.name}
+      code={row.code}
+      active={row.is_active}
+      icon="navigation:inventory-warehouse"
+      action={
+        row.canEdit ? (
+          <InventoryCardAction
+            label="Edit gudang"
+            ariaLabel={`Edit gudang ${row.name}`}
+            icon={<EditOutlined style={{ fontSize: 18 }} />}
+            onClick={() => setForm({ open: true, item: row })}
+          />
+        ) : null
+      }
+    >
+      <InventoryMasterCardField label="Lokasi">
+        {row.location_name || "Belum tersedia"}
+      </InventoryMasterCardField>
+    </InventoryMasterCardContent>
   );
   return (
     <Box sx={{ minWidth: 0, display: "grid", gap: 3 }}>

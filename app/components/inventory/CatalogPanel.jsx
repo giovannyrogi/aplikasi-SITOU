@@ -11,6 +11,8 @@ import DataToolbar from "@/app/components/filters/DataToolbar";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import InventoryItemGallery from "./InventoryItemGallery";
+import { InventoryCardAction } from "./InventoryMobileCardContent";
+import InventoryMasterCardContent, { InventoryMasterCardField } from "./InventoryMasterCardContent";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import AppModal from "@/app/components/modals/AppModal";
@@ -101,12 +103,10 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
     return values.length ? (
       <RowActionMenu
         items={values}
-        {...(kind === "items"
-          ? {
-              triggerIcon: <EditOutlined style={{ fontSize: 19 }} />,
-              triggerLabel: `Edit atau atur barang ${row.name}`,
-            }
-          : {})}
+        triggerIcon={<EditOutlined style={{ fontSize: 19 }} />}
+        triggerLabel={
+          kind === "items" ? `Edit atau atur barang ${row.name}` : `Edit ${NAMES[kind]} ${row.name}`
+        }
       />
     ) : null;
   };
@@ -324,44 +324,32 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
     },
   ];
   const card = (row) => (
-    <Box sx={{ display: "grid", gap: 1.5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
-        <FontStyle fontWeight={700} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
-          {row.name}
-        </FontStyle>
-      </Box>
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, minWidth: 0 }}>
-        {kind === "categories" ? <CompactInfoChip label={row.code} tone="info" /> : null}
-        {kind === "units" ? (
-          <CompactInfoChip
-            label={row.allows_fractional ? "Pecahan diizinkan" : "Angka bulat"}
-            tone={row.allows_fractional ? "info" : "neutral"}
+    <InventoryMasterCardContent
+      name={row.name}
+      code={kind === "categories" ? row.code : undefined}
+      active={row.is_active}
+      icon={kind === "categories" ? "navigation:inventory-category" : "navigation:inventory-unit"}
+      action={
+        options?.canManageCatalog ? (
+          <InventoryCardAction
+            label={`Edit ${NAMES[kind]}`}
+            ariaLabel={`Edit ${NAMES[kind]} ${row.name}`}
+            icon={<EditOutlined style={{ fontSize: 18 }} />}
+            onClick={() => setEdit(row)}
           />
-        ) : null}
-      </Box>
-      <CompactInfoChip status={row.is_active ? "active" : "inactive"} />
+        ) : null
+      }
+    >
       {kind === "categories" && row.notes?.trim() ? (
-        <Box sx={{ display: "grid", gap: 0.75, minWidth: 0 }}>
-          <FontStyle fontSize={11.5} fontWeight={600} sx={{ color: "text.secondary" }}>
-            Catatan
-          </FontStyle>
-          <FontStyle explanation fontSize={12} sx={{ color: "text.secondary", lineHeight: 1.6 }}>
-            {row.notes}
-          </FontStyle>
-        </Box>
+        <InventoryMasterCardField label="Catatan" explanation>
+          {row.notes.trim()}
+        </InventoryMasterCardField>
+      ) : kind === "units" ? (
+        <InventoryMasterCardField label="Aturan jumlah">
+          {row.allows_fractional ? "Pecahan diizinkan" : "Angka bulat"}
+        </InventoryMasterCardField>
       ) : null}
-      <Box
-        sx={{
-          borderTop: "1px solid",
-          borderColor: "divider",
-          pt: 2,
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
-        {actions(row)}
-      </Box>
-    </Box>
+    </InventoryMasterCardContent>
   );
   return (
     <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>

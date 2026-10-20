@@ -477,7 +477,7 @@ Navigasi sidebar memakai useTransition agar loading selesai juga ketika redirect
 
 InventoryStockMetric menyatukan ukuran tile 36px, ikon 18px, label 11.5px dan nilai 13.5px pada ringkasan stok wizard. Tidak ada varian prominent. Jumlah mengikuti tone jenis transaksi, Sebelum netral, Sesudah info (nol memakai danger). Divider bersama memisahkan jumlah dari Sebelum/Sesudah; panel memakai padding dan gap 16px.
 
-HorizontalCarousel adalah daftar horizontal reusable dengan autoplay kondisional overflow, loop ke kiri, kontrol manual, jeda interaksi/visibilitas, dan reduced motion. Props: items, getKey, renderItem(item,{isClone}), label, paused. Semua elemen interaktif pada salinan visual wajib memakai tabIndex=-1. StockAttentionCard memakai InventoryItemPhoto (tabIndex opsional), CompactInfoChip, FontStyle dan token tema untuk panel Stok perlu diisi kembali.
+HorizontalCarousel adalah daftar horizontal reusable dengan autoplay kondisional overflow, loop ke kiri, kontrol manual, jeda interaksi/visibilitas, dan reduced motion. Mobile <600px menampilkan satu kartu penuh dengan scroll snap; desktop mempertahankan lebar kartu 240px. Tanpa tombol jeda/jalankan; interaksi manual menunda autoplay 9 detik, hover/fokus dan reduced motion tetap dihormati. Props: items, getKey, renderItem(item,{isClone}), label, paused. Semua elemen interaktif pada salinan visual wajib memakai tabIndex=-1. StockAttentionCard memakai InventoryItemPhoto (tabIndex opsional), CompactInfoChip, FontStyle dan token tema untuk panel Stok perlu diisi kembali.
 
 chartAdapter: fill grafik area memakai gradasi vertikal dari lighten(warna seri,0.76) ke lighten(warna seri,0.97) dengan opacity 1. Warna muda dibentuk sebelum dirender agar hue seri tetap terbaca saat bertumpuk; bukan lapisan alpha yang saling mencampur warna. Grafik non-area tetap memakai fill semula.
 
@@ -523,3 +523,21 @@ Gunakan `forms/ResponsiveRangePicker` untuk seluruh rentang tanggal. Desktop (mu
 ### Keterbacaan filter dan form mobile
 
 Pada lebar di bawah 768px, ThemeProvider menetapkan minimum FontStyle 14px untuk label/metadata/teks bantuan di luar area tabel juga. Pengaturan area data tetap dipertahankan. Kontrol input, angka, tanggal, pemilih rentang, pilihan Select dan dropdown portal memakai 16px; label Form dan pesan bantuan/error memakai 14px. Opsi dropdown dan tombol memiliki target minimal 44px. OperationalFilterSection memakai jarak antar-field 16px dan label-kontrol 8px. Ukuran desktop tetap mengikuti nilai asal. Saat mengubah kontrol, verifikasi placeholder, opsi panjang, pesan error, keyboard, navigasi akun, dan overflow pada 320–1920px.
+
+### Kartu master Inventaris mobile
+
+InventoryMasterCardContent digunakan Kategori Barang, Satuan Barang dan Gudang di dalam ResponsiveDataView. Identitas memakai ikon semantik AppIconTile, nama dan chip kode. Status mengikuti ukuran isi; catatan/lokasi/aturan jumlah berlabel. Aksi edit langsung berupa tombol teks selebar kartu di footer, dengan label aksesibel yang menyebut nama data. Tidak membuat bingkai/nomor kedua atau menu tambahan untuk satu aksi. Izin options.canManageCatalog/row.canEdit tetap berlaku.
+
+### Susunan kartu mobile Inventaris bersama
+
+InventoryMobileCardContent menyatukan identitas, status, fakta berlabel, area jumlah berlatar lembut, pelaku dan footer aksi. InventoryReportCardContent menjadi alias kompatibel sehingga laporan dan operasional memakai susunan sama. InventoryCardAction memakai Button bersama, label teks, target minimal 44px dan lebar penuh. Tidak ada pengurangan ukuran font atau pemotongan nama/angka.
+
+Stok Barang menampilkan foto, kondisi, gudang, batas minimum dan stok tersedia tanpa mencampurkan nilai tersebut. Tombol kartu stok/minimum/koreksi mengikuti izin lama. InventoryTransactionCardContent memperlihatkan jenis berikon, status, tanggal/gudang/referensi, maksimal dua barang dengan jumlah serta perubahan masing-masing; jumlah barang tambahan disebut jelas dan detail tetap membuka seluruh dokumen. Tidak menjumlahkan satuan atau menafsirkan stok fisik dari jumlah transaksi. Pembatalan tetap menampilkan angka asal dengan keterangan. Desktop menggunakan tabel/ledger yang sama.
+
+Rentang pada Transaksi Barang dan modal Kartu Stok memakai ResponsiveRangePicker bersama, tanpa mengubah aturan tanggal atau server. Pagination Kartu Stok memakai slot tetap AppModal dan jumlah tampil aktual. Pola dan referensi: docs/inventory-mobile-ui.md.
+
+InventoryCardIdentity dipakai master dan kartu Transaksi Barang untuk menyelaraskan ikon 48px/glyph 24px dengan blok nama/metadata. Chip status berada tepat di bawah nama; bila ada kode, kode/status sebaris dan wrap. InventoryCardAction menerima ikon semantik atau React icon; aksi edit master memakai EditOutlined outline. Ukuran default KindMark di pemakai lain tetap 28/40px.
+
+Pada InventoryItemCard, kolom aksi merentang baris nama dan metadata agar tinggi tombol edit tidak menambah jarak di bawah nama. Kode dan status tersusun rapat pada kolom nama; pembungkus metadata memakai alignItems flex-start agar chip status mengikuti isi, bukan melebar memenuhi kolom. Foto, atribut dan batas minimum tetap memakai komponen yang sama.
+
+Foto StockAttentionCard memenuhi lebar area gambar dengan tinggi 184px pada mobile dan 160px mulai 600px. InventoryItemPhoto mendukung height opsional (default mengikuti size); objectFit contain mempertahankan proporsi dan seluruh gambar, tanpa stretch atau crop. Thumbnail pemakai lain tetap persegi.

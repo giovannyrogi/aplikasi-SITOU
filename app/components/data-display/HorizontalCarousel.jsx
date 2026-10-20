@@ -4,8 +4,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Box, IconButton, Tooltip, useMediaQuery } from "@mui/material";
 import ChevronLeftRounded from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRounded from "@mui/icons-material/ChevronRightRounded";
-import PauseRounded from "@mui/icons-material/PauseRounded";
-import PlayArrowRounded from "@mui/icons-material/PlayArrowRounded";
 import FontStyle from "../font-style/FontStyle";
 
 /** Daftar horizontal; rotasi hanya ketika meluap dan pengguna tidak sedang membacanya. */
@@ -15,7 +13,7 @@ export default function HorizontalCarousel({ items, getKey, renderItem, label, p
   const interacting = useRef({ hover: false, focus: false, pointer: false });
   const visible = useRef(true);
   const backwardsWrap = useRef(false);
-  const [stopped, setStopped] = useState(false);
+  const resumeAfter = useRef(0);
   const [layout, setLayout] = useState({ overflow: false, step: 0, cycle: 0 });
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
@@ -81,18 +79,23 @@ export default function HorizontalCarousel({ items, getKey, renderItem, label, p
   }, [layout]);
 
   useEffect(() => {
-    if (!layout.overflow || stopped || reducedMotion || paused) return;
+    if (!layout.overflow || reducedMotion || paused) return;
     const timer = setInterval(() => {
-      if (document.hidden || !visible.current || Object.values(interacting.current).some(Boolean))
+      if (
+        document.hidden ||
+        !visible.current ||
+        Date.now() < resumeAfter.current ||
+        Object.values(interacting.current).some(Boolean)
+      )
         return;
       viewport.current.scrollBy({ left: layout.step, behavior: "smooth" });
     }, 4500);
     return () => clearInterval(timer);
-  }, [layout, stopped, reducedMotion, paused]);
+  }, [layout, reducedMotion, paused]);
 
   const move = (direction) => {
     const element = viewport.current;
-    setStopped(true);
+    resumeAfter.current = Date.now() + 9000;
     if (direction < 0 && element.scrollLeft < 1) {
       backwardsWrap.current = true;
       element.scrollTo({ left: layout.cycle, behavior: "instant" });
@@ -108,7 +111,13 @@ export default function HorizontalCarousel({ items, getKey, renderItem, label, p
       aria-hidden={clone || undefined}
       role={clone ? undefined : "group"}
       aria-label={clone ? undefined : `${index + 1} dari ${items.length}`}
-      sx={{ minWidth: 0, display: "flex", "& > *": { width: "100%" } }}
+      sx={{
+        minWidth: 0,
+        display: "flex",
+        scrollSnapAlign: "start",
+        scrollSnapStop: "always",
+        "& > *": { width: "100%" },
+      }}
     >
       {renderItem(entry, { isClone: clone })}
     </Box>
@@ -131,14 +140,13 @@ export default function HorizontalCarousel({ items, getKey, renderItem, label, p
         }}
         onFocusCapture={() => {
           interacting.current.focus = true;
-          setStopped(true);
         }}
         onBlurCapture={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) interacting.current.focus = false;
         }}
         onPointerDown={() => {
           interacting.current.pointer = true;
-          setStopped(true);
+          resumeAfter.current = Date.now() + 9000;
         }}
         onPointerUp={() => {
           interacting.current.pointer = false;
@@ -146,7 +154,9 @@ export default function HorizontalCarousel({ items, getKey, renderItem, label, p
         onPointerCancel={() => {
           interacting.current.pointer = false;
         }}
-        onWheel={() => setStopped(true)}
+        onWheel={() => {
+          resumeAfter.current = Date.now() + 9000;
+        }}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
           if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
@@ -157,10 +167,12 @@ export default function HorizontalCarousel({ items, getKey, renderItem, label, p
         sx={{
           display: "grid",
           gridAutoFlow: "column",
-          gridAutoColumns: { xs: "min(224px, 100%)", sm: "240px" },
+          gridAutoColumns: { xs: "100%", sm: "240px" },
           gap: 2,
           overflowX: "auto",
           overscrollBehaviorX: "contain",
+          scrollSnapType: "x mandatory",
+          scrollPaddingInline: "4px",
           py: 1,
           px: 0.5,
           scrollbarWidth: "none",
@@ -185,22 +197,6 @@ export default function HorizontalCarousel({ items, getKey, renderItem, label, p
               · Geser untuk melihat
             </Box>
           </FontStyle>
-          {!reducedMotion ? (
-            <Tooltip title={stopped ? "Jalankan slide otomatis" : "Jeda slide otomatis"}>
-              <IconButton
-                aria-label={stopped ? "Jalankan slide otomatis" : "Jeda slide otomatis"}
-                onClick={() => setStopped((value) => !value)}
-                aria-controls={id}
-                sx={{ width: 44, height: 44 }}
-              >
-                {stopped ? (
-                  <PlayArrowRounded fontSize="small" />
-                ) : (
-                  <PauseRounded fontSize="small" />
-                )}
-              </IconButton>
-            </Tooltip>
-          ) : null}
           <Tooltip title="Barang sebelumnya">
             <IconButton
               aria-label="Barang sebelumnya"

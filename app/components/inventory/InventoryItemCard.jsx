@@ -59,14 +59,14 @@ export default function InventoryItemCard({ item, organizationId, onPreview, act
     }}>
       <Box sx={{ display: "flex", gap: { xs: 1.5, sm: 2 }, minWidth: 0, alignItems: "flex-start" }}>
         <ItemMedia item={item} organizationId={organizationId} onPreview={onPreview} compact={compact}/>
-        <Box sx={{ display: "grid", alignContent: "start", gap: 0.75, minWidth: 0, flex: 1 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 0.5, minWidth: 0 }}>
-            <FontStyle component="h3" fontSize={{ xs: 14, sm: 15 }} fontWeight={700}
-              sx={{ minWidth: 0, overflowWrap: "anywhere", lineHeight: 1.4 }}>{item?.name || "Barang"}</FontStyle>
-            {action}
-          </Box>
-          {item?.code ? <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText, overflowWrap: "anywhere" }}>{item.code}</FontStyle> : null}
-          {meta}
+        <Box sx={{ display: "grid", gridTemplateColumns: action ? "minmax(0,1fr) auto" : "minmax(0,1fr)", alignContent: "start", alignItems: "start", columnGap: 0.5, rowGap: 0.75, minWidth: 0, flex: 1 }}>
+          <FontStyle component="h3" fontSize={{ xs: 14, sm: 15 }} fontWeight={700}
+            sx={{ gridColumn: 1, gridRow: 1, minWidth: 0, overflowWrap: "anywhere", lineHeight: 1.4 }}>{item?.name || "Barang"}</FontStyle>
+          {action ? <Box sx={{ gridColumn: 2, gridRow: item?.code || meta ? "1 / span 2" : 1, alignSelf: "start", display: "flex" }}>{action}</Box> : null}
+          {item?.code || meta ? <Box sx={{ gridColumn: 1, gridRow: 2, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.75, minWidth: 0 }}>
+            {item?.code ? <FontStyle fontSize={11.5} sx={{ maxWidth: "100%", color: theme.ui.mutedText, overflowWrap: "anywhere" }}>{item.code}</FontStyle> : null}
+            {meta}
+          </Box> : null}
         </Box>
       </Box>
       {showAttributes ? <Box sx={{

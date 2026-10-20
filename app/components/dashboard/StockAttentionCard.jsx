@@ -55,14 +55,15 @@ export default function StockAttentionCard({ item, organizationId, onPreview, is
           placeItems: "center",
           bgcolor: theme.ui.panelSubtleBg,
           borderRadius: 2,
-          p: 1.5,
+          p: 1,
         }}
       >
         <InventoryItemPhoto
           item={item}
           organizationId={organizationId}
           onPreview={onPreview}
-          size={104}
+          size="100%"
+          height={{ xs: 184, sm: 160 }}
           fit="contain"
           tabIndex={isClone ? -1 : undefined}
         />
