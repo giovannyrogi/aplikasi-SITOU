@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Typography } from "@mui/material";
+import { Box } from "@mui/material";
+import Typography from "../font-style/FontStyle";
 import dayjs from "dayjs";
 import EmployeeAvatar from "../employees/EmployeeAvatar";
 import CompactInfoChip from "../chips/CompactInfoChip";
@@ -8,12 +9,22 @@ import CompactInfoChip from "../chips/CompactInfoChip";
 export const reportDate = (value) =>
   value && dayjs(value).isValid() ? dayjs(value).format("DD MMM YYYY") : "Belum tersedia";
 
-export function ReportIdentity({ row, onPreview }) {
+export function ReportIdentity({ row, onPreview, noWrap = false }) {
   return (
-    <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", minWidth: 0 }}>
+    <Box
+      sx={{ display: "flex", gap: 1.5, alignItems: "center", minWidth: noWrap ? "max-content" : 0 }}
+    >
       <EmployeeAvatar employee={row} onPreview={onPreview} />
       <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 700, overflowWrap: "anywhere", mb: 0.75 }}>
+        <Typography
+          sx={{
+            fontSize: 13,
+            fontWeight: 700,
+            overflowWrap: noWrap ? "normal" : "anywhere",
+            whiteSpace: noWrap ? "nowrap" : "normal",
+            mb: 0.75,
+          }}
+        >
           {row.full_name}
         </Typography>
         <CompactInfoChip label={row.employee_no || "NIP belum tersedia"} tone="info" />

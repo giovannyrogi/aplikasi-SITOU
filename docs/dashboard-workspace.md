@@ -1,5 +1,20 @@
 # Dashboard Pegawai dan Inventaris
 
+## Loading data dashboard
+
+Login mempertahankan token navigasi sampai halaman tujuan terpasang. Pengambilan
+data Ringkasan Kepegawaian, Ringkasan Pribadi, Inventaris, dan profil header memakai
+token proses LoadingBackdropProvider tersendiri. Pelepasan token navigasi tidak
+menutup backdrop milik request data yang masih berjalan. Tidak ada delay minimum
+atau backdrop baru per halaman.
+
+`useDashboardData(url, { blocking: true })` membuka backdrop sebelum request dan
+menutup token miliknya setelah data diproses, request gagal, atau komponen dilepas.
+Request lama dibatalkan saat URL/scope berubah; respons lama tidak menimpa scope
+baru. Ringkasan Kepegawaian mengikuti lifecycle yang sama pada fetch summary.
+URL kosong tidak membuat request maupun token. Pemakai hook pada modal pagination
+atau proses lokal tetap nonblocking secara default; retry dashboard tetap blocking.
+
 Ketentuan navigasi dan izin pada dua bagian pertama adalah acuan terkini; uraian perubahan historis di bagian bawah menjelaskan keputusan lama sebelum submenu Dashboard diterapkan.
 
 Dashboard tetap tujuan login. Jika satu ringkasan tersedia, menu Dashboard langsung membukanya; jika lebih dari satu, Dashboard membuka submenu **Ringkasan Kepegawaian**, **Ringkasan Pribadi**, dan/atau **Inventaris** sesuai izin. URL tiap ringkasan adalah `/dashboard/staff`, `/dashboard/personal`, dan `/dashboard/inventory`. `/dashboard` memilih tujuan berizin (Pegawai mendahulukan ringkasan pribadi); tautan lama `?tab=inventory` diarahkan ke Inventaris bila berizin. Ringkasan Kepegawaian merangkum data pegawai organisasi dan disembunyikan jika tidak ada bagian kepegawaian yang boleh dibaca. Ringkasan Pribadi tersedia untuk Pegawai, HRD, atau Pimpinan yang profilnya tertaut. Semua role memakai header identitas yang sama di atas konten, tanpa PageHeader dashboard terpisah. Akun tanpa profil tertaut tidak diberi informasi kepegawaian buatan. Pemilih organisasi Superadmin tetap tersedia pada ringkasan terkait.

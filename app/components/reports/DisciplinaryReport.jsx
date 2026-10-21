@@ -3,7 +3,8 @@ import ResponsiveRangePicker from "@/app/components/forms/ResponsiveRangePicker"
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Box, Typography } from "@mui/material";
+import { Box } from "@mui/material";
+import Typography from "@/app/components/font-style/FontStyle";
 import { Button, Input, Select, Tooltip } from "antd";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import { EyeOutlined, UnorderedListOutlined } from "@ant-design/icons";
@@ -328,8 +329,8 @@ export default function DisciplinaryReport() {
     {
       key: "employee",
       title: "Pegawai",
-      width: 240,
-      render: (_, row) => <ReportIdentity row={row} onPreview={setPhotoPreview} />,
+      width: 400,
+      render: (_, row) => <ReportIdentity row={row} onPreview={setPhotoPreview} noWrap />,
     },
     {
       key: "location",
@@ -438,7 +439,7 @@ export default function DisciplinaryReport() {
               setReload((value) => value + 1);
             }}
             pagination={false}
-            scrollX={1550}
+            scrollX="max-content"
             emptyDescription="Belum ada pegawai dengan tindakan disiplin resmi yang sesuai filter."
             renderCard={(row) => (
               <Box sx={{ display: "grid", gap: 2 }}>

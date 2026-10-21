@@ -69,6 +69,7 @@ export default function InventoryDashboard({ onForbidden }) {
   if (warehouseId) params.set("warehouseId", warehouseId);
   const { data, error, loading, retry } = useDashboardData(
     organizationId ? `/api/dashboard/inventory?${params}` : null,
+    { blocking: true },
   );
   useEffect(() => {
     if (error?.status === 403) onForbidden();

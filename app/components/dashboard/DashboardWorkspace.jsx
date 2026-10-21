@@ -11,8 +11,16 @@ import FontStyle from "@/app/components/font-style/FontStyle";
 export default function DashboardWorkspace({ view, children }) {
   const user = useAuthenticatedUser();
   const employee = user.role_code === "employee";
-  const employeeState = useDashboardData(view === "personal" || (employee && view === "inventory") ? "/api/dashboard/employee_self" : null);
-  const accountState = useDashboardData(!employee && user.access?.personalVisible ? "/api/account/profile" : null);
+  const employeeState = useDashboardData(
+    view === "personal" || (employee && view === "inventory")
+      ? "/api/dashboard/employee_self"
+      : null,
+    { blocking: true },
+  );
+  const accountState = useDashboardData(
+    !employee && user.access?.personalVisible ? "/api/account/profile" : null,
+    { blocking: true },
+  );
   // Shell menjadi satu sumber snapshot izin, termasuk saat API menolak akses.
   const refresh = useCallback(() => window.dispatchEvent(new Event("sitou:permission-denied")), []);
   return (
@@ -32,7 +40,8 @@ export default function DashboardWorkspace({ view, children }) {
         <InventoryDashboard onForbidden={refresh} />
       ) : !view ? (
         <FontStyle sx={{ color: "text.secondary" }}>
-          Belum ada ringkasan yang dapat dibuka. Minta pengelola akses memberikan izin yang diperlukan.
+          Belum ada ringkasan yang dapat dibuka. Minta pengelola akses memberikan izin yang
+          diperlukan.
         </FontStyle>
       ) : view === "personal" && employeeState.error ? (
         <ErrorState message={employeeState.error.message} onRetry={employeeState.retry} />
@@ -40,7 +49,9 @@ export default function DashboardWorkspace({ view, children }) {
         cloneElement(children, {
           dashboardState: employeeState,
         })
-      ) : children}
+      ) : (
+        children
+      )}
     </Box>
   );
 }

@@ -32,12 +32,19 @@ import StackedBarChart from "./StackedBarChart";
 import BirthdaySpotlight from "./BirthdaySpotlight";
 import DashboardWorkspace from "./DashboardWorkspace";
 import EmployeeDashboard from "./EmployeeDashboard";
+import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 
 /** Workspace dasar dan Inventaris memakai sumber data serta izin terpisah. */
 export default function DashboardClient({ view }) {
-  return <DashboardWorkspace view={view}>
-    {view === "personal" ? <EmployeeDashboard /> : view === "staff" ? <OrganizationDashboard key={ACTIVITY_PRESENTATION_VERSION} /> : null}
-  </DashboardWorkspace>;
+  return (
+    <DashboardWorkspace view={view}>
+      {view === "personal" ? (
+        <EmployeeDashboard />
+      ) : view === "staff" ? (
+        <OrganizationDashboard key={ACTIVITY_PRESENTATION_VERSION} />
+      ) : null}
+    </DashboardWorkspace>
+  );
 }
 
 /** Memastikan panel grafik tidak menggambar canvas kosong saat dataset bernilai nol. */
@@ -113,8 +120,7 @@ function buildChartDefinitions(data, showLocked = false) {
     {
       key: "contracts",
       title: "Jadwal Kontrak Berakhir",
-      description:
-        "Kontrak aktif yang akan berakhir, mulai hari ini selama 12 bulan ke depan.",
+      description: "Kontrak aktif yang akan berakhir, mulai hari ini selama 12 bulan ke depan.",
       icon: "solar:document-text-bold-duotone",
       Component: ContractEndingSummary,
     },
@@ -165,6 +171,7 @@ function metricSpan(index, count, columns) {
 /** Dashboard utama yang mengubah data dan hierarchy visual berdasarkan role session. */
 function OrganizationDashboard() {
   const theme = useTheme();
+  const { startLoading } = useLoadingBackdrop();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
   const isHrd = user.role_code === ROLES.HRD;
@@ -185,6 +192,7 @@ function OrganizationDashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const finishLoading = startLoading({ message: "Memuat dashboard..." });
     const query = new URLSearchParams();
     if (isSuperadmin && organizationId) query.set("organizationId", organizationId);
     let inFlight = false;
@@ -207,13 +215,15 @@ function OrganizationDashboard() {
         }
       } finally {
         inFlight = false;
+        finishLoading();
       }
     };
     void refresh();
     return () => {
       controller.abort();
+      finishLoading();
     };
-  }, [isHrd, isSuperadmin, organizationId, reloadKey]);
+  }, [isHrd, isSuperadmin, organizationId, reloadKey, startLoading]);
 
   const charts = useMemo(() => buildChartDefinitions(state.data, isHrd), [state.data, isHrd]);
   const sections = new Set(state.data?.sections || []);
@@ -230,7 +240,15 @@ function OrganizationDashboard() {
   return (
     <Box sx={{ minWidth: 0, display: "grid", gap: { xs: 2, md: 3 } }}>
       {restricted || isSuperadmin ? (
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 2,
+          }}
+        >
           {restricted ? <CompactInfoChip label="Akses dashboard terbatas" tone="warning" /> : null}
           {isSuperadmin ? (
             <Box sx={{ width: { xs: "100%", sm: 280 } }}>
@@ -442,7 +460,11 @@ function OrganizationDashboard() {
                   description={chart.description || "Data dashboard sedang disiapkan."}
                   icon={chart.icon || "solar:chart-bold-duotone"}
                   loading={state.loading}
-                  empty={!state.loading && !["leave", "contracts"].includes(chart.key) && !hasChartValues(chartData)}
+                  empty={
+                    !state.loading &&
+                    !["leave", "contracts"].includes(chart.key) &&
+                    !hasChartValues(chartData)
+                  }
                 >
                   {Component ? <Component data={chartData} {...chart.props} /> : null}
                 </DashboardChart>
@@ -474,7 +496,11 @@ function OrganizationDashboard() {
               restricted ? (
                 <DashboardCardPlaceholder title="Aktivitas terbaru" kind="list" />
               ) : (
-                <DashboardActivityList items={state.data?.activities} loading={state.loading} canViewHistory={isHrd} />
+                <DashboardActivityList
+                  items={state.data?.activities}
+                  loading={state.loading}
+                  canViewHistory={isHrd}
+                />
               )
             ) : null}
           </Box>

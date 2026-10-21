@@ -2,6 +2,12 @@
 
 ## Ringkasan
 
+Kolom Pegawai desktop memiliki lebar dasar 400px. ReportIdentity menerima noWrap
+khusus tabel ini; nama utuh tetap satu baris tanpa ellipsis, dan tabel memakai
+scroll horizontal max-content agar nama lebih panjang tidak menimpa kolom lain.
+Kartu mobile serta pemakai ReportIdentity lainnya tetap membungkus nama. Foto/NIP
+dan akses pratinjau tetap mengikuti komponen bersama.
+
 Satu baris tetap mewakili satu pegawai. Sanksi terbaru berasal dari hasil filter, sedangkan total sanksi mengikuti agregat resmi yang sudah disediakan server. Tabel memakai kolom Pegawai (foto, nama, NIP), Lokasi, Divisi & Unit, Jabatan, Sanksi terbaru, Status sanksi, Tanggal terbit, Total sanksi, dan Aksi. Total sanksi adalah seluruh tindakan resmi nondraft, termasuk berakhir, dicabut, digantikan atau dalam banding; bukan hanya hasil filter. Sesuai filter dan Aktif / banding dihapus dari tabel, kartu, ringkasan modal dan Excel karena bukan informasi utama. Nama sanksi berupa teks; chip dipakai untuk status. Tabel boleh digulir di dalam panel tanpa overflow halaman.
 
 Nomor kasus/surat, tingkat, kejadian, periode berlaku, penerbit, uraian, pembelaan dan pencabutan tersedia pada rincian. Kartu mobile memisahkan identitas, sanksi terbaru, fakta dan ringkasan berlabel. Aksi desktop adalah mata dengan tooltip dan label aksesibel; mobile berupa ikon daftar disertai teks Lihat riwayat sanksi. Excel tetap memuat fakta rinci, dengan penamaan Total sanksi dan tanpa kedua kolom hitungan tambahan. Field API/agregat tetap kompatibel.
