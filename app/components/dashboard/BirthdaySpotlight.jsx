@@ -73,7 +73,7 @@ function CountdownBadge({ daysUntil }) {
         whiteSpace: "nowrap",
       }}
     >
-      {today ? "Hari ini" : `Dalam ${daysUntil} hari`}
+      {today ? "Hari ini" : `${daysUntil} hari lagi`}
     </Box>
   );
 }
@@ -153,7 +153,7 @@ function AvatarFrame({ item, size, onPreview }) {
   );
 }
 
-function EmptyGroup() {
+function EmptyGroup({ message }) {
   const theme = useTheme();
 
   return (
@@ -171,12 +171,14 @@ function EmptyGroup() {
       }}
     >
       <CalendarMonthRoundedIcon sx={{ fontSize: 21 }} />
-      <FontStyle fontSize={12}>Tidak ada pegawai pada kelompok ini.</FontStyle>
+      <FontStyle fontSize={12} explanation>
+        {message}
+      </FontStyle>
     </Box>
   );
 }
 
-function BirthdayListGroup({ title, description, items, onPreview, onOpenEmployee }) {
+function BirthdayListGroup({ title, description, emptyMessage, items, onPreview, onOpenEmployee }) {
   const theme = useTheme();
 
   return (
@@ -319,7 +321,7 @@ function BirthdayListGroup({ title, description, items, onPreview, onOpenEmploye
           ))}
         </Box>
       ) : (
-        <EmptyGroup />
+        <EmptyGroup message={emptyMessage} />
       )}
     </Box>
   );
@@ -331,6 +333,7 @@ export default function BirthdaySpotlight({ data, loading }) {
   const { startNavigationLoading } = useLoadingBackdrop();
   const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const items = useMemo(() => data?.items || [], [data?.items]);
+  const windowDays = data?.windowDays || 30;
   const todayItems = useMemo(() => items.filter((item) => item.daysUntil === 0), [items]);
   const upcomingItems = useMemo(() => items.filter((item) => item.daysUntil > 0), [items]);
   const [index, setIndex] = useState(0);
@@ -460,8 +463,8 @@ export default function BirthdaySpotlight({ data, loading }) {
               </FontStyle>
               <FontStyle fontSize={11.5} sx={{ mt: 0.2, color: theme.ui.mutedText }}>
                 {loading
-                  ? "Memuat perayaan terdekat..."
-                  : `Hari ini: ${data?.todayCount || 0} pegawai · 30 hari ke depan: ${data?.upcomingCount || 0} pegawai`}
+                  ? "Memuat data ulang tahun..."
+                  : `Hari ini: ${data?.todayCount || 0} pegawai · ${windowDays} hari ke depan: ${data?.upcomingCount || 0} pegawai`}
               </FontStyle>
             </Box>
           </Box>
@@ -577,10 +580,11 @@ export default function BirthdaySpotlight({ data, loading }) {
               </Box>
               <Box>
                 <FontStyle fontSize={13.5} fontWeight={700}>
-                  Belum ada perayaan terdekat
+                  Tidak ada ulang tahun terdekat
                 </FontStyle>
                 <FontStyle fontSize={11.5} sx={{ mt: 0.3, color: theme.ui.mutedText }}>
-                  Tidak ada pegawai yang berulang tahun dalam 30 hari ke depan.
+                  Tidak ada pegawai yang berulang tahun hari ini maupun dalam {windowDays} hari ke
+                  depan.
                 </FontStyle>
               </Box>
             </Box>
@@ -649,7 +653,7 @@ export default function BirthdaySpotlight({ data, loading }) {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Daftar ulang tahun pegawai"
-        description={`Menampilkan ulang tahun hari ini dan ${data?.windowDays || 30} hari ke depan beserta usia yang dicapai.`}
+        description={`Ulang tahun hari ini dan ${windowDays} hari ke depan, beserta usia saat ulang tahun.`}
         icon={<CakeRoundedIcon sx={{ fontSize: 23 }} />}
         size="lg"
         contentSx={{
@@ -663,13 +667,15 @@ export default function BirthdaySpotlight({ data, loading }) {
           <BirthdayListGroup
             title="Ulang tahun hari ini"
             description="Pegawai yang berulang tahun hari ini."
+            emptyMessage="Tidak ada pegawai yang berulang tahun hari ini."
             items={todayItems}
             onPreview={setPhoto}
             onOpenEmployee={openEmployee}
           />
           <BirthdayListGroup
-            title="Akan datang dalam 30 hari"
-            description="Diurutkan dari tanggal ulang tahun terdekat."
+            title={`Ulang tahun ${windowDays} hari ke depan`}
+            description="Mulai besok, diurutkan dari ulang tahun terdekat."
+            emptyMessage={`Tidak ada pegawai yang berulang tahun dalam ${windowDays} hari ke depan.`}
             items={upcomingItems}
             onPreview={setPhoto}
             onOpenEmployee={openEmployee}
