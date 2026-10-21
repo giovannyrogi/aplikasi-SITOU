@@ -122,6 +122,7 @@ function formatDate(value, fallback = "Belum ditentukan") {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
@@ -1245,12 +1246,14 @@ export default function EmployeeDetail({ employeeId }) {
         <Box sx={contentSx}>
           <TabSectionHeader
             title="Pendidikan dan pengembangan"
-            description="Telusuri riwayat pendidikan, tingkat keahlian, serta sertifikasi pegawai secara terstruktur."
+            description="Riwayat pendidikan, keahlian, dan sertifikat pegawai."
           />
           <EmployeeEducationDetails
             profile={state.profile}
             organizationId={organizationId}
             onPreview={setImagePreview}
+            canEdit={canManageEmployee}
+            today={employee.organization_today}
           />
         </Box>
       ),

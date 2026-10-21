@@ -3,18 +3,15 @@
 import { Button } from "antd";
 import {
   BankOutlined,
-  BookOutlined,
-  CalendarOutlined,
   ContactsOutlined,
   EyeOutlined,
   LinkOutlined,
-  SafetyCertificateOutlined,
   TeamOutlined,
-  ToolOutlined,
 } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
+import { InfoFieldGrid, InfoField } from "./EmployeeDetailSections";
 import AppIconTile from "@/app/components/icons/AppIconTile";
 import { formatDependentRelationship } from "@/lib/employees/dependentRelationships";
 import { isEducationLevelWithoutDetails } from "@/lib/employees/profileOptions";
@@ -28,6 +25,7 @@ function formatProfileDate(value) {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
@@ -42,7 +40,14 @@ function getSafeExternalUrl(value) {
 }
 
 /** Section detail memberi garis pembatas yang jelas tanpa membuat card bertumpuk. */
-export function ProfileSection({ icon, title, description, children, panel = false }) {
+export function ProfileSection({
+  icon,
+  title,
+  description,
+  children,
+  panel = false,
+  raisedIcon = false,
+}) {
   const theme = useTheme();
   return (
     <Box
@@ -71,25 +76,34 @@ export function ProfileSection({ icon, title, description, children, panel = fal
           borderBottom: `1px solid ${theme.ui.panelBorderSubtle}`,
         }}
       >
-        {panel ? (
-          <AppIconTile
-            icon={icon}
-            size={36}
-            iconSize={18}
-            sx={{
-              boxShadow: theme.ui.employeeSummary.iconShadow,
-              "& .anticon": { fontSize: 18, lineHeight: 0 },
-            }}
-          />
-        ) : (
-          <Box sx={{ color: theme.palette.primary.main, fontSize: 17 }}>{icon}</Box>
-        )}
+        {icon ? (
+          panel || raisedIcon ? (
+            <AppIconTile
+              icon={icon}
+              size={36}
+              iconSize={18}
+              sx={{
+                boxShadow: theme.ui.employeeSummary.iconShadow,
+                "& .anticon": { fontSize: 18, lineHeight: 0 },
+              }}
+            />
+          ) : (
+            <Box sx={{ color: theme.palette.primary.main, fontSize: 17 }}>{icon}</Box>
+          )
+        ) : null}
         <Box sx={{ minWidth: 0 }}>
           <FontStyle component="h3" fontSize={14} fontWeight={700}>
             {title}
           </FontStyle>
           {description ? (
-            <FontStyle fontSize={11.5} sx={{ mt: 0.25, color: theme.ui.mutedText }}>
+            <FontStyle
+              fontSize={raisedIcon ? 12.5 : 11.5}
+              explanation={raisedIcon}
+              sx={{
+                mt: raisedIcon ? 0.5 : 0.25,
+                color: raisedIcon ? theme.palette.text.secondary : theme.ui.mutedText,
+              }}
+            >
               {description}
             </FontStyle>
           ) : null}
@@ -269,95 +283,132 @@ const PROFICIENCY_LABELS = {
   ahli: "Ahli",
 };
 
-/** Mengubah tingkat keahlian tersimpan menjadi label Bahasa Indonesia yang konsisten. */
-function getProficiencyLabel(value) {
-  if (!value) return "Tingkat belum ditentukan";
-  return PROFICIENCY_LABELS[String(value).toLowerCase()] || value;
-}
-
-/** Empty state ringan menjaga setiap kelompok tetap informatif tanpa menambah card bertumpuk. */
-function EducationEmptyState({ icon, title, description }) {
+/** Permukaan kartu memakai kedalaman halus yang sama dengan Ringkasan pegawai. */
+function EducationSurface({ children, component = "li", sx }) {
   const theme = useTheme();
   return (
     <Box
+      component={component}
       sx={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 1.5,
-        p: { xs: 2, sm: 2.5 },
-        bgcolor: theme.ui.panelSubtleBg,
-        border: `1px dashed ${theme.ui.panelBorder}`,
-        borderRadius: 1,
+        minWidth: 0,
+        p: 2,
+        borderRadius: 2,
+        border: `1px solid ${theme.ui.panelBorderSubtle}`,
+        background: theme.ui.employeeSummary.panelBackground,
+        display: "grid",
+        gap: 2,
+        alignContent: "start",
+        "& dt": { color: theme.palette.text.secondary },
+        ...sx,
       }}
     >
-      <Box sx={{ color: theme.ui.mutedText, fontSize: 20, lineHeight: 1 }}>{icon}</Box>
-      <Box sx={{ minWidth: 0 }}>
-        <FontStyle fontSize={13} fontWeight={700}>
-          {title}
-        </FontStyle>
-        <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-          {description}
-        </FontStyle>
-      </Box>
+      {children}
     </Box>
   );
 }
 
-/** Pendidikan menyatukan riwayat sekolah, keahlian, dan sertifikasi secara mudah dipindai. */
-export function EmployeeEducationDetails({ profile, organizationId, onPreview }) {
+function EducationEmptyState({ title, description }) {
   const theme = useTheme();
-  const educations = profile.educations || [];
+  return (
+    <Box sx={{ py: 1 }}>
+      <FontStyle fontSize={13} sx={{ color: theme.palette.text.secondary }}>
+        {title}.
+      </FontStyle>
+      {description ? (
+        <FontStyle fontSize={13} explanation sx={{ mt: 0.5, color: theme.palette.text.secondary }}>
+          {description}
+        </FontStyle>
+      ) : null}
+    </Box>
+  );
+}
+
+/** Indikator tampilan memakai tanggal acuan organisasi, bukan tanggal browser. */
+function certificationStatus(item, today) {
+  if (!today) return null;
+  if (item.expires_at && item.expires_at < today) return ["Sudah berakhir", "danger"];
+  if (item.issued_at && item.issued_at > today) return ["Belum terbit", "info"];
+  if (item.expires_at) return ["Masih berlaku", "success"];
+  return null;
+}
+
+/** Identitas, fakta berlabel dan bukti dipisahkan agar setiap riwayat mudah dipindai. */
+export function EmployeeEducationDetails({
+  profile,
+  organizationId,
+  onPreview,
+  canEdit = false,
+  today,
+}) {
+  const theme = useTheme();
+  // Urutkan salinan tanpa mengubah profil asal; tahun kosong tetap di akhir.
+  const educationYear = (item) =>
+    isEducationLevelWithoutDetails(item.education_level) || !item.graduation_year
+      ? Infinity
+      : Number(item.graduation_year);
+  const educations = [...(profile.educations || [])].sort((a, b) => {
+    const first = educationYear(a),
+      second = educationYear(b);
+    return first === second ? 0 : first < second ? -1 : 1;
+  });
   const skills = profile.skills || [];
   const certifications = profile.certifications || [];
-
-  /** Bukti visual selalu dibuka melalui ImagePreviewModal terpusat. */
-  const previewAction = (file, label) =>
-    file?.id ? (
-      <Box
-        sx={{
-          width: { xs: "100%", sm: "auto" },
-          "& .ant-btn": {
-            width: { xs: "100%", sm: 44 },
-            minWidth: { xs: 0, sm: 44 },
-            minHeight: 44,
-            px: { sm: 0 },
-            color: theme.palette.text.primary,
-            borderColor: theme.ui.panelBorder,
-            bgcolor: theme.palette.background.paper,
-            fontWeight: 600,
-          },
-          "& .ant-btn:hover": {
-            color: theme.palette.primary.main,
-            borderColor: theme.palette.primary.main,
-            bgcolor: theme.ui.panelAccentBg,
-          },
-        }}
-      >
+  const listSx = (count) => ({
+    m: 0,
+    p: 0,
+    listStyle: "none",
+    display: "grid",
+    gridTemplateColumns: {
+      xs: "minmax(0, 1fr)",
+      lg: count > 1 ? "repeat(2, minmax(0, 1fr))" : "minmax(0, 1fr)",
+    },
+    gap: 3,
+    alignItems: "start",
+  });
+  const titleSx = {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 1.5,
+    minWidth: 0,
+  };
+  const documentAction = (file, label) => (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        minWidth: 0,
+        "& .ant-btn": { minHeight: 44, width: { xs: "100%", sm: "auto" } },
+      }}
+    >
+      {file?.id ? (
         <Button
+          type="primary"
           icon={<EyeOutlined />}
           aria-label={`Lihat ${label.toLowerCase()}`}
-          title={`Lihat ${label.toLowerCase()}`}
           onClick={() =>
             onPreview?.({
-              imageUrl: `/api/uploads/${file.id}?organizationId=${organizationId}`,
+              imageUrl: `/api/uploads/${encodeURIComponent(file.id)}?organizationId=${encodeURIComponent(organizationId)}`,
               title: label,
               alt: label,
             })
           }
         >
-          <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
-            Lihat {label.toLowerCase()}
-          </Box>
+          Lihat {label.toLowerCase()}
         </Button>
-      </Box>
-    ) : null;
-
+      ) : (
+        <FontStyle fontSize={13} sx={{ mr: "auto", color: theme.palette.text.secondary }}>
+          {label} belum diunggah.
+        </FontStyle>
+      )}
+    </Box>
+  );
   return (
-    <Box sx={{ display: "grid", gap: { xs: 4.5, md: 6 } }}>
+    <Box sx={{ display: "grid", gap: 4 }}>
       <ProfileSection
-        icon={<BookOutlined />}
         title="Riwayat pendidikan"
-        description="Informasi pendidikan formal dan riwayat sekolah yang tercatat pada profil pegawai."
+        description="Dari tahun lulus paling awal. Riwayat tanpa tahun lulus ditampilkan terakhir."
       >
         {educations.length ? (
           <Box
@@ -365,258 +416,159 @@ export function EmployeeEducationDetails({ profile, organizationId, onPreview })
             aria-label="Riwayat pendidikan pegawai"
             sx={{ m: 0, p: 0, listStyle: "none" }}
           >
-            {educations.map((item) => {
+            {educations.map((item, index) => {
               const withoutDetails = isEducationLevelWithoutDetails(item.education_level);
-              if (withoutDetails)
-                return (
-                  <Box
-                    component="li"
-                    key={item.id}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: { xs: 1.5, sm: 2 },
-                      p: { xs: 2, sm: 2.5 },
-                      border: `1px solid ${theme.ui.panelBorderSubtle}`,
-                      borderRadius: 2,
-                      bgcolor: theme.ui.panelBg,
-                      mb: 2,
-                      "&:last-of-type": { mb: 0 },
-                    }}
-                  >
-                    <Box
-                      aria-hidden="true"
-                      sx={{
-                        display: "grid",
-                        placeItems: "center",
-                        width: 44,
-                        height: 44,
-                        flexShrink: 0,
-                        borderRadius: 2,
-                        border: `1px solid ${theme.ui.panelBorderSubtle}`,
-                        bgcolor: theme.palette.background.paper,
-                        color: theme.ui.mutedText,
-                        fontSize: 21,
-                      }}
-                    >
-                      <BookOutlined />
-                    </Box>
-                    <Box sx={{ minWidth: 0 }}>
-                      <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText, mb: 0.5 }}>
-                        Pendidikan formal
-                      </FontStyle>
-                      <FontStyle
-                        fontSize={14}
-                        fontWeight={700}
-                        sx={{ lineHeight: 1.6, overflowWrap: "anywhere" }}
-                      >
-                        {item.education_level}
-                      </FontStyle>
-                    </Box>
-                  </Box>
-                );
               return (
                 <Box
                   component="li"
                   key={item.id}
                   sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "minmax(0, 1fr)",
-                      sm: "minmax(0, 1fr) auto",
+                    position: "relative",
+                    pl: { xs: 3, sm: 4 },
+                    pb: index === educations.length - 1 ? 0 : 3,
+                    "&::before": {
+                      content: '""',
+                      position: "absolute",
+                      left: 4,
+                      top: 8,
+                      bottom: 0,
+                      width: "1px",
+                      bgcolor: theme.ui.panelBorderSubtle,
+                      display: index === educations.length - 1 ? "none" : "block",
                     },
-                    alignItems: "start",
-                    columnGap: 3,
-                    rowGap: 1,
-                    py: { xs: 2, sm: 2.5 },
-                    borderBottom: `1px solid ${theme.ui.panelBorderSubtle}`,
-                    "&:first-of-type": { pt: 0 },
-                    "&:last-of-type": { borderBottom: 0, pb: 0 },
+                    "&::after": {
+                      content: '""',
+                      position: "absolute",
+                      left: 0,
+                      top: 6,
+                      width: 9,
+                      height: 9,
+                      borderRadius: "50%",
+                      bgcolor: theme.palette.primary.main,
+                    },
                   }}
                 >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                      <FontStyle fontSize={14} fontWeight={700}>
-                        {item.education_level || "Jenjang belum ditentukan"}
-                      </FontStyle>
-                      {item.is_highest ? (
-                        <CompactInfoChip label="Pendidikan tertinggi" tone="info" />
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) auto" },
+                      gap: 2,
+                      alignItems: "center",
+                      py: 0.5,
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      {!withoutDetails ? (
+                        <FontStyle
+                          fontSize={12}
+                          sx={{ color: theme.palette.text.secondary, mb: 1 }}
+                        >
+                          {item.graduation_year
+                            ? `Lulus ${item.graduation_year}`
+                            : "Tahun lulus belum diisi"}
+                          {item.education_level ? ` · ${item.education_level}` : ""}
+                        </FontStyle>
+                      ) : null}
+                      <Box sx={titleSx}>
+                        <FontStyle
+                          component="h4"
+                          fontSize={15}
+                          fontWeight={700}
+                          sx={{ overflowWrap: "anywhere" }}
+                        >
+                          {withoutDetails
+                            ? item.education_level
+                            : item.institution || "Sekolah atau perguruan tinggi belum diisi"}
+                        </FontStyle>
+                        {item.is_highest && !withoutDetails ? (
+                          <CompactInfoChip label="Pendidikan tertinggi" tone="success" />
+                        ) : null}
+                      </Box>
+                      {!withoutDetails ? (
+                        <Box sx={{ mt: 1.5 }}>
+                          <InfoField
+                            label="Program studi / jurusan"
+                            value={item.field_of_study}
+                            readable
+                          />
+                        </Box>
                       ) : null}
                     </Box>
-                    {!withoutDetails ? (
-                      <>
-                        <FontStyle fontSize={12.5} fontWeight={600} sx={{ mt: 0.75 }}>
-                          {item.institution || "Nama institusi belum dicatat"}
-                        </FontStyle>
-                        <Box
-                          sx={{
-                            mt: 0.75,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1.5,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
-                            {item.field_of_study || "Program studi belum dicatat"}
-                          </FontStyle>
-                          <CalendarOutlined style={{ color: theme.ui.mutedText }} />
-                          <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
-                            {item.graduation_year
-                              ? `Lulus tahun ${item.graduation_year}`
-                              : "Tahun lulus belum dicatat"}
-                          </FontStyle>
-                        </Box>
-                      </>
-                    ) : null}
+                    {!withoutDetails ? documentAction(item.certificate_file, "Ijazah") : null}
                   </Box>
-                  {!withoutDetails ? (
-                    <Box sx={{ width: { xs: "100%", sm: "auto" }, justifySelf: { sm: "end" } }}>
-                      {previewAction(item.certificate_file, "Ijazah")}
-                    </Box>
-                  ) : null}
                 </Box>
               );
             })}
           </Box>
         ) : (
           <EducationEmptyState
-            icon={<BookOutlined />}
-            title="Riwayat pendidikan belum tersedia"
-            description="Tambahkan jenjang pendidikan melalui Edit profil."
+            title="Belum ada riwayat pendidikan"
+            description={canEdit ? "Lengkapi melalui Edit profil." : null}
           />
         )}
       </ProfileSection>
 
-      <ProfileSection
-        icon={<ToolOutlined />}
-        title="Keahlian"
-        description="Kemampuan yang tercatat beserta tingkat penguasaan dan catatan pendukungnya."
-      >
+      <ProfileSection title="Keahlian" description="Kemampuan dan tingkat penguasaan.">
         {skills.length ? (
-          <Box
-            component="ul"
-            sx={{
-              m: 0,
-              p: 0,
-              listStyle: "none",
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" },
-              columnGap: { lg: 5 },
-            }}
-          >
+          <Box component="ul" aria-label="Keahlian pegawai" sx={listSx(skills.length)}>
             {skills.map((item) => (
-              <Box
-                component="li"
-                key={item.id}
-                sx={{
-                  minWidth: 0,
-                  py: 1.75,
-                  borderBottom: `1px solid ${theme.ui.panelBorderSubtle}`,
-                  "&:nth-last-of-type(-n+2)": {
-                    borderBottom: { lg: 0 },
-                  },
-                }}
-              >
-                <Box sx={{ minWidth: 0 }}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 1.5,
-                    }}
-                  >
-                    <FontStyle fontSize={13.5} fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
-                      {item.skill_name}
-                    </FontStyle>
-                    <CompactInfoChip
-                      label={getProficiencyLabel(item.proficiency_level)}
-                      tone="info"
-                    />
-                  </Box>
-                  <FontStyle fontSize={11.5} sx={{ mt: 0.75, color: theme.ui.mutedText }}>
-                    {item.notes || "Belum ada catatan tambahan untuk keahlian ini."}
-                  </FontStyle>
-                </Box>
-              </Box>
+              <EducationSurface key={item.id}>
+                <FontStyle component="h4" fontSize={16} fontWeight={700}>
+                  {item.skill_name || "Nama keahlian belum diisi"}
+                </FontStyle>
+                <InfoField
+                  label="Tingkat penguasaan"
+                  value={
+                    PROFICIENCY_LABELS[String(item.proficiency_level || "").toLowerCase()] ||
+                    item.proficiency_level
+                  }
+                  readable
+                />
+                {item.notes ? <InfoField label="Catatan" value={item.notes} readable /> : null}
+              </EducationSurface>
             ))}
           </Box>
         ) : (
           <EducationEmptyState
-            icon={<ToolOutlined />}
-            title="Keahlian belum tersedia"
-            description="Tambahkan kemampuan dan tingkat penguasaan melalui Edit profil."
+            title="Belum ada keahlian yang dicatat"
+            description={canEdit ? "Lengkapi melalui Edit profil." : null}
           />
         )}
       </ProfileSection>
 
-      <ProfileSection
-        icon={<SafetyCertificateOutlined />}
-        title="Sertifikasi"
-        description="Kredensial profesional, lembaga penerbit, nomor kredensial, masa berlaku, dan bukti sertifikat."
-      >
+      <ProfileSection title="Sertifikasi" description="Data dan masa berlaku sertifikat.">
         {certifications.length ? (
-          <Box component="ul" sx={{ m: 0, p: 0, listStyle: "none" }}>
+          <Box component="ul" aria-label="Sertifikasi pegawai" sx={listSx(certifications.length)}>
             {certifications.map((item) => {
-              const expired =
-                item.expires_at && item.expires_at < new Date().toISOString().slice(0, 10);
+              const status = certificationStatus(item, today);
               return (
-                <Box
-                  component="li"
-                  key={item.id}
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "minmax(0, 1fr)",
-                      sm: "minmax(0, 1fr) auto",
-                    },
-                    alignItems: "start",
-                    columnGap: 3,
-                    rowGap: 1,
-                    py: { xs: 2, sm: 2.5 },
-                    borderBottom: `1px solid ${theme.ui.panelBorderSubtle}`,
-                    "&:first-of-type": { pt: 0 },
-                    "&:last-of-type": { borderBottom: 0, pb: 0 },
-                  }}
-                >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                      <FontStyle fontSize={13} fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
-                        {item.certification_name}
-                      </FontStyle>
-                      <CompactInfoChip
-                        label={expired ? "Kedaluwarsa" : "Berlaku"}
-                        tone={expired ? "danger" : "success"}
-                      />
-                    </Box>
-                    <FontStyle fontSize={12} sx={{ mt: 0.75, color: theme.ui.mutedText }}>
-                      Penerbit: {item.issuer || "Belum dicatat"}
+                <EducationSurface key={item.id}>
+                  <Box sx={titleSx}>
+                    <FontStyle component="h4" fontSize={16} fontWeight={700}>
+                      {item.certification_name || "Nama sertifikat belum diisi"}
                     </FontStyle>
-                    <FontStyle fontSize={11.5} sx={{ mt: 0.35, color: theme.ui.mutedText }}>
-                      Nomor kredensial: {item.credential_no || "Belum dicatat"}
-                    </FontStyle>
-                    <FontStyle fontSize={11.5} sx={{ mt: 0.65, color: theme.ui.mutedText }}>
-                      {item.issued_at
-                        ? `Terbit ${formatProfileDate(item.issued_at)}`
-                        : "Tanggal terbit belum dicatat"}
-                      {item.expires_at
-                        ? ` · Berakhir ${formatProfileDate(item.expires_at)}`
-                        : " · Tanpa tanggal kedaluwarsa"}
-                    </FontStyle>
+                    {status ? <CompactInfoChip label={status[0]} tone={status[1]} /> : null}
                   </Box>
-                  <Box sx={{ width: { xs: "100%", sm: "auto" }, justifySelf: { sm: "end" } }}>
-                    {previewAction(item.certificate_file, "Sertifikat")}
-                  </Box>
-                </Box>
+                  <InfoFieldGrid
+                    items={[
+                      ["Penerbit", item.issuer],
+                      ["Nomor sertifikat", item.credential_no],
+                      ["Tanggal terbit", formatProfileDate(item.issued_at)],
+                      [
+                        "Berlaku sampai",
+                        formatProfileDate(item.expires_at) || "Tanggal akhir tidak dicatat",
+                      ],
+                    ]}
+                  />
+                  {documentAction(item.certificate_file, "Sertifikat")}
+                </EducationSurface>
               );
             })}
           </Box>
         ) : (
           <EducationEmptyState
-            icon={<SafetyCertificateOutlined />}
-            title="Sertifikasi belum tersedia"
-            description="Tambahkan kredensial dan bukti sertifikat melalui Edit profil."
+            title="Belum ada sertifikasi yang dicatat"
+            description={canEdit ? "Lengkapi melalui Edit profil." : null}
           />
         )}
       </ProfileSection>

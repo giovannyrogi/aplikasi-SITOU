@@ -13,7 +13,11 @@ import {
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import EmployeeAvatar from "./EmployeeAvatar";
-import { InfoField, SummarySection, VisualIdentity } from "./EmployeeDetailSections";
+import {
+  InfoFieldGrid as SummaryFacts,
+  SummarySection,
+  VisualIdentity,
+} from "./EmployeeDetailSections";
 import { EmployeeRelatedSummary } from "./EmployeeProfileDetails";
 
 const GENDER_LABELS = {
@@ -29,28 +33,6 @@ const MARITAL_STATUS_LABELS = {
   divorced: "Cerai hidup",
   widowed: "Cerai mati",
 };
-
-/** Grid fakta menjaga hierarki label dan nilai konsisten pada seluruh ukuran layar. */
-function SummaryFacts({ items, columns = 2 }) {
-  return (
-    <Box
-      sx={{
-        display: "grid",
-        minWidth: 0,
-        gridTemplateColumns: {
-          xs: "minmax(0, 1fr)",
-          sm: "repeat(2, minmax(0, 1fr))",
-          ...(columns === 3 ? { xl: "repeat(3, minmax(0, 1fr))" } : {}),
-        },
-        gap: 3,
-      }}
-    >
-      {items.map(([label, value]) => (
-        <InfoField key={label} label={label} value={value} readable />
-      ))}
-    </Box>
-  );
-}
 
 /** Ringkasan memakai data berizin dan proyeksi lifecycle dari detail pegawai. */
 export default function EmployeeSummary({

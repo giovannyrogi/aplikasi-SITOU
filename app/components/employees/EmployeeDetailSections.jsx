@@ -46,6 +46,28 @@ export function InfoField({ label, value, valueContent, icon, readable = false, 
   );
 }
 
+/** Grid fakta menjaga hierarki label dan nilai konsisten pada seluruh ukuran layar. */
+export function InfoFieldGrid({ items, columns = 2 }) {
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        minWidth: 0,
+        gridTemplateColumns: {
+          xs: "minmax(0, 1fr)",
+          sm: "repeat(2, minmax(0, 1fr))",
+          ...(columns === 3 ? { xl: "repeat(3, minmax(0, 1fr))" } : {}),
+        },
+        gap: 3,
+      }}
+    >
+      {items.map(([label, value]) => (
+        <InfoField key={label} label={label} value={value} readable />
+      ))}
+    </Box>
+  );
+}
+
 /** Section ringkasan mengelompokkan data berdasarkan kebutuhan pengguna. */
 export function SummarySection({ icon, title, action, children, contentSx, panel = false, sx }) {
   const theme = useTheme();
