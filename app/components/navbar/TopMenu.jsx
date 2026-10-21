@@ -112,7 +112,7 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
             maxWidth: { xs: 212, sm: 300 },
             minWidth: 0,
             p: 0.5,
-            gap: 1.5,
+            gap: { xs: 0.75, sm: 1.5 },
             borderRadius: 2,
             textAlign: "left",
             "&:hover": { bgcolor: theme.ui.navItemHover },
@@ -128,6 +128,7 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
             sx={{
               width: 40,
               height: 40,
+              flexShrink: 0,
               bgcolor: theme.ui.navUserBg,
               color: "primary.main",
               fontSize: 13,
@@ -144,7 +145,7 @@ export default function TopMenu({ user, onBurgerClick, onProfile, onLogout }) {
             sx={{
               minWidth: 0,
               height: 40,
-              display: "flex",
+              display: { xs: "none", sm: "flex" },
               flexDirection: "column",
               justifyContent: "center",
               gap: "2px",

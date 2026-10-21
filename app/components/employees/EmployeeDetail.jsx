@@ -10,7 +10,6 @@ import {
   BookOutlined,
   CalendarOutlined,
   ClockCircleOutlined,
-  ContactsOutlined,
   CloseCircleOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -20,14 +19,12 @@ import {
   FolderOpenOutlined,
   IdcardOutlined,
   KeyOutlined,
-  MailOutlined,
   PlusCircleOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
   SwapOutlined,
   UserOutlined,
   UserDeleteOutlined,
-  WhatsAppOutlined,
 } from "@ant-design/icons";
 import { alpha, Box, Divider, useTheme } from "@mui/material";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -44,11 +41,9 @@ import { ROLES } from "@/app/constants/roles";
 import useAppNotification from "@/app/hooks/useAppNotification";
 import { AssignmentForm, ContractCancelForm, ContractForm } from "./EmployeeLifecycleForms";
 import EmployeeProfileSectionsForm from "./EmployeeProfileSectionsForm";
-import {
-  EmployeeBankDetails,
-  EmployeeEducationDetails,
-  EmployeeRelatedSummary,
-} from "./EmployeeProfileDetails";
+import { EmployeeBankDetails, EmployeeEducationDetails } from "./EmployeeProfileDetails";
+import EmployeeSummary from "./EmployeeSummary";
+import { InfoField, SummarySection, VisualIdentity } from "./EmployeeDetailSections";
 import EmptyState from "@/app/components/data-display/EmptyState";
 import {
   DisciplineCaseForm,
@@ -117,20 +112,6 @@ const VALID_TABS = [
 function normalizeDetailTab(value) {
   return value === "competencies" ? "education" : value;
 }
-
-const GENDER_LABELS = {
-  male: "Laki-laki",
-  female: "Perempuan",
-  other: "Lainnya",
-  undisclosed: "Tidak disebutkan",
-};
-
-const MARITAL_STATUS_LABELS = {
-  single: "Belum menikah",
-  married: "Menikah",
-  divorced: "Cerai hidup",
-  widowed: "Cerai mati",
-};
 
 /** Memformat tanggal ISO menjadi Bahasa Indonesia tanpa mengubah timezone tanggal kalender. */
 function formatDate(value, fallback = "Belum ditentukan") {
@@ -209,194 +190,31 @@ function ResponsiveActionButton({ label, style, ...props }) {
 function TabSectionHeader({ title, description, action }) {
   const theme = useTheme();
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: { xs: "stretch", sm: "center" },
-        justifyContent: "space-between",
-        flexDirection: { xs: "column", sm: "row" },
-        gap: 2,
-      }}
-    >
-      <Box sx={{ minWidth: 0 }}>
-        <FontStyle component="h2" fontSize={17} fontWeight={700}>
-          {title}
-        </FontStyle>
-        <FontStyle fontSize={12.5} sx={{ mt: 0.5, color: theme.ui.mutedText, lineHeight: 1.6 }}>
-          {description}
-        </FontStyle>
-      </Box>
-      {action ? (
-        <Box sx={{ flexShrink: 0, "& .ant-btn": { width: { xs: "100%", sm: "auto" } } }}>
-          {action}
-        </Box>
-      ) : null}
-    </Box>
-  );
-}
-
-/** Field ringkasan membedakan label dan nilai serta menjaga teks panjang tetap terbaca. */
-function InfoField({ label, value, valueContent, icon, sx }) {
-  const theme = useTheme();
-  return (
-    <Box sx={{ minWidth: 0, ...sx }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: theme.ui.mutedText }}>
-        {icon}
-        <FontStyle fontSize={11.5} fontWeight={600}>
-          {label}
-        </FontStyle>
-      </Box>
-      {valueContent ? (
-        <Box sx={{ mt: 0.65 }}>{valueContent}</Box>
-      ) : (
-        <FontStyle
-          fontSize={13}
-          fontWeight={600}
-          sx={{ mt: 0.65, lineHeight: 1.55, overflowWrap: "anywhere" }}
-        >
-          {value || "Belum ditentukan"}
-        </FontStyle>
-      )}
-    </Box>
-  );
-}
-
-/** Section ringkasan mengelompokkan data berdasarkan kebutuhan pengguna. */
-function SummarySection({ icon, title, action, children, contentSx }) {
-  const theme = useTheme();
-  return (
-    <Box component="section">
+    <Box component="header">
       <Box
         sx={{
           display: "flex",
-          alignItems: "center",
-          gap: 1,
-          pb: 1.25,
-          borderBottom: `1px solid ${theme.ui.panelBorderSubtle}`,
+          alignItems: { xs: "stretch", sm: "center" },
+          justifyContent: "space-between",
+          flexDirection: { xs: "column", sm: "row" },
+          gap: 2,
         }}
       >
-        <Box
-          sx={{
-            width: 34,
-            height: 34,
-            display: "grid",
-            placeItems: "center",
-            flexShrink: 0,
-            color: theme.palette.primary.main,
-            bgcolor: theme.ui.panelAccentBg,
-            borderRadius: "8px",
-          }}
-        >
-          {icon}
+        <Box sx={{ minWidth: 0 }}>
+          <FontStyle component="h2" fontSize={17} fontWeight={700}>
+            {title}
+          </FontStyle>
+          <FontStyle fontSize={12.5} sx={{ mt: 0.5, color: theme.ui.mutedText, lineHeight: 1.6 }}>
+            {description}
+          </FontStyle>
         </Box>
-        <FontStyle component="h3" fontSize={14} fontWeight={700} sx={{ minWidth: 0 }}>
-          {title}
-        </FontStyle>
-        {action ? <Box sx={{ ml: "auto", flexShrink: 0 }}>{action}</Box> : null}
-      </Box>
-      <Box
-        sx={{
-          mt: 2,
-          display: "grid",
-          gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" },
-          gap: 2.25,
-          ...contentSx,
-        }}
-      >
-        {children}
-      </Box>
-    </Box>
-  );
-}
-
-/** Bukti visual menampilkan thumbnail privat dan membuka gambar melalui preview reusable. */
-function VisualIdentity({
-  title,
-  file,
-  aspectRatio,
-  frameWidth,
-  emptyText,
-  organizationId,
-  onPreview,
-  objectFit = "contain",
-  frameless = false,
-  sx,
-}) {
-  const theme = useTheme();
-  const fileId = file?.id || file?.document_file_id;
-  const imageUrl = fileId
-    ? `/api/uploads/${fileId}?organizationId=${encodeURIComponent(organizationId)}`
-    : null;
-
-  return (
-    <Box sx={{ minWidth: 0, ...sx }}>
-      <FontStyle fontSize={11.5} fontWeight={700} sx={{ mb: 1 }}>
-        {title}
-      </FontStyle>
-      {imageUrl ? (
-        <Box
-          component="button"
-          type="button"
-          onClick={() => onPreview({ title, imageUrl, alt: `${title} pegawai` })}
-          aria-label={`Perbesar ${title.toLowerCase()}`}
-          sx={{
-            width: "100%",
-            maxWidth: frameWidth,
-            aspectRatio,
-            p: 0,
-            display: "block",
-            overflow: "hidden",
-            cursor: "zoom-in",
-            bgcolor: frameless ? "transparent" : theme.ui.panelSubtleBg,
-            border: frameless ? "none" : `1px solid ${theme.ui.panelBorder}`,
-            borderRadius: "8px",
-            transition: frameless ? "opacity 160ms ease" : "border-color 160ms ease",
-            "&:hover": frameless ? { opacity: 0.94 } : { borderColor: theme.ui.panelBorder },
-            "&:focus-visible": {
-              outline: `2px solid ${theme.palette.primary.main}`,
-              outlineOffset: 3,
-            },
-            "&:focus:not(:focus-visible)": {
-              outline: "none",
-            },
-          }}
-        >
-          {/* Endpoint privat tidak kompatibel dengan optimasi next/image. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt={title}
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "block",
-              objectFit,
-            }}
-          />
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            width: "100%",
-            maxWidth: frameWidth,
-            aspectRatio,
-            display: "grid",
-            placeItems: "center",
-            px: 2,
-            textAlign: "center",
-            bgcolor: theme.ui.panelSubtleBg,
-            border: `1px dashed ${theme.ui.panelBorder}`,
-            borderRadius: "8px",
-          }}
-        >
-          <Box>
-            <IdcardOutlined style={{ color: theme.ui.mutedText, fontSize: 24 }} />
-            <FontStyle fontSize={11.5} sx={{ mt: 1, color: theme.ui.mutedText }}>
-              {emptyText}
-            </FontStyle>
+        {action ? (
+          <Box sx={{ flexShrink: 0, "& .ant-btn": { width: { xs: "100%", sm: "auto" } } }}>
+            {action}
           </Box>
-        </Box>
-      )}
+        ) : null}
+      </Box>
+      <Divider sx={{ mt: action ? 3 : 1.5, mb: 3, borderColor: theme.ui.panelBorderSubtle }} />
     </Box>
   );
 }
@@ -865,8 +683,6 @@ export default function EmployeeDetail({ employeeId }) {
       : null;
   const relationshipEnd = contractEndPresentation(relationshipContract);
   const identifiers = state.profile.identifiers || [];
-  const ktpIdentifier = identifiers.find((item) => item.identifier_type === "ktp");
-  const familyCardIdentifier = identifiers.find((item) => item.identifier_type === "family_card");
   const bpjsHealth = identifiers.find((item) => item.identifier_type === "bpjs_health");
   const bpjsEmployment = identifiers.find((item) => item.identifier_type === "bpjs_employment");
 
@@ -880,196 +696,22 @@ export default function EmployeeDetail({ employeeId }) {
         <Box sx={contentSx}>
           <TabSectionHeader
             title="Ringkasan pegawai"
-            description="Informasi utama yang paling sering dibutuhkan untuk mengenali status dan penempatan pegawai."
+            description="Identitas, penempatan, hubungan kerja, dan kontak pegawai."
           />
-          <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" },
-              columnGap: { xs: 4, lg: 5 },
-              rowGap: { xs: 5, lg: 6 },
-            }}
-          >
-            <Box sx={{ gridColumn: { xs: "auto", lg: "1 / -1" } }}>
-              <SummarySection
-                icon={<UserOutlined />}
-                title="Identitas dan profil pegawai"
-                contentSx={{
-                  gridTemplateColumns: "minmax(0, 1fr)",
-                  gap: { xs: 3, md: 3.5 },
-                  alignItems: "start",
-                }}
-              >
-                <Box
-                  sx={{
-                    minWidth: 0,
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "minmax(0, 1fr)",
-                      sm: "repeat(2, minmax(0, 1fr))",
-                    },
-                    gap: { xs: 2.25, sm: 2.5 },
-                  }}
-                >
-                  <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
-                    <FontStyle component="h3" fontSize={18} fontWeight={700}>
-                      {employee.full_name}
-                    </FontStyle>
-                    {employee.preferred_name ? (
-                      <FontStyle fontSize={12} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
-                        Nama panggilan: {employee.preferred_name}
-                      </FontStyle>
-                    ) : null}
-                    <Box sx={{ mt: 1.25, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-                      <CompactInfoChip label={status[0]} tone={status[1]} />
-                      <CompactInfoChip label={`NIP: ${employee.employee_no}`} tone="info" />
-                    </Box>
-                  </Box>
-                  <InfoField label="Organisasi" value={employee.organization_name} />
-                  <InfoField label="NIK" value={employee.national_id} />
-                  <InfoField label="Tempat lahir" value={employee.birth_place} />
-                  <InfoField label="Tanggal lahir" value={formatDate(employee.birth_date)} />
-                  <InfoField label={age.label} value={age.valid ? age.duration : age.message} />
-                  <InfoField
-                    label="Jenis kelamin"
-                    value={GENDER_LABELS[employee.gender] || employee.gender}
-                  />
-                  <InfoField label="Agama" value={employee.religion} />
-                  <InfoField
-                    label="Status perkawinan"
-                    value={
-                      MARITAL_STATUS_LABELS[employee.marital_status] || employee.marital_status
-                    }
-                  />
-                  <InfoField label="Golongan darah" value={employee.blood_type} />
-                  <InfoField label="Kewarganegaraan" value={employee.nationality} />
-                </Box>
-                <Box
-                  sx={{
-                    minWidth: 0,
-                    pt: { xs: 2.5, sm: 3 },
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "minmax(0, 1fr)",
-                      sm: "135px 286px",
-                      xl: "135px 286px 286px",
-                    },
-                    gap: { xs: 3, sm: 3.5 },
-                    alignItems: "start",
-                    justifyContent: { xs: "stretch", sm: "start" },
-                    borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
-                  }}
-                >
-                  <VisualIdentity
-                    title="Pas foto"
-                    file={state.profile.profilePhoto}
-                    aspectRatio="3 / 4"
-                    frameWidth={135}
-                    emptyText="Pas foto belum diunggah."
-                    organizationId={organizationId}
-                    onPreview={setImagePreview}
-                    objectFit="cover"
-                    sx={{ width: "100%", maxWidth: 135, mx: { xs: "auto", sm: 0 } }}
-                  />
-                  <VisualIdentity
-                    title="Foto KTP"
-                    file={ktpIdentifier?.document_file}
-                    aspectRatio="1.586 / 1"
-                    frameWidth={286}
-                    emptyText="Foto KTP belum diunggah."
-                    objectFit="cover"
-                    organizationId={organizationId}
-                    onPreview={setImagePreview}
-                    sx={{ width: "100%", maxWidth: 286, mx: { xs: "auto", sm: 0 } }}
-                  />
-                  <VisualIdentity
-                    title="Foto Kartu Keluarga (KK)"
-                    file={familyCardIdentifier?.document_file}
-                    aspectRatio="1.586 / 1"
-                    frameWidth={286}
-                    emptyText="Foto Kartu Keluarga belum diunggah."
-                    objectFit="cover"
-                    organizationId={organizationId}
-                    onPreview={setImagePreview}
-                    sx={{
-                      width: "100%",
-                      maxWidth: 286,
-                      mx: { xs: "auto", sm: 0 },
-                      gridColumn: { sm: 2, xl: "auto" },
-                    }}
-                  />
-                </Box>
-              </SummarySection>
-            </Box>
-            <SummarySection icon={<ContactsOutlined />} title="Kontak">
-              <InfoField
-                label="Email pribadi"
-                value={employee.personal_email}
-                icon={<MailOutlined />}
-              />
-              <InfoField
-                label="Nomor WhatsApp"
-                value={employee.whatsapp}
-                icon={<WhatsAppOutlined />}
-              />
-              <InfoField label="Alamat sesuai KTP" value={employee.ktp_address} />
-              <InfoField label="Alamat domisili" value={employee.domicile_address} />
-            </SummarySection>
-            <SummarySection icon={<EnvironmentOutlined />} title="Penempatan aktif">
-              <InfoField label="Lokasi" value={employee.location_name} />
-              <InfoField label="Divisi & Unit" value={employee.unit_name} />
-              <InfoField label="Jabatan" value={employee.position_name} />
-              <InfoField label="Atasan langsung" value={employee.supervisor_name} />
-            </SummarySection>
-            <SummarySection
-              icon={<FileTextOutlined />}
-              title="Hubungan kerja"
-              action={
-                finalEmploymentStatus ? (
-                  <ResponsiveActionButton
-                    label="Lihat detail"
-                    icon={<EyeOutlined />}
-                    onClick={() => setModal("terminationDetail")}
-                  />
-                ) : null
-              }
-            >
-              <InfoField label="TMT bergabung" value={formatDate(employee.joined_date)} />
-              <InfoField label="Masa kerja" value={tenureText} />
-              {finalEmploymentStatus ? (
-                <>
-                  <InfoField
-                    label="Status hubungan kerja"
-                    valueContent={<CompactInfoChip label={status[0]} tone={status[1]} />}
-                  />
-                  <InfoField
-                    label="Tanggal berakhir"
-                    value={formatDate(employee.termination_date)}
-                  />
-                </>
-              ) : null}
-              <InfoField
-                label={finalEmploymentStatus ? "Jenis kepegawaian terakhir" : "Jenis kepegawaian"}
-                value={relationshipContract?.employment_type_name}
-              />
-              <InfoField
-                label={finalEmploymentStatus ? "Nomor kontrak terakhir" : "Nomor kontrak"}
-                value={relationshipContract?.contract_no}
-              />
-              <InfoField
-                label={finalEmploymentStatus ? "TMT kontrak terakhir" : "TMT kontrak"}
-                value={formatDate(relationshipContract?.start_date)}
-              />
-              {relationshipEnd ? (
-                <InfoField
-                  label={relationshipEnd.label}
-                  value={formatDate(relationshipEnd.value, "Tanggal akhir belum diisi")}
-                />
-              ) : null}
-            </SummarySection>
-            <EmployeeRelatedSummary profile={state.profile} embedded />
-          </Box>
+          <EmployeeSummary
+            employee={employee}
+            profile={state.profile}
+            organizationId={organizationId}
+            status={status}
+            age={age}
+            tenureText={tenureText}
+            finalEmploymentStatus={finalEmploymentStatus}
+            relationshipContract={relationshipContract}
+            relationshipEnd={relationshipEnd}
+            formatDate={formatDate}
+            onPreview={setImagePreview}
+            onTerminationDetail={() => setModal("terminationDetail")}
+          />
         </Box>
       ),
     },
@@ -1095,7 +737,6 @@ export default function EmployeeDetail({ employeeId }) {
               ) : null
             }
           />
-          <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
           {state.history.assignments.length ? (
             <Box component="ol" sx={{ m: 0, p: 0, listStyle: "none", display: "grid" }}>
               {state.history.assignments.map((item, index) => {
@@ -1257,7 +898,6 @@ export default function EmployeeDetail({ employeeId }) {
               ) : null
             }
           />
-          <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
           {state.history.contracts.length ? (
             <Box component="ol" sx={{ display: "grid", gap: 1.5, m: 0, p: 0, listStyle: "none" }}>
               {state.history.contracts.map((item) => (
@@ -1508,12 +1148,10 @@ export default function EmployeeDetail({ employeeId }) {
             aria-label="Kelengkapan dokumen pegawai"
             sx={{
               m: 0,
-              mt: 3,
               p: 0,
               listStyle: "none",
               display: "grid",
               gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" },
-              borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
             }}
           >
             {state.documents.checklist.map((item) => {
@@ -1582,7 +1220,6 @@ export default function EmployeeDetail({ employeeId }) {
             title="Jaminan pegawai"
             description="Lihat nomor kepesertaan dan bukti BPJS tanpa memenuhi ringkasan utama pegawai."
           />
-          <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
           <Box sx={{ display: "grid", gap: 4 }}>
             <InsuranceItem
               label="BPJS Kesehatan"
@@ -1610,7 +1247,6 @@ export default function EmployeeDetail({ employeeId }) {
             title="Pendidikan dan pengembangan"
             description="Telusuri riwayat pendidikan, tingkat keahlian, serta sertifikasi pegawai secara terstruktur."
           />
-          <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
           <EmployeeEducationDetails
             profile={state.profile}
             organizationId={organizationId}
@@ -1630,7 +1266,6 @@ export default function EmployeeDetail({ employeeId }) {
                   title="Informasi rekening"
                   description="Data rekening bersifat sensitif dan hanya tersedia bagi HRD serta Superadmin."
                 />
-                <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
                 <EmployeeBankDetails profile={state.profile} />
               </Box>
             ),
@@ -1658,7 +1293,6 @@ export default function EmployeeDetail({ employeeId }) {
                     ) : null
                   }
                 />
-                <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
                 <FontStyle component="h3" fontSize={14} fontWeight={700}>
                   Saldo {state.leave.year}
                 </FontStyle>
@@ -1861,7 +1495,6 @@ export default function EmployeeDetail({ employeeId }) {
               ) : null
             }
           />
-          <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
           {state.discipline.length ? (
             <Box sx={{ display: "grid", gap: 2 }}>
               {state.discipline.map((disciplineCase) => (
@@ -1894,7 +1527,6 @@ export default function EmployeeDetail({ employeeId }) {
                   title="Keterkaitan akun"
                   description="Akun, role, password, dan cakupan akses dikelola melalui menu Akun & Akses."
                 />
-                <Divider sx={{ my: 3, borderColor: theme.ui.panelBorderSubtle }} />
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
                   <CompactInfoChip
                     label={employee.user_id ? "Sudah memiliki akun" : "Belum memiliki akun"}

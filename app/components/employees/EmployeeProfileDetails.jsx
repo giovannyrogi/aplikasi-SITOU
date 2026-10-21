@@ -15,6 +15,7 @@ import {
 import { Box, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
+import AppIconTile from "@/app/components/icons/AppIconTile";
 import { formatDependentRelationship } from "@/lib/employees/dependentRelationships";
 import { isEducationLevelWithoutDetails } from "@/lib/employees/profileOptions";
 
@@ -41,10 +42,25 @@ function getSafeExternalUrl(value) {
 }
 
 /** Section detail memberi garis pembatas yang jelas tanpa membuat card bertumpuk. */
-export function ProfileSection({ icon, title, description, children }) {
+export function ProfileSection({ icon, title, description, children, panel = false }) {
   const theme = useTheme();
   return (
-    <Box component="section" sx={{ minWidth: 0 }}>
+    <Box
+      component="section"
+      aria-label={title}
+      sx={{
+        minWidth: 0,
+        ...(panel
+          ? {
+              p: { xs: 2, sm: 3 },
+              border: `1px solid ${theme.ui.panelBorderSubtle}`,
+              borderRadius: 2,
+              background: theme.ui.employeeSummary.panelBackground,
+              boxShadow: theme.ui.employeeSummary.panelShadow,
+            }
+          : {}),
+      }}
+    >
       <Box
         sx={{
           display: "flex",
@@ -55,7 +71,19 @@ export function ProfileSection({ icon, title, description, children }) {
           borderBottom: `1px solid ${theme.ui.panelBorderSubtle}`,
         }}
       >
-        <Box sx={{ color: theme.palette.primary.main, fontSize: 17 }}>{icon}</Box>
+        {panel ? (
+          <AppIconTile
+            icon={icon}
+            size={36}
+            iconSize={18}
+            sx={{
+              boxShadow: theme.ui.employeeSummary.iconShadow,
+              "& .anticon": { fontSize: 18, lineHeight: 0 },
+            }}
+          />
+        ) : (
+          <Box sx={{ color: theme.palette.primary.main, fontSize: 17 }}>{icon}</Box>
+        )}
         <Box sx={{ minWidth: 0 }}>
           <FontStyle component="h3" fontSize={14} fontWeight={700}>
             {title}
@@ -73,11 +101,11 @@ export function ProfileSection({ icon, title, description, children }) {
 }
 
 /** Baris data berulang menjaga label dan nilai tetap mudah dipindai di semua viewport. */
-function DetailRows({ items, emptyText }) {
+function DetailRows({ items, emptyText, readable = false }) {
   const theme = useTheme();
   if (!items?.length)
     return (
-      <FontStyle fontSize={12.5} sx={{ color: theme.ui.mutedText }}>
+      <FontStyle fontSize={readable ? 13 : 12.5} sx={{ color: theme.ui.mutedText }}>
         {emptyText}
       </FontStyle>
     );
@@ -98,12 +126,16 @@ function DetailRows({ items, emptyText }) {
           }}
         >
           <Box sx={{ minWidth: 0 }}>
-            <FontStyle fontSize={12.5} fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
+            <FontStyle
+              fontSize={readable ? 14 : 12.5}
+              fontWeight={700}
+              sx={{ overflowWrap: "anywhere" }}
+            >
               {item.title}
             </FontStyle>
             {item.description ? (
               <FontStyle
-                fontSize={11.5}
+                fontSize={readable ? 12.5 : 11.5}
                 sx={{ mt: 0.35, color: theme.ui.mutedText, overflowWrap: "anywhere" }}
               >
                 {item.description}
@@ -118,12 +150,13 @@ function DetailRows({ items, emptyText }) {
 }
 
 /** Ringkasan tambahan menampilkan keluarga, kontak darurat, dan akun sosial. */
-export function EmployeeRelatedSummary({ profile, embedded = false }) {
+export function EmployeeRelatedSummary({ profile, embedded = false, panel = false }) {
   const theme = useTheme();
   const sections = (
     <>
-      <ProfileSection icon={<TeamOutlined />} title="Keluarga dan tanggungan">
+      <ProfileSection icon={<TeamOutlined />} title="Keluarga dan tanggungan" panel={panel}>
         <DetailRows
+          readable={panel}
           items={(profile.dependents || []).map((item) => ({
             key: item.id,
             title: item.full_name,
@@ -139,8 +172,9 @@ export function EmployeeRelatedSummary({ profile, embedded = false }) {
           emptyText="Belum ada data keluarga atau tanggungan."
         />
       </ProfileSection>
-      <ProfileSection icon={<ContactsOutlined />} title="Kontak darurat">
+      <ProfileSection icon={<ContactsOutlined />} title="Kontak darurat" panel={panel}>
         <DetailRows
+          readable={panel}
           items={(profile.emergencyContacts || []).map((item) => ({
             key: item.id,
             title: item.full_name,
@@ -154,8 +188,9 @@ export function EmployeeRelatedSummary({ profile, embedded = false }) {
           emptyText="Belum ada kontak darurat yang dicatat."
         />
       </ProfileSection>
-      <ProfileSection icon={<LinkOutlined />} title="Akun sosial">
+      <ProfileSection icon={<LinkOutlined />} title="Akun sosial" panel={panel}>
         <DetailRows
+          readable={panel}
           items={(profile.socialAccounts || []).map((item) => {
             const externalUrl = getSafeExternalUrl(item.handle_or_url);
             return {

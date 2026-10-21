@@ -107,6 +107,17 @@ export const appTheme = createTheme({
     panelBorder: UI_TOKENS.border,
     panelBorderSubtle: UI_TOKENS.borderSubtle,
     panelShadow: UI_TOKENS.panelShadow,
+    employeeSummary: {
+      identityBackground: "linear-gradient(120deg, #FFFFFF 0%, #F8FAFC 100%)",
+      panelBackground: "linear-gradient(180deg, #FFFFFF 0%, #FCFCFD 100%)",
+      panelShadow:
+        "0 2px 4px rgba(17, 24, 39, 0.025), 0 10px 24px rgba(17, 24, 39, 0.045), inset 0 1px 0 #FFFFFF",
+      identityShadow:
+        "0 2px 4px rgba(17, 24, 39, 0.025), 0 8px 24px rgba(17, 24, 39, 0.055), inset 0 1px 0 #FFFFFF",
+      avatarBackground: UI_TOKENS.surface,
+      avatarShadow: "0 2px 8px rgba(17, 24, 39, 0.07), inset 0 1px 0 #FFFFFF",
+      iconShadow: "0 2px 4px rgba(238, 0, 20, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)",
+    },
     tableHeaderBg: UI_TOKENS.surfaceSubtle,
     tableHeaderText: "#374151",
     tableRowHover: UI_TOKENS.rowHover,
