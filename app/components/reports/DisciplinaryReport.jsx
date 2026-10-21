@@ -264,11 +264,11 @@ export default function DisciplinaryReport() {
     },
     {
       key: "actionStatus",
-      label: "Status tindakan",
+      label: "Status sanksi",
       control: select(
         "actionStatus",
         DISCIPLINARY_FILTER_STATUSES.map((value) => ({ value, label: ACTION_STATUS[value][0] })),
-        "Semua status tindakan",
+        "Semua status sanksi",
       ),
     },
   ].map((item) => ({

@@ -143,10 +143,7 @@ export default function DisciplineCaseDetailModal({
           {action ? (
             <Box sx={{ display: "grid", gap: 2.5 }}>
               <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                <CompactInfoChip
-                  label={action.action_name_snapshot}
-                  tone="danger"
-                />
+                <CompactInfoChip label={action.action_name_snapshot} tone="danger" />
                 <CompactInfoChip label={actionStatus[0]} tone={actionStatus[1]} />
               </Box>
               <Box
@@ -160,9 +157,7 @@ export default function DisciplineCaseDetailModal({
                 }}
               >
                 <DetailValue label="Nomor surat">
-                  {!requiresDocument
-                    ? "Tidak diwajibkan"
-                    : action.letter_no || "Belum dicatat"}
+                  {!requiresDocument ? "Tidak diwajibkan" : action.letter_no || "Belum dicatat"}
                 </DetailValue>
                 <DetailValue label="Diterbitkan oleh">{action.issued_by_name}</DetailValue>
                 <DetailValue label="Tanggal terbit">{formatDate(action.issued_date)}</DetailValue>
@@ -208,7 +203,10 @@ export default function DisciplineCaseDetailModal({
                     <FontStyle fontSize={12.5} fontWeight={700}>
                       Riwayat pencabutan
                     </FontStyle>
-                    <CompactInfoChip label="Dicabut" tone="warning" />
+                    <CompactInfoChip
+                      label={ACTION_STATUS.revoked[0]}
+                      tone={ACTION_STATUS.revoked[1]}
+                    />
                   </Box>
                   <Box
                     sx={{

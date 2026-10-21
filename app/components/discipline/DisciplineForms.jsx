@@ -18,6 +18,7 @@ import FileUploadField from "@/app/components/forms/FileUploadField";
 import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
 import { formatDisciplinaryValidityPeriod } from "@/lib/discipline/presentation.mjs";
 import { disciplinaryDateErrors } from "@/lib/discipline/issuancePolicy.mjs";
+import { ACTION_STATUS } from "./disciplineLabels";
 
 /** Perbandingan keputusan lama/baru memakai struktur identik agar konteks tidak tertukar. */
 function ReplacementSanctionCard({ label, name, start, end, tone }) {
@@ -446,7 +447,7 @@ export function DisciplinaryActionForm({
         open={open && !confirmation}
         disableClose={saving}
         title={action ? "Edit draft tindakan" : "Tetapkan tindakan disiplin"}
-        description="Draft dapat dilengkapi kemudian. Saat diterbitkan menjadi Aktif, tindakan tertulis wajib memiliki nomor dan PDF surat resmi."
+        description="Draft dapat dilengkapi kemudian. Sanksi tertulis yang aktif wajib memiliki nomor dan PDF surat resmi."
         size="lg"
         onClose={onClose}
         footer={
@@ -594,13 +595,13 @@ export function DisciplinaryActionForm({
           </Form.Item>
           <Form.Item
             name="status"
-            label="Status"
-            extra="Draft masih dapat diedit. Aktif berarti keputusan resmi telah diterbitkan dan tidak dapat diedit langsung."
+            label="Status sanksi"
+            extra="Draft masih dapat diedit. Sanksi aktif sudah diterbitkan dan tidak dapat diedit langsung."
           >
             <Select
               options={[
-                { value: "active", label: "Aktif" },
-                { value: "draft", label: "Draft" },
+                { value: "active", label: ACTION_STATUS.active[0] },
+                { value: "draft", label: ACTION_STATUS.draft[0] },
               ]}
             />
           </Form.Item>

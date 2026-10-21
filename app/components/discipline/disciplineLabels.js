@@ -25,12 +25,4 @@ export const ACTION_LABELS = {
   other: "Tindakan lain",
 };
 
-export const ACTION_STATUS = {
-  scheduled: ["Belum mulai", "info"],
-  draft: ["Draft", "info"],
-  active: ["Aktif", "success"],
-  expired: ["Berakhir", "info"],
-  revoked: ["Dicabut", "danger"],
-  appealed: ["Dalam banding", "warning"],
-  superseded: ["Digantikan", "warning"],
-};
+export { DISCIPLINARY_ACTION_STATUS as ACTION_STATUS } from "@/lib/discipline/presentation.mjs";

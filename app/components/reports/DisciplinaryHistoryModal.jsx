@@ -167,26 +167,13 @@ export default function DisciplinaryHistoryModal({
       ) : (
         <Box sx={{ display: "grid", gap: 2.5 }}>
           <Box
-            component="details"
+            component="section"
+            aria-labelledby={`${id}-employee-summary`}
             sx={{ borderBottom: "1px solid", borderColor: "divider", pb: 1.5 }}
           >
-            <Box
-              component="summary"
-              sx={{
-                minHeight: 44,
-                py: 1,
-                cursor: "pointer",
-                fontSize: 14,
-                fontWeight: 600,
-                "&:focus-visible": {
-                  outline: "2px solid",
-                  outlineColor: "primary.main",
-                  outlineOffset: 2,
-                },
-              }}
-            >
+            <FontStyle component="h3" id={`${id}-employee-summary`} fontSize={14} fontWeight={700}>
               Penempatan dan ringkasan pegawai
-            </Box>
+            </FontStyle>
             <Box
               component="dl"
               sx={{
