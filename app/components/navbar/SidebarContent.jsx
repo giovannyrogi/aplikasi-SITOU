@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   Box,
   Collapse,
@@ -18,6 +18,7 @@ import FontStyle from "../font-style/FontStyle";
 import AppLogo from "../branding/AppLogo";
 import AppIconTile from "../icons/AppIconTile";
 import SubscriptionAccessCard from "../subscription/SubscriptionAccessCard";
+import { sidebarGroups } from "./sidebarGroups.mjs";
 
 const APP_VERSION = "v0.1.0";
 
@@ -34,15 +35,16 @@ export default function SidebarContent({
   compact = false,
 }) {
   const theme = useTheme();
+  const navigationId = useId();
   const activeParent = menus.find((menu) =>
     menu.submenu?.some((submenu) => isPathActive(pathname, submenu.path)),
   );
   const [dropdownOverride, setDropdownOverride] = useState(null);
-  const openDropdown = dropdownOverride?.pathname === pathname
-    ? dropdownOverride.value : activeParent?.value || null;
+  const openDropdown =
+    dropdownOverride?.pathname === pathname ? dropdownOverride.value : activeParent?.value || null;
 
   const menuButtonSx = (active, nested = false) => ({
-    minHeight: nested ? 42 : 46,
+    minHeight: nested ? 44 : 46,
     my: 0.35,
     px: nested ? 1.25 : 1.4,
     borderRadius: 2,
@@ -59,6 +61,34 @@ export default function SidebarContent({
       color: active ? theme.palette.primary.main : theme.ui.navIconColor,
     },
   });
+
+  const renderSubmenu = (submenu) => {
+    const active = isPathActive(pathname, submenu.path);
+    return (
+      <ListItem disablePadding key={submenu.value}>
+        <ListItemButton
+          selected={active}
+          aria-current={active ? "page" : undefined}
+          onClick={() => onNavigate(submenu.path)}
+          sx={menuButtonSx(active, true)}
+        >
+          {submenu.showIcon ? <ListItemIcon>{submenu.icon}</ListItemIcon> : null}
+          <ListItemText
+            primary={
+              <FontStyle
+                component="span"
+                fontSize={12}
+                fontWeight={active ? 600 : 500}
+                sx={{ lineHeight: 1.45, overflowWrap: "anywhere" }}
+              >
+                {submenu.label}
+              </FontStyle>
+            }
+          />
+        </ListItemButton>
+      </ListItem>
+    );
+  };
 
   return (
     <Box
@@ -115,7 +145,11 @@ export default function SidebarContent({
       >
         <AppIconTile icon="navigation:organization" size={36} iconSize={18} />
         <Box sx={{ minWidth: 0, display: "grid", alignContent: "center", gap: 0.25 }}>
-          <FontStyle fontSize={12} fontWeight={700} sx={{ lineHeight: 1.35, overflowWrap: "anywhere" }}>
+          <FontStyle
+            fontSize={12}
+            fontWeight={700}
+            sx={{ lineHeight: 1.35, overflowWrap: "anywhere" }}
+          >
             {user?.organization_name || "Administrasi SITOU"}
           </FontStyle>
           <FontStyle
@@ -157,12 +191,18 @@ export default function SidebarContent({
               ? menu.submenu.some((submenu) => isPathActive(pathname, submenu.path))
               : isPathActive(pathname, menu.path);
             const expanded = openDropdown === menu.value;
+            const submenuId = `${navigationId}-${menu.value}`;
+            const groups = menu.submenu ? sidebarGroups(menu.submenu) : [];
+            const showGroups = new Set(groups.map((group) => group.label)).size > 1;
 
             return (
               <Box component="li" key={menu.value} sx={{ listStyle: "none" }}>
                 <ListItem component="div" disablePadding>
                   <ListItemButton
                     selected={active}
+                    aria-expanded={menu.submenu ? expanded : undefined}
+                    aria-controls={menu.submenu && expanded ? submenuId : undefined}
+                    aria-current={!menu.submenu && active ? "page" : undefined}
                     onClick={() =>
                       menu.submenu
                         ? setDropdownOverride({ pathname, value: expanded ? null : menu.value })
@@ -194,39 +234,46 @@ export default function SidebarContent({
                 </ListItem>
 
                 {menu.submenu ? (
-                  <Collapse in={expanded} timeout={180} unmountOnExit>
+                  <Collapse id={submenuId} in={expanded} timeout={180} unmountOnExit>
                     <List
                       disablePadding
+                      aria-label={menu.label}
                       sx={{ ml: 1.5, pl: 1.25, borderLeft: `1px solid ${theme.ui.navSubmenuLine}` }}
                     >
-                      {menu.submenu.map((submenu) => {
-                        const submenuActive = isPathActive(pathname, submenu.path);
-                        return (
-                          <ListItem disablePadding key={submenu.value}>
-                            <ListItemButton
-                              selected={submenuActive}
-                              onClick={() => onNavigate(submenu.path)}
-                              sx={menuButtonSx(submenuActive, true)}
+                      {showGroups
+                        ? groups.map((group, index) => (
+                            <Box
+                              component="li"
+                              key={`${group.label}-${index}`}
+                              sx={{ listStyle: "none" }}
                             >
-                              {submenu.showIcon ? (
-                                <ListItemIcon>{submenu.icon}</ListItemIcon>
-                              ) : null}
-                              <ListItemText
-                                primary={
-                                  <FontStyle
-                                    component="span"
-                                    fontSize={12}
-                                    fontWeight={submenuActive ? 600 : 500}
-                                    noWrap
-                                  >
-                                    {submenu.label}
-                                  </FontStyle>
-                                }
-                              />
-                            </ListItemButton>
-                          </ListItem>
-                        );
-                      })}
+                              <FontStyle
+                                component="div"
+                                fontSize={10.5}
+                                fontWeight={600}
+                                sx={{
+                                  color: theme.palette.text.secondary,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.04em",
+                                  mx: 1.25,
+                                  pt: 1.5,
+                                  pb: 0.75,
+                                  ...(index
+                                    ? {
+                                        mt: 1,
+                                        borderTop: `1px solid ${theme.ui.panelBorderSubtle}`,
+                                      }
+                                    : {}),
+                                }}
+                              >
+                                {group.label}
+                              </FontStyle>
+                              <List disablePadding aria-label={`${menu.label} — ${group.label}`}>
+                                {group.items.map(renderSubmenu)}
+                              </List>
+                            </Box>
+                          ))
+                        : menu.submenu.map(renderSubmenu)}
                     </List>
                   </Collapse>
                 ) : null}

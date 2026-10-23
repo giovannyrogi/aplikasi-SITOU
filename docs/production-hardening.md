@@ -73,7 +73,7 @@ ORDER BY status;
 
 ```bash
 npm run lint
-npm test
+node --test tests/*.test.mjs
 npm run db:verify-bootstrap
 npm run build
 npm audit --omit=dev
@@ -92,6 +92,14 @@ Kedua proses `sitou` dan `sitou-file-cleanup-worker` harus berstatus `online`. W
 - Temuan terakhir berasal dari [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm); saat pemeriksaan, `braces` belum memiliki versi perbaikan resmi. Jalankan lint hanya pada kode/pola file proyek yang dipercaya; jangan memberikan pola glob dari request pengguna kepada tooling ini. Ini batasan sementara, bukan temuan yang telah diperbaiki.
 - Jangan memakai `npm audit fix --force` untuk menurunkan konfigurasi Next.js ke versi 14 atau menghapus pemeriksaan lint. Perbarui kembali ketika rantai tooling menyediakan perbaikan kompatibel, lalu jalankan audit, unit test, lint, dan build.
 - Peringatan deprecated dari dependency turunan ExcelJS dapat tetap tampil saat `npm ci`; berbeda dari temuan audit. Perubahan major paket import/export harus diuji terhadap template dan workbook yang sudah dipakai organisasi.
+
+### Pembaruan keamanan dependensi (23 Oktober 2026)
+
+- Versi langsung: Next.js dan `eslint-config-next` 16.4.2, Sharp 0.35.5. Versi turunan pada lockfile: DOMPurify 3.4.17 dan follow-redirects 1.16.1. Terapkan `package.json` dan `package-lock.json` bersama. Rilis ini tidak menambah migration atau mengubah data bisnis.
+- Instalasi deployment memakai `npm ci`, lalu lint, test, build dan reload proses aplikasi. Proses lama harus dimulai ulang agar memakai build dan pustaka native baru; mengganti folder paket saja tidak memperbarui proses yang masih berjalan. Periksa versi aktif dengan `npm ls next eslint-config-next sharp dompurify follow-redirects`.
+- Jalankan audit produksi dan audit lengkap secara terpisah. Rantai dev-only `eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces` masih memakai braces 3.0.3 karena belum ada perbaikan resmi yang kompatibel untuk GHSA-vfj7-8cjw-p6xm. Jangan menyatakan audit lengkap bersih, memakai downgrade versi 14, mengabaikan advisori melalui konfigurasi audit, atau mengganti pustaka glob tanpa verifikasi kompatibilitas.
+- Sebelum deployment, simpan commit/build sebelumnya serta backup database/file privat sesuai prosedur backup yang berlaku. Setelah `git pull --ff-only`, jalankan `npm ci`, `npm run lint`, `node --test tests/*.test.mjs`, `npm run build`, dan `npm audit --omit=dev`; kemudian `pm2 reload ecosystem.config.js --update-env`. Periksa status seluruh proses yang dikonfigurasi, login, dashboard, file privat dan log. Jangan memakai isi folder node_modules Windows pada VPS Linux.
+- Pemulihan aplikasi memakai commit sebelumnya, instalasi lockfile yang cocok, build ulang dan reload. Karena rilis dependensi ini tidak mengubah schema, jangan mengembalikan database produksi hanya untuk memulihkan build aplikasi. Perhatikan bahwa versi sebelumnya masih mempunyai kerentanan dan pemulihan tersebut hanya langkah darurat sementara.
 
 ## 5. Nginx
 
