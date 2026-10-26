@@ -8,7 +8,13 @@ import { MenuOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import { useState } from "react";
 
-export default function RowActionMenu({ items, triggerIcon, triggerLabel = "Buka menu aksi" }) {
+export default function RowActionMenu({
+  items,
+  triggerIcon,
+  triggerLabel = "Buka menu aksi",
+  buttonLabel,
+  fullWidth = false,
+}) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const user = useOptionalAuthenticatedUser();
@@ -54,7 +60,7 @@ export default function RowActionMenu({ items, triggerIcon, triggerLabel = "Buka
               boxShadow: theme.ui.panelShadow,
             },
             "& .ant-dropdown-menu-item": {
-              minHeight: 40,
+              minHeight: 44,
               px: 1.25,
               py: 0.875,
               gap: 1.25,
@@ -88,8 +94,18 @@ export default function RowActionMenu({ items, triggerIcon, triggerLabel = "Buka
         aria-label={triggerLabel}
         aria-haspopup="menu"
         title={triggerLabel}
-        style={{ width: 44, height: 44, flexShrink: 0, padding: 0 }}
-      />
+        style={{
+          width: fullWidth ? "100%" : buttonLabel ? "auto" : 44,
+          minHeight: 44,
+          height: buttonLabel ? "auto" : 44,
+          flexShrink: 0,
+          padding: buttonLabel ? "10px 12px" : 0,
+          whiteSpace: buttonLabel ? "normal" : undefined,
+          lineHeight: 1.5,
+        }}
+      >
+        {buttonLabel}
+      </Button>
     </Dropdown>
   );
 }

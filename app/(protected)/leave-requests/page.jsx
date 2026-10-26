@@ -14,6 +14,7 @@ import OperationalFilterSection from "@/app/components/filters/OperationalFilter
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
+import { ReportCardFields } from "@/app/components/reports/ReportEmployeeFields";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import EmployeeSelect from "@/app/components/selects/EmployeeSelect";
 import LocationSelect from "@/app/components/selects/LocationSelect";
@@ -360,37 +361,44 @@ export default function LeaveRequestsPage() {
     { title: "Aksi", width: 72, render: (_, item) => <RowActionMenu items={actions(item)} /> },
   ];
   const card = (item) => (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-        <Box>
-          <FontStyle fontSize={14} fontWeight={700}>
-            {item.full_name}
-          </FontStyle>
-          <FontStyle fontSize={11.5} sx={{ mt: 0.4, color: theme.ui.mutedText }}>
-            {item.employee_no} · {item.request_no}
-          </FontStyle>
+    <Box sx={{ display: "grid", minWidth: 0 }}>
+      <Box sx={{ minWidth: 0 }}>
+        <FontStyle component="h3" fontSize={15} fontWeight={700} sx={{ lineHeight: 1.45 }}>
+          {item.full_name}
+        </FontStyle>
+        <FontStyle fontSize={12} sx={{ mt: 0.75, color: "text.secondary" }}>
+          NIP {item.employee_no || "belum tersedia"}
+        </FontStyle>
+        <Box sx={{ mt: 1.5, display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <CompactInfoChip
+            label={LEAVE_STATUS[item.status]?.[0] || item.status}
+            tone={LEAVE_STATUS[item.status]?.[1] || "neutral"}
+          />
+          <CompactInfoChip
+            label={LEAVE_CATEGORY[item.category]?.[0] || item.category}
+            tone={LEAVE_CATEGORY[item.category]?.[1] || "neutral"}
+          />
         </Box>
-        <RowActionMenu items={actions(item)} />
       </Box>
-      <FontStyle fontSize={12.5} fontWeight={600} sx={{ mt: 1.5 }}>
-        {item.leave_type_name}
-      </FontStyle>
-      <FontStyle fontSize={12} sx={{ mt: 0.6 }}>
-        {formatLeaveDate(item.start_date)} - {formatLeaveDate(item.end_date)} ·{" "}
-        {formatLeaveUnits(item.requested_units)} {LEAVE_UNIT[item.unit]}
-      </FontStyle>
-      <Box sx={{ mt: 1.25, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-        <CompactInfoChip
-          label={LEAVE_CATEGORY[item.category]?.[0]}
-          tone={LEAVE_CATEGORY[item.category]?.[1]}
+      <ReportCardFields
+        fields={[
+          ["Nomor", item.request_no || "Belum tersedia"],
+          ["Jenis", item.leave_type_name],
+          ["Mulai", formatLeaveDate(item.start_date)],
+          ["Selesai", formatLeaveDate(item.end_date)],
+          ["Durasi", `${formatLeaveUnits(item.requested_units)} ${LEAVE_UNIT[item.unit]}`],
+          ["Lokasi", item.location_name || "Belum ada lokasi"],
+          ["Divisi & Unit", item.organization_unit_name || "Belum ada Divisi & Unit"],
+          ["Lampiran", item.attachment_count ? `${item.attachment_count} berkas` : "Tidak ada"],
+        ]}
+      />
+      <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${theme.ui.panelBorderSubtle}` }}>
+        <RowActionMenu
+          items={actions(item)}
+          buttonLabel="Aksi cuti/izin"
+          triggerLabel={`Aksi cuti/izin ${item.request_no || item.full_name}`}
+          fullWidth
         />
-        <CompactInfoChip
-          label={LEAVE_STATUS[item.status]?.[0]}
-          tone={LEAVE_STATUS[item.status]?.[1]}
-        />
-        {item.attachment_count ? (
-          <CompactInfoChip label={`${item.attachment_count} lampiran`} tone="info" />
-        ) : null}
       </Box>
     </Box>
   );
@@ -421,7 +429,7 @@ export default function LeaveRequestsPage() {
       />
       <DataPanel
         title="Daftar cuti dan izin"
-        description="Hasil mengikuti rentang tanggal dan filter yang dipilih di atas."
+        description="Cuti dan izin sesuai filter yang dipilih."
         exportConfig={{
           enabled: true,
           onExcel: exportExcel,
@@ -438,6 +446,7 @@ export default function LeaveRequestsPage() {
           pagination={list.pagination}
           onPageChange={list.setPage}
           renderCard={card}
+          mobileCardSx={{ borderRadius: 2 }}
           emptyDescription="Tidak ada cuti atau izin pada rentang tanggal dan filter yang dipilih."
         />
       </DataPanel>

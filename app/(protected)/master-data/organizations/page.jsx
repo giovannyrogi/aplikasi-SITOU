@@ -6,7 +6,7 @@ import { EditOutlined, PlusOutlined, StopOutlined, SyncOutlined } from "@ant-des
 import { Box, useTheme } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import DataToolbar from "@/app/components/filters/DataToolbar";
+import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
@@ -265,19 +265,21 @@ export default function OrganizationsPage() {
           </Button>
         }
       />
+      <OperationalFilterSection
+        title="Filter organisasi"
+        description="Cari dan saring daftar organisasi sesuai kebutuhan."
+        searchLabel="Cari organisasi"
+        searchPlaceholder="Nama atau kode organisasi"
+        statusLabel="Status organisasi"
+        search={list.search}
+        onSearchChange={list.setSearch}
+        status={list.status}
+        onStatusChange={list.setStatus}
+        onRefresh={list.refresh}
+      />
       <DataPanel
         title="Daftar organisasi"
         description="Cari, pantau onboarding, dan kelola masa akses organisasi dari satu tempat."
-        toolbar={
-          <DataToolbar
-            embedded
-            search={list.search}
-            onSearchChange={list.setSearch}
-            status={list.status}
-            onStatusChange={list.setStatus}
-            onRefresh={list.refresh}
-          />
-        }
       >
         <ResponsiveDataView
           data={list.data}

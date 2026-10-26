@@ -5,7 +5,7 @@ import { EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import DataToolbar from "@/app/components/filters/DataToolbar";
+import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -118,23 +118,25 @@ export default function WarehousePanel({ organizationId, organizationFilter }) {
           ) : null
         }
       />
+      <OperationalFilterSection
+        title="Filter gudang"
+        description="Cari dan saring daftar gudang sesuai kebutuhan."
+        searchLabel="Cari gudang"
+        searchPlaceholder="Nama atau kode gudang"
+        statusLabel="Status gudang"
+        search={list.search}
+        onSearchChange={list.setSearch}
+        status={list.status}
+        onStatusChange={list.setStatus}
+        onRefresh={list.refresh}
+        items={[{ key: "organization", label: "Organisasi", control: organizationFilter }]}
+      />
       <DataPanel
         title="Daftar gudang"
         description={
           list.loading
             ? "Memuat gudang..."
             : `${list.pagination.total} gudang sesuai cakupan akses Anda.`
-        }
-        toolbar={
-          <DataToolbar
-            embedded
-            search={list.search}
-            onSearchChange={list.setSearch}
-            status={list.status}
-            onStatusChange={list.setStatus}
-            onRefresh={list.refresh}
-            filters={organizationFilter}
-          />
         }
       >
         <ResponsiveDataView

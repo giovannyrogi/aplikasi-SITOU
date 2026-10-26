@@ -1,6 +1,9 @@
 "use client";
 
-import { Button } from "antd";
+import { useId } from "react";
+import { Button, Input } from "antd";
+import { ReloadOutlined, SearchOutlined } from "@ant-design/icons";
+import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import AppIcon from "@/app/components/icons/AppIcon";
 import { Box, Divider, Paper, useTheme } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
@@ -11,13 +14,72 @@ export default function OperationalFilterSection({
   description,
   items = [],
   onReset,
+  onRefresh,
+  search,
+  onSearchChange,
+  searchLabel = "Cari data",
+  searchPlaceholder = "Nama atau kode",
+  status,
+  onStatusChange,
+  statusLabel = "Status",
   wideColumns = 4,
 }) {
   const theme = useTheme();
+  const sectionId = useId();
+  const reset =
+    onReset ||
+    (onSearchChange || onStatusChange
+      ? () => {
+          onSearchChange?.("");
+          onStatusChange?.("all");
+        }
+      : undefined);
+  const fields = [
+    ...(onSearchChange
+      ? [
+          {
+            key: "search",
+            label: searchLabel,
+            control: (
+              <Input
+                allowClear
+                prefix={<SearchOutlined />}
+                placeholder={searchPlaceholder}
+                aria-label={searchLabel}
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(onStatusChange
+      ? [
+          {
+            key: "status",
+            label: statusLabel,
+            control: (
+              <AsyncSelect
+                aria-label={statusLabel}
+                value={status}
+                onChange={onStatusChange}
+                options={[
+                  { value: "all", label: "Semua status" },
+                  { value: "active", label: "Aktif" },
+                  { value: "inactive", label: "Nonaktif" },
+                ]}
+              />
+            ),
+          },
+        ]
+      : []),
+    ...items.filter((item) => item.control),
+  ];
 
   return (
     <Paper
       component="section"
+      aria-labelledby={`${sectionId}-title`}
       elevation={0}
       sx={{
         minWidth: 0,
@@ -43,28 +105,45 @@ export default function OperationalFilterSection({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <AppIcon
               icon="solar:filter-bold-duotone"
+              aria-hidden="true"
               width={20}
               color={theme.palette.primary.main}
             />
-            <FontStyle component="h2" fontSize={{ xs: 15, sm: 16 }} fontWeight={700}>
+            <FontStyle
+              id={`${sectionId}-title`}
+              component="h2"
+              fontSize={{ xs: 15, sm: 16 }}
+              fontWeight={700}
+            >
               {title}
             </FontStyle>
           </Box>
           {description ? (
-            <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
+            <FontStyle explanation fontSize={11.5} sx={{ mt: 0.5, color: theme.ui.mutedText }}>
               {description}
             </FontStyle>
           ) : null}
         </Box>
-        {onReset ? (
-          <Button
-            icon={<AppIcon icon="solar:restart-linear" width={18} />}
-            onClick={onReset}
-            style={{ minHeight: 44 }}
-          >
-            Atur ulang
-          </Button>
-        ) : null}
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, maxWidth: "100%", minWidth: 0 }}>
+          {onRefresh ? (
+            <Button
+              icon={<ReloadOutlined aria-hidden="true" />}
+              onClick={onRefresh}
+              style={{ minHeight: 44 }}
+            >
+              Muat ulang
+            </Button>
+          ) : null}
+          {reset ? (
+            <Button
+              icon={<AppIcon icon="solar:restart-linear" aria-hidden="true" width={18} />}
+              onClick={reset}
+              style={{ minHeight: 44 }}
+            >
+              Atur ulang
+            </Button>
+          ) : null}
+        </Box>
       </Box>
       <Divider sx={{ borderColor: theme.ui.panelBorderSubtle }} />
       <Box
@@ -80,9 +159,10 @@ export default function OperationalFilterSection({
           },
           gap: 2,
           "& .ant-picker, & .ant-select": { width: "100%", minHeight: 44 },
+          "& .ant-input-affix-wrapper": { width: "100%", minHeight: 44 },
         }}
       >
-        {items.map((item) => (
+        {fields.map((item) => (
           <Box key={item.key} sx={{ minWidth: 0, gridColumn: item.gridColumn }}>
             <FontStyle fontSize={11.5} fontWeight={600} sx={{ mb: 1 }}>
               {item.label}

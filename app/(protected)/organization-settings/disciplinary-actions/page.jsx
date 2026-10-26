@@ -6,7 +6,7 @@ import { EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import DataToolbar from "@/app/components/filters/DataToolbar";
+import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
@@ -92,27 +92,33 @@ export default function DisciplinaryActionSettingsPage() {
           ) : null
         }
       />
+      <OperationalFilterSection
+        title="Filter jenis sanksi"
+        description="Cari dan saring daftar jenis sanksi sesuai kebutuhan."
+        searchLabel="Cari jenis sanksi"
+        searchPlaceholder="Nama atau kode jenis sanksi"
+        statusLabel="Status jenis sanksi"
+        search={list.search}
+        onSearchChange={list.setSearch}
+        status={list.status}
+        onStatusChange={list.setStatus}
+        onRefresh={list.refresh}
+        items={[
+          {
+            key: "organization",
+            label: "Organisasi",
+            control: superadmin ? (
+              <OrganizationSelect
+                value={organizationId}
+                onChange={(value) => list.updateFilters({ organizationId: value })}
+              />
+            ) : null,
+          },
+        ]}
+      />
       <DataPanel
         title="Daftar jenis sanksi"
         description="Perubahan aturan hanya berlaku untuk tindakan yang diterbitkan setelah perubahan."
-        toolbar={
-          <DataToolbar
-            embedded
-            search={list.search}
-            onSearchChange={list.setSearch}
-            status={list.status}
-            onStatusChange={list.setStatus}
-            onRefresh={list.refresh}
-            filters={
-              superadmin ? (
-                <OrganizationSelect
-                  value={organizationId}
-                  onChange={(value) => list.updateFilters({ organizationId: value })}
-                />
-              ) : null
-            }
-          />
-        }
       >
         <ResponsiveDataView
           data={list.data}
@@ -122,6 +128,33 @@ export default function DisciplinaryActionSettingsPage() {
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
+          renderCard={(item) => (
+            <Box sx={{ display: "grid", gap: 1.5 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <FontStyle fontWeight={700}>{item.name}</FontStyle>
+                  <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: "text.secondary" }}>
+                    Digunakan pada {item.usage_count} tindakan
+                  </FontStyle>
+                </Box>
+                <RowActionMenu items={actions(item)} />
+              </Box>
+              {superadmin ? <FontStyle>{item.organization_name}</FontStyle> : null}
+              <Box>
+                <FontStyle fontSize={11.5} sx={{ color: "text.secondary", mb: 0.5 }}>
+                  Masa berlaku
+                </FontStyle>
+                <FontStyle fontWeight={600}>{durationLabel(item)}</FontStyle>
+              </Box>
+              <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+                <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
+                <CompactInfoChip
+                  label={item.requires_document ? "Surat wajib" : "Tanpa surat wajib"}
+                  tone={item.requires_document ? "warning" : "neutral"}
+                />
+              </Box>
+            </Box>
+          )}
           emptyDescription={
             organizationId
               ? "Belum ada jenis sanksi pada organisasi ini."

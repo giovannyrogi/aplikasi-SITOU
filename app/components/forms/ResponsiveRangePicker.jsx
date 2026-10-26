@@ -200,7 +200,15 @@ const RangePickerControl = forwardRef(function RangePickerControl(props, ref) {
             {active === 0 ? "Pilih tanggal mulai untuk rentang baru" : "Pilih tanggal akhir"}
           </Box>
           {presets.length ? (
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
               {presets.map((preset, index) => (
                 <Button
                   key={index}

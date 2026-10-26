@@ -14,13 +14,14 @@ import {
 import { Box, useTheme } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import DataToolbar from "@/app/components/filters/DataToolbar";
+import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import Notification from "@/app/components/Notifications/Notification";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
+import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { ROLES } from "@/app/constants/roles";
 import useDataList from "@/app/hooks/useDataList";
@@ -206,6 +207,55 @@ export default function OrganizationAccountsPage() {
           </Button>
         }
       />
+      <OperationalFilterSection
+        title="Filter akun organisasi"
+        description="Cari dan saring daftar akun organisasi sesuai kebutuhan."
+        searchLabel="Cari akun"
+        searchPlaceholder="Nama, username, atau email"
+        statusLabel="Status akun"
+        search={list.search}
+        onSearchChange={list.setSearch}
+        status={list.status}
+        onStatusChange={list.setStatus}
+        onRefresh={list.refresh}
+        onReset={() => {
+          list.setSearch("");
+          list.setStatus("all");
+          list.updateFilters({ organizationId: list.filters.organizationId });
+        }}
+        items={[
+          {
+            key: "role",
+            label: "Role akun",
+            control:
+              isSuperadmin || user.access?.hris?.fullAdmin ? (
+                <AsyncSelect
+                  aria-label="Role akun"
+                  value={list.filters.roleCode || "all"}
+                  onChange={(roleCode) => list.updateFilters({ ...list.filters, roleCode })}
+                  options={[
+                    { value: "all", label: "Semua role" },
+                    { value: ROLES.HRD, label: "HRD" },
+                    { value: ROLES.LEADER, label: "Pimpinan" },
+                    { value: ROLES.EMPLOYEE, label: "Pegawai" },
+                  ]}
+                />
+              ) : null,
+          },
+          {
+            key: "organization",
+            label: "Organisasi",
+            control: isSuperadmin ? (
+              <OrganizationSelect
+                allowClear
+                autoSelectFirst
+                value={organizationId}
+                onChange={(value) => list.updateFilters({ organizationId: value })}
+              />
+            ) : null,
+          },
+        ]}
+      />
       <DataPanel
         title="Daftar akun organisasi"
         description={
@@ -214,26 +264,6 @@ export default function OrganizationAccountsPage() {
             : user.access?.hris?.fullAdmin
               ? "Kelola akun lain dan pembagian akses dalam organisasi Anda."
               : "Daftar hanya menampilkan akun Pegawai lain yang dapat Anda kelola."
-        }
-        toolbar={
-          <DataToolbar
-            embedded
-            search={list.search}
-            onSearchChange={list.setSearch}
-            status={list.status}
-            onStatusChange={list.setStatus}
-            onRefresh={list.refresh}
-            filters={
-              isSuperadmin ? (
-                <OrganizationSelect
-                  allowClear
-                  autoSelectFirst
-                  value={organizationId}
-                  onChange={(value) => list.updateFilters({ organizationId: value })}
-                />
-              ) : null
-            }
-          />
         }
       >
         <ResponsiveDataView

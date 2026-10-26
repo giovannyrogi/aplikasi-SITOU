@@ -6,7 +6,7 @@ import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import DataToolbar from "@/app/components/filters/DataToolbar";
+import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
@@ -150,29 +150,34 @@ export default function LocationsPage() {
           </Button>
         }
       />
+      <OperationalFilterSection
+        title="Filter lokasi"
+        description="Cari dan saring daftar lokasi sesuai kebutuhan."
+        searchLabel="Cari lokasi"
+        searchPlaceholder="Nama atau kode lokasi"
+        statusLabel="Status lokasi"
+        search={list.search}
+        onSearchChange={list.setSearch}
+        status={list.status}
+        onStatusChange={list.setStatus}
+        onRefresh={list.refresh}
+        items={[
+          {
+            key: "organization",
+            label: "Organisasi",
+            control: isSuperadmin ? (
+              <OrganizationSelect
+                allowClear
+                value={organizationId}
+                onChange={(value) => list.updateFilters({ organizationId: value })}
+              />
+            ) : null,
+          },
+        ]}
+      />
       <DataPanel
         title="Daftar lokasi"
         description="Tinjau lokasi operasional dan cakupan Admin/HRD pada setiap organisasi."
-        toolbar={
-          <DataToolbar
-            embedded
-            search={list.search}
-            onSearchChange={list.setSearch}
-            status={list.status}
-            onStatusChange={list.setStatus}
-            onRefresh={list.refresh}
-            filters={
-              isSuperadmin ? (
-                <OrganizationSelect
-                  allowClear
-                  value={organizationId}
-                  onChange={(value) => list.updateFilters({ organizationId: value })}
-                  style={{ minWidth: 220 }}
-                />
-              ) : null
-            }
-          />
-        }
       >
         <ResponsiveDataView
           data={list.data}

@@ -8,7 +8,7 @@ import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import DataToolbar from "@/app/components/filters/DataToolbar";
+import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
@@ -163,28 +163,34 @@ export default function PositionsPage() {
           </Button>
         }
       />
+      <OperationalFilterSection
+        title="Filter jabatan"
+        description="Cari dan saring daftar jabatan sesuai kebutuhan."
+        searchLabel="Cari jabatan"
+        searchPlaceholder="Nama atau kode jabatan"
+        statusLabel="Status jabatan"
+        search={list.search}
+        onSearchChange={list.setSearch}
+        status={list.status}
+        onStatusChange={list.setStatus}
+        onRefresh={list.refresh}
+        items={[
+          {
+            key: "organization",
+            label: "Organisasi",
+            control: isSuperadmin ? (
+              <OrganizationSelect
+                allowClear
+                value={organizationId}
+                onChange={(value) => list.updateFilters({ organizationId: value })}
+              />
+            ) : null,
+          },
+        ]}
+      />
       <DataPanel
         title="Daftar jabatan"
         description="Jabatan aktif dapat dipakai pada penempatan dan histori karier pegawai."
-        toolbar={
-          <DataToolbar
-            embedded
-            search={list.search}
-            onSearchChange={list.setSearch}
-            status={list.status}
-            onStatusChange={list.setStatus}
-            onRefresh={list.refresh}
-            filters={
-              isSuperadmin ? (
-                <OrganizationSelect
-                  allowClear
-                  value={organizationId}
-                  onChange={(value) => list.updateFilters({ organizationId: value })}
-                />
-              ) : null
-            }
-          />
-        }
       >
         <ResponsiveDataView
           data={list.data}

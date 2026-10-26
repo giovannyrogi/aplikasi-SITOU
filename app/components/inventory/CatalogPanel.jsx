@@ -7,7 +7,6 @@ import PageHeader from "@/app/components/layout/PageHeader";
 import PrerequisiteHint from "@/app/components/forms/PrerequisiteHint";
 import usePrerequisiteNavigation from "@/app/hooks/usePrerequisiteNavigation";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import DataToolbar from "@/app/components/filters/DataToolbar";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
 import InventoryItemGallery from "./InventoryItemGallery";
@@ -376,6 +375,24 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
           ) : null
         }
       />
+      {kind !== "items" ? (
+        <OperationalFilterSection
+          title={`Filter ${NAMES[kind]}`}
+          description={`Cari dan saring daftar ${NAMES[kind]} berdasarkan status.`}
+          searchLabel={`Cari ${NAMES[kind]}`}
+          searchPlaceholder={`Nama atau kode ${NAMES[kind]}`}
+          statusLabel={`Status ${NAMES[kind]}`}
+          search={list.search}
+          onSearchChange={list.setSearch}
+          status={list.status}
+          onStatusChange={list.setStatus}
+          onRefresh={() => {
+            setOptionsRevision((current) => current + 1);
+            void list.refresh();
+          }}
+          items={[{ key: "organization", label: "Organisasi", control: organizationFilter }]}
+        />
+      ) : null}
       {kind === "items" ? (
         <OperationalFilterSection
           title="Filter barang persediaan"
@@ -414,20 +431,6 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
             list.loading
               ? "Memuat katalog..."
               : `${list.pagination.total} data. ${options?.canManageCatalog ? "Kelola data bersama organisasi." : "Data bersama organisasi; perubahan hanya oleh Pengelola Master Inventaris."}`
-          }
-          toolbar={
-            <DataToolbar
-              embedded
-              search={list.search}
-              onSearchChange={list.setSearch}
-              status={list.status}
-              onStatusChange={list.setStatus}
-              onRefresh={() => {
-                setOptionsRevision((current) => current + 1);
-                void list.refresh();
-              }}
-              filters={organizationFilter}
-            />
           }
         >
           <ResponsiveDataView
