@@ -411,3 +411,11 @@ pencatatan zona organisasi, bukan tanggal kejadian yang dapat dikoreksi. Index
 pada histori kasus pegawai yang tidak dihapus. Pemulihan sanksi kini menelusuri
 rantai penggantian untuk satu pendahulu terdekat yang masih berlaku; tidak ada
 perubahan status historis secara otomatis oleh migration.
+
+## Sesi native mobile (migration 065)
+
+`mobile_auth_sessions` menyimpan UUID sesi, `organization_id`, `user_id`, `employee_id`, `role_assignment_id`, snapshot `credential_version`, `token_hash` SHA-256 unik, `created_at`, `expires_at` dan `revoked_at`. FK profil/membership komposit mengikat organisasi; FK user dihapus cascade ketika akun dihapus fisik. Durasi sesi baru dibaca dari `AUTH_MOBILE_SESSION_TTL_MINUTES` backend (wajib integer 1–10080 menit); perubahan konfigurasi tidak mengubah expiry sesi existing. Constraint membatasi expiry maksimal tujuh hari setelah created_at, hash 64 karakter heksadesimal dan versi positif. Index expiry untuk prune serta organisasi/user untuk sesi aktif. Token mentah hanya dikirim sekali dan tidak tersimpan di database.
+
+Tidak mengubah tabel akun atau role. Kelayakan mobile berbeda dari matriks login web di atas: semua role organisasi dengan profil pribadi berizin menggunakan Homepage sama; status suspended hanya baca, profil final/draft ditolak dan penempatan tidak memblokir login. Guard membaca ulang data existing dan versi kredensial, sehingga perubahan password/penonaktifan/pensiun/pencabutan akses menghentikan sesi. Lihat `docs/mobile-auth.md` untuk urutan penolakan, payload dan pesan.
+
+Upgrade database existing memakai `database/migrations/20261027_065_mobile_auth_sessions.sql`; bootstrap kosong memakai snapshot final. `npm run db:verify-bootstrap` membandingkan constraint dan kolom sesi mobile hasil kedua jalur. `npm run auth:mobile-sessions:prune` menghapus sesi kedaluwarsa atau revoked lebih dari satu hari; audit tetap tersimpan. Migration lokal telah diterapkan untuk pengembangan; produksi mengikuti otorisasi rollout terpisah.

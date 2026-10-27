@@ -57,3 +57,11 @@ Baca `AGENTS.md` untuk aturan pengembangan dan `docs/database-schema.md` untuk p
 ## Deployment production
 
 Ikuti [panduan hardening dan rollout production](docs/production-hardening.md) untuk migration 032, ClamAV, pemindaian file lama, worker purge, Nginx, dan smoke test sebelum membuka kembali aplikasi.
+
+## Backend SITOU Mobile
+
+API login native tersedia pada `/api/auth/mobile/login`, `/me`, `/logout`; [kontrak, kebijakan dan operasional](docs/mobile-auth.md). Login web tetap memakai cookie dan perilaku existing. Sebelum mengaktifkan backend versi ini pada database existing, terapkan migration `20261027_065_mobile_auth_sessions.sql` setelah migration sebelumnya; jangan menjalankan bootstrap pada database berisi data. Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` sebelum restart.
+
+Pemeliharaan harian sesi: `npm run auth:mobile-sessions:prune`, pilih konfigurasi dengan `ENV_FILE` sesuai environment. Flutter development mengakses Next.js lokal port 3000 melalui `adb reverse`; rilis memakai host HTTPS VPS. Tidak ada deployment VPS/migration produksi otomatis dalam integrasi lokal ini. Cadangkan database, verifikasi staging dan review prosedur rollback sebelum rollout; tabel baru bersifat aditif dan cookie/web tidak diganti.
+
+Durasi sesi mobile ditentukan backend melalui `AUTH_MOBILE_SESSION_TTL_MINUTES=10080` (tujuh hari), wajib integer 1–10080. Atur di environment development dan, saat rollout, production sebelum restart. Nilai hilang/invalid menolak login mobile; tidak memakai fallback atau TTL web. Hanya sesi baru mengikuti nilai baru. Tidak perlu migration/ubah Flutter untuk TTL dalam batas tersebut. Detail: `docs/mobile-auth.md`.

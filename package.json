@@ -32,7 +32,8 @@
     "backup:restore": "node scripts/restore-system-backup.mjs",
     "backup:diagnose-files": "node scripts/diagnose-system-backup-files.mjs",
     "db:migrate": "node scripts/apply-development-migration.mjs",
-    "files:scan-malware": "node scripts/scan-stored-files-malware.mjs"
+    "files:scan-malware": "node scripts/scan-stored-files-malware.mjs",
+    "auth:mobile-sessions:prune": "node scripts/prune-mobile-sessions.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",

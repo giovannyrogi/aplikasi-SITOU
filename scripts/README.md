@@ -17,3 +17,6 @@ Generator ikon membandingkan isi SVG setelah menormalkan akhir baris CRLF/LF,
 sehingga checkout Windows tidak dianggap memiliki bundle usang hanya karena
 perbedaan akhir baris. Nama atau data ikon yang benar-benar berubah tetap harus
 dibuat ulang melalui `npm run icons:generate`.
+
+- `prune-mobile-sessions.mjs` / `npm run auth:mobile-sessions:prune`: menghapus sesi mobile expired atau revoked lebih dari satu hari, tanpa menghapus audit. Default `.env.development`, override dengan `ENV_FILE`; jadwalkan harian hanya pada environment yang diotorisasi setelah migration 065. Tidak mencetak credential/token. Lihat `docs/mobile-auth.md`.
+- `verify-schema-bootstrap.mjs` juga membandingkan kolom/constraint `mobile_auth_sessions` dengan hasil upgrade lokal.

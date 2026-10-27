@@ -23,17 +23,19 @@ let bootstrap;
 let adminConnected = false;
 
 function constraintSignature(rows) {
-  return JSON.stringify(rows.map((row) => ({
-    ...row,
-    // PostgreSQL dapat mencetak cast array varchar ke text per elemen atau
-    // pada seluruh array. Normalisasi hanya array literal varchar tersebut;
-    // operator, pengelompokan kondisi, dan nilai constraint tetap diperiksa.
-    definition: row.definition.replace(/ARRAY\[([^\]]*)\](?:::text\[\])?/g, (array, values) => {
-      const literal = "'(?:[^']|'')*'::character varying(?:::text)?";
-      if (!new RegExp(`^${literal}(?:, ${literal})*$`).test(values)) return array;
-      return `ARRAY[${values.replaceAll("::character varying::text", "::character varying")}]::text[]`;
-    }),
-  })));
+  return JSON.stringify(
+    rows.map((row) => ({
+      ...row,
+      // PostgreSQL dapat mencetak cast array varchar ke text per elemen atau
+      // pada seluruh array. Normalisasi hanya array literal varchar tersebut;
+      // operator, pengelompokan kondisi, dan nilai constraint tetap diperiksa.
+      definition: row.definition.replace(/ARRAY\[([^\]]*)\](?:::text\[\])?/g, (array, values) => {
+        const literal = "'(?:[^']|'')*'::character varying(?:::text)?";
+        if (!new RegExp(`^${literal}(?:, ${literal})*$`).test(values)) return array;
+        return `ARRAY[${values.replaceAll("::character varying::text", "::character varying")}]::text[]`;
+      }),
+    })),
+  );
 }
 
 try {
@@ -117,14 +119,19 @@ try {
     checks.retirement_columns_match_upgrade =
       JSON.stringify(freshColumns.rows) === JSON.stringify(existingColumns.rows);
 
-    for (const table of ["disciplinary_action_types", "disciplinary_actions"]) {
+    for (const table of [
+      "disciplinary_action_types",
+      "disciplinary_actions",
+      "mobile_auth_sessions",
+    ]) {
       const constraintSql = `SELECT conname,pg_get_constraintdef(oid,true) AS definition FROM pg_constraint WHERE conrelid='public.${table}'::regclass ORDER BY conname`;
       const [freshConstraints, existingConstraints] = await Promise.all([
         bootstrap.query(constraintSql),
         upgraded.query(constraintSql),
       ]);
       checks[`${table}_constraints_match_upgrade`] =
-        constraintSignature(freshConstraints.rows) === constraintSignature(existingConstraints.rows);
+        constraintSignature(freshConstraints.rows) ===
+        constraintSignature(existingConstraints.rows);
       // Migration dapat menambahkan kolom snapshot di akhir tabel, sedangkan bootstrap
       // menempatkannya dekat kolom jenis. Urutan fisik tidak mengubah kontrak schema.
       const tableColumnsSql = `SELECT column_name,data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='${table}' ORDER BY column_name`;

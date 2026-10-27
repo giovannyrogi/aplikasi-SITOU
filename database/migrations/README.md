@@ -231,3 +231,7 @@ Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` setelah upgrade.
 - 064: counter atomik nomor kasus per organisasi/tahun pencatatan, backfill dari
   nomor tertinggi termasuk kasus terhapus, serta index urutan histori pegawai.
   Jalankan setelah 063; tidak mengubah nomor lama atau status sanksi.
+
+## 065 — Sesi SITOU Mobile
+
+`20261027_065_mobile_auth_sessions.sql` menambah tabel sesi bearer opaque terpisah dari cookie web, dengan hash token, expiry maksimal tujuh hari dan FK organisasi/profil/membership. Jalankan pada database existing setelah migration sebelumnya; tidak mengganti akun atau password. Bootstrap final sudah memuat struktur yang sama. Verifikasi `npm run db:verify-bootstrap`; pemeliharaan `npm run auth:mobile-sessions:prune`. Kontrak/rollout: `docs/mobile-auth.md`. Tidak diterapkan otomatis ke VPS.
