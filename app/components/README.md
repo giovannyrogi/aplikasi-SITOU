@@ -560,3 +560,8 @@ Kandidat pemulihan berasal dari penelusuran rantai di server; modal menampilkan
 satu pendahulu terdekat yang masih berlaku beserta tanggal aslinya. Daftar kasus
 EmployeeDetail mengikuti urutan waktu pencatatan dari API, tanpa pengurutan ulang
 berdasarkan tanggal kejadian di client. Riwayat sanksi tetap tanggal terbit terbaru.
+
+
+## Jadwal kerja
+
+work-schedules/ScheduleFields.jsx menyediakan DateField/TimeField/MinutesField/WorkScheduleFields serta transport/error bersama; WorkScheduleFields dipakai onboarding dan penetapan. MasterEditor.jsx editor shift/pola/kalender dengan hari pola berpaginasi. WorkMasterPage.jsx memakai PageHeader/OperationalFilterSection/ResponsiveDataView/RowActionMenu/AppModal/ConfirmDialog/notifikasi/backdrop existing. WorkSchedulePage.jsx dipakai menu utama serta detail Pegawai: seleksi maksimal 100, konfirmasi, histori, exception dan preview/generator. Keputusan aturan tetap backend.

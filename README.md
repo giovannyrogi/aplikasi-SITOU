@@ -67,3 +67,8 @@ API login native tersedia pada `/api/auth/mobile/login`, `/me`, `/logout`; [kont
 Pemeliharaan harian sesi: `npm run auth:mobile-sessions:prune`, pilih konfigurasi dengan `ENV_FILE` sesuai environment. Flutter development mengakses Next.js lokal port 3000 melalui `adb reverse`; rilis memakai host HTTPS VPS. Tidak ada deployment VPS/migration produksi otomatis dalam integrasi lokal ini. Cadangkan database, verifikasi staging dan review prosedur rollback sebelum rollout; tabel baru bersifat aditif dan cookie/web tidak diganti.
 
 Durasi sesi mobile ditentukan backend melalui `AUTH_MOBILE_SESSION_TTL_MINUTES=10080` (tujuh hari), wajib integer 1–10080. Atur di environment development dan, saat rollout, production sebelum restart. Nilai hilang/invalid menolak login mobile; tidak memakai fallback atau TTL web. Hanya sesi baru mengikuti nilai baru. Tidak perlu migration/ubah Flutter untuk TTL dalam batas tersebut. Detail: `docs/mobile-auth.md`.
+
+
+## Jadwal kerja fleksibel
+
+Dashboard menyediakan Shift & Pola Kerja, Kalender Libur, Jadwal Kerja dan jadwal awal opsional di langkah 4 Penempatan. [Kontrak dan operasional](docs/work-schedules.md). Database existing memerlukan migration 066 setelah 065; bootstrap hanya untuk database kosong. Beri hak HRIS baca/kelola tersendiri. Absensi mobile/kerja tambahan/penggantian waktu belum diintegrasikan. Tidak ada deployment VPS otomatis.

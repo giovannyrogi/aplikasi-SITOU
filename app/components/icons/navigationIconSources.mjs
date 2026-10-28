@@ -1,5 +1,8 @@
 // Nama semantik tetap stabil; data SVG dari paket Iconify diekstrak saat build, bukan diminta dari API browser.
 export const NAVIGATION_ICON_SOURCES = Object.freeze({
+  "navigation:work-shifts": "solar:clock-circle-bold-duotone",
+  "navigation:work-schedules": "solar:calendar-date-bold-duotone",
+  "navigation:work-calendars": "solar:calendar-mark-bold-duotone",
   "activity:edit": "solar:pen-new-square-bold-duotone",
   "activity:view-all": "solar:clipboard-list-bold-duotone",
   "activity:login": "solar:login-2-bold-duotone",

@@ -219,3 +219,8 @@ yang berlaku saat kejadian. Login memerlukan snapshot audit role_code=hrd,
 bukan role saat ini saja. Aktivitas Pegawai/Pimpinan/Superadmin tidak masuk
 feed organisasi; filter izin dan scope tetap berlaku sebelum LIMIT lima data.
 Audit login dan histori bisnis tidak diubah atau dihapus.
+
+
+## Jadwal kerja — 066
+
+work-shifts (Data Master), work-calendars (Pengaturan Organisasi), work-schedules (Kepegawaian) memakai baca/kelola tersendiri. Hak Data Pegawai tidak memberikan penetapan jadwal. Admin penuh mengikuti katalog HRIS; delegasi perlu grant eksplisit. Scope lokasi membatasi target Pegawai. Preview baca; generator/penetapan/exception/cancel kelola. Route dan layanan memeriksa hak terkini. Opsi hanya referensi minimum, bukan perluasan administrasi. Lihat work-schedules.md.

@@ -123,6 +123,18 @@ try {
       "disciplinary_action_types",
       "disciplinary_actions",
       "mobile_auth_sessions",
+      "work_shifts",
+      "shift_patterns",
+      "shift_pattern_days",
+      "shift_assignments",
+      "employee_daily_schedules",
+      "work_shift_revisions",
+      "work_calendars",
+      "work_calendar_days",
+      "work_schedule_exceptions",
+      "work_schedule_exception_sessions",
+      "work_schedule_sessions",
+      "work_schedule_requests",
     ]) {
       const constraintSql = `SELECT conname,pg_get_constraintdef(oid,true) AS definition FROM pg_constraint WHERE conrelid='public.${table}'::regclass ORDER BY conname`;
       const [freshConstraints, existingConstraints] = await Promise.all([
@@ -132,6 +144,13 @@ try {
       checks[`${table}_constraints_match_upgrade`] =
         constraintSignature(freshConstraints.rows) ===
         constraintSignature(existingConstraints.rows);
+      const indexSql = `SELECT indexname,indexdef FROM pg_indexes WHERE schemaname='public' AND tablename='${table}' ORDER BY indexname`;
+      const [freshIndexes, existingIndexes] = await Promise.all([
+        bootstrap.query(indexSql),
+        upgraded.query(indexSql),
+      ]);
+      checks[`${table}_indexes_match_upgrade`] =
+        JSON.stringify(freshIndexes.rows) === JSON.stringify(existingIndexes.rows);
       // Migration dapat menambahkan kolom snapshot di akhir tabel, sedangkan bootstrap
       // menempatkannya dekat kolom jenis. Urutan fisik tidak mengubah kontrak schema.
       const tableColumnsSql = `SELECT column_name,data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='${table}' ORDER BY column_name`;

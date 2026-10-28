@@ -235,3 +235,8 @@ Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` setelah upgrade.
 ## 065 — Sesi SITOU Mobile
 
 `20261027_065_mobile_auth_sessions.sql` menambah tabel sesi bearer opaque terpisah dari cookie web, dengan hash token, expiry maksimal tujuh hari dan FK organisasi/profil/membership. Jalankan pada database existing setelah migration sebelumnya; tidak mengganti akun atau password. Bootstrap final sudah memuat struktur yang sama. Verifikasi `npm run db:verify-bootstrap`; pemeliharaan `npm run auth:mobile-sessions:prune`. Kontrak/rollout: `docs/mobile-auth.md`. Tidak diterapkan otomatis ke VPS.
+
+
+## 066 — Jadwal fleksibel
+
+20261028_066_work_schedule_foundation.sql sesudah 065 menghapus code hanya pada shift/pola; menambah revisi, kalender, detail sesi, exception, version/idempotency dan tiga menu HRIS. Preflight nama/periode/dependency wajib; tanpa CASCADE atau grant delegasi otomatis. Bootstrap disinkronkan. Runner development tidak mencatat ledger: cek work_schedule_sessions dan jangan ulang migration. Panduan rollback/rollout: docs/work-schedules.md. Tidak diterapkan ke VPS otomatis.

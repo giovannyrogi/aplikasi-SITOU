@@ -1,5 +1,7 @@
 "use client";
 
+import { WorkScheduleFields } from "@/app/components/work-schedules/ScheduleFields";
+import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import { readApiResponse } from "@/lib/api/clientError";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -90,7 +92,7 @@ function getStepFromFieldPath(name) {
   const key = normalizeFieldPath(name).join(".");
   if (key.startsWith("profile.educations")) return 1;
   if (key.startsWith("contract.")) return 2;
-  if (key.startsWith("assignment.")) return 3;
+  if (key.startsWith("assignment.") || key.startsWith("workSchedule.")) return 3;
   return 0;
 }
 
@@ -485,6 +487,9 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
     if (domicileSameAsKtp) contact.domicileAddress = contact.ktpAddress || null;
     return {
       ...values,
+      ...(!editing
+        ? { workSchedule: values.workSchedule?.patternId ? values.workSchedule : null }
+        : {}),
       maritalStatus: normalizeMaritalStatus(values.maritalStatus),
       birthDate: formatDate(values.birthDate),
       joinedDate: formatDate(values.joinedDate),
@@ -1474,6 +1479,12 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                       />
                     </Form.Item>
                   </Box>
+                  {hrisLevel(user, "work-schedules") === "manage" && (
+                    <Box sx={{ gridColumn: "1 / -1" }}>
+                      <FontStyle fontWeight={700}>Jadwal kerja awal</FontStyle>
+                      <WorkScheduleFields organizationId={targetOrganizationId} optional />
+                    </Box>
+                  )}
                 </Box>
               </>
             ) : null}

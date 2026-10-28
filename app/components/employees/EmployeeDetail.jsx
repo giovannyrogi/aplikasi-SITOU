@@ -1,4 +1,5 @@
 "use client";
+import WorkSchedulePage from "@/app/components/work-schedules/WorkSchedulePage";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import { readApiResponse } from "@/lib/api/clientError";
 import { hrisLevel, accountCapabilities } from "@/lib/access/hrisPolicy.mjs";
@@ -98,6 +99,7 @@ const CONTRACT_STATUS = {
 const VALID_TABS = [
   "summary",
   "assignments",
+  "work-schedules",
   "contracts",
   "documents",
   "insurance",
@@ -528,12 +530,15 @@ export default function EmployeeDetail({ employeeId }) {
   const readOnly =
     user.role_code === ROLES.LEADER ||
     (user.role_code === "hrd" && hrisLevel(user, "employees") !== "manage");
+  const canReadWorkSchedule =
+    ["superadmin", "hrd"].includes(user.role_code) && Boolean(hrisLevel(user, "work-schedules"));
   const canReadLeave = Boolean(hrisLevel(user, "leave-requests"));
   const canManageAccounts = accountCapabilities(user).canManageAccounts;
   const requestedTab = normalizeDetailTab(searchParams.get("tab"));
   const initialTab =
     VALID_TABS.includes(requestedTab) &&
     !(
+      (requestedTab === "work-schedules" && !canReadWorkSchedule) ||
       (requestedTab === "leave" && !canReadLeave) ||
       (requestedTab === "account" && !canManageAccounts) ||
       (requestedTab === "bank" && user.role_code === ROLES.LEADER)
@@ -624,6 +629,7 @@ export default function EmployeeDetail({ employeeId }) {
       setActiveTab(
         VALID_TABS.includes(tab) &&
           !(
+            (tab === "work-schedules" && !canReadWorkSchedule) ||
             (tab === "leave" && !canReadLeave) ||
             (tab === "account" && !canManageAccounts) ||
             (tab === "bank" && user.role_code === ROLES.LEADER)
@@ -634,7 +640,7 @@ export default function EmployeeDetail({ employeeId }) {
     };
     window.addEventListener("popstate", syncFromHistory);
     return () => window.removeEventListener("popstate", syncFromHistory);
-  }, [canManageAccounts, canReadLeave, user.role_code]);
+  }, [canManageAccounts, canReadLeave, canReadWorkSchedule, user.role_code]);
 
   /** Mengubah URL tab tanpa memicu request halaman atau loading global. */
   const changeTab = (nextTab) => {
@@ -877,6 +883,17 @@ export default function EmployeeDetail({ employeeId }) {
         </Box>
       ),
     },
+    ...(canReadWorkSchedule
+      ? [
+          {
+            key: "work-schedules",
+            label: "Jadwal kerja",
+            children: (
+              <WorkSchedulePage employeeId={employeeId} presetOrganizationId={organizationId} />
+            ),
+          },
+        ]
+      : []),
     {
       key: "contracts",
       label: <TabLabel icon={<FileTextOutlined />}>Kontrak</TabLabel>,

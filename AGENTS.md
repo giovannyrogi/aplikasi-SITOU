@@ -1006,3 +1006,9 @@ Dashboard Pegawai memakai banner profil, tiga ringkasan sesuai izin, saldo per j
 - Endpoint mobile baru wajib `requireMobileUser()`; mutation memakai `{write:true}` ditambah permission/objek/organisasi dan validasi bisnis. Cookie web bukan bearer mobile dan bearer mobile tidak otomatis membuka API admin web.
 - Tabel sesi hanya menyimpan hash token, expiry mutlak dari `AUTH_MOBILE_SESSION_TTL_MINUTES` backend (wajib integer 1–10080 menit, maksimal tujuh hari) tanpa refresh, snapshot versi kredensial serta FK organisasi/profil/membership. Selalu periksa kelayakan terkini, revocation dan expiry; jangan memasukkan token ke log/URL.
 - Perubahan schema melalui migration baru dan sinkronisasi snapshot/peta/kontrak/operasional. Jalankan verifikasi upgrade serta bootstrap kosong. Penerapan lokal tidak mengizinkan deployment VPS otomatis.
+
+
+## Form dan fondasi jadwal kerja
+
+- Form baru hanya memuat field yang memiliki fungsi nyata bagi pengguna atau proses bisnis. Field Kode tidak ditambahkan secara default; gunakan hanya jika ada kebutuhan identifikasi bisnis, integrasi, atau operasional yang jelas. ID internal database tidak perlu ditampilkan sebagai isian pengguna. Jangan menghapus field kode modul existing lain secara massal.
+- Jadwal mengikuti docs/work-schedules.md. Sumber aturan adalah revisi efektif dan snapshot sesi; histori terpakai tidak ditimpa. Hak work-schedules berdiri sendiri dari Data Pegawai. Profil dan jadwal awal harus satu transaksi.

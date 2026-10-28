@@ -2,11 +2,11 @@
 
 ## Alur Pengguna
 
-Wizard tambah pegawai terdiri dari `Profil`, `Kontrak`, dan `Penempatan`. Setiap step hanya menampilkan field miliknya. Perubahan disimpan ke draft privat saat pengguna menekan `Lanjut`, `Kembali`, atau `Simpan draft & tutup`; pengetikan field tidak mengirim request ke server. Draft aktif dipulihkan ketika modal dibuka kembali, termasuk setelah refresh atau login ulang.
+Wizard tambah pegawai terdiri dari empat langkah: `Profil`, `Pendidikan`, `Kontrak`, dan `Penempatan`. Setiap step hanya menampilkan field miliknya. Perubahan disimpan ke draft privat saat pengguna menekan `Lanjut`, `Kembali`, atau `Simpan draft & tutup`; pengetikan field tidak mengirim request ke server. Draft aktif dipulihkan ketika modal dibuka kembali, termasuk setelah refresh atau login ulang.
 
 Draft berlaku tujuh hari dan hanya dapat dibaca atau diubah oleh pembuatnya pada organisasi yang sama. Tombol `Mulai ulang` menandai draft lama serta file staging sebagai terhapus, lalu membuat draft kosong.
 
-KTP dan pas foto bersifat opsional. KTP menerima JPEG, PNG, WebP, atau PDF maksimal 5 MB; pas foto menerima JPEG, PNG, atau WebP maksimal 5 MB. Kontrak aktif wajib memiliki nomor dan PDF kontrak maksimal 10 MB. Penempatan aktif wajib memiliki nomor SK dan PDF SK maksimal 10 MB. MIME diperiksa dari isi byte dan browser hanya menerima ID metadata file.
+KTP dan pas foto bersifat opsional. KTP menerima JPEG, PNG, WebP, atau PDF maksimal 5 MB; pas foto menerima JPEG, PNG, atau WebP maksimal 5 MB. Pendaftaran awal boleh tanpa nomor/dokumen kontrak dan SK. Dokumen yang diisi tetap divalidasi; kontrak/penempatan baru di luar onboarding mengikuti workflow dokumen masing-masing. MIME diperiksa dari isi byte dan browser hanya menerima ID metadata file.
 
 ## Endpoint
 
@@ -29,3 +29,7 @@ Usia pada Ringkasan diturunkan sebagai tahun, bulan, dan hari dari tanggal lahir
 `employment_types.requires_end_date=true` berarti tanggal kedaluwarsa kontrak wajib; false berarti tidak digunakan. API detail menyediakan `contract_requires_end_date`; histori kontrak menyediakan `requires_end_date`. Form baru, pendaftaran/draft, dan koreksi menyembunyikan tanggal akhir serta mengirim null untuk jenis tanpa akhir. Request aktif/new dengan tanggal berisi ditolak sebagai `CONTRACT_END_NOT_APPLICABLE` dan field error. Histori tertutup tetap mempertahankan tanggal penutupannya, dengan label Tanggal penutupan periode. Tidak ada backfill atau penghapusan otomatis pada data/file lama.
 
 Import menerapkan aturan yang sama pada validasi dan pemeriksaan ulang saat commit; tanggal penutupan histori resmi tetap dapat dicatat. Laporan/indikator kedaluwarsa hanya menghitung jenis yang menggunakan akhir. Export mempertahankan kolom dan memakai Tidak berlaku untuk kedaluwarsa yang tidak digunakan, sambil mempertahankan penutupan histori.
+
+## Jadwal kerja awal
+
+Opsional di langkah 4 Penempatan, dengan hak Kelola Jadwal Kerja. workSchedule {patternId,from,until?,anchorDate?} disimpan/dipulihkan bersama draft. Saat pola dipilih, field wajib terkait harus lengkap. Finalisasi profil dan penetapan satu transaksi; gagal jadwal membatalkan profil parsial. Payload lama tanpa jadwal tetap valid; import belum berubah. Pegawai existing memakai menu Jadwal Kerja atau bagian detail dengan layanan sama. Lihat work-schedules.md.
