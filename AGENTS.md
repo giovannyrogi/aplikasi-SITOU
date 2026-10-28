@@ -997,6 +997,8 @@ Dashboard Pegawai memakai banner profil, tiga ringkasan sesuai izin, saldo per j
 
 ## Autentikasi native SITOU Mobile
 
+- API baca beranda `/api/mobile/home` dan foto pribadi `/api/mobile/profile-photo` mengikuti `docs/mobile-home.md`: bearer melalui requireMobileUser, permission self-service existing dan identitas dari sesi saja, tanpa selector atau akses admin tersirat. Storage foto tetap privat/audited/no-store. Tidak ada statistik absensi atau mutation bisnis pada endpoint ini; data contoh homepage Flutter bukan rekap backend. Kontrak login/web dan schema tidak berubah.
+
 - Kontrak `/api/auth/mobile/login`, `/me`, `/logout` dan kebijakan mobile wajib mengikuti `docs/mobile-auth.md`; login/cookie/origin/pesan serta permission web existing tetap dipertahankan.
 - Shared `verifyLoginCredentials()` mempertahankan bcrypt/dummy hash, bucket kegagalan dan audit; jangan menduplikasi pemeriksaan password atau memisahkan bucket agar web/mobile dapat dilewati bergantian.
 - Khusus mobile, produk menyetujui username tidak ditemukan dan password salah dibedakan melalui 401 `USERNAME_NOT_FOUND`/`PASSWORD_MISMATCH` dengan fieldErrors spesifik dan singkat. Jangan menerapkan pesan gabungan web pada mobile atau mengubah pesan web tanpa instruksi baru. Pantau audit/rate limit karena keputusan ini mengungkap keberadaan username.

@@ -44,6 +44,8 @@ HRD, Pimpinan dan Pegawai dengan membership berlaku pada organisasi profil menda
 
 ## Sesi dan fitur berikutnya
 
+API baca beranda kini tersedia lokal melalui GET `/api/mobile/home` dan `/api/mobile/profile-photo`, tanpa mengubah envelope login/me/logout. Lihat `docs/mobile-home.md` untuk DTO minimum, permission per bagian, akses foto privat, zona waktu dan urutan deployment. Endpoint web existing tetap tidak menerima bearer mobile; hanya adapter mobile tersebut yang ditambahkan. Tidak ada endpoint pencatatan absensi/cuti baru.
+
 Migration `20261027_065_mobile_auth_sessions.sql` menambah `mobile_auth_sessions`. Token acak 256 bit dengan prefix `sm1_`; hanya SHA-256 token tersimpan di database. Expiry mutlak dibaca dari `AUTH_MOBILE_SESSION_TTL_MINUTES` pada environment backend, tanpa refresh. Snapshot mengikat user, organisasi, profil, membership dan `credential_version`; FK komposit mencegah referensi profil/membership lintas organisasi. Hasil API hanya identitas minimum, bukan data profil sensitif atau password hash.
 
 Setiap request terproteksi memanggil `requireMobileUser(request)`, membaca ulang status dan versi kredensial. Sesi hilang/palsu/expired/revoked -> 401 `UNAUTHENTICATED`, “Sesi berakhir. Silakan masuk kembali.” Perubahan password atau relasi/membership membuat snapshot tidak cocok dan mencabut sesi; penonaktifan, pensiun atau akses dicabut ditolak pada pemakaian berikutnya. Logout mencabut satu sesi. Sesi perangkat lain independen sampai status/versi berubah.

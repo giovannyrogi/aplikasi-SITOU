@@ -60,6 +60,8 @@ Ikuti [panduan hardening dan rollout production](docs/production-hardening.md) u
 
 ## Backend SITOU Mobile
 
+Beranda Flutter memakai API baca bearer `/api/mobile/home` dan `/api/mobile/profile-photo`; lihat [kontrak beranda mobile](docs/mobile-home.md). Deploy kode backend sebelum APK homepage, tanpa migration baru; login/web tetap memakai kontrak existing. Data shift/absensi/ringkasan/pengumuman contoh Flutter bukan hasil database dan belum siap operasional produksi. Penerapan VPS tetap tindakan terpisah.
+
 API login native tersedia pada `/api/auth/mobile/login`, `/me`, `/logout`; [kontrak, kebijakan dan operasional](docs/mobile-auth.md). Login web tetap memakai cookie dan perilaku existing. Sebelum mengaktifkan backend versi ini pada database existing, terapkan migration `20261027_065_mobile_auth_sessions.sql` setelah migration sebelumnya; jangan menjalankan bootstrap pada database berisi data. Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` sebelum restart.
 
 Pemeliharaan harian sesi: `npm run auth:mobile-sessions:prune`, pilih konfigurasi dengan `ENV_FILE` sesuai environment. Flutter development mengakses Next.js lokal port 3000 melalui `adb reverse`; rilis memakai host HTTPS VPS. Tidak ada deployment VPS/migration produksi otomatis dalam integrasi lokal ini. Cadangkan database, verifikasi staging dan review prosedur rollback sebelum rollout; tabel baru bersifat aditif dan cookie/web tidak diganti.
