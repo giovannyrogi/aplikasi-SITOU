@@ -169,7 +169,7 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
                       title: "Fitur " + item.label + " nonaktif",
                       description:
                         item.code === "attendance"
-                          ? "Akses jadwal ditutup. Data dan hak akses HRD tetap tersimpan. Hanya Superadmin yang dapat mengaktifkannya."
+                          ? "Akses jadwal ditutup. Data dan hak akses HRD tetap tersimpan. Hanya Admin SITOU yang dapat mengaktifkannya."
                           : "Akses Inventaris ditutup. Gudang, transaksi dan hak akses akun tetap tersimpan.",
                     },
                   }}

@@ -601,3 +601,5 @@ OrganizationModulesModal memakai ORGANIZATION_MODULES terpusat untuk FormSetting
 - ReportCardFields menerima stacked opsional, default false. Jika aktif, label di atas nilai dengan satu kolom agar informasi tetap utuh pada ponsel/teks besar. Pemakai laporan existing mempertahankan pasangan dua kolom. Kartu Organisasi memakai stacked dan RowActionMenu fullWidth/buttonLabel pada footer.
 
 Tanggal akhir pada daftar/kartu Organisasi mengikuti status server. Saat grace, tampilkan akhir masa tenggang yang tersedia. Jika tidak, gunakan akhir periode. Status dan pemeriksaan akses tetap kewenangan backend.
+
+HrisAccessFields memakai ATTENDANCE_MENU_KEYS bersama untuk mengunci checkbox dan tingkat akses Absensi ketika attendanceEnabled bukan true. Pilih semua hanya mengubah menu yang tersedia dan mempertahankan grant lama yang terkunci. Pesan nonaktif berwarna merah menyebut Admin SITOU. Label pengguna untuk role platform mengikuti ROLE_LABELS; identifier superadmin tetap kontrak teknis.

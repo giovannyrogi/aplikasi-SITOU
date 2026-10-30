@@ -1492,7 +1492,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                         title="Jadwal kerja dapat diatur nanti"
                         description={
                           (user.access?.hris || user.hrisContext)?.attendanceEnabled === false
-                            ? "Fitur Absensi organisasi ini belum aktif. Superadmin dapat mengaktifkannya melalui menu Organisasi. Pendaftaran dapat dilanjutkan tanpa jadwal."
+                            ? "Fitur Absensi organisasi ini belum aktif. Admin SITOU dapat mengaktifkannya melalui menu Organisasi. Pendaftaran dapat dilanjutkan tanpa jadwal."
                             : "Jadwal dapat ditetapkan oleh HRD yang memiliki akses Jadwal Pegawai."
                         }
                       />

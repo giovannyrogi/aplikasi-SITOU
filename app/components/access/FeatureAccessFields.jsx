@@ -81,7 +81,7 @@ export default function FeatureAccessFields({
       ) : null}
       {canHris && !options.hasFullHrisAdmin && !showHris ? (
         <FontStyle explanation fontSize={12}>
-          Belum ada admin HRD penuh. Superadmin tetap dapat memberikan hak menu secara langsung.
+          Belum ada admin HRD penuh. Admin SITOU tetap dapat memberikan hak menu secara langsung.
         </FontStyle>
       ) : null}
       {selectableFeatures.length ? (
@@ -111,7 +111,7 @@ export default function FeatureAccessFields({
         <AppNotice
           tone="warning"
           title="Inventaris belum tersedia"
-          description="Superadmin dapat mengaktifkannya melalui Data Master → Organisasi → Kelola fitur. Setelah aktif, buka kembali formulir akun ini untuk memberikan akses."
+          description="Admin SITOU dapat mengaktifkannya melalui Data Master → Organisasi → Kelola fitur. Setelah aktif, buka kembali formulir akun ini untuk memberikan akses."
         />
       ) : null}
       <Form.Item name="expandedFeatureSections" hidden>

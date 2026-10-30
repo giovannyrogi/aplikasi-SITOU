@@ -258,7 +258,7 @@ export function EmployeeBankDetails({ profile }) {
     <ProfileSection
       icon={<BankOutlined />}
       title="Rekening pegawai"
-      description="Informasi sensitif ini hanya tersedia bagi HRD dan Superadmin."
+      description="Informasi sensitif ini hanya tersedia bagi HRD dan Admin SITOU."
     >
       <DetailRows
         items={(profile.bankAccounts || []).map((item) => ({

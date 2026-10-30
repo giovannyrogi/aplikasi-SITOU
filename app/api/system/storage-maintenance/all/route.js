@@ -16,7 +16,7 @@ export async function GET(request) {
     if (user.role_code !== "superadmin")
       throw new ServiceError(
         "ORGANIZATION_FORBIDDEN",
-        "Akses seluruh organisasi hanya untuk Superadmin.",
+        "Akses seluruh organisasi hanya untuk Admin SITOU.",
         403,
       );
     const params = new URL(request.url).searchParams;

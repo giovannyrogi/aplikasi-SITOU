@@ -129,8 +129,8 @@ export default function DisciplinaryActionTypeForm({
                 rules={[{ required: true, message: "Nama sanksi wajib diisi." }]}
                 extra={
                   user.role_code === "superadmin"
-                    ? "Nama hanya dapat dibuat atau diubah oleh Superadmin."
-                    : "Nama jenis sanksi dikelola oleh Superadmin."
+                    ? "Nama hanya dapat dibuat atau diubah oleh Admin SITOU."
+                    : "Nama jenis sanksi dikelola oleh Admin SITOU."
                 }
               >
                 <Input disabled={editing && user.role_code !== "superadmin"} maxLength={100} />
