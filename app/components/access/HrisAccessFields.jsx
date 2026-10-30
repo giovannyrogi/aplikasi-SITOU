@@ -3,6 +3,10 @@ import { Checkbox, Collapse, Form, Select } from "antd";
 import { Box } from "@mui/material";
 import { HRIS_MENUS } from "@/lib/access/hrisPolicy.mjs";
 import {
+  ATTENDANCE_MENU_KEYS,
+  ATTENDANCE_UNAVAILABLE_MESSAGE,
+} from "@/lib/access/organizationModules.mjs";
+import {
   ACCOUNT_ACCESS_OPTIONS,
   hrisMenuAccessDescription,
   FEATURE_DESCRIPTIONS,
@@ -36,6 +40,8 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
     onDirty();
   };
   const menuDefinitions = HRIS_MENUS.filter((menu) => menu.assignable);
+  const unavailable = (menu) =>
+    ATTENDANCE_MENU_KEYS.includes(menu.key) && options.attendanceEnabled !== true;
   const groups = [...new Set(menuDefinitions.map((menu) => menu.group)), "Akun & Akses"];
   const setAccountAccess = (mode) => {
     form.setFieldValue("hrisAccountAccess", mode);
@@ -56,11 +62,12 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
           {FEATURE_DESCRIPTIONS.hris}
         </FontStyle>
       ) : null}
-      {options.attendanceEnabled === false ? (
+      {options.attendanceEnabled !== true ? (
         <AppNotice
           compact
           title="Fitur Absensi belum aktif"
-          description="Hak Jadwal Kerja, Kalender Libur dan Jadwal Pegawai baru dapat digunakan setelah Superadmin mengaktifkan Fitur Absensi organisasi. Hak yang sudah diberikan tetap tersimpan."
+          tone="danger"
+          description="Hubungi Admin SITOU untuk mengaktifkan fitur ini."
         />
       ) : null}
       {options.canSetHrisAdmin ? (
@@ -103,6 +110,8 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                   ? accountAccess !== "none"
                   : assigned.some((grant) => grant.key === menu.key),
               );
+              const availableMenus = menus.filter((menu) => !unavailable(menu));
+              const selectedAvailable = selected.filter((menu) => !unavailable(menu));
               return {
                 key: group,
                 forceRender: true,
@@ -130,13 +139,20 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                   <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>
                     {menus.length > 1 ? (
                       <Checkbox
-                        checked={selected.length === menus.length}
-                        indeterminate={selected.length > 0 && selected.length < menus.length}
+                        disabled={!availableMenus.length}
+                        checked={
+                          availableMenus.length > 0 &&
+                          selectedAvailable.length === availableMenus.length
+                        }
+                        indeterminate={
+                          selectedAvailable.length > 0 &&
+                          selectedAvailable.length < availableMenus.length
+                        }
                         onChange={(e) =>
                           change([
-                            ...assigned.filter((g) => !menus.some((m) => m.key === g.key)),
+                            ...assigned.filter((g) => !availableMenus.some((m) => m.key === g.key)),
                             ...(e.target.checked
-                              ? menus.map((m) => ({
+                              ? availableMenus.map((m) => ({
                                   key: m.key,
                                   level: m.canManage ? "manage" : "read",
                                 }))
@@ -169,6 +185,7 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                         >
                           <Box sx={{ minWidth: 0 }}>
                             <Checkbox
+                              disabled={unavailable(menu)}
                               checked={Boolean(grant)}
                               onChange={(e) =>
                                 accountGroup
@@ -213,7 +230,7 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                                   popup: { root: { maxWidth: "calc(100vw - 32px)" } },
                                   option: { whiteSpace: "normal", overflowWrap: "anywhere" },
                                 }}
-                                disabled={!grant}
+                                disabled={!grant || unavailable(menu)}
                                 value={grant?.level || (accountGroup ? "manage" : "read")}
                                 onChange={(level) =>
                                   accountGroup
@@ -246,15 +263,18 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                               />
                             )}
                             <AccessExplanation
+                              tone={unavailable(menu) ? "danger" : "info"}
                               title={menu.canManage ? "Batas izin" : "Jenis akses"}
                             >
-                              {grant
-                                ? accountGroup
-                                  ? ACCOUNT_ACCESS_OPTIONS.find(
-                                      (option) => option.value === accountAccess,
-                                    )?.description
-                                  : hrisMenuAccessDescription(menu.key, grant.level)
-                                : "Centang menu untuk memberikan akses."}
+                              {unavailable(menu)
+                                ? ATTENDANCE_UNAVAILABLE_MESSAGE
+                                : grant
+                                  ? accountGroup
+                                    ? ACCOUNT_ACCESS_OPTIONS.find(
+                                        (option) => option.value === accountAccess,
+                                      )?.description
+                                    : hrisMenuAccessDescription(menu.key, grant.level)
+                                  : "Centang menu untuk memberikan akses."}
                               {accountGroup && grant
                                 ? " HRIS hanya dapat diberikan oleh admin penuh atau Superadmin."
                                 : ""}

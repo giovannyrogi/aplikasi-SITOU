@@ -353,6 +353,7 @@ AccessExplanation adalah anotasi kemampuan/batas hak akses, dipakai editor HRIS,
 field izin Inventaris dan rincian modal. Komposisi ikon informasi, heading singkat,
 permukaan netral, teks justify dan jarak minimal 16px dari dropdown mengikuti
 token komponen bersama.
+Prop `tone` pada AccessExplanation mengikuti AppNotice (default `info`). Pemberitahuan fitur Absensi nonaktif memakai `danger`: latar merah lembut, ikon/border merah dan teks utama gelap dari theme.
 HrisAccessFields memasukkan Akun Organisasi ke Collapse Akun & Akses dengan
 checkbox + dua mode aktif; field hidden tetap hrisAccountAccess. Submenu readonly
 menggunakan chip Hanya baca, bukan dropdown. Divider memisahkan setiap submenu.

@@ -98,7 +98,7 @@ export default function OrganizationAccountForm({
             employeeId: item.employee_id,
             username: item.username,
             isHrisAdmin: Boolean(item.hrisAccess?.fullAdmin),
-            hrisMenuAccess: item.hrisAccess?.grants || [],
+            hrisMenuAccess: item.hrisAccess?.assigned ?? item.hrisAccess?.grants ?? [],
             hrisAccountAccess: item.hrisAccess?.accountAccess || "none",
             roleCode: item.role_code,
             locationScopeMode: item.location_scope_mode,

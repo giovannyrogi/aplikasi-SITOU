@@ -234,6 +234,8 @@ Superadmin mengaktifkan Fitur Absensi melalui Organisasi → Fitur organisasi se
 
 readHrisState/readHrisStates mempertahankan assigned dan menyaring grants efektif ketika attendance nonaktif, serta memuat attendanceEnabled. hrisLevel menolak ketiga menu sebelum bypass Admin HRD penuh. requireScheduleAccess memeriksa status organisasi/modul pada database untuk seluruh service, termasuk pemanggil internal. Penonaktifan tidak menghapus histori atau grant. Foto yang hanya diizinkan melalui jadwal ikut kehilangan akses tersebut. Akun berizin foto melalui menu lain tetap mengikuti hak yang sah.
 
+Editor akun memakai `assigned`, bukan grant efektif, agar menyimpan akun tidak menghapus hak Absensi lama. Saat modul belum aktif, checkbox dan tingkat akses Jadwal Kerja, Kalender Libur serta Jadwal Pegawai dinonaktifkan dengan pesan “Fitur Absensi belum aktif. Hubungi Admin SITOU.” Pilih semua hanya mengubah menu yang tersedia dan mempertahankan hak yang terkunci. Backend menolak grant Absensi baru atau perubahan tingkatnya saat modul nonaktif, termasuk payload lama setelah penonaktifan. Hak lama yang sama tetap boleh disimpan. Aktivasi fitur tetap melalui Superadmin dan tidak memberikan grant otomatis.
+
 Perubahan modul masuk hash scopeRevision dan accessEntitlementsChanged. Snapshot lama bukan bukti izin, setiap request membaca hak terbaru. Mutation aktivasi dan jadwal memakai lock organisasi lebih dahulu untuk mencegah race penonaktifan. Form akses akun menjelaskan bila fitur belum aktif. Tidak ada paket Inventaris, scope gudang atau role baru untuk Absensi. Kontrak batch dan rollout: [Jadwal kerja](work-schedules.md). Endpoint absensi mobile mendatang wajib memakai aktivasi dan permission self-service server yang sama.
 
 ### Kelompok sidebar Organisasi
