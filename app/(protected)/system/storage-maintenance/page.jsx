@@ -1175,7 +1175,7 @@ export default function StorageMaintenancePage() {
             {run.run_type === "scan" ? "Pemeriksaan file" : "Penghapusan file"}
           </FontStyle>
           <FontStyle fontSize={10.5} sx={{ mt: 0.35, color: theme.ui.mutedText }}>
-            #{run.id} · diminta oleh {run.requested_by_name || "Superadmin"}
+            #{run.id} · diminta oleh {run.requested_by_name || "Admin SITOU"}
           </FontStyle>
         </Box>
       ),

@@ -36,7 +36,7 @@ export default function SubscriptionBanner({
     <AppNotice
       tone={grace || daysRemaining <= 7 ? "danger" : "warning"}
       title={title}
-      description={`${Math.max(0, daysRemaining)} hari tersisa. Hubungi Superadmin untuk memastikan layanan tetap aktif.`}
+      description={`${Math.max(0, daysRemaining)} hari tersisa. Hubungi Admin SITOU untuk memastikan layanan tetap aktif.`}
       action={<Button onClick={onRenew}>Perpanjang</Button>}
     />
   );

@@ -681,7 +681,7 @@ export default function SystemBackupsPage() {
 
       <AppNotice tone="info">
         Backup mencakup database serta seluruh isi folder upload: foto, dokumen, histori, draft, dan
-        karantina dari semua organisasi. Hasil disimpan di server sampai Superadmin menghapusnya.
+        karantina dari semua organisasi. Hasil disimpan di server sampai Admin SITOU menghapusnya.
         Unduh juga ke tempat aman di luar server dan simpan kata sandinya sendiri. Jika ada catatan
         file yang tidak sesuai, daftar tindak lanjut tetap tersedia.
       </AppNotice>
@@ -1095,9 +1095,9 @@ export default function SystemBackupsPage() {
                     ["ID pekerjaan", selected.id],
                     ["Status", labels[selected.status]],
                     ["Diminta", formatDate(selected.created_at)],
-                    ["Pemicu", selected.requested_by_name || "Superadmin"],
+                    ["Pemicu", selected.requested_by_name || "Admin SITOU"],
                     ...(selected.status === "deleted"
-                      ? [["Dihapus oleh", selected.deleted_by_name || "Superadmin"]]
+                      ? [["Dihapus oleh", selected.deleted_by_name || "Admin SITOU"]]
                       : []),
                     ["Mulai", formatDate(selected.started_at)],
                     ["Selesai", formatDate(selected.completed_at)],

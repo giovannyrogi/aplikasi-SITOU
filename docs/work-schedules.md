@@ -1,10 +1,10 @@
 # Jadwal kerja SITOU
 
-## Aktivasi Fitur Absensi oleh Superadmin
+## Aktivasi Fitur Absensi oleh Admin SITOU
 
-Fitur organisasi dan izin akun adalah dua lapis yang berbeda. Sebelum HRD memakai jadwal, Superadmin membuka **Organisasi → Fitur organisasi**, mengaktifkan **Fitur Absensi**, lalu menyimpan. Jadwal Kerja, Kalender Libur dan Jadwal Pegawai memakai aktivasi yang sama. Setelah itu HRD tetap memerlukan hak baca/kelola menu terkait atau status Admin HRD penuh. Aktivasi tidak membuat grant baru. Cuti dan izin tetap terpisah.
+Fitur organisasi dan izin akun adalah dua lapis yang berbeda. Sebelum HRD memakai jadwal, Admin SITOU membuka **Organisasi → Fitur organisasi**, mengaktifkan **Fitur Absensi**, lalu menyimpan. Jadwal Kerja, Kalender Libur dan Jadwal Pegawai memakai aktivasi yang sama. Setelah itu HRD tetap memerlukan hak baca/kelola menu terkait atau status Admin HRD penuh. Aktivasi tidak membuat grant baru. Cuti dan izin tetap terpisah.
 
-Organisasi tanpa aktivasi dianggap nonaktif, termasuk organisasi lama. Saat dinonaktifkan, menu jadwal HRD serta API operasional ditutup pada request berikutnya. Jadwal, kalender, penetapan, audit dan grant lama tidak dihapus atau dibatalkan. Pengaktifan kembali memakai grant yang masih berlaku. Admin HRD penuh tidak melewati gerbang ini. Superadmin dapat mengatur aktivasi, tetapi API data jadwal juga memerlukan fitur organisasi aktif.
+Organisasi tanpa aktivasi dianggap nonaktif, termasuk organisasi lama. Saat dinonaktifkan, menu jadwal HRD serta API operasional ditutup pada request berikutnya. Jadwal, kalender, penetapan, audit dan grant lama tidak dihapus atau dibatalkan. Pengaktifan kembali memakai grant yang masih berlaku. Admin HRD penuh tidak melewati gerbang ini. Admin SITOU dapat mengatur aktivasi, tetapi API data jadwal juga memerlukan fitur organisasi aktif.
 
 Sumber aktivasi adalah organization_modules dengan module_code attendance. Identitas organisasi tetap diverifikasi server. requireScheduleAccess memeriksa requireAttendanceModule sebelum membaca/menulis jadwal, termasuk penetapan pada transaksi pendaftaran. Mutation jadwal dan pengaturan fitur mengunci organisasi terlebih dahulu agar tidak ada penulisan yang lolos setelah penonaktifan selesai. GET kalender tetap tanpa mutation. Izin foto Pegawai dari menu jadwal mengikuti izin efektif dan scope yang sama. Izin foto melalui menu lain yang sah tidak ikut dicabut.
 
@@ -15,10 +15,10 @@ Snapshot akses memuat hris.attendanceEnabled dan grant efektif yang telah disari
 - GET /api/access/modules?organizationId=ID tetap mengembalikan data Inventaris {is_enabled,version} untuk kompatibilitas.
 - GET /api/access/modules?organizationId=ID&view=all mengembalikan data {modules:{inventory:{is_enabled,version},attendance:{is_enabled,version}}}. Baris yang belum ada bernilai false, versi 0.
 - PATCH /api/access/modules menerima bentuk lama {organizationId,isEnabled,version} khusus Inventaris, atau bentuk baru {organizationId,changes:[{moduleCode,isEnabled,version}]}. moduleCode hanya inventory/attendance, maksimal dua perubahan tanpa duplikasi. Respons batch berisi data.modules untuk fitur yang diubah.
-- Kedua endpoint hanya untuk Superadmin berizin access.modules.manage. PATCH memakai origin guard, batas payload, schema strict, transaksi, audit access.module.change per fitur dan version check. Seluruh batch dibatalkan bila satu perubahan gagal. Versi usang menghasilkan 409 VERSION_CONFLICT. Retry setelah hasil jaringan tidak pasti harus memuat ulang versi, bukan mengirim ulang tanpa pemeriksaan. Tidak mengklaim batch ini sebagai mutation receipt jadwal.
+- Kedua endpoint hanya untuk Admin SITOU berizin access.modules.manage. PATCH memakai origin guard, batas payload, schema strict, transaksi, audit access.module.change per fitur dan version check. Seluruh batch dibatalkan bila satu perubahan gagal. Versi usang menghasilkan 409 VERSION_CONFLICT. Retry setelah hasil jaringan tidak pasti harus memuat ulang versi, bukan mengirim ulang tanpa pemeriksaan. Tidak mengklaim batch ini sebagai mutation receipt jadwal.
 - API jadwal mengembalikan 403 ketika fitur nonaktif, termasuk ATTENDANCE_DISABLED pada gerbang service. Guard menu HRD dapat menolak lebih dahulu sebagai FORBIDDEN. Tanpa sesi tetap 401. Mengaktifkan fitur tidak melampaui permission, scope Pegawai/lokasi atau batas organisasi.
 
-Migration 068 hanya menambahkan katalog attendance pada access_modules. Tidak menambah tabel/kolom, mengaktifkan organisasi, memberi grant atau mengubah data jadwal. Bootstrap final memuat seed yang sama. Setelah upgrade, Superadmin menentukan organisasi yang akan diaktifkan secara eksplisit. Jangan mengulang 063–067 dan jangan memakai bootstrap untuk upgrade.
+Migration 068 hanya menambahkan katalog attendance pada access_modules. Tidak menambah tabel/kolom, mengaktifkan organisasi, memberi grant atau mengubah data jadwal. Bootstrap final memuat seed yang sama. Setelah upgrade, Admin SITOU menentukan organisasi yang akan diaktifkan secara eksplisit. Jangan mengulang 063–067 dan jangan memakai bootstrap untuk upgrade.
 
 ### Integrasi absensi berikutnya
 
@@ -119,7 +119,7 @@ requestKey UUID terikat organisasi/pelaku/operasi/hash payload. Retry sama menge
 
 ## Kontrak API
 
-Cookie web existing, role HRD/Superadmin, membership/masa akses aktif, grant HRIS terkini. Bearer mobile tidak membuka API administrasi. HRD terkunci organisasi sesi. Superadmin memilih organisasi eksplisit. Scope lokasi diperiksa pada daftar serta setiap target. Origin guard, rate limit mutation, JSON strict Zod, payload maksimal 256 KiB, audit, no-store berlaku. Respons {success,code,message,data,requestId,pagination?}, gagal fieldErrors bila diketahui. Tanggal YYYY-MM-DD, jam HH:mm, waktu absolut ISO 8601 UTC, ID string desimal.
+Cookie web existing, role HRD/Admin SITOU, membership/masa akses aktif, grant HRIS terkini. Bearer mobile tidak membuka API administrasi. HRD terkunci organisasi sesi. Admin SITOU memilih organisasi eksplisit. Scope lokasi diperiksa pada daftar serta setiap target. Origin guard, rate limit mutation, JSON strict Zod, payload maksimal 256 KiB, audit, no-store berlaku. Respons {success,code,message,data,requestId,pagination?}, gagal fieldErrors bila diketahui. Tanggal YYYY-MM-DD, jam HH:mm, waktu absolut ISO 8601 UTC, ID string desimal.
 
 | Endpoint                       | Metode   | Hak dan data                                                                                                                                                                                       |
 | ------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -196,3 +196,5 @@ Perubahan ini hanya antarmuka dashboard. Tidak mengubah schema, endpoint, permis
 7. Pilih Pegawai untuk melihat kalender kerja/liburnya. Ubah jadwal harian untuk perubahan satu tanggal dengan alasan. Gunakan Tetapkan jadwal untuk mengganti aturan rutin mulai tanggal baru, dan Riwayat jadwal untuk menelusuri periode serta pelakunya.
 
 Pada Ubah jadwal harian, tombol mata dengan tooltip Periksa jadwal pada tanggal yang dipilih memanggil preview baca existing agar aturan dan versi tanggal dimuat sebelum perubahan. Ini bukan penyimpanan. Pada lebar mulai 600px hanya ikon 44×44px. Di ponsel lebih kecil tampil ikon serta teks Periksa jadwal selebar area. Tooltip dapat muncul saat hover maupun fokus keyboard. Tombol tempat sampah pada Kalender Libur juga 44×44px dengan tooltip Hapus tanggal libur dan nama aksesibel per baris. Menghapus baris pada form tidak mengirim mutation sampai Simpan kalender.
+
+Pada form hak akses HRD, tiga menu Absensi tetap terlihat saat fitur nonaktif. Checkbox dan tingkat akses terkunci dengan pesan merah yang meminta pengguna menghubungi Admin SITOU. Pilih semua hanya mengubah menu yang tersedia dan mempertahankan izin lama pada menu terkunci. Setelah fitur aktif, izin dapat diatur kembali.

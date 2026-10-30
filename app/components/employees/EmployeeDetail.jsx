@@ -1284,7 +1284,7 @@ export default function EmployeeDetail({ employeeId }) {
               <Box sx={contentSx}>
                 <TabSectionHeader
                   title="Informasi rekening"
-                  description="Data rekening bersifat sensitif dan hanya tersedia bagi HRD serta Superadmin."
+                  description="Data rekening bersifat sensitif dan hanya tersedia bagi HRD serta Admin SITOU."
                 />
                 <EmployeeBankDetails profile={state.profile} />
               </Box>

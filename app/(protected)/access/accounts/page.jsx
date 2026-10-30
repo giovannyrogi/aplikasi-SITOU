@@ -260,7 +260,7 @@ export default function OrganizationAccountsPage() {
         title="Daftar akun organisasi"
         description={
           isSuperadmin
-            ? "Role Superadmin tidak dapat diberikan melalui menu ini."
+            ? "Role Admin SITOU tidak dapat diberikan melalui menu ini."
             : user.access?.hris?.fullAdmin
               ? "Kelola akun lain dan pembagian akses dalam organisasi Anda."
               : "Daftar hanya menampilkan akun Pegawai lain yang dapat Anda kelola."

@@ -19,7 +19,7 @@ export async function GET(request) {
   if (user.role_code !== "superadmin")
     return errorResponse(
       "FORBIDDEN",
-      "Hanya Superadmin dapat mengatur fitur organisasi.",
+      "Hanya Admin SITOU dapat mengatur fitur organisasi.",
       403,
       requestId,
     );

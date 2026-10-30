@@ -6,7 +6,7 @@ export const ROLES = {
 };
 
 export const ROLE_LABELS = {
-  [ROLES.SUPERADMIN]: "Superadmin",
+  [ROLES.SUPERADMIN]: "Admin SITOU",
   [ROLES.HRD]: "HRD",
   [ROLES.LEADER]: "Pimpinan",
   [ROLES.EMPLOYEE]: "Pegawai",

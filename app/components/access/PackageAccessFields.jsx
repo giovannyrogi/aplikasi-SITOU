@@ -135,7 +135,7 @@ function PackageRow({
           extra={
             optionsReady && !options.warehouses.length ? (
               <PrerequisiteHint
-                text="Belum ada gudang aktif dalam cakupan pemberian akses Anda. Minta Superadmin atau Pengelola Master Inventaris menyiapkannya melalui Data Master → Gudang."
+                text="Belum ada gudang aktif dalam cakupan pemberian akses Anda. Minta Admin SITOU atau Pengelola Master Inventaris menyiapkannya melalui Data Master → Gudang."
                 href={
                   canReadWarehouses && organizationId
                     ? `/master-data/inventory-warehouses?organizationId=${organizationId}`
@@ -164,7 +164,7 @@ function PackageRow({
       ) : null}
       {locked ? (
         <FontStyle explanation fontSize={12} sx={{ color: "text.secondary" }}>
-          Akses ini di luar kewenangan Anda. Minta Superadmin atau HRD seluruh lokasi mengubahnya.
+          Akses ini di luar kewenangan Anda. Minta Admin SITOU atau HRD seluruh lokasi mengubahnya.
         </FontStyle>
       ) : null}
       <Button
@@ -214,12 +214,12 @@ export default function PackageAccessFields({
         {FEATURE_DESCRIPTIONS.inventory}
       </FontStyle>
       <FontStyle explanation fontSize={12} sx={{ color: "text.secondary" }}>
-        Gudang disiapkan melalui Data Master → Gudang oleh Superadmin atau Pengelola Master
+        Gudang disiapkan melalui Data Master → Gudang oleh Admin SITOU atau Pengelola Master
         Inventaris.
       </FontStyle>
       {optionsReady && !options.inventoryEnabled ? (
         <AppNotice tone="warning" compact title="Inventaris belum aktif">
-          Minta Superadmin membuka Data Master → Organisasi → Kelola fitur untuk mengaktifkannya.
+          Minta Admin SITOU membuka Data Master → Organisasi → Kelola fitur untuk mengaktifkannya.
           Akses yang sudah tersimpan tidak dihapus.
         </AppNotice>
       ) : null}

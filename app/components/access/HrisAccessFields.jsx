@@ -2,6 +2,7 @@
 import { Checkbox, Collapse, Form, Select } from "antd";
 import { Box } from "@mui/material";
 import { HRIS_MENUS } from "@/lib/access/hrisPolicy.mjs";
+import { ATTENDANCE_MENU_KEYS } from "@/lib/access/organizationModules.mjs";
 import {
   ACCOUNT_ACCESS_OPTIONS,
   hrisMenuAccessDescription,
@@ -31,6 +32,8 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
   const expandedGroups = Form.useWatch("expandedHrisGroups", form) || ["Kepegawaian"];
   const full = Form.useWatch("isHrisAdmin", form) ?? item?.hrisAccess?.fullAdmin;
   const accountAccess = Form.useWatch("hrisAccountAccess", form) || "none";
+  const attendanceBlocked = options.attendanceEnabled !== true;
+  const isMenuLocked = (menu) => attendanceBlocked && ATTENDANCE_MENU_KEYS.includes(menu.key);
   const change = (next) => {
     form.setFieldValue("hrisMenuAccess", next);
     onDirty();
@@ -56,11 +59,13 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
           {FEATURE_DESCRIPTIONS.hris}
         </FontStyle>
       ) : null}
-      {options.attendanceEnabled === false ? (
+      {attendanceBlocked ? (
         <AppNotice
           compact
+          tone="danger"
+          sx={{ "& [data-sitou-font]": { color: "error.main" } }}
           title="Fitur Absensi belum aktif"
-          description="Hak Jadwal Kerja, Kalender Libur dan Jadwal Pegawai baru dapat digunakan setelah Superadmin mengaktifkan Fitur Absensi organisasi. Hak yang sudah diberikan tetap tersimpan."
+          description="Hubungi Admin SITOU untuk mengaktifkannya. Izin yang sudah diberikan tetap tersimpan dan dapat digunakan kembali setelah fitur aktif."
         />
       ) : null}
       {options.canSetHrisAdmin ? (
@@ -86,7 +91,7 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
           compact
           tone="info"
           title="Akses HRIS lengkap"
-          description="Dapat mengelola menu HRIS pada fitur organisasi yang aktif, seluruh lokasi, dan akun organisasi. Fitur Absensi harus diaktifkan Superadmin. Akses Inventaris diberikan terpisah."
+          description="Dapat mengelola menu HRIS pada fitur organisasi yang aktif, seluruh lokasi, dan akun organisasi. Fitur Absensi harus diaktifkan Admin SITOU. Akses Inventaris diberikan terpisah."
         />
       ) : (
         <>
@@ -102,6 +107,10 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                 accountGroup
                   ? accountAccess !== "none"
                   : assigned.some((grant) => grant.key === menu.key),
+              );
+              const selectableMenus = menus.filter((menu) => !isMenuLocked(menu));
+              const selectedAvailable = selectableMenus.filter((menu) =>
+                assigned.some((grant) => grant.key === menu.key),
               );
               return {
                 key: group,
@@ -130,13 +139,22 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                   <Box sx={{ display: "grid", gap: 3, minWidth: 0 }}>
                     {menus.length > 1 ? (
                       <Checkbox
-                        checked={selected.length === menus.length}
-                        indeterminate={selected.length > 0 && selected.length < menus.length}
+                        disabled={!selectableMenus.length}
+                        checked={
+                          Boolean(selectableMenus.length) &&
+                          selectedAvailable.length === selectableMenus.length
+                        }
+                        indeterminate={
+                          selectedAvailable.length > 0 &&
+                          selectedAvailable.length < selectableMenus.length
+                        }
                         onChange={(e) =>
                           change([
-                            ...assigned.filter((g) => !menus.some((m) => m.key === g.key)),
+                            ...assigned.filter(
+                              (g) => !selectableMenus.some((m) => m.key === g.key),
+                            ),
                             ...(e.target.checked
-                              ? menus.map((m) => ({
+                              ? selectableMenus.map((m) => ({
                                   key: m.key,
                                   level: m.canManage ? "manage" : "read",
                                 }))
@@ -170,6 +188,7 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                           <Box sx={{ minWidth: 0 }}>
                             <Checkbox
                               checked={Boolean(grant)}
+                              disabled={isMenuLocked(menu)}
                               onChange={(e) =>
                                 accountGroup
                                   ? setAccountAccess(e.target.checked ? "manage" : "none")
@@ -190,6 +209,11 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                             </Checkbox>
                           </Box>
                           <Box sx={{ display: "grid", gap: 1, alignContent: "start", minWidth: 0 }}>
+                            {isMenuLocked(menu) ? (
+                              <FontStyle fontSize={12} sx={{ color: "error.main" }}>
+                                Fitur Absensi belum aktif.
+                              </FontStyle>
+                            ) : null}
                             {menu.canManage ? (
                               <Select
                                 aria-label={`Tingkat akses ${menu.label}`}
@@ -213,7 +237,7 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                                   popup: { root: { maxWidth: "calc(100vw - 32px)" } },
                                   option: { whiteSpace: "normal", overflowWrap: "anywhere" },
                                 }}
-                                disabled={!grant}
+                                disabled={!grant || isMenuLocked(menu)}
                                 value={grant?.level || (accountGroup ? "manage" : "read")}
                                 onChange={(level) =>
                                   accountGroup
@@ -248,15 +272,17 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
                             <AccessExplanation
                               title={menu.canManage ? "Batas izin" : "Jenis akses"}
                             >
-                              {grant
-                                ? accountGroup
-                                  ? ACCOUNT_ACCESS_OPTIONS.find(
-                                      (option) => option.value === accountAccess,
-                                    )?.description
-                                  : hrisMenuAccessDescription(menu.key, grant.level)
-                                : "Centang menu untuk memberikan akses."}
+                              {isMenuLocked(menu)
+                                ? "Aktifkan Fitur Absensi melalui Admin SITOU sebelum mengatur izin menu ini."
+                                : grant
+                                  ? accountGroup
+                                    ? ACCOUNT_ACCESS_OPTIONS.find(
+                                        (option) => option.value === accountAccess,
+                                      )?.description
+                                    : hrisMenuAccessDescription(menu.key, grant.level)
+                                  : "Centang menu untuk memberikan akses."}
                               {accountGroup && grant
-                                ? " HRIS hanya dapat diberikan oleh admin penuh atau Superadmin."
+                                ? " HRIS hanya dapat diberikan oleh admin penuh atau Admin SITOU."
                                 : ""}
                             </AccessExplanation>
                           </Box>

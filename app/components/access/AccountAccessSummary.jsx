@@ -144,7 +144,7 @@ export function AccountAccessDetails({ account, onClose }) {
                   <CompactInfoChip label="Admin HRD penuh" tone="info" />
                   <FontStyle explanation fontSize={12}>
                     Mengelola menu HRIS pada fitur organisasi yang aktif, akun organisasi, dan
-                    pembagian akses. Fitur Absensi memerlukan aktivasi Superadmin. Inventaris diatur
+                    pembagian akses. Fitur Absensi memerlukan aktivasi Admin SITOU. Inventaris diatur
                     terpisah.
                   </FontStyle>
                 </Box>

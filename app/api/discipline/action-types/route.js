@@ -53,7 +53,7 @@ export async function POST(request) {
   if (user.role_code !== "superadmin")
     return handleRouteError(
       "discipline.action-types.create",
-      new ServiceError("FORBIDDEN", "Hanya Superadmin yang dapat menambahkan jenis sanksi.", 403),
+      new ServiceError("FORBIDDEN", "Hanya Admin SITOU yang dapat menambahkan jenis sanksi.", 403),
       requestId,
     );
   const rejected = await validateMutationRequest(request, user.id, requestId);

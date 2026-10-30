@@ -178,7 +178,7 @@ export default function WarehouseForm({ open, item, organizationId, onClose, onS
                   text={
                     canManageLocations
                       ? "Belum ada lokasi aktif yang dapat dipilih. Tambahkan atau aktifkan melalui Data Master → Lokasi."
-                      : "Belum ada lokasi aktif yang dapat dipilih. Minta HRD atau Superadmin menyiapkan lokasi melalui Data Master → Lokasi."
+                      : "Belum ada lokasi aktif yang dapat dipilih. Minta HRD atau Admin SITOU menyiapkan lokasi melalui Data Master → Lokasi."
                   }
                   href={
                     canManageLocations
