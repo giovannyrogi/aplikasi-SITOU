@@ -51,7 +51,18 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
         "& .ant-checkbox-wrapper": { minHeight: 44, alignItems: "center" },
       }}
     >
-      {!full ? <FontStyle explanation fontSize={12}>{FEATURE_DESCRIPTIONS.hris}</FontStyle> : null}
+      {!full ? (
+        <FontStyle explanation fontSize={12}>
+          {FEATURE_DESCRIPTIONS.hris}
+        </FontStyle>
+      ) : null}
+      {options.attendanceEnabled === false ? (
+        <AppNotice
+          compact
+          title="Fitur Absensi belum aktif"
+          description="Hak Jadwal Kerja, Kalender Libur dan Jadwal Pegawai baru dapat digunakan setelah Superadmin mengaktifkan Fitur Absensi organisasi. Hak yang sudah diberikan tetap tersimpan."
+        />
+      ) : null}
       {options.canSetHrisAdmin ? (
         <FormSettingSwitch
           name="isHrisAdmin"
@@ -75,7 +86,7 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
           compact
           tone="info"
           title="Akses HRIS lengkap"
-          description="Dapat mengelola semua menu HRIS, seluruh lokasi, dan akun organisasi. Akses Inventaris diberikan terpisah."
+          description="Dapat mengelola menu HRIS pada fitur organisasi yang aktif, seluruh lokasi, dan akun organisasi. Fitur Absensi harus diaktifkan Superadmin. Akses Inventaris diberikan terpisah."
         />
       ) : (
         <>

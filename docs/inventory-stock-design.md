@@ -468,3 +468,7 @@ Tabel Stok Barang secara default memakai condition=recorded: pasangan barang–g
 Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.
 
 Pada tahap Periksa transaksi, Perubahan stok gudang memakai InventoryStockMetric dan AppIconTile yang sama untuk Jumlah, Sebelum, Sesudah, dan Stok saat ini: tile 36px, ikon 18px, tipografi seragam. Jumlah mengikuti warna jenis transaksi, Sebelum netral, Sesudah biru atau merah jika nol. Divider berada sesudah Jumlah dengan gap 16px; padding panel 16px. Tidak mengubah proyeksi atau validasi stok.
+
+### Kompatibilitas aktivasi Absensi
+
+Fitur organisasi kini memuat sakelar Inventaris dan Absensi yang terpisah. GET/PATCH /api/access/modules bentuk lama tetap khusus Inventaris tanpa perubahan respons. GET view=all dan PATCH changes menambahkan batch atomik maksimal kedua fitur, dengan versi dan audit masing-masing. Absensi tidak menggunakan paket atau scope gudang Inventaris. Aktivasi tidak memberi grant, penonaktifan tidak menghapus data maupun grant. [Kontrak lengkap](work-schedules.md#kontrak-aktivasi-organisasi).

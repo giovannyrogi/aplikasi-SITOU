@@ -1901,6 +1901,7 @@ COMMENT ON TABLE user_access_packages IS 'Paket permission per membership organi
 COMMENT ON TABLE inventory_warehouses IS 'Gudang organisasi pada lokasi operasional; bukan saldo stok atau aset.';
 COMMENT ON TABLE organization_modules IS 'Aktivasi fitur organisasi terpisah dari paket akun; tanpa record berarti nonaktif.';
 INSERT INTO access_modules(code,name) VALUES('inventory','Inventaris');
+INSERT INTO access_modules(code,name) VALUES('attendance','Absensi');
 INSERT INTO access_packages(code,module_code,name) VALUES
  ('inventory_reader','inventory','Pembaca Persediaan'),('inventory_manager','inventory','Pengelola Persediaan');
 INSERT INTO permissions(code,description) VALUES
@@ -2487,3 +2488,42 @@ INSERT INTO hris_menu_definitions(code,label,group_label,route_path,can_manage) 
 COMMENT ON TABLE work_schedule_sessions IS 'Sesi jadwal; range fleksibel adalah reservasi jendela, bukan jam aktual kehadiran.';
 COMMENT ON COLUMN work_shifts.start_time IS 'Kolom legacy; sumber aturan efektif baru adalah work_shift_revisions.rules.';
 COMMENT ON TABLE work_schedule_exceptions IS 'Jadwal khusus oleh HRD; bukan persetujuan lembur atau penggantian waktu.';
+
+
+-- Kelompok pilihan shift. Tidak mengubah penetapan atau histori yang sudah ada.
+CREATE TABLE work_schedule_groups (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ organization_id bigint NOT NULL REFERENCES organizations(id),
+ name varchar(100) NOT NULL CHECK(length(btrim(name))>0),
+ working_days smallint[] NOT NULL CHECK(cardinality(working_days) BETWEEN 1 AND 7 AND working_days <@ ARRAY[1,2,3,4,5,6,7]::smallint[]),
+ calendar_id bigint,
+ holiday_policy varchar(10) NOT NULL CHECK(holiday_policy IN ('calendar','roster')),
+ is_active boolean NOT NULL DEFAULT true,
+ version integer NOT NULL DEFAULT 1 CHECK(version>0),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(organization_id,id),
+ FOREIGN KEY(organization_id,calendar_id) REFERENCES work_calendars(organization_id,id),
+ CHECK(holiday_policy<>'calendar' OR calendar_id IS NOT NULL)
+);
+CREATE UNIQUE INDEX uq_work_schedule_groups_name ON work_schedule_groups(organization_id,lower(btrim(name)));
+CREATE TABLE work_schedule_group_items (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ organization_id bigint NOT NULL REFERENCES organizations(id),
+ group_id bigint NOT NULL,
+ pattern_id bigint NOT NULL,
+ shift_id bigint NOT NULL,
+ name varchar(100) NOT NULL CHECK(length(btrim(name))>0),
+ position smallint NOT NULL CHECK(position BETWEEN 1 AND 16),
+ is_current boolean NOT NULL DEFAULT true,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(organization_id,id),
+ UNIQUE(organization_id,pattern_id),
+ UNIQUE(organization_id,shift_id),
+ FOREIGN KEY(organization_id,group_id) REFERENCES work_schedule_groups(organization_id,id),
+ FOREIGN KEY(organization_id,pattern_id) REFERENCES shift_patterns(organization_id,id),
+ FOREIGN KEY(organization_id,shift_id) REFERENCES work_shifts(organization_id,id)
+);
+CREATE UNIQUE INDEX uq_work_schedule_group_item_name ON work_schedule_group_items(organization_id,group_id,lower(btrim(name))) WHERE is_current;
+CREATE UNIQUE INDEX uq_work_schedule_group_item_position ON work_schedule_group_items(organization_id,group_id,position) WHERE is_current;
+CREATE INDEX ix_work_schedule_group_items_group ON work_schedule_group_items(organization_id,group_id);

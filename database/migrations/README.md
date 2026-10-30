@@ -236,7 +236,18 @@ Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` setelah upgrade.
 
 `20261027_065_mobile_auth_sessions.sql` menambah tabel sesi bearer opaque terpisah dari cookie web, dengan hash token, expiry maksimal tujuh hari dan FK organisasi/profil/membership. Jalankan pada database existing setelah migration sebelumnya; tidak mengganti akun atau password. Bootstrap final sudah memuat struktur yang sama. Verifikasi `npm run db:verify-bootstrap`; pemeliharaan `npm run auth:mobile-sessions:prune`. Kontrak/rollout: `docs/mobile-auth.md`. Tidak diterapkan otomatis ke VPS.
 
-
 ## 066 — Jadwal fleksibel
 
 20261028_066_work_schedule_foundation.sql sesudah 065 menghapus code hanya pada shift/pola; menambah revisi, kalender, detail sesi, exception, version/idempotency dan tiga menu HRIS. Preflight nama/periode/dependency wajib; tanpa CASCADE atau grant delegasi otomatis. Bootstrap disinkronkan. Runner development tidak mencatat ledger: cek work_schedule_sessions dan jangan ulang migration. Panduan rollback/rollout: docs/work-schedules.md. Tidak diterapkan ke VPS otomatis.
+
+## 067 — Kelompok pilihan shift
+
+20261029_067_work_schedule_shift_groups.sql sesudah 066 menambahkan work_schedule_groups dan work_schedule_group_items untuk kelompok bernama serta pilihan shift yang masing-masing memakai pola/shift existing. Tidak mengubah penetapan, tidak menyimpulkan kelompok dari nama, tidak memberi grant dan tidak mengonversi jadwal lama. Bootstrap final memuat DDL yang sama.
+
+Periksa kedua tabel sebelum menjalankan. Runner development belum memiliki ledger. Jika keduanya belum ada dan fondasi 066 lengkap, jalankan npm run db:migrate -- database/migrations/20261029_067_work_schedule_shift_groups.sql lalu npm run db:verify-bootstrap. Jangan mengulang 063–066. Kondisi hanya satu tabel tersedia harus diperiksa sebagai upgrade belum lengkap. Urutan rollout, risiko histori dan rollback ada di docs/work-schedules.md. Penerapan development lokal dicatat di changelog, bukan bukti penerapan VPS.
+
+## 068 — Aktivasi Fitur Absensi organisasi
+
+20261030_068_attendance_organization_module.sql hanya menambahkan katalog attendance / Absensi pada access_modules. Tidak menambah tabel/kolom, menyalin paket Inventaris, memberi grant atau mengaktifkan organisasi. Tidak mengubah jadwal dan histori. Bootstrap final memuat seed yang sama. Keberadaan struktur 067 tetap diperiksa sebelum rollout kode jadwal.
+
+Pada database existing lengkap 067, periksa katalog attendance. Jika belum ada, jalankan npm run db:migrate -- database/migrations/20261030_068_attendance_organization_module.sql, lalu npm run db:check dan npm run db:verify-bootstrap. Jangan ulang 063–067. Runner belum memiliki ledger. Seed migration ini aman terhadap konflik kode tetapi bukan alasan menjalankan ulang migration lain. Sesudahnya Superadmin menentukan aktivasi melalui Organisasi → Fitur organisasi, organisasi lama juga default nonaktif. Tidak dijalankan otomatis ke VPS. Uji upgrade tanpa perubahan grant/histori dan bootstrap baru harus menghasilkan katalog yang sama. Rollback aplikasi tidak menghapus data jadwal atau grant, penonaktifan fitur cukup memakai kontrol resmi sebelum tindakan pemulihan berizin.

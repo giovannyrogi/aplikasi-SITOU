@@ -54,6 +54,7 @@ Baca `AGENTS.md` untuk aturan pengembangan dan `docs/database-schema.md` untuk p
 ## Identitas akun
 
 `users` hanya menyimpan kredensial dan metadata keamanan. Nama serta kontak akun organisasi dibaca langsung dari profil pegawai; Superadmin memakai `platform_user_profiles`, sedangkan akun HRD/Pimpinan yang belum tertaut ditampilkan menggunakan username. Menu Pengaturan menyediakan Profil dan Keluar tanpa menampilkan identitas pada pop-up.
+
 ## Deployment production
 
 Ikuti [panduan hardening dan rollout production](docs/production-hardening.md) untuk migration 032, ClamAV, pemindaian file lama, worker purge, Nginx, dan smoke test sebelum membuka kembali aplikasi.
@@ -68,7 +69,20 @@ Pemeliharaan harian sesi: `npm run auth:mobile-sessions:prune`, pilih konfiguras
 
 Durasi sesi mobile ditentukan backend melalui `AUTH_MOBILE_SESSION_TTL_MINUTES=10080` (tujuh hari), wajib integer 1–10080. Atur di environment development dan, saat rollout, production sebelum restart. Nilai hilang/invalid menolak login mobile; tidak memakai fallback atau TTL web. Hanya sesi baru mengikuti nilai baru. Tidak perlu migration/ubah Flutter untuk TTL dalam batas tersebut. Detail: `docs/mobile-auth.md`.
 
+## Jadwal kerja
 
-## Jadwal kerja fleksibel
+Data Master → Jadwal Kerja menyediakan dropdown **Jam kerja tetap** atau **Kerja shift** di samping Nama jadwal pada desktop dan bertumpuk pada ponsel. Daftar memakai filter jenis dalam dropdown, dengan penjelasan singkat. Pilihan shift dapat dilipat tanpa kehilangan isian. Jam tetap memakai hari mingguan, jam utama dan perubahan per hari. Kerja shift menyediakan Tambah shift dengan nama/jam bebas, validasi benturan termasuk shift malam, serta satu pilihan shift per Pegawai. Hari yang tidak dipilih adalah Libur. Simpan jadwal membuka ringkasan sebelum konfirmasi. Kepegawaian → Jadwal Pegawai menyediakan penetapan individu/massal dan kalender otomatis. Pendaftaran memakai langkah 4 Penempatan atau Atur jadwal nanti. Data Pegawai dapat disaring berdasarkan Status perkawinan yang sama dengan pendaftaran, termasuk saat ekspor, tanpa migration tambahan. Jadwal lama tetap terbaca tanpa dikonversi. [Panduan, kontrak dan operasional](docs/work-schedules.md).
 
-Dashboard menyediakan Shift & Pola Kerja, Kalender Libur, Jadwal Kerja dan jadwal awal opsional di langkah 4 Penempatan. [Kontrak dan operasional](docs/work-schedules.md). Database existing memerlukan migration 066 setelah 065; bootstrap hanya untuk database kosong. Beri hak HRIS baca/kelola tersendiri. Absensi mobile/kerja tambahan/penggantian waktu belum diintegrasikan. Tidak ada deployment VPS otomatis.
+Environment existing yang sudah menerapkan 066 perlu **migration 067**, lalu **068** untuk katalog Fitur Absensi sebelum backend/dashboard baru. Jika 067 sudah tersedia, jalankan hanya 068. Jangan ulang 063–066 atau memakai bootstrap untuk upgrade database berjalan. Migration 067 menambah kelompok dan relasi pilihan shift, tanpa mengubah penetapan lama. Jalankan pemeriksaan upgrade/bootstrap dan hak HRIS baca/kelola. Tidak memberi grant otomatis. Kamera/absensi mobile, kerja tambahan serta penggantian waktu belum diintegrasikan. Tidak ada deployment atau restart VPS otomatis.
+
+Kalender Libur dan Jadwal Pegawai mengikuti alur pada [panduan jadwal kerja](docs/work-schedules.md). Status kalender berada di bawah form. Penetapan jadwal tersedia pada header halaman, dengan pilihan Pegawai per halaman serta avatar privat. Perubahan tampilan ini tidak memerlukan migration atau perubahan aplikasi mobile.
+
+Dialog Jadwal Pegawai memakai penetapan tanpa tanggal berakhir, perubahan satu tanggal melalui Ubah jadwal harian, dan kartu riwayat berlabel. Riwayat periode lama dan kontrak API tetap kompatibel. Lihat docs/work-schedules.md.
+
+## Fitur Absensi per organisasi
+
+Superadmin membuka **Organisasi → Fitur organisasi**, mengaktifkan **Fitur Absensi**, lalu menyimpan. Modul mencakup Jadwal Kerja, Kalender Libur dan Jadwal Pegawai. HRD tetap memerlukan izin menu yang sesuai. Tanpa aktivasi, termasuk pada organisasi lama, menu/API jadwal tertutup meskipun akun adalah Admin HRD penuh. Penonaktifan menyimpan data dan grant untuk pengaktifan kembali. Cuti/izin serta login tetap terpisah.
+
+Sesudah struktur 067 tersedia, jalankan **migration 068** katalog attendance sebelum rollout kode ini pada environment existing. Jangan ulang 063–067. Jalankan pemeriksaan database/bootstrap dan aktivasi organisasi secara eksplisit oleh Superadmin. Tidak ada auto-aktivasi, deployment atau restart VPS. [Kontrak API, alur dan batas integrasi mobile](docs/work-schedules.md#aktivasi-fitur-absensi-oleh-superadmin).
+
+Daftar Organisasi menampilkan kode, nama, lokasi aktif, akun HRD, akhir masa akses, serta status akses dan tiap fitur secara terpisah. Organisasi dan Jadwal Kerja berada dalam satu kelompok Kepegawaian pada Data Master. Pengelompokan ini tidak mengubah izin Organisasi yang tetap khusus Superadmin. Perapian tampilan ini tidak membutuhkan migration atau perubahan aplikasi mobile.

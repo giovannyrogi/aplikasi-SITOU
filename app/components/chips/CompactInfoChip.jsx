@@ -33,7 +33,7 @@ const STATUS_CONFIG = {
 /**
  * Chip tunggal untuk metadata dan status agar warna, ikon, tinggi, dan baseline konsisten.
  */
-export default function CompactInfoChip({ label, status, tone, color, icon, sx }) {
+export default function CompactInfoChip({ label, status, tone, color, icon, wrap = false, sx }) {
   const theme = useTheme();
   const statusConfig = STATUS_CONFIG[status];
   const toneConfig = theme.status[tone || statusConfig?.tone];
@@ -49,7 +49,8 @@ export default function CompactInfoChip({ label, status, tone, color, icon, sx }
       title={typeof label === "string" ? label : statusConfig?.label}
       icon={icon || statusConfig?.icon}
       sx={{
-        height: 24,
+        height: wrap ? "auto" : 24,
+        ...(wrap ? { minHeight: 24 } : {}),
         maxWidth: "100%",
         flexShrink: 0,
         borderRadius: 999,
@@ -64,11 +65,14 @@ export default function CompactInfoChip({ label, status, tone, color, icon, sx }
         },
         "& .MuiChip-label": {
           px: 1,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          overflow: wrap ? "visible" : "hidden",
+          textOverflow: wrap ? "clip" : "ellipsis",
+          whiteSpace: wrap ? "normal" : "nowrap",
+          ...(wrap ? { overflowWrap: "anywhere" } : {}),
           fontSize: 11.5,
           fontWeight: 600,
-          lineHeight: 1,
+          lineHeight: wrap ? 1.4 : 1,
+          ...(wrap ? { py: 0.25 } : {}),
         },
         ...sx,
       }}

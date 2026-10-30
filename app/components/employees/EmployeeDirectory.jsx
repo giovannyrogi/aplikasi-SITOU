@@ -35,7 +35,7 @@ import {
   EMPLOYEE_COMPLETENESS_OPTIONS,
   getEmployeeCompletenessOption,
 } from "@/lib/employees/completenessOptions";
-import { BLOOD_TYPE_OPTIONS } from "@/lib/employees/profileOptions";
+import { BLOOD_TYPE_OPTIONS, MARITAL_STATUS_OPTIONS } from "@/lib/employees/profileOptions";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import { EMPLOYEE_SANCTION_OPTIONS } from "@/lib/employees/sanctionFilter.mjs";
 import EmployeeAvatar from "./EmployeeAvatar";
@@ -244,10 +244,35 @@ export default function EmployeeDirectory() {
       ),
     },
     {
-      key: "bloodType",label: "Golongan darah",
-      control: <Select aria-label="Golongan darah" allowClear showSearch optionFilterProp="label"
-        placeholder="Semua golongan darah" value={list.filters.bloodType || undefined}
-        onChange={(value)=>updateFilter("bloodType",value)} options={BLOOD_TYPE_OPTIONS} style={{width:"100%"}} />,
+      key: "maritalStatus",
+      label: "Status perkawinan",
+      control: (
+        <AsyncSelect
+          aria-label="Status perkawinan"
+          allowClear
+          placeholder="Semua status perkawinan"
+          value={list.filters.maritalStatus || undefined}
+          onChange={(value) => updateFilter("maritalStatus", value)}
+          options={MARITAL_STATUS_OPTIONS}
+        />
+      ),
+    },
+    {
+      key: "bloodType",
+      label: "Golongan darah",
+      control: (
+        <Select
+          aria-label="Golongan darah"
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder="Semua golongan darah"
+          value={list.filters.bloodType || undefined}
+          onChange={(value) => updateFilter("bloodType", value)}
+          options={BLOOD_TYPE_OPTIONS}
+          style={{ width: "100%" }}
+        />
+      ),
     },
     {
       key: "completeness",
@@ -267,23 +292,45 @@ export default function EmployeeDirectory() {
       key: "sanction",
       label: "Status sanksi",
       control: (
-        <AsyncSelect aria-label="Status sanksi" value={list.filters.sanction || "all"}
+        <AsyncSelect
+          aria-label="Status sanksi"
+          value={list.filters.sanction || "all"}
           options={EMPLOYEE_SANCTION_OPTIONS}
-          onChange={(value) => list.updateFilters({ ...list.filters, sanction: value,
-            ...(value === "all" ? { sanctionTypeId: undefined } : {}) })} />
+          onChange={(value) =>
+            list.updateFilters({
+              ...list.filters,
+              sanction: value,
+              ...(value === "all" ? { sanctionTypeId: undefined } : {}),
+            })
+          }
+        />
       ),
     },
     {
       key: "sanctionTypeId",
       label: "Jenis sanksi",
       control: (
-        <AsyncSelect aria-label="Jenis sanksi" allowClear placeholder="Semua jenis sanksi"
-          value={list.filters.sanctionTypeId} disabled={!organizationId}
-          options={references.sanctionTypes.map((item) => ({ value: item.id,
-            label: item.is_active ? item.name : `${item.name} (nonaktif)` }))}
-          onChange={(value) => list.updateFilters({ ...list.filters, sanctionTypeId: value || undefined,
-            sanction: value && (!list.filters.sanction || list.filters.sanction === "all")
-              ? "with_history" : list.filters.sanction })} />
+        <AsyncSelect
+          aria-label="Jenis sanksi"
+          allowClear
+          placeholder="Semua jenis sanksi"
+          value={list.filters.sanctionTypeId}
+          disabled={!organizationId}
+          options={references.sanctionTypes.map((item) => ({
+            value: item.id,
+            label: item.is_active ? item.name : `${item.name} (nonaktif)`,
+          }))}
+          onChange={(value) =>
+            list.updateFilters({
+              ...list.filters,
+              sanctionTypeId: value || undefined,
+              sanction:
+                value && (!list.filters.sanction || list.filters.sanction === "all")
+                  ? "with_history"
+                  : list.filters.sanction,
+            })
+          }
+        />
       ),
     },
     {
@@ -603,7 +650,7 @@ export default function EmployeeDirectory() {
       />
       <OperationalFilterSection
         title="Filter data pegawai"
-        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian, status, sanksi, golongan darah, kelengkapan data, dan akun pencatat."
+        description="Cari pegawai atau persempit daftar berdasarkan penempatan, jenis kepegawaian, status, sanksi, status perkawinan, golongan darah, kelengkapan data, dan akun pencatat."
         items={filterItems}
         onReset={resetFilters}
         wideColumns={4}

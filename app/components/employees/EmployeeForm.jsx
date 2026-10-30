@@ -1481,8 +1481,21 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                   </Box>
                   {hrisLevel(user, "work-schedules") === "manage" && (
                     <Box sx={{ gridColumn: "1 / -1" }}>
-                      <FontStyle fontWeight={700}>Jadwal kerja awal</FontStyle>
+                      <FontStyle fontWeight={700}>Jadwal kerja</FontStyle>
                       <WorkScheduleFields organizationId={targetOrganizationId} optional />
+                    </Box>
+                  )}
+                  {hrisLevel(user, "work-schedules") !== "manage" && (
+                    <Box sx={{ gridColumn: "1 / -1" }}>
+                      <AppNotice
+                        tone="info"
+                        title="Jadwal kerja dapat diatur nanti"
+                        description={
+                          (user.access?.hris || user.hrisContext)?.attendanceEnabled === false
+                            ? "Fitur Absensi organisasi ini belum aktif. Superadmin dapat mengaktifkannya melalui menu Organisasi. Pendaftaran dapat dilanjutkan tanpa jadwal."
+                            : "Jadwal dapat ditetapkan oleh HRD yang memiliki akses Jadwal Pegawai."
+                        }
+                      />
                     </Box>
                   )}
                 </Box>

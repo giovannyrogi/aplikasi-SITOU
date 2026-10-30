@@ -2,8 +2,14 @@
 
 import { useCallback, useState } from "react";
 import { Button } from "antd";
-import { EditOutlined, PlusOutlined, StopOutlined, SyncOutlined } from "@ant-design/icons";
-import { Box, useTheme } from "@mui/material";
+import {
+  EditOutlined,
+  PlusOutlined,
+  SettingOutlined,
+  StopOutlined,
+  SyncOutlined,
+} from "@ant-design/icons";
+import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
@@ -19,7 +25,8 @@ import useAppNotification from "@/app/hooks/useAppNotification";
 import OrganizationForm from "./OrganizationForm";
 import SubscriptionModal from "./SubscriptionModal";
 import OrganizationModulesModal from "@/app/components/access/OrganizationModulesModal";
-import AppIcon from "@/app/components/icons/AppIcon";
+import { ORGANIZATION_MODULES } from "@/lib/access/organizationModules.mjs";
+import { ReportCardFields } from "@/app/components/reports/ReportEmployeeFields";
 
 /** Memformat tanggal database menjadi tanggal pendek yang mudah dipindai pengguna. */
 const fmt = (value) =>
@@ -29,16 +36,7 @@ const fmt = (value) =>
       )
     : "—";
 
-/** Memilih tone sisa masa berlaku berdasarkan tingkat urgensinya. */
-const getRemainingTone = (daysRemaining) => {
-  if (!Number.isFinite(daysRemaining) || daysRemaining < 0) return "danger";
-  if (daysRemaining <= 7) return "danger";
-  if (daysRemaining <= 30) return "warning";
-  return "success";
-};
-
 export default function OrganizationsPage() {
-  const theme = useTheme();
   const list = useDataList("/api/organizations");
   const refreshOrganizations = list.refresh;
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
@@ -84,7 +82,7 @@ export default function OrganizationsPage() {
   const actions = (item) => [
     {
       key: "modules",
-      icon: <AppIcon icon="navigation:inventory" />,
+      icon: <SettingOutlined />,
       label: "Kelola fitur",
       onClick: () => setModuleOrganization(item),
     },
@@ -97,7 +95,7 @@ export default function OrganizationsPage() {
     {
       key: "renew",
       icon: <SyncOutlined />,
-      label: "Perpanjang",
+      label: "Perpanjang masa akses",
       onClick: () => setSubscription(item),
     },
     { type: "divider" },
@@ -110,143 +108,94 @@ export default function OrganizationsPage() {
       onClick: () => setConfirm(item),
     },
   ];
-  const featureInfo = (item) =>
-    item.active_features?.length ? (
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-        {item.active_features.map((feature) => (
-          <CompactInfoChip key={feature.code} label={feature.name} tone="success" />
-        ))}
-      </Box>
-    ) : (
-      <FontStyle fontSize={12} sx={{ color: theme.ui.mutedText }}>
-        Belum ada fitur tambahan
-      </FontStyle>
-    );
+  const accessStatus = (item) => (
+    <CompactInfoChip wrap status={item.is_active ? item.subscription_status : "inactive"} />
+  );
+  const accessEnd = (item) =>
+    item.subscription_status === "grace"
+      ? item.subscription_grace_ends_on || item.subscription_ends_on
+      : item.subscription_ends_on;
+  const featureStatus = (item, code) => (
+    <CompactInfoChip
+      wrap
+      status={
+        item.active_features?.some((feature) => feature.code === code) ? "active" : "inactive"
+      }
+    />
+  );
   const columns = [
     {
-      title: "Organisasi",
-      key: "name",
-      render: (_, item) => (
-        <Box>
-          <FontStyle fontSize={12.5} fontWeight={600}>
-            {item.name}
-          </FontStyle>
-          <Box
-            sx={{ mt: 0.75, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.75 }}
-          >
-            <CompactInfoChip label={item.code} />
-            {item.legal_name ? (
-              <FontStyle fontSize={10.5} sx={{ color: theme.ui.mutedText }}>
-                {item.legal_name}
-              </FontStyle>
-            ) : null}
-          </Box>
-        </Box>
-      ),
+      title: "Kode",
+      dataIndex: "code",
+      width: 90,
+      render: (value) => <CompactInfoChip wrap label={value} tone="neutral" />,
     },
     {
-      title: "Jenis",
-      dataIndex: "organization_type",
-      render: (v) => (
-        <CompactInfoChip
-          label={{ company: "Organisasi", holding: "Holding", agency: "Agency" }[v] || v}
-          tone="info"
-        />
+      title: "Nama organisasi",
+      dataIndex: "name",
+      width: 230,
+      render: (value) => (
+        <FontStyle fontSize={13} fontWeight={600}>
+          {value}
+        </FontStyle>
       ),
     },
+    { title: "Lokasi aktif", dataIndex: "location_count", width: 100, align: "center" },
+    { title: "Akun HRD", dataIndex: "admin_count", width: 100, align: "center" },
     {
-      title: "Onboarding",
-      key: "counts",
-      render: (_, item) => (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-          <CompactInfoChip label={`${item.location_count} lokasi`} tone="info" />
-          <CompactInfoChip label={`${item.admin_count} admin`} tone="warning" />
-        </Box>
-      ),
+      title: "Akses berakhir",
+      key: "access_end",
+      width: 150,
+      render: (_, item) => (accessEnd(item) ? fmt(accessEnd(item)) : "Belum diatur"),
     },
     {
-      title: "Masa berlaku",
-      key: "validity",
-      render: (_, item) => (
-        <Box>
-          <FontStyle fontSize={11.5}>
-            {fmt(item.subscription_starts_on)} - {fmt(item.subscription_ends_on)}
-          </FontStyle>
-          <Box sx={{ mt: 0.75 }}>
-            <CompactInfoChip
-              label={
-                Number.isFinite(item.days_remaining) && item.days_remaining >= 0
-                  ? `${item.days_remaining} hari tersisa`
-                  : "Masa akses berakhir"
-              }
-              tone={getRemainingTone(item.days_remaining)}
-            />
-          </Box>
-        </Box>
-      ),
-    },
-    {
-      title: "Status",
+      title: "Status akses",
       key: "effective_status",
-      render: (_, item) => (
-        <CompactInfoChip status={item.is_active ? item.subscription_status : "inactive"} />
-      ),
+      width: 165,
+      render: (_, item) => accessStatus(item),
     },
-    { title: "Fitur aktif", key: "active_features", render: (_, item) => featureInfo(item) },
+    ...ORGANIZATION_MODULES.map((feature) => ({
+      title: feature.label,
+      key: "feature_" + feature.code,
+      width: 115,
+      render: (_, item) => featureStatus(item, feature.code),
+    })),
     {
       title: "Aksi",
       key: "action",
       fixed: "right",
       width: 72,
-      render: (_, item) => <RowActionMenu items={actions(item)} />,
+      render: (_, item) => (
+        <RowActionMenu items={actions(item)} triggerLabel={"Aksi untuk " + item.name} />
+      ),
     },
   ];
   const card = (item) => (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-        <Box>
-          <FontStyle fontSize={14} fontWeight={600}>
-            {item.name}
-          </FontStyle>
-          <Box sx={{ mt: 0.75 }}>
-            <CompactInfoChip label={item.code} />
-          </Box>
-        </Box>
-        <RowActionMenu items={actions(item)} />
-      </Box>
-      <Box sx={{ mt: 1.5, display: "flex", flexWrap: "wrap", gap: 1 }}>
-        <CompactInfoChip status={item.is_active ? item.subscription_status : "inactive"} />
-        <CompactInfoChip
-          label={
-            { company: "Organisasi", holding: "Holding", agency: "Agency" }[
-              item.organization_type
-            ] || item.organization_type
-          }
-          tone="info"
+    <Box sx={{ minWidth: 0 }}>
+      <FontStyle fontSize={14} fontWeight={600}>
+        {item.name}
+      </FontStyle>
+      <ReportCardFields
+        stacked
+        fields={[
+          ["Kode", <CompactInfoChip wrap key="code" label={item.code} tone="neutral" />],
+          ["Lokasi aktif", item.location_count],
+          ["Akun HRD", item.admin_count],
+          ["Akses berakhir", accessEnd(item) ? fmt(accessEnd(item)) : "Belum diatur"],
+          ["Status akses", accessStatus(item)],
+          ...ORGANIZATION_MODULES.map((feature) => [
+            feature.label,
+            featureStatus(item, feature.code),
+          ]),
+        ]}
+      />
+      <Box sx={{ mt: 2 }}>
+        <RowActionMenu
+          items={actions(item)}
+          triggerLabel={"Aksi untuk " + item.name}
+          buttonLabel="Aksi organisasi"
+          fullWidth
         />
-        <CompactInfoChip
-          label={`${item.location_count} lokasi · ${item.admin_count} admin`}
-          tone="warning"
-        />
-      </Box>
-      <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-        <FontStyle fontSize={11.5} sx={{ color: theme.ui.mutedText }}>
-          Berlaku sampai {fmt(item.subscription_ends_on)}
-        </FontStyle>
-        <CompactInfoChip
-          label={
-            Number.isFinite(item.days_remaining) && item.days_remaining >= 0
-              ? `${item.days_remaining} hari tersisa`
-              : "Masa akses berakhir"
-          }
-          tone={getRemainingTone(item.days_remaining)}
-        />
-      </Box>
-      <Box sx={{ mt: 2, display: "grid", gap: 1 }}>
-        <FontStyle fontSize={12} fontWeight={600}>
-          Fitur aktif
-        </FontStyle>
-        {featureInfo(item)}
       </Box>
     </Box>
   );
@@ -254,7 +203,7 @@ export default function OrganizationsPage() {
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
         title="Organisasi"
-        description="Kelola organisasi, kesiapan onboarding, dan masa akses SITOU."
+        description="Kelola identitas organisasi, masa akses SITOU, serta aktivasi Inventaris dan Absensi."
         action={
           <Button
             type="primary"
@@ -279,9 +228,10 @@ export default function OrganizationsPage() {
       />
       <DataPanel
         title="Daftar organisasi"
-        description="Cari, pantau onboarding, dan kelola masa akses organisasi dari satu tempat."
+        description="Lihat lokasi aktif, akun HRD, masa akses, serta status Inventaris dan Absensi setiap organisasi."
       >
         <ResponsiveDataView
+          scrollX={1210}
           data={list.data}
           columns={columns}
           loading={list.loading}

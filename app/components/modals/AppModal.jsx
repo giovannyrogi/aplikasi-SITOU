@@ -23,6 +23,7 @@ export default function AppModal({
   footer,
   pagination,
   contentResetKey,
+  scrollHeaderWithContent = false,
   showCloseButton = true,
   disableClose = false,
   closeOnBackdrop = true,
@@ -90,54 +91,89 @@ export default function AppModal({
         }}
       >
         <Box
-          sx={{
-            flexShrink: 0,
-            p: { xs: 2, sm: 2.5 },
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 1.5,
-          }}
+          ref={scrollHeaderWithContent ? contentRef : undefined}
+          sx={
+            scrollHeaderWithContent
+              ? { flex: 1, minHeight: 0, overflowY: "auto" }
+              : { display: "contents" }
+          }
         >
-          {icon ? <AppIconTile icon={icon} tone="brand" size={40} iconSize={22} borderRadius={2}/> : null}
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <FontStyle
-              id={titleId}
-              component="h2"
-              fontSize={{ xs: 17, sm: 19 }}
-              fontWeight={700}
-              sx={{ lineHeight: 1.35 }}
+          <Box
+            sx={{
+              flexShrink: 0,
+              p: { xs: 2, sm: 2.5 },
+              display: scrollHeaderWithContent ? { xs: "grid", sm: "flex" } : "flex",
+              gridTemplateColumns: "minmax(0, 1fr) auto",
+              alignItems: "flex-start",
+              gap: 1.5,
+            }}
+          >
+            {icon ? (
+              <AppIconTile icon={icon} tone="brand" size={40} iconSize={22} borderRadius={2} />
+            ) : null}
+            <Box
+              sx={{
+                minWidth: 0,
+                flex: 1,
+                ...(scrollHeaderWithContent ? { gridColumn: "1 / -1", gridRow: 2 } : {}),
+              }}
             >
-              {title}
-            </FontStyle>
-            {resolvedDescription ? (
               <FontStyle
-                id={descriptionId}
-                explanation
-                fontSize={12.5}
-                sx={{ mt: 0.5, color: theme.ui.mutedText, lineHeight: 1.6, textAlign: descriptionAlign }}
+                id={titleId}
+                component="h2"
+                fontSize={{ xs: 17, sm: 19 }}
+                fontWeight={700}
+                sx={{ lineHeight: 1.35 }}
               >
-                {resolvedDescription}
+                {title}
               </FontStyle>
+              {resolvedDescription ? (
+                <FontStyle
+                  id={descriptionId}
+                  explanation
+                  fontSize={12.5}
+                  sx={{
+                    mt: 0.5,
+                    color: theme.ui.mutedText,
+                    lineHeight: 1.6,
+                    textAlign: descriptionAlign,
+                  }}
+                >
+                  {resolvedDescription}
+                </FontStyle>
+              ) : null}
+            </Box>
+            {showCloseButton ? (
+              <Tooltip title="Tutup">
+                <Box
+                  component="span"
+                  sx={scrollHeaderWithContent ? { gridColumn: 2, gridRow: 1 } : undefined}
+                >
+                  <IconButton
+                    disabled={disableClose}
+                    onClick={(event) => requestClose(event, "closeButton")}
+                    aria-label="Tutup modal"
+                    sx={{ width: 44, height: 44 }}
+                  >
+                    <CloseRoundedIcon />
+                  </IconButton>
+                </Box>
+              </Tooltip>
             ) : null}
           </Box>
-          {showCloseButton ? (
-            <Tooltip title="Tutup">
-              <span>
-                <IconButton
-                  disabled={disableClose}
-                  onClick={(event) => requestClose(event, "closeButton")}
-                  aria-label="Tutup modal"
-                  sx={{ width: 44, height: 44 }}
-                >
-                  <CloseRoundedIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-          ) : null}
-        </Box>
-        <Divider />
-        <Box ref={contentRef} sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: { xs: 2, sm: 2.5 }, ...contentSx }}>
-          {children}
+          <Divider />
+          <Box
+            ref={scrollHeaderWithContent ? undefined : contentRef}
+            sx={{
+              flex: scrollHeaderWithContent ? undefined : 1,
+              minHeight: 0,
+              overflowY: scrollHeaderWithContent ? undefined : "auto",
+              p: { xs: 2, sm: 2.5 },
+              ...contentSx,
+            }}
+          >
+            {children}
+          </Box>
         </Box>
         {pagination ? (
           <>

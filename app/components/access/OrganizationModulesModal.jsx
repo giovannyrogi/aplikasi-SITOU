@@ -1,15 +1,21 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Button, Form } from "antd";
+import { Button, Form, Space } from "antd";
+import { Box } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
+import AppNotice from "@/app/components/data-display/AppNotice";
+import { ORGANIZATION_MODULES } from "@/lib/access/organizationModules.mjs";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
 import { readApiResponse, applyApiFieldErrors } from "@/lib/api/clientError";
+
 export default function OrganizationModulesModal({ organization, onClose, onSaved, onError }) {
   const [form] = Form.useForm();
-  const [module, setModule] = useState(null);
+  const [modules, setModules] = useState(null);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState(null);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
@@ -25,26 +31,39 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
     const controller = new AbortController();
     void runWithLoadingBackdrop(
       async () => {
+        setModules(null);
+        setError("");
+        setPending(null);
         const body = await readApiResponse(
-          await fetch(`/api/access/modules?organizationId=${organization.id}`, {
-            signal: controller.signal,
+          await fetch("/api/access/modules?view=all&organizationId=" + organization.id, {
+            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(45000)]),
             cache: "no-store",
           }),
         );
         if (!controller.signal.aborted) {
-          setModule(body.data);
+          setModules(body.data.modules);
           form.resetFields();
-          form.setFieldsValue({ isEnabled: body.data.is_enabled });
+          form.setFieldsValue(
+            Object.fromEntries(
+              ORGANIZATION_MODULES.map((item) => [
+                item.code,
+                body.data.modules[item.code].is_enabled,
+              ]),
+            ),
+          );
         }
       },
       { message: "Memuat fitur organisasi..." },
-    ).catch((error) => {
-      if (error.name !== "AbortError") callbacks.current.onError(error.message);
+    ).catch((failure) => {
+      if (!controller.signal.aborted) {
+        setError(failure.message);
+        callbacks.current.onError(failure.message);
+      }
     });
     return () => controller.abort();
-  }, [organization, form, runWithLoadingBackdrop]);
-  const save = async (values) => {
-    if (saving || !module) return;
+  }, [organization, form, retry, runWithLoadingBackdrop]);
+  const save = async (changes) => {
+    if (saving || !modules) return;
     setSaving(true);
     try {
       await runWithLoadingBackdrop(
@@ -53,90 +72,127 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
             await fetch("/api/access/modules", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                organizationId: Number(organization.id),
-                isEnabled: values.isEnabled,
-                version: module.version,
-              }),
+              signal: AbortSignal.timeout(45000),
+              body: JSON.stringify({ organizationId: Number(organization.id), changes }),
             }),
           );
+          dirtyRef.current = false;
           window.dispatchEvent(new Event("sitou:access-changed"));
           await callbacks.current.onSaved(body.message);
         },
         { message: "Menyimpan fitur organisasi..." },
       );
-    } catch (error) {
-      applyApiFieldErrors(form, error);
-      callbacks.current.onError(error.message);
+    } catch (failure) {
+      applyApiFieldErrors(form, failure);
+      callbacks.current.onError(failure.message);
     } finally {
       setSaving(false);
     }
   };
+  const disabledNames = pending
+    ?.filter((change) => !change.isEnabled)
+    .map((change) => ORGANIZATION_MODULES.find((item) => item.code === change.moduleCode).label)
+    .join(" dan ");
   return (
     <>
       <AppModal
         open={Boolean(organization)}
         title="Fitur organisasi"
         description={organization?.name}
-        icon="navigation:inventory"
-        size="sm"
+        icon="navigation:organization-settings"
+        size="md"
         onClose={close.requestClose}
         disableClose={saving}
         footer={
-          <>
+          <Space wrap>
             <Button disabled={saving} onClick={close.requestClose}>
               Batal
             </Button>
             <Button
               type="primary"
               loading={saving}
-              disabled={!module}
+              disabled={!modules}
               onClick={() => form.submit()}
             >
               Simpan fitur
             </Button>
-          </>
+          </Space>
         }
       >
+        {error ? (
+          <AppNotice
+            tone="danger"
+            title="Fitur organisasi tidak dapat dimuat"
+            description={error}
+            action={<Button onClick={() => setRetry((value) => value + 1)}>Coba lagi</Button>}
+          />
+        ) : null}
         <Form
           form={form}
           layout="vertical"
+          disabled={saving || !modules}
           onValuesChange={() => {
             dirtyRef.current = true;
           }}
           onFinish={(values) => {
-            if (module?.is_enabled && !values.isEnabled) setPending(values);
-            else void save(values);
+            if (!modules) return;
+            const changes = ORGANIZATION_MODULES.filter(
+              (item) => Boolean(values[item.code]) !== modules[item.code].is_enabled,
+            ).map((item) => ({
+              moduleCode: item.code,
+              isEnabled: Boolean(values[item.code]),
+              version: modules[item.code].version,
+            }));
+            if (!changes.length) {
+              onClose();
+              return;
+            }
+            if (changes.some((change) => !change.isEnabled)) setPending(changes);
+            else void save(changes);
           }}
         >
-          <FormSettingSwitch
-            name="isEnabled"
-            notice={{
-              on: {
-                title: "Fitur Inventaris aktif",
-                description:
-                  "Fitur dapat digunakan oleh akun yang diberi akses. Gudang dan pengaturan akses tetap tersimpan.",
-              },
-              off: {
-                title: "Fitur Inventaris tidak aktif",
-                description:
-                  "Jika dinonaktifkan, akun organisasi tidak dapat menggunakan fitur Inventaris. Gudang dan pengaturan akses tetap tersimpan; aktifkan kembali untuk memulihkan akses.",
-              },
-            }}
-          />
+          <Box sx={{ display: "grid", gap: 3, "& .form-setting-switch": { py: 0 } }}>
+            {modules &&
+              ORGANIZATION_MODULES.map((item) => (
+                <FormSettingSwitch
+                  key={item.code}
+                  name={item.code}
+                  notice={{
+                    on: {
+                      title: "Fitur " + item.label + " aktif",
+                      description:
+                        item.code === "attendance"
+                          ? "Jadwal Kerja, Kalender Libur dan Jadwal Pegawai dapat digunakan HRD sesuai hak aksesnya."
+                          : "Inventaris dapat digunakan oleh akun yang diberi akses.",
+                    },
+                    off: {
+                      title: "Fitur " + item.label + " nonaktif",
+                      description:
+                        item.code === "attendance"
+                          ? "Akses jadwal ditutup. Data dan hak akses HRD tetap tersimpan. Hanya Superadmin yang dapat mengaktifkannya."
+                          : "Akses Inventaris ditutup. Gudang, transaksi dan hak akses akun tetap tersimpan.",
+                    },
+                  }}
+                />
+              ))}
+          </Box>
         </Form>
       </AppModal>
       <ConfirmDialog
         open={Boolean(pending)}
-        title="Nonaktifkan Fitur Inventaris?"
-        message="Akses Inventaris akan ditutup untuk seluruh akun organisasi. Gudang dan pengaturan akses tetap tersimpan."
+        title="Nonaktifkan fitur organisasi?"
+        message={
+          "Akses " +
+          disabledNames +
+          " akan ditutup untuk akun organisasi. Data dan hak akses tetap tersimpan. Pengaktifan kembali mengikuti hak akses yang masih berlaku."
+        }
         confirmText="Nonaktifkan fitur"
         danger
         onClose={() => setPending(null)}
         onConfirm={() => {
-          const values = pending;
+          const changes = pending;
           setPending(null);
-          void save(values);
+          void save(changes);
         }}
       />
       <ConfirmDialog

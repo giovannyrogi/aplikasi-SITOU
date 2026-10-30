@@ -60,7 +60,7 @@ export function ReportRemaining({ row }) {
 }
 
 /** Baris label-nilai mobile mengikuti kepadatan daftar pegawai. */
-export function ReportCardFields({ fields }) {
+export function ReportCardFields({ fields, stacked = false }) {
   return (
     <Box
       sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: "divider", display: "grid", gap: 0.75 }}
@@ -68,7 +68,11 @@ export function ReportCardFields({ fields }) {
       {fields.map(([label, value]) => (
         <Box
           key={label}
-          sx={{ display: "grid", gridTemplateColumns: "minmax(80px, 38%) minmax(0, 1fr)", gap: 1 }}
+          sx={{
+            display: "grid",
+            gridTemplateColumns: stacked ? "minmax(0, 1fr)" : "minmax(80px, 38%) minmax(0, 1fr)",
+            gap: stacked ? 0.5 : 1,
+          }}
         >
           <Typography sx={{ fontSize: 11.5, color: "text.secondary" }}>{label}</Typography>
           <Typography

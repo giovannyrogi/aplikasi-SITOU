@@ -2,6 +2,8 @@
 
 Dokumen ini adalah aturan kerja utama untuk developer dan Codex pada proyek **SITOU - Sistem Informasi Teknologi dan Organisasi Unit**. Berlaku untuk seluruh folder proyek, kecuali ada `AGENTS.md` yang lebih spesifik di subfolder. Jika implementasi berbeda dari dokumen ini, perubahan harus dicatat melalui migration, test, dan pembaruan dokumentasi.
 
+Sebelum setiap pekerjaan dan perintah terkait, periksa aturan root terbaru, aturan folder sasaran dan dokumentasi alur yang terdampak. Untuk pekerjaan UI/UX, baca juga `docs/ui-ux-guidelines.md` dan katalog komponen. Ulangi pemeriksaan ketika cakupan berpindah folder atau proyek. Jangan hanya mengandalkan ingatan percakapan. Terapkan hierarki informasi yang jelas, pengaturan tambahan yang mudah ditemukan, komponen reusable, penanda dengan teks selain warna, serta verifikasi render dan keyboard sebelum menyatakan perubahan selesai.
+
 ## 1. Tujuan produk saat ini
 
 Bangun dashboard HRIS multi-organisasi yang stabil untuk:
@@ -136,21 +138,11 @@ Dilarang mengubah lokasi/divisi pada baris lama untuk merepresentasikan mutasi.
 
 ## 7. Shift dan jadwal
 
-Gunakan empat jenis shift:
+Form jadwal baru memiliki dua jenis: Jam kerja tetap dan Kerja shift. Jam tetap memakai hari mingguan dengan jam utama serta pengecualian per hari. Kerja shift memuat pilihan bernama bebas, masing-masing satu rentang waktu pasti. HRD memilih satu pilihan untuk tiap Pegawai, bukan menetapkan seluruh pilihan sebagai waktu kerja Pegawai tersebut. Tidak mengaktifkan rotasi atau jam fleksibel pada form baru. Data lama tetap terbaca tanpa konversi diam-diam.
 
-- `fixed`: jam masuk/pulang pasti, misalnya 09.00-17.00.
-- `flexible`: jendela masuk dan durasi kerja minimum; keterlambatan hanya dinilai bila kebijakan mendefinisikannya.
-- `field`: tenaga lapangan; utamakan durasi/kehadiran dan lokasi yang diizinkan.
-- `off`: libur.
+Resolusi saat ini: perubahan khusus pada tanggal → penetapan eksplisit Pegawai beserta kebijakan kalender → Jadwal belum diatur. Jangan mewariskan otomatis dari role, agama, divisi atau lokasi. Struktur penetapan divisi/lokasi lama tidak menjadi perilaku resolver saat ini.
 
-Aturan pola dapat ditempel pada pegawai, divisi, atau lokasi. Prioritas resolusi:
-
-1. Target pegawai.
-2. Target divisi/unit aktif.
-3. Target lokasi aktif.
-4. Jika tidak ada aturan, jadwal berstatus perlu ditinjau; jangan menebak shift.
-
-Generator membuat `employee_daily_schedules` sebagai snapshot. Perubahan master shift tidak boleh mengubah rekap historis. Override jadwal harus menyimpan alasan dan audit.
+Generator lama tetap tersedia untuk kompatibilitas snapshot employee_daily_schedules. Kalender dibaca otomatis tanpa generator atau mutation saat GET. Master tidak boleh menulis ulang bukti historis terpakai. Perubahan tanggal menyimpan alasan dan audit.
 
 Untuk shift fixed:
 
@@ -513,7 +505,7 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 - Seluruh label/pesan yang dibaca pengguna untuk akses modul memakai istilah **Fitur**, **Akses fitur**, dan **Fitur dan izin**, bukan Paket. Aktivasi organisasi memakai **Fitur organisasi** dan label **Fitur Inventaris**; pilihan izin memakai **Fitur Inventaris — Lihat Saja/Pengelola Gudang/Pengelola Master Inventaris**. Identifier teknis seperti `packageCode`, `packageAccess`, tabel paket, serta kode permission tetap menjadi kontrak internal/API. Istilah paket backup tetap berlaku untuk arsip backup, karena merupakan domain berbeda.
 - Daftar organisasi Superadmin menampilkan **Fitur aktif** dari konfigurasi server, termasuk pada kartu mobile. Belum ada aktivasi ditampilkan sebagai **Belum ada fitur tambahan**; jangan menebak dari role akun atau menyamakan aktivasi fitur dengan izin semua pengguna. Form akses fitur menjelaskan tempat membuat gudang: Data Master → Gudang.
 
-- Teks penjelasan/informasi memakai Bahasa Indonesia yang sederhana, singkat, dan langsung menjelaskan fungsi atau dampak aksi. Utamakan 1–3 kalimat; hindari pengulangan, istilah teknis yang tidak diperlukan, dan paragraf bertele-tele. Detail lanjutan ditempatkan pada dokumentasi atau konteks yang relevan.
+- Teks penjelasan/informasi memakai Bahasa Indonesia yang sederhana, singkat, dan langsung menjelaskan fungsi atau dampak aksi. Utamakan 1–3 kalimat. Hindari pengulangan, istilah teknis yang tidak diperlukan, dan paragraf bertele-tele. Jangan memakai tanda titik koma (`;`) pada label, bantuan, deskripsi, notifikasi, atau pesan validasi UI. Pisahkan penjelasan menjadi kalimat pendek atau daftar yang jelas. Aturan ini tidak melarang titik koma pada sintaks kode, SQL, atau format teknis yang membutuhkannya. Detail lanjutan ditempatkan pada dokumentasi atau konteks yang relevan.
 - Panjang teks wajib mengikuti perannya. Judul menyebut tindakan/objek secara
   ringkas (utamakan 2–5 kata), bukan kalimat penjelasan panjang. Subjudul cukup
   satu kalimat pendek sebagai konteks, tanpa mengulang judul. Deskripsi boleh
@@ -850,6 +842,10 @@ bebas tetap teks agar penanda penting tidak tenggelam dalam terlalu banyak chip.
 
 ### Filter daftar Pegawai
 
+- Status perkawinan memakai MARITAL_STATUS_OPTIONS dan MARITAL_STATUS_VALUES yang sama dengan pendaftaran. Query maritalStatus opsional divalidasi server dan dipakai konsisten pada data, total, pagination serta ekspor. Tidak mengubah nilai profil, urutan nama/ID atau scope.
+
+- Status perkawinan memakai MARITAL_STATUS_OPTIONS dan MARITAL_STATUS_VALUES yang sama dengan pendaftaran. Query maritalStatus opsional harus divalidasi server dan diterapkan konsisten pada data, total, pagination serta ekspor, tanpa mengubah nilai profil atau scope.
+
 - Golongan darah pada daftar dan export memakai BLOOD_TYPE_OPTIONS yang sama dengan form (A/B/AB/O); tidak menambah klasifikasi baru atau mengubah data lama.
 - Tanpa penempatan berada dalam Kelengkapan data dan memakai employeeWithoutAssignmentSql yang sama dengan Dashboard: status aktif/masa percobaan, tanpa penempatan utama yang berlaku hari ini. Penempatan tambahan, masa depan, dan yang sudah berakhir tidak memenuhi penempatan utama saat ini. Scope HRD terpilih tetap membatasi akses; filter ini tidak memberikan akses ke Pegawai di luar scope. Filter daftar, total, pagination, dan export harus konsisten.
 
@@ -1007,8 +1003,31 @@ Dashboard Pegawai memakai banner profil, tiga ringkasan sesuai izin, saldo per j
 - Tabel sesi hanya menyimpan hash token, expiry mutlak dari `AUTH_MOBILE_SESSION_TTL_MINUTES` backend (wajib integer 1–10080 menit, maksimal tujuh hari) tanpa refresh, snapshot versi kredensial serta FK organisasi/profil/membership. Selalu periksa kelayakan terkini, revocation dan expiry; jangan memasukkan token ke log/URL.
 - Perubahan schema melalui migration baru dan sinkronisasi snapshot/peta/kontrak/operasional. Jalankan verifikasi upgrade serta bootstrap kosong. Penerapan lokal tidak mengizinkan deployment VPS otomatis.
 
-
 ## Form dan fondasi jadwal kerja
 
+- Nama jadwal dan dropdown Jenis jam kerja sejajar pada desktop serta bertumpuk full width di ponsel. Pilihan shift dapat dilipat dengan ringkasan nama/jam, isian dipertahankan dan panel dengan error dibuka. Informasi hari libur/pilihan shift memakai AppNotice. Daftar menggunakan dropdown Jenis jam kerja dalam Filter data disertai deskripsi singkat, tanpa tab duplikat.
+
+- Nama jadwal dan dropdown Jenis jam kerja sejajar pada desktop serta bertumpuk full width di ponsel. Pilihan shift dapat dilipat dengan ringkasan nama/jam, isian dipertahankan, dan panel dengan error dibuka. Informasi hari libur/pilihan shift memakai AppNotice. Daftar menggunakan dropdown Jenis jam kerja dalam Filter data disertai deskripsi singkat, tanpa tab duplikat.
+
+- Alur baru: Nama jadwal → Jenis jam kerja dengan pilihan Jam kerja tetap atau Kerja shift. Tidak memilih jenis, hari atau jam contoh otomatis. Jam tetap memakai Jam kerja utama dan panel Atur jam kerja per hari. Kerja shift memakai Tambah shift dengan nama bebas dan satu rentang waktu per pilihan. HRD memilih satu shift saat penetapan. Tidak menyediakan Rotasi, Jam fleksibel, jenis Libur kedua, Ikuti jam utama atau salin hari pada form baru. Hari yang tidak dipilih adalah Libur. Tolak benturan pilihan shift termasuk lintas tengah malam. Batas yang bersentuhan boleh. Status tetap paling bawah dan ringkasan menjadi konfirmasi sebelum request tulis.
+- Kelompok shift menggunakan work_schedule_groups/work_schedule_group_items dari migration 067 dengan anggota pola/shift existing terikat organisasi. Jangan menyimpulkan kelompok dari format nama. Metadata mempertahankan ID. Susunan yang pernah digunakan harus disalin. API master lama tidak boleh mengubah atau memakai ulang shift kelompok secara terpisah. Pola lama tetap kompatibel, konfigurasi rotasi/fleksibel/beberapa waktu lama hanya dibaca pada form baru. Jangan mengubah histori, grant, kontrak patternId atau menjalankan ulang 063–066.
 - Form baru hanya memuat field yang memiliki fungsi nyata bagi pengguna atau proses bisnis. Field Kode tidak ditambahkan secara default; gunakan hanya jika ada kebutuhan identifikasi bisnis, integrasi, atau operasional yang jelas. ID internal database tidak perlu ditampilkan sebagai isian pengguna. Jangan menghapus field kode modul existing lain secara massal.
 - Jadwal mengikuti docs/work-schedules.md. Sumber aturan adalah revisi efektif dan snapshot sesi; histori terpakai tidak ditimpa. Hak work-schedules berdiri sendiri dari Data Pegawai. Profil dan jadwal awal harus satu transaksi.
+- Dashboard jadwal memakai satu form Data Master → Jadwal Kerja dan penetapan Kepegawaian → Jadwal Pegawai. URL/grant existing dipertahankan. Form gabungan menyimpan sesi/pola atomik; kalender GET read-only dan tidak memerlukan susun manual. Langkah 4 Penempatan menyediakan pilihan Atur jadwal nanti. Jangan mengganti histori terpakai, menebak jadwal dari agama/role, atau mengaktifkan absensi mobile/kompensasi dari perubahan UI ini.
+
+- Kalender Libur menempatkan status aktif/nonaktif paling bawah melalui FormSettingSwitch dan notice bersama. Baris tanggal/nama libur/tombol hapus sejajar pada desktop serta bertumpuk di ponsel. Jadwal Pegawai menempatkan Tetapkan jadwal pada PageHeader, atau header panel saat tertanam pada detail Pegawai. Checkbox header hanya memilih halaman terlihat dengan status sebagian terpilih, batas 100 dan jumlah pilihan yang jelas. Batalkan semua pilihan bukan penghapusan data. Avatar/NIP mengikuti EmployeeAvatar dan pola Data Pegawai, foto tetap privat, berizin serta terbatas scope. Grant jadwal tidak membuka dokumen lain atau mutation file.
+
+- Dialog Jadwal Pegawai memakai identitas berlabel dan komponen bersama AppNotice/InfoField/EmptyState. Penetapan baru pada workspace Jadwal Pegawai tanpa field tanggal akhir dan mengirim until:null, tanpa menulis ulang periode lama. Ubah jadwal harian memisahkan tanggal, pemeriksaan jadwal, pilihan Bekerja/Libur dan alasan. dayType hanya state UI, tidak masuk API. Riwayat memakai kartu status/periode/pelaku/waktu/alasan berlabel melalui ScheduleHistory, CompactInfoChip dan InfoFieldGrid. Tidak menebak data audit yang kosong.
+
+## Aktivasi Fitur Absensi organisasi
+
+- Fitur Absensi memakai organization_modules code attendance dan diaktifkan hanya oleh Superadmin melalui Organisasi → Fitur organisasi. Tidak ada auto-aktivasi atau grant otomatis, termasuk organisasi existing. Cakupan saat ini Jadwal Kerja, Kalender Libur dan Jadwal Pegawai. Cuti/izin terpisah.
+- Aktivasi dan izin akun berbeda. Tiga menu memakai grant HRIS baca/kelola serta scope existing. Admin HRD penuh tidak melewati aktivasi. Penonaktifan menutup menu/API tanpa menghapus jadwal, kalender, penetapan, histori atau grant. Pengaktifan kembali mengikuti grant yang masih berlaku.
+- Seluruh service jadwal, penetapan onboarding dan endpoint absensi mendatang wajib memakai gerbang server requireAttendanceModule selain permission/objek/organisasi sesi. Mutation mengunci organisasi sebelum pemeriksaan modul dan sebelum lock target lain. Jangan mempercayai snapshot/flag mobile sebagai authorization. Login dan kontrak mobile existing tidak ikut dinonaktifkan.
+- API modul bentuk lama tetap khusus Inventaris. Batch baru hanya kode allowlist, strict, atomik, audit dan version check. UI wajib membedakan loading/gagal/status nonaktif dan mempertahankan isian saat gagal. Kontrak serta migration katalog 068: docs/work-schedules.md dan database/migrations/README.md.
+
+## Presentasi Data Master dan daftar Organisasi
+
+- Organisasi ditampilkan dalam kelompok Kepegawaian bersama Lokasi hingga Jadwal Kerja pada Data Master, tanpa pemisah Platform atau Kepegawaian ganda. Gunakan metadata sidebarGroup untuk presentasi. Jangan mengubah access.kind=platform, role, assignable atau guard Organisasi demi layout. Filter izin tetap dijalankan sebelum pengelompokan.
+- Tabel Organisasi memisahkan kode, nama, lokasi aktif, akun HRD, akhir akses, status akses dan status tiap fitur. Jangan menumpuk nama, kode serta nama resmi dalam satu sel, atau menyebut hitungan lokasi/admin sebagai kesiapan onboarding. Rincian identitas/periode tetap pada form existing. Status modul berbeda dari akses organisasi.
+- Ikon aksi organisasi memakai keluarga outline yang sama dengan aksi lain melalui RowActionMenu, Kelola fitur memakai SettingOutlined. Kode/status panjang menggunakan CompactInfoChip wrap, kartu mobile menggunakan ReportCardFields stacked serta footer aksi berlabel. Kedua varian bersifat opt-in agar pemakai lain tetap kompatibel. Acuan docs/ui-ux-guidelines.md dan katalog komponen.

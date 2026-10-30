@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Button, Form, Space, Tabs } from "antd";
+import { Button, Form, Space } from "antd";
 import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
@@ -19,6 +19,7 @@ import useAppNotification from "@/app/hooks/useAppNotification";
 import useDataList from "@/app/hooks/useDataList";
 import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import MasterEditor, { masterValues } from "./MasterEditor";
+import TemplatePage from "./TemplatePage";
 import { scheduleRequest, requestKey, applyFieldErrors } from "./ScheduleFields";
 const endpoints = {
   shifts: "work-shifts",
@@ -27,23 +28,9 @@ const endpoints = {
 };
 const titles = { shifts: "Shift kerja", patterns: "Pola kerja", calendars: "Kalender Libur" };
 export default function WorkMasterPage({ initialKind = "shifts" }) {
-  const [kind, setKind] = useState(initialKind);
-  return (
-    <Box sx={{ display: "grid", gap: 3 }}>
-      {initialKind !== "calendars" && (
-        <Tabs
-          activeKey={kind}
-          onChange={setKind}
-          items={[
-            { key: "shifts", label: "Shift kerja" },
-            { key: "patterns", label: "Pola kerja" },
-          ]}
-        />
-      )}
-      <MasterList key={kind} kind={kind} />
-    </Box>
-  );
+  return initialKind === "calendars" ? <MasterList kind="calendars" /> : <TemplatePage />;
 }
+
 function MasterList({ kind }) {
   const user = useAuthenticatedUser();
   const platform = user.role_code === "superadmin";
@@ -176,8 +163,11 @@ function MasterList({ kind }) {
           : `Rotasi ${item.cycle_days} hari`
         : `${item.days?.length || 0} tanggal libur`;
   const columns = [
-    { title: "Nama", dataIndex: "name" },
-    { title: "Keterangan", render: (_, x) => details(x) },
+    { title: kind === "calendars" ? "Nama kalender" : "Nama", dataIndex: "name" },
+    {
+      title: kind === "calendars" ? "Jumlah tanggal libur" : "Keterangan",
+      render: (_, x) => details(x),
+    },
     {
       title: "Status",
       render: (_, x) => (
@@ -187,25 +177,31 @@ function MasterList({ kind }) {
         />
       ),
     },
-    { title: "Aksi", render: (_, x) => <RowActionMenu items={actions(x)} /> },
+    {
+      title: "Aksi",
+      align: "center",
+      width: 92,
+      render: (_, x) => <RowActionMenu items={actions(x)} />,
+    },
   ];
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
         title={titles[kind]}
-        description="Atur pilihan kerja organisasi dan pertahankan riwayatnya."
+        description="Kelola tanggal libur organisasi untuk digunakan pada jadwal kerja."
         action={
           manage && (
             <Button type="primary" disabled={!org} onClick={() => open()}>
-              Tambah {kind === "shifts" ? "shift" : kind === "patterns" ? "pola" : "kalender"}
+              Buat {kind === "shifts" ? "shift" : kind === "patterns" ? "pola" : "kalender libur"}
             </Button>
           )
         }
       />
       <OperationalFilterSection
+        description="Cari kalender libur berdasarkan nama dan status penggunaannya."
         search={list.search}
         onSearchChange={list.setSearch}
-        searchPlaceholder="Cari nama"
+        searchPlaceholder="Cari nama kalender"
         status={list.status}
         onStatusChange={list.setStatus}
         onRefresh={list.refresh}
@@ -226,7 +222,10 @@ function MasterList({ kind }) {
             : []
         }
       />
-      <DataPanel title={"Daftar " + titles[kind].toLowerCase()}>
+      <DataPanel
+        title={"Daftar " + titles[kind].toLowerCase()}
+        description="Lihat jumlah tanggal libur dan status kalender. Buka Edit untuk mengatur tanggalnya."
+      >
         <ResponsiveDataView
           data={list.data}
           columns={columns}
@@ -235,7 +234,11 @@ function MasterList({ kind }) {
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
-          emptyDescription={org ? "Belum ada data." : "Pilih organisasi."}
+          emptyDescription={
+            org
+              ? "Belum ada kalender libur sesuai filter."
+              : "Pilih organisasi untuk melihat kalender libur."
+          }
           renderCard={(x) => (
             <Box sx={{ display: "grid", gap: 1 }}>
               <FontStyle fontWeight={600}>{x.name}</FontStyle>

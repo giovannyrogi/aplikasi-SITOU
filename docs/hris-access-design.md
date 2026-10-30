@@ -220,7 +220,22 @@ bukan role saat ini saja. Aktivitas Pegawai/Pimpinan/Superadmin tidak masuk
 feed organisasi; filter izin dan scope tetap berlaku sebelum LIMIT lima data.
 Audit login dan histori bisnis tidak diubah atau dihapus.
 
+## Jadwal kerja — 066 dan 067
 
-## Jadwal kerja — 066
+work-shifts (Data Master → Jadwal Kerja), work-calendars (Pengaturan Organisasi → Kalender Libur), work-schedules (Kepegawaian → Jadwal Pegawai) memakai baca/kelola tersendiri; kode grant dan URL lama dipertahankan. /api/work-schedule-templates dan /api/work-schedule-groups mengikuti work-shifts baca/kelola, termasuk transaksi penyimpanan gabungan. Kelompok pilihan shift bukan submenu atau grant baru. Tidak memberi hak otomatis saat migration 067. GET /api/work-schedules/calendar dan preview memerlukan baca work-schedules; generator/penetapan/exception/cancel memerlukan kelola. Hak Data Pegawai tidak memberikan penetapan jadwal. Admin penuh mengikuti katalog HRIS; delegasi perlu grant eksplisit. Scope lokasi membatasi setiap target Pegawai, termasuk kalender. Opsi memuat ringkasan hari/jam/libur minimum untuk pilihan penetapan, bukan akses pengelolaan master. Route dan layanan memeriksa hak terkini. Lihat work-schedules.md.
 
-work-shifts (Data Master), work-calendars (Pengaturan Organisasi), work-schedules (Kepegawaian) memakai baca/kelola tersendiri. Hak Data Pegawai tidak memberikan penetapan jadwal. Admin penuh mengikuti katalog HRIS; delegasi perlu grant eksplisit. Scope lokasi membatasi target Pegawai. Preview baca; generator/penetapan/exception/cancel kelola. Route dan layanan memeriksa hak terkini. Opsi hanya referensi minimum, bukan perluasan administrasi. Lihat work-schedules.md.
+### Foto pada Jadwal Pegawai
+
+Grant baca/kelola work-schedules dapat membaca kategori employee_photo/profile_photo melalui canUseHrisFile untuk avatar Jadwal Pegawai. Endpoint upload tetap memeriksa sesi, permission private_files.read_sensitive existing, organisasi serta scope Pegawai dan ketersediaan file, lalu mengaudit preview/download dengan no-store. Grant ini tidak membuka identitas, pendidikan, kontrak atau mutation file. Metadata daftar hanya ID foto dan organisasi pada Pegawai yang lolos scope jadwal. Tidak menambah grant role atau membuka storage publik.
+
+## Fitur Absensi organisasi — 068
+
+Superadmin mengaktifkan Fitur Absensi melalui Organisasi → Fitur organisasi sebelum Jadwal Kerja, Kalender Libur dan Jadwal Pegawai dapat digunakan. Aktivasi attendance tidak memberi grant. Tiga menu tetap memakai hak HRIS baca/kelola existing beserta scope Pegawai/lokasi, termasuk penetapan saat pendaftaran. Admin HRD penuh mengikuti aktivasi yang sama. Cuti dan izin tidak termasuk gerbang ini.
+
+readHrisState/readHrisStates mempertahankan assigned dan menyaring grants efektif ketika attendance nonaktif, serta memuat attendanceEnabled. hrisLevel menolak ketiga menu sebelum bypass Admin HRD penuh. requireScheduleAccess memeriksa status organisasi/modul pada database untuk seluruh service, termasuk pemanggil internal. Penonaktifan tidak menghapus histori atau grant. Foto yang hanya diizinkan melalui jadwal ikut kehilangan akses tersebut. Akun berizin foto melalui menu lain tetap mengikuti hak yang sah.
+
+Perubahan modul masuk hash scopeRevision dan accessEntitlementsChanged. Snapshot lama bukan bukti izin, setiap request membaca hak terbaru. Mutation aktivasi dan jadwal memakai lock organisasi lebih dahulu untuk mencegah race penonaktifan. Form akses akun menjelaskan bila fitur belum aktif. Tidak ada paket Inventaris, scope gudang atau role baru untuk Absensi. Kontrak batch dan rollout: [Jadwal kerja](work-schedules.md). Endpoint absensi mobile mendatang wajib memakai aktivasi dan permission self-service server yang sama.
+
+### Kelompok sidebar Organisasi
+
+Organisasi ditampilkan di kelompok Kepegawaian pada Data Master melalui metadata sidebarGroup=hris. Ini hanya presentasi. access.kind=platform, assignable=false, role Superadmin dan guard API existing tetap berlaku. Organisasi tidak masuk katalog grant HRIS. Jadwal Kerja berada pada kelompok Kepegawaian yang sama tetapi tetap mengikuti aktivasi Absensi dan grant HRIS existing. sidebarGroups dijalankan setelah filter izin, menggabungkan label sama dengan urutan kemunculan kelompok pertama dan urutan item di dalamnya. Perubahan ini tidak memberi akses tambahan kepada HRD/Pegawai dan tidak mengubah Platform pada Pemeliharaan Sistem.

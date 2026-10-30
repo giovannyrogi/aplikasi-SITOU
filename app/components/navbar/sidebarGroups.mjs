@@ -4,13 +4,13 @@ const GROUP_LABELS = Object.freeze({
   platform: "Platform",
 });
 
-/** Kelompok presentasi dibuat setelah penyaringan izin, tanpa mengubah urutan menu. */
+/** Presentasi setelah filter izin. Urutan kelompok mengikuti kemunculan pertama. */
 export function sidebarGroups(submenus) {
   const groups = [];
   for (const submenu of submenus) {
-    const label = GROUP_LABELS[submenu.access?.kind] || "Lainnya";
-    const previous = groups.at(-1);
-    if (previous?.label === label) previous.items.push(submenu);
+    const label = GROUP_LABELS[submenu.sidebarGroup || submenu.access?.kind] || "Lainnya";
+    const existing = groups.find((group) => group.label === label);
+    if (existing) existing.items.push(submenu);
     else groups.push({ label, items: [submenu] });
   }
   return groups;

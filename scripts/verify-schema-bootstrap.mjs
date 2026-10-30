@@ -104,6 +104,15 @@ try {
   const upgraded = new pg.Client({ ...connection, database: process.env.PGDATABASE });
   try {
     await upgraded.connect();
+    const moduleCatalogSql =
+      "SELECT code,name FROM access_modules WHERE code IN ('inventory','attendance') ORDER BY code";
+    const [freshModules, existingModules] = await Promise.all([
+      bootstrap.query(moduleCatalogSql),
+      upgraded.query(moduleCatalogSql),
+    ]);
+    checks.organization_modules_catalog_matches_upgrade =
+      freshModules.rows.length === 2 &&
+      JSON.stringify(freshModules.rows) === JSON.stringify(existingModules.rows);
     const signatureSql = `SELECT conname,pg_get_constraintdef(oid,true) AS definition FROM pg_constraint WHERE conrelid='public.organization_retirement_policies'::regclass ORDER BY conname`;
     const [fresh, existing] = await Promise.all([
       bootstrap.query(signatureSql),
@@ -135,6 +144,8 @@ try {
       "work_schedule_exception_sessions",
       "work_schedule_sessions",
       "work_schedule_requests",
+      "work_schedule_groups",
+      "work_schedule_group_items",
     ]) {
       const constraintSql = `SELECT conname,pg_get_constraintdef(oid,true) AS definition FROM pg_constraint WHERE conrelid='public.${table}'::regclass ORDER BY conname`;
       const [freshConstraints, existingConstraints] = await Promise.all([

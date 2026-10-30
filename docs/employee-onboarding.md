@@ -32,4 +32,12 @@ Import menerapkan aturan yang sama pada validasi dan pemeriksaan ulang saat comm
 
 ## Jadwal kerja awal
 
-Opsional di langkah 4 Penempatan, dengan hak Kelola Jadwal Kerja. workSchedule {patternId,from,until?,anchorDate?} disimpan/dipulihkan bersama draft. Saat pola dipilih, field wajib terkait harus lengkap. Finalisasi profil dan penetapan satu transaksi; gagal jadwal membatalkan profil parsial. Payload lama tanpa jadwal tetap valid; import belum berubah. Pegawai existing memakai menu Jadwal Kerja atau bagian detail dengan layanan sama. Lihat work-schedules.md.
+Bagian Jadwal kerja tetap di langkah 4 Penempatan; tidak menambah langkah. Pilih Atur jadwal nanti atau Pilih jadwal kerja. Daftar memuat jadwal tetap dan pilihan Nama jadwal — Nama shift. Pilih satu shift yang akan dijalani Pegawai, bukan seluruh kelompok. Ketika dipilih, tampilkan ringkasan hari/jam/libur, Mulai berlaku, Berakhir (opsional), serta Tanggal hari pertama putaran hanya untuk pola rotasi lama. Jenis baru tidak memerlukan tanggal putaran. Tanggal awal mengikuti nilai yang lebih akhir antara hari ini organisasi dan tanggal bergabung; isian draft yang sudah ada tidak ditimpa. Pengguna tanpa Kelola Jadwal Pegawai tetap dapat mendaftar sesuai hak existing dan melihat petunjuk untuk HRD berizin.
+
+Pilihan shift kelompok menggunakan ID pola anggota existing. Bentuk workSchedule {patternId,from,until?,anchorDate?} disimpan/dipulihkan bersama draft; Atur jadwal nanti dikirim sebagai null. Pilihan organisasi lama dibersihkan saat organisasi berubah. Finalisasi profil dan penetapan tetap satu transaksi; gagal jadwal membatalkan profil parsial. Payload lama tanpa jadwal dan import tetap kompatibel. Pegawai existing memakai Kepegawaian → Jadwal Pegawai atau tab Jadwal kerja detail Pegawai. Lihat work-schedules.md.
+
+Status perkawinan pada Data Pegawai menggunakan pilihan yang sama dengan pendaftaran: Belum Menikah, Menikah, Cerai Hidup dan Cerai Mati. Filter hanya menyaring daftar serta ekspor. Menghapus pilihan atau Atur ulang menampilkan seluruh status, termasuk nilai kosong, tanpa mengubah profil.
+
+### Jadwal dan aktivasi Fitur Absensi
+
+Pilihan jadwal langkah 4 Penempatan memerlukan Fitur Absensi organisasi aktif dan hak kelola Jadwal Pegawai. Saat nonaktif, HRD tetap dapat mendaftarkan profil tanpa jadwal. Panel informasi menjelaskan aktivasi melalui Superadmin → Organisasi. Payload lama/draft yang masih meminta penetapan jadwal ditolak server ketika fitur telah dimatikan, sehingga tidak ada bypass melalui browser lama. Profil dan penetapan tetap satu transaksi. Mengaktifkan fitur tidak memberi grant pendaftar secara otomatis.

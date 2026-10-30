@@ -65,10 +65,11 @@ export default function OrganizationAccountForm({
   }, [fullAdmin, form]);
   const editing = Boolean(item);
   const isHrd = user.role_code === ROLES.HRD && !user.access?.hris?.fullAdmin;
-  const revokesFullAdmin = (values) => Boolean(
-    item?.hrisAccess?.fullAdmin &&
+  const revokesFullAdmin = (values) =>
+    Boolean(
+      item?.hrisAccess?.fullAdmin &&
       (values.isHrisAdmin === false || values.roleCode !== "hrd" || !values.isActive),
-  );
+    );
 
   useEffect(() => {
     if (!open) return;
@@ -147,6 +148,7 @@ export default function OrganizationAccountForm({
           packages: body.data?.packages || [],
           warehouses: body.data?.warehouses || [],
           inventoryEnabled: Boolean(body.data?.inventoryEnabled),
+          attendanceEnabled: Boolean(body.data?.attendanceEnabled),
           canGrantAll: Boolean(body.data?.canGrantAll),
           lockedPackageCodes: body.data?.lockedPackageCodes || [],
           canSetHrisAdmin: Boolean(body.data?.canSetHrisAdmin),
@@ -178,7 +180,8 @@ export default function OrganizationAccountForm({
       expandedHrisGroups: _expandedHrisGroups,
       ...accountValues
     } = values;
-    const revokingHris = revokesFullAdmin(values) ||
+    const revokingHris =
+      revokesFullAdmin(values) ||
       (editing && item.role_code === "hrd" && values.roleCode !== "hrd");
     if (savingRef.current || !optionsReady) return;
     savingRef.current = true;

@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Button, Checkbox, Form, Input, InputNumber, Select, Space } from "antd";
-import { Box } from "@mui/material";
+import { Button, Form, Input, InputNumber, Space, Tooltip } from "antd";
+import AppIcon from "@/app/components/icons/AppIcon";
+import Select from "@/app/components/forms/AsyncSelect";
+import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
+import { Box, Divider } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import { DateField, TimeField, MinutesField, useScheduleOptions } from "./ScheduleFields";
@@ -72,8 +75,22 @@ export default function MasterEditor({
   };
   return (
     <AppModal
+      scrollHeaderWithContent
       open={open}
-      title={item ? "Edit data" : "Tambah data"}
+      title={
+        kind === "calendars"
+          ? item
+            ? "Edit kalender libur"
+            : "Buat kalender libur"
+          : item
+            ? "Edit pengaturan kerja"
+            : "Tambah pengaturan kerja"
+      }
+      description={
+        kind === "calendars"
+          ? "Masukkan tanggal dan nama hari libur. Kalender dapat dipilih pada jadwal kerja sesuai kebutuhan organisasi."
+          : "Atur jam atau susunan hari kerja. Perubahan pada jadwal yang sudah digunakan tetap mengikuti aturan perlindungan riwayat."
+      }
       size="lg"
       onClose={onClose}
       disableClose={busy}
@@ -83,7 +100,7 @@ export default function MasterEditor({
             Batal
           </Button>
           <Button type="primary" onClick={onSubmit} loading={busy}>
-            Simpan
+            {kind === "calendars" ? "Simpan kalender" : "Simpan"}
           </Button>
         </Space>
       }
@@ -94,12 +111,11 @@ export default function MasterEditor({
           label={
             kind === "shifts" ? "Nama shift" : kind === "patterns" ? "Nama pola" : "Nama kalender"
           }
-          rules={[{ required: true, message: "Isi nama." }]}
+          rules={[
+            { required: true, message: kind === "calendars" ? "Isi nama kalender." : "Isi nama." },
+          ]}
         >
           <Input maxLength={100} />
-        </Form.Item>
-        <Form.Item name="isActive" valuePropName="checked">
-          <Checkbox>Aktif untuk pilihan baru</Checkbox>
         </Form.Item>
         {kind === "shifts" && (
           <>
@@ -132,13 +148,17 @@ export default function MasterEditor({
                     <MinutesField name={["rules", "requiredMinutes"]} label="Target kerja" />
                   </>
                 )}
-                <Form.Item name={["rules", "nextDay"]} valuePropName="checked">
-                  <Checkbox>Selesai pada hari berikutnya</Checkbox>
-                </Form.Item>
+                <FormSettingSwitch
+                  name={["rules", "nextDay"]}
+                  title="Pulang hari berikutnya"
+                  description="Aktifkan jika jam pulang melewati tengah malam, misalnya 22.00–06.00 besok."
+                />
                 <MinutesField name={["rules", "breakMinutes"]} label="Istirahat" />
-                <Form.Item name={["rules", "deductBreak"]} valuePropName="checked">
-                  <Checkbox>Istirahat mengurangi durasi kerja</Checkbox>
-                </Form.Item>
+                <FormSettingSwitch
+                  name={["rules", "deductBreak"]}
+                  title="Kurangi durasi kerja dengan istirahat"
+                  description="Aktifkan agar waktu istirahat dikurangi dari rentang jam kerja."
+                />
                 <MinutesField name={["rules", "lateTolerance"]} label="Toleransi terlambat" />
                 <MinutesField name={["rules", "earlyTolerance"]} label="Toleransi pulang awal" />
               </Box>
@@ -160,15 +180,24 @@ export default function MasterEditor({
           <Form.List name="days">
             {(fields, { add, remove }) => (
               <>
+                <Divider sx={{ my: 3 }} />
                 <FontStyle fontWeight={600}>Tanggal libur</FontStyle>
+                <FontStyle explanation sx={{ mt: 1, mb: 2, textAlign: "left" }}>
+                  Tambahkan tanggal dan nama hari libur yang berlaku bagi organisasi.
+                </FontStyle>
                 {fields.map((f) => (
                   <Box
                     key={f.key}
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: { xs: "1fr", sm: "1fr 2fr auto" },
-                      gap: 1,
-                      mt: 2,
+                      gridTemplateColumns: {
+                        xs: "minmax(0, 1fr)",
+                        sm: "minmax(0, 1fr) minmax(0, 2fr) auto",
+                      },
+                      gap: 2,
+                      alignItems: "start",
+                      mb: 3,
+                      "& .ant-form-item": { mb: 0 },
                     }}
                   >
                     <DateField name={[f.name, "date"]} label="Tanggal" required />
@@ -179,13 +208,34 @@ export default function MasterEditor({
                     >
                       <Input maxLength={100} />
                     </Form.Item>
-                    <Button onClick={() => remove(f.name)} style={{ minHeight: 44 }}>
-                      Hapus
-                    </Button>
+                    <Box
+                      sx={{ "& .ant-form-item-label": { display: { xs: "none", sm: "block" } } }}
+                    >
+                      <Form.Item label={<span aria-hidden="true">&nbsp;</span>}>
+                        <Tooltip title="Hapus tanggal libur" trigger={["hover", "focus"]}>
+                          <Button
+                            danger
+                            aria-label={"Hapus tanggal libur " + (f.name + 1)}
+                            onClick={() => remove(f.name)}
+                            icon={<AppIcon icon="solar:trash-bin-trash-linear" fontSize={20} />}
+                            style={{
+                              width: 44,
+                              minHeight: 44,
+                              height: 44,
+                              padding: 0,
+                            }}
+                          />
+                        </Tooltip>
+                      </Form.Item>
+                    </Box>
                   </Box>
                 ))}
-                <Button onClick={() => add({})} disabled={fields.length >= 366}>
-                  Tambah tanggal
+                <Button
+                  onClick={() => add({})}
+                  disabled={fields.length >= 366}
+                  style={{ minHeight: 44, height: "auto", maxWidth: "100%", whiteSpace: "normal" }}
+                >
+                  Tambah tanggal libur
                 </Button>
               </>
             )}
@@ -284,6 +334,26 @@ export default function MasterEditor({
             </Form.List>
           </>
         )}
+        <Divider sx={{ mt: 3, mb: 1 }} />
+        <FormSettingSwitch
+          name="isActive"
+          notice={{
+            on: {
+              title: kind === "calendars" ? "Kalender aktif" : "Pengaturan aktif",
+              description:
+                kind === "calendars"
+                  ? "Kalender dapat dipilih pada jadwal kerja."
+                  : "Pengaturan dapat dipilih untuk jadwal baru.",
+            },
+            off: {
+              title: kind === "calendars" ? "Kalender nonaktif" : "Pengaturan nonaktif",
+              description:
+                kind === "calendars"
+                  ? "Kalender tidak dapat dipilih pada jadwal baru. Jadwal yang sudah menggunakan kalender ini tetap tersimpan."
+                  : "Tidak tersedia untuk pilihan baru. Pengaturan yang sudah digunakan tetap tersimpan.",
+            },
+          }}
+        />
       </Form>
     </AppModal>
   );
