@@ -1,10 +1,11 @@
 "use client";
+import AppCollapse from "@/app/components/data-display/AppCollapse";
 
 import { applyApiFieldErrors, readApiResponse } from "@/lib/api/clientError";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Checkbox, Collapse, DatePicker, Form, Input, Select } from "antd";
+import { Button, Checkbox, DatePicker, Form, Input, Select } from "antd";
 import { DeleteOutlined, PlusOutlined, WarningOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
 import dayjs from "dayjs";
@@ -1381,7 +1382,7 @@ export default function EmployeeProfileSectionsForm({
               },
             }}
           >
-            <Collapse
+            <AppCollapse
               items={collapseItems}
               activeKey={activeSections}
               onChange={(keys) => setActiveSections(Array.isArray(keys) ? keys : [keys])}

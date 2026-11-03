@@ -19,6 +19,7 @@ export default function ConfirmDialog({
   loading = false,
   fullWidthMobile = false,
   onConfirm,
+  hideConfirm = false,
   onClose,
 }) {
   const theme = useTheme();
@@ -40,18 +41,20 @@ export default function ConfirmDialog({
       footer={
         <>
           <Button onClick={onClose} disabled={loading} style={mobileButtonStyle}>
-            Batal
+            {hideConfirm ? "Tutup" : "Batal"}
           </Button>
-          <Button
-            type="primary"
-            danger={danger}
-            data-action-tone={danger ? "danger" : undefined}
-            loading={loading}
-            onClick={onConfirm}
-            style={mobileButtonStyle}
-          >
-            {confirmText}
-          </Button>
+          {!hideConfirm && (
+            <Button
+              type="primary"
+              danger={danger}
+              data-action-tone={danger ? "danger" : undefined}
+              loading={loading}
+              onClick={onConfirm}
+              style={mobileButtonStyle}
+            >
+              {confirmText}
+            </Button>
+          )}
         </>
       }
     >

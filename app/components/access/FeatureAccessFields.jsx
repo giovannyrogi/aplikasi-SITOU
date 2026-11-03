@@ -1,5 +1,6 @@
 "use client";
-import { Button, Collapse, Form, Select } from "antd";
+import AppCollapse from "@/app/components/data-display/AppCollapse";
+import { Button, Form, Select } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
@@ -118,7 +119,7 @@ export default function FeatureAccessFields({
         <FeatureValue />
       </Form.Item>
       {showHris || showInventory ? (
-        <Collapse
+        <AppCollapse
           style={{ width: "100%", minWidth: 0 }}
           activeKey={expanded}
           onChange={(keys) => form.setFieldValue("expandedFeatureSections", keys)}

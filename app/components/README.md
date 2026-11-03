@@ -6,6 +6,44 @@ Periksa katalog dan folder `app/components` sebelum membuat komponen baru. Nama 
 
 ## Layout dan Filter
 
+Petunjuk periode BulkScheduleExceptionDialog memakai AppNotice sebelum pemilih tanggal, bukan deskripsi FormSection. Bahasa komponen wajib ditinjau bersama label/tombol/validasi: kalimat pendek, kata umum dan tindakan/dampak yang konkret sesuai AGENTS.md serta pedoman UI/UX.
+
+BulkScheduleExceptionDialog hanya mengubah jam kerja: tidak ada radio Jenis hari atau dayType; shiftIds wajib 1–16, dikirim langsung setelah validasi. Pilihan libur tidak tersedia pada opsi operasional. Backend memeriksa ulang tipe revisi tiap tanggal tanpa mengubah resolver atau histori libur.
+
+`data-display/AppCollapse` adalah fondasi pelipatan konten berbasis AntD: items, activeKey/defaultActiveKey, onChange, accordion, styles, extra dan forceRender tetap mengikuti kontrak library. Header minimal 44px, label membungkus, destroyOnHidden default false; forceRender ditentukan kebutuhan form. Pemakai: akses fitur/HRIS, profil/impor Pegawai, tanggal/kategori libur, pilihan shift, pengaturan jam, dan ringkasan hari. Adapter AppCollapseRegion dipakai navigasi; AppAccordion/Summary/Details mempertahankan laporan existing. Hanya file ini boleh mengimpor primitive Collapse/Accordion library; ESLint memeriksanya.
+
+`employees/SelectedEmployeesList` menyusun daftar semantik ul/li, EmployeeAvatar interaktif dan FontStyle; baris identitas full width tanpa header tabel/pagination, scroll lokal maksimal min(360px, 40dvh), footer total Pegawai. onPreview membuka ImagePreviewModal privat. Dipakai penetapan dan perubahan harian. Modal sumber memakai keepMounted ketika ditutup sementara untuk preview agar form/list terpelihara; hanya satu modal aktif.
+
+WorkSchedulePage menyimpan langsung melalui tombol Tetapkan jadwal. ScheduleSummary melipat rincian per hari. WorkScheduleFields membatasi tanggal mulai berdasarkan hari ini organisasi dan tanggal bergabung, termasuk validasi input manual. Collapse daftar mempertahankan isian ketika dibuka/ditutup.
+
+AppModal menyembunyikan scrollbar untuk shell dan seluruh region di dalamnya melalui styling bersama, tanpa menonaktifkan scroll. Body memiliki region Isi modal yang dapat difokuskan untuk scroll keyboard. Header/footer tetap mengikuti fondasi existing.
+
+Toolbar Jadwal Pegawai menonaktifkan Ubah jadwal harian bila pilihan mengandung Pegawai tanpa penetapan aktif/mendatang, disertai AppNotice warning terpisah di atas DataPanel, berisi jumlah yang belum memiliki jadwal, nama ringkas dan arahan. Toolbar tidak menampilkan teks jumlah pilihan. BulkScheduleExceptionDialog tetap memeriksa seluruh tanggal melalui server sebelum tinjauan dan simpan; pilihan tidak dipotong otomatis.
+
+`employees/SelectedEmployeesSummary` menyusun EmployeeAvatar dan FontStyle untuk avatar beberapa Pegawai, label +N Pegawai lainnya di samping avatar tanpa mengulang total di header; total hanya di footer, panah tetap ujung kanan rata tengah. Tidak ada teks Lihat daftar Pegawai; body Collapse tanpa padding ganda. Ringkasan hanya dapat dilipat bila jumlah >1; daftar dibuka inline melalui AppCollapse. `EmployeeAvatar`/`PhotoAvatar` mendukung `interactive=false` untuk foto di dalam tombol ringkasan/daftar tanpa tombol bersarang; default pemakai lain tetap interaktif.
+
+`work-schedules/BulkScheduleExceptionDialog` menyusun AppModal, ResponsiveRangePicker, FormSection, AsyncSelect, AppNotice, ResponsiveDataView dan DataPagination. Tahap form/tinjauan berada dalam satu modal; daftar Pegawai dibuka inline melalui AppCollapse, tanpa tahap terpisah; Form tetap mounted agar isian terpelihara. Ringkasan memakai SelectedEmployeesSummary. Daftar bergulir di dalam panel Collapse, tanpa header tabel/pagination dan footer hanya total; footer mobile dari AppModal. Penyimpanan memakai previewHash dan requestKey yang tetap selama retry. WorkSchedulePage meletakkan dua aksi massal pada toolbar dan menghapus aksi harian per baris serta Batalkan semua pilihan. Filter minimum berasal dari API opsi jadwal yang sudah berizin.
+
+HolidayDateList menyusun Collapse kategori Libur nasional/Cuti bersama, tertutup pada awalnya. Header menampilkan jumlah tanggal dan jumlah dipilih bila digunakan pada pemilih katalog. Isi tetap ResponsiveDataView dengan empty state, pilihan tanggal terkunci dan metadata sumber existing; forceRender mempertahankan state saat dilipat. Berlaku pada detail, tinjauan, pratinjau API/OCR dan pemilih kalender agar pola tidak berbeda antaralur. Tidak menambah modal atau menyalin tabel/header panel di dalam Collapse.
+
+`forms/AppYearPicker` menerima/menghasilkan tahun numerik, memakai DatePicker picker=year, inputReadOnly, minYear/maxYear dan popup responsif dengan target 44 px. Pembatasan tahun lampau hanya diaktifkan pada pembuat katalog baru; histori dan filter tidak ikut dibatasi. `forms/FormSection` memakai `first` eksplisit hanya di awal form; padding section tengah tetap 24 px meskipun berada di wrapper baru. Jangan kembali memakai selector first-of-type untuk jarak antarsection.
+
+Escape pada popup tahun menghentikan propagasi ke modal induk: tutup popup dahulu, pertahankan form. Aturan ukuran popup scoped pada sitou-year-picker-popup dan mengatasi prioritas theme AntD, tanpa mengubah popup pemilih tanggal lain.
+
+`holiday-catalogs/HolidayDayFields` menyusun Collapse per tanggal. Header berisi tanggal terpilih (Pilih tanggal bila kosong), nama dan kategori; tanggal baru terbuka, tanggal existing lengkap dapat tertutup. Field memakai forceRender agar validasi dan nilai tetap terpelihara. Prop validationFailure dari pemakai membuka baris gagal dan memfokuskan field pertama. HolidayCatalogPage meneruskan kegagalan validateFields/server; HolidayPdfStage meneruskan onFinishFailed dan membuka koreksi. Aksi hapus di extra tidak ikut membuka/menutup panel.
+
+`holiday-catalogs/CatalogEntryMethod` adalah pilihan radio responsif Ambil otomatis / Input manual + PDF. `HolidayPdfSource` menyusun FileUploadField existing langsung pada form manual; `useHolidayPdfImport` berbagi lifecycle unggah/polling dengan tahap HolidayPdfStage dalam AppModal yang sama. Hasil OCR tidak menimpa isian sampai Gunakan hasil pembacaan; tindakan itu belum menyimpan. HolidayDayFields menyusun EmptyState, IconActionButton, DateField dan AsyncSelect untuk kartu isian responsif, batas 366 serta tahun kalender yang sesuai. Jangan mengganti pola ini dengan tombol unggah/form/modal ad hoc.
+
+`holiday-catalogs/HolidaySourcePreview` menyusun AppNotice, FontStyle dan HolidayDateList untuk hasil pengambilan setahun, sumber/waktu server, serta perbedaan tambahan/perubahan/penghapusan. Ini tahap dalam AppModal katalog existing. Kembali mempertahankan form; Gunakan dan simpan draft memanggil penyimpanan standar. Jangan membuat modal bertumpuk atau menerbitkan data hasil fetch otomatis.
+
+`holiday-catalogs/CalendarEditor` menyusun AppModal untuk kalender organisasi dan tahap CalendarCatalogPicker, mempertahankan form tanpa modal bertumpuk. HolidayDateList menyusun DataPanel/ResponsiveDataView untuk kelompok Libur nasional dan Cuti bersama, pilihan berlabel, tanggal terkunci serta pratinjau. HolidayCatalogPage memakai fondasi filter/tabel/pagination, AppNotice, CompactInfoChip dan ConfirmDialog bersama untuk draft–tinjau–publikasi platform. Kontrak asal tanggal dan prosedur revisi: `docs/holiday-catalogs.md`.
+
+Ringkasan jadwal memakai chip Hari kerja (success) dan Hari libur (info). Pemberitahuan libur berada pada tiap hari tanpa sesi kerja aktif, termasuk sesi `off`; tidak bergantung pada nama hari. Kalender tambahan tetap dijelaskan terpisah bila dipilih. Pada editor jam per hari, Jam utama memakai success dan Jam khusus memakai info.
+
+`AppModal` mengatur footer mobile secara terpusat: tombol satu per baris, full width, tinggi minimal 44px, jarak 12px, termasuk di dalam AntD Space. Desktop tetap sejajar. `ScheduleSessionDetails` menyatukan fakta berlabel untuk ringkasan harian dan shift; `ScheduleSummary` memakai pembatas antarhari dan `ScheduleHolidayNotice` untuk aturan libur.
+
+`forms/AppTimePicker` menjadi pemilih jam bersama berformat `HH:mm`. Pilihan langsung diterapkan tanpa konfirmasi (`needConfirm=false`). Tombol opsional “Pilih jam” selebar footer menutup panel dan mengembalikan fokus ke field. `work-schedules/TimeField` memakai komponen ini untuk seluruh form jam jadwal, termasuk jam utama, pengecualian harian, shift dan form lama.
+
 `FontStyle explanation` adalah gaya paragraf penjelasan/informasi: justify,
 baris terakhir normal, serta pemenggalan kata yang wajar. Deskripsi PageHeader,
 DataPanel, AppModal, dan FormSettingSwitch menerapkannya otomatis. ConfirmDialog
@@ -71,6 +109,10 @@ unduhan tetap ditangani endpoint modul. Ekspor tersedia pada laporan terkait dan
 | `modals/ImagePreviewModal`   | Preview endpoint privat/blob/file lokal dengan loading, error, alt text, dan zoom.                                                           | `imageUrl`, `alt`, `title`, `open`, `onClose`                                                                           |
 
 `LoadingBackdrop` dan `Notification` dikontrol parent. Modal fitur wajib menyusun `AppModal`; dilarang membuat modal shell lain.
+
+Header semua AppModal memakai ikon–judul–tutup pada satu baris. Deskripsi di mobile berada pada baris berikutnya selebar header; desktop tetap sejajar kolom judul. Header, pagination dan footer selalu terlihat, hanya `.app-modal-body` yang bergulir. `contentResetKey` mengatur ulang posisi body. Tidak ada lagi opsi `scrollHeaderWithContent`. Modal sesi memakai props disableClose/showCloseButton existing; preview gambar tetap ImagePreviewModal, konfirmasi tetap ConfirmDialog. ESLint menolak primitive Modal/Dialog di luar AppModal, shell dialog HTML/role ad hoc dan opsi header lama.
+
+Fallback layar pendek/teks diperbesar berlaku pada seluruh modal: area header maksimal 40dvh dan pagination dapat digulir lokal jika ruang tidak cukup. Body tetap punya area minimum, dan footer tidak terdorong keluar layar. Ini tidak mengubah susunan ikon–judul–tutup atau ukuran teks.
 
 Pada detail pegawai, tab Dokumen hanya menampilkan checklist kelengkapan. Upload serta aksi file ditempatkan pada konteks domainnya supaya pengguna tidak melihat dua kontrol dengan fungsi sama: identitas melalui Profil Lengkap, kontrak melalui histori Kontrak, SK melalui histori Penempatan, serta ijazah dan sertifikat melalui tab Pendidikan.
 
@@ -569,13 +611,13 @@ berdasarkan tanggal kejadian di client. Riwayat sanksi tetap tanggal terbit terb
 - work-schedules/TemplatePage.jsx mengelola daftar melalui dropdown Jenis jam kerja pada OperationalFilterSection dengan deskripsi singkat, opsi organisasi, loading/gagal/coba lagi, aksi detail/edit/salin serta review sebelum satu request simpan. Jadwal mandiri memakai templates?standalone=true. Kelompok memakai work-schedule-groups. Satu useDataList memuat endpoint jenis aktif agar pencarian/status konsisten dan request usang dibatalkan. Identitas ID kelompok tidak dikirim sebagai patternId penetapan.
 - TemplateEditor.jsx menampilkan Nama jadwal dan dropdown Jenis jam kerja sejajar di desktop serta full width di ponsel, tanpa pilihan awal pada jadwal baru. Jam kerja tetap memakai hari, jam utama dan panel Atur jam kerja per hari. Jam khusus memakai CompactInfoChip neutral/info. Jadwal lama yang rotasi/fleksibel/beberapa waktu ditampilkan read-only, dengan nama/status tetap editable. Status selalu paling bawah.
 - WorkTimeFields.jsx memusatkan satu rentang waktu, istirahat, Pulang hari berikutnya, pengurangan istirahat serta panel toleransi. Komponen masih dapat membaca aturan lama, tetapi form baru tidak menampilkan pemilih fixed/flexible/off. FormSettingSwitch, TimeField dan MinutesField tetap bersama.
-- ShiftGroupFields.jsx menyediakan Hari kerja dan Form.List panel Collapse untuk nama/jam shift. Panel baru terbuka dan panel existing bernama awalnya dilipat. forceRender mempertahankan registrasi field, validasi membuka panel yang perlu diperbaiki, dan key stabil mengikuti identitas Form.List saat penghapusan. Informasi memakai AppNotice bersama. Tambah/Hapus tidak mengubah pilihan lain. Maksimal 16 kartu. Tidak membuat beberapa waktu kerja untuk satu pilihan atau kontrol Libur kedua. Hari tidak dipilih berarti Libur.
+- ShiftGroupFields.jsx menyediakan Hari kerja dan Form.List panel Collapse untuk nama/jam shift. Panel baru terbuka dan panel existing bernama awalnya dilipat. forceRender mempertahankan registrasi field, validasi membuka panel yang perlu diperbaiki, dan key stabil mengikuti identitas Form.List saat penghapusan. Informasi memakai AppNotice bersama. Tambah/Hapus tidak mengubah pilihan lain. Maksimal 16 kartu. Tidak membuat beberapa jam kerja untuk satu pilihan atau kontrol Libur kedua. Hari tidak dipilih berarti Libur.
 - ShiftGroupSummary.jsx menyajikan seluruh nama/jam pilihan, hari dan kebijakan libur. ScheduleReview.jsx memilih ringkasan kelompok atau ScheduleSummary.jsx sesuai jenis. Review tidak mengirim HTTP tulis. Nama/status/hari/aturan dapat ditinjau sebelum konfirmasi.
 - scheduleForm.mjs memusatkan templateValues, templateReview, shiftGroupPayload dan weeklyScheduleDays. Payload memakai allowlist sesuai jenis. Salinan tidak membawa ID referensi kelompok. Form lama mempertahankan aturan dan referensi shift saat metadata disimpan.
 - ScheduleFields.jsx menyediakan opsi loading/error/retry, tanggal/jam/menit dan WorkScheduleFields bersama untuk onboarding/penetapan. Pilih satu jadwal tetap atau pilihan shift. Payload patternId dan draft tetap kompatibel. TimeField tidak menampilkan pintasan Sekarang.
-- WorkSchedulePage.jsx tetap menyediakan penetapan maksimal 100, histori, pembatalan dan perubahan tanggal. ScheduleCalendar.jsx membaca maksimal 31 tanggal tanpa generator/mutation serta mengabaikan respons usang. WorkMasterPage.jsx mengarahkan master ke form gabungan. MasterEditor.jsx tetap digunakan kalender serta kompatibilitas lama.
+- WorkSchedulePage.jsx menyediakan penetapan maksimal 100, histori, pembatalan dan perubahan tanggal. Section Lihat jadwal dan komponen ScheduleCalendar sudah dihapus; tidak ada pengambilan kalender otomatis atau menu laporan pengganti. Akses Lihat Saja tidak menampilkan checkbox pemilihan massal. WorkMasterPage.jsx mengarahkan master ke form gabungan. MasterEditor.jsx tetap digunakan kalender serta kompatibilitas lama.
 
-Gunakan AppModal dengan deskripsi singkat, FontStyle, FormSettingSwitch, AsyncSelect, CompactInfoChip, divider dan token theme. Pasangan jam dua kolom di desktop serta satu kolom di ponsel. scrollHeaderWithContent memungkinkan header/isi modal digulir bersama dan footer terjangkau, tanpa mengganti default form lain. validationFocus membuka panel/hari dan toleransi yang memiliki error tersembunyi. Notifikasi serta loading backdrop existing tetap bersama. Tidak memakai titik koma pada bahasa UI. Baca docs/ui-ux-guidelines.md dan docs/work-schedules.md sebelum perubahan.
+Gunakan AppModal dengan deskripsi singkat, FontStyle, FormSettingSwitch, AsyncSelect, CompactInfoChip, divider dan token theme. Pasangan jam dua kolom di desktop serta satu kolom di ponsel. Header dan footer mengikuti pola bersama; hanya isi yang bergulir. validationFocus membuka panel/hari dan toleransi yang memiliki error tersembunyi. Notifikasi serta loading backdrop existing tetap bersama. Tidak memakai titik koma pada bahasa UI. Baca docs/ui-ux-guidelines.md dan docs/work-schedules.md sebelum perubahan.
 
 ### Kalender libur dan pemilihan Jadwal Pegawai
 
@@ -583,7 +625,7 @@ MasterEditor menempatkan status kalender paling bawah melalui FormSettingSwitch 
 
 ### Dialog jadwal Pegawai
 
-WorkSchedulePage menggunakan identitas Pegawai berlabel melalui InfoField dan EmployeeAvatar. WorkScheduleFields menerima allowEndDate (default true demi kompatibilitas onboarding), dengan false pada workspace Jadwal Pegawai. State kosong/gagal pilihan serta informasi periode memakai AppNotice. Ubah jadwal harian memisahkan tanggal/pemeriksaan, pilihan Bekerja atau Libur, waktu kerja dan alasan dengan gap 24px. UI dayType dipetakan ke shiftIds, tidak masuk payload server.
+WorkSchedulePage menggunakan identitas Pegawai berlabel melalui InfoField dan EmployeeAvatar. WorkScheduleFields menerima allowEndDate (default true demi kompatibilitas onboarding), dengan false pada workspace Jadwal Pegawai. State kosong/gagal pilihan serta informasi periode memakai AppNotice. Ubah jadwal harian memisahkan tanggal, Ganti/Tambah jam kerja, pilihan jadwal/shift dan alasan melalui FormSection. Tinjauan sebelum/sesudah memakai hasil server dan mempertahankan form. Tidak ada pilihan Bekerja/Libur.
 
 ScheduleHistory.jsx menyusun kartu histori melalui CompactInfoChip, InfoField, InfoFieldGrid dan EmptyState. Periode lama tetap ditampilkan. Metadata tidak tersedia tidak dibuat-buat. Tombol pembatalan hanya dirender untuk penetapan mendatang yang belum dibatalkan dan pengguna berizin, dengan validasi final backend existing.
 
@@ -603,3 +645,32 @@ OrganizationModulesModal memakai ORGANIZATION_MODULES terpusat untuk FormSetting
 Tanggal akhir pada daftar/kartu Organisasi mengikuti status server. Saat grace, tampilkan akhir masa tenggang yang tersedia. Jika tidak, gunakan akhir periode. Status dan pemeriksaan akses tetap kewenangan backend.
 
 HrisAccessFields memakai ATTENDANCE_MENU_KEYS bersama untuk mengunci checkbox dan tingkat akses Absensi ketika attendanceEnabled bukan true. Pilih semua hanya mengubah menu yang tersedia dan mempertahankan grant lama yang terkunci. Pesan nonaktif berwarna merah menyebut Admin SITOU. Label pengguna untuk role platform mengikuti ROLE_LABELS; identifier superadmin tetap kontrak teknis.
+
+## Impor PDF SKB
+
+HolidayPdfStage menyusun FileUploadField, AppNotice, Progress, HolidayDateList dan HolidayDayFields sebagai tahap di AppModal katalog, tanpa modal bertumpuk. Tabel/kartu memisahkan kategori dan menunjukkan halaman sumber/Perlu diperiksa; koreksi isian dibuka eksplisit. CatalogDocument menyajikan metadata aman beserta tautan endpoint privat berizin untuk Admin/HRD. Bukti OCR bukan klaim keaslian dokumen. Lihat docs/holiday-pdf-import.md.
+
+useHolidayDeletion menyusun alur preview → ConfirmDialog → penghapusan/receipt untuk katalog dan kalender. ConfirmDialog.hideConfirm menyembunyikan tombol konfirmasi saat ditolak atau hasil request belum pasti dan mengganti Batal menjadi Tutup; default pemakai lama tidak berubah. Tampilkan sebab serta referensi server sebagai penjelasan langsung; hasil jaringan ambigu memakai Periksa status sebelum retry. Shell, header dan footer tetap dari AppModal.
+
+FormSection menyatukan heading h3 berlabel, deskripsi, slot action, spacing 24 px dan divider pada form berkelompok; divider=false untuk bagian terakhir. IconActionButton menyusun Button/Tooltip existing, ikon outline, nama aksesibel, bantuan hover/fokus serta target 44×44 px. Kalender memakai keduanya untuk sumber katalog dan tanggal organisasi, dengan EmptyState saat kosong.
+
+useHolidayDeletion menampilkan paragraf langsung di ConfirmDialog. Setelah transaksi berhasil, dialog ditutup dan Notification/useAppNotification menyampaikan hasil. Pembersihan PDF tertunda dipantau per receipt, berurutan setiap 10 detik hanya ketika tab terlihat; hasil selesai/tertunda memakai snackbar, tanpa modal sukses. Jaringan gagal sebelum hasil pasti tetap menyediakan Periksa status dalam konfirmasi.
+
+EmptyState.compact menampilkan informasi kosong ringkas tanpa ilustrasi besar, untuk section di dalam form; default daftar tetap memakai Empty Ant Design existing. Kalender memakai InfoFieldGrid existing untuk tanggal/nama resmi dengan grid responsif, tanpa menyalin tampilan laporan bertabel.
+
+### Perubahan jam kerja harian
+
+BulkScheduleExceptionDialog memakai dropdown AsyncSelect Jenis perubahan (Ganti/Tambah jam kerja), satu AsyncSelect jadwal dan pilihan shift bersyarat dari adjustmentSchedules. Rincian jam memakai ScheduleSummary/ScheduleSessionDetails. DailyAdjustmentReview menyajikan hasil server Sebelum/Sesudah per Pegawai/tanggal melalui ResponsiveDataView; DataPagination berada di slot pagination AppModal hanya jika hasil melebihi satu halaman. SelectedEmployeesSummary, preview foto eksklusif, loading, notifikasi dan pemeliharaan form tetap bersama. Jangan menampilkan multiple select sesi internal atau pilihan meliburkan.
+
+WorkSchedulePage memakai dropdown Status jadwal (Semua Pegawai/Sudah memiliki jadwal/Belum memiliki jadwal). AppNotice pilihan yang belum memiliki jadwal tetap terpisah di atas DataPanel, hanya jumlah dan arahan tanpa nama. Filter bekerja di server dengan scope/pagination existing serta mengosongkan pilihan saat berubah.
+
+EmployeeScheduleSummary memusatkan tampilan penetapan pada kolom Jadwal saat ini/kartu mobile: nama jadwal tanpa awalan, AppIconTile kalender, CompactInfoChip Belum mulai dan tanggal mendatang, atau Belum diatur. Jadwal terpakai dipilih berdasarkan today organisasi, bukan jam perangkat; data dibatalkan/berakhir tidak ditampilkan sebagai aktif. Tidak menambah request atau menghitung jam dari nama pola.
+
+useAdditionalScheduleUsage memeriksa pemakaian jadwal pada mode Ganti maupun Tambah melalui request terikat target/rentang, loading bersama, pembatalan request usang dan Coba lagi. ScheduleChoiceOption menyusun FontStyle nama/alasan dua baris agar Sudah digunakan tidak terpotong di mobile. BulkScheduleExceptionDialog mengunci hanya pilihan terpakai, mempertahankan isian dan memblokir Tinjau saat belum dapat diperiksa. Ganti menonaktifkan pola yang ditetapkan, bukan pola salinan atau pengganti dengan jam sama. Pergantian Jenis perubahan mengosongkan scheduleId/patternId dan error terkait; tanggal serta alasan tetap tersimpan.
+
+Alasan tambahan dihitung oleh additionalUsageReason dari identitas pola dan interval/revisi efektif server: Sudah digunakan untuk pola yang ditetapkan, Jam kerja bertabrakan untuk salinan/pola lain yang waktunya tumpang tindih. ScheduleChoiceOption memakai disabledReason sesuai penyebab; jangan mengunci semua label pada satu teks. Backend tetap otoritatif pada preview/simpan.
+
+
+TemplateEditor membuka hari/jam/kalender pada jadwal terpakai. Bagian revisi memakai FormSection tanpa divider ganda, AppNotice descriptionAlign=left, DatePicker serta alasan; tanggal minimal besok organisasi dan setelah latestEffectiveFrom. ScheduleReview menampilkan tanggal dan alasan. Payload shift mempertahankan patternId setiap pilihan; WorkScheduleFields menyajikan versions sesuai tanggal mulai. Seluruh simpan tetap melalui service bertanggal dan snapshot absensi tidak diubah.
+
+TemplateEditor tidak menampilkan Saat tanggal libur. templatePayload dan shiftGroupPayload menentukan holidayPolicy=calendar jika ada calendarId, atau roster jika kosong. Pengaturan legacy yang tidak dapat diedit mempertahankan kontrak lamanya. Tidak ada konversi massal data tersimpan; edit terpakai tetap melalui revisi bertanggal.

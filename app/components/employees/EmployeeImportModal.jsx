@@ -1,9 +1,10 @@
 "use client";
+import AppCollapse from "@/app/components/data-display/AppCollapse";
 
 import { readApiResponse } from "@/lib/api/clientError";
 
 import { useMemo, useState } from "react";
-import { Button, Collapse, Empty, Steps } from "antd";
+import { Button, Empty, Steps } from "antd";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import { DownloadOutlined } from "@ant-design/icons";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
@@ -209,7 +210,7 @@ export default function EmployeeImportModal({
                 onError={onError}
               />
             </Box>
-            <Collapse
+            <AppCollapse
               style={{ marginTop: 16 }}
               items={[
                 {

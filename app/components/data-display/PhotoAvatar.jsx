@@ -12,6 +12,7 @@ export default function PhotoAvatar({
   photoLabel = "Foto",
   previewTitle = photoLabel,
   onPreview,
+  interactive = true,
 }) {
   const theme = useTheme();
   const [failed, setFailed] = useState(false);
@@ -45,11 +46,16 @@ export default function PhotoAvatar({
 
   return (
     <Box
-      component="button"
-      type="button"
-      aria-label={`Perbesar ${photoLabel.toLowerCase()} ${name}`}
-      onClick={() =>
-        onPreview?.({ imageUrl: photoUrl, alt: `${photoLabel} ${name}`, title: previewTitle })
+      component={interactive ? "button" : "span"}
+      type={interactive ? "button" : undefined}
+      aria-label={
+        interactive ? `Perbesar ${photoLabel.toLowerCase()} ${name}` : `${photoLabel} ${name}`
+      }
+      onClick={
+        interactive
+          ? () =>
+              onPreview?.({ imageUrl: photoUrl, alt: `${photoLabel} ${name}`, title: previewTitle })
+          : undefined
       }
       sx={{
         display: "inline-flex",
@@ -59,7 +65,7 @@ export default function PhotoAvatar({
         bgcolor: "transparent",
         border: 0,
         borderRadius: "50%",
-        cursor: "pointer",
+        cursor: interactive ? "pointer" : "default",
         "&:focus-visible": {
           outline: "2px solid " + theme.palette.primary.main,
           outlineOffset: 2,

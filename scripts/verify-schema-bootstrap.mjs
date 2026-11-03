@@ -29,11 +29,14 @@ function constraintSignature(rows) {
       // PostgreSQL dapat mencetak cast array varchar ke text per elemen atau
       // pada seluruh array. Normalisasi hanya array literal varchar tersebut;
       // operator, pengelompokan kondisi, dan nilai constraint tetap diperiksa.
-      definition: row.definition.replace(/ARRAY\[([^\]]*)\](?:::text\[\])?/g, (array, values) => {
-        const literal = "'(?:[^']|'')*'::character varying(?:::text)?";
-        if (!new RegExp(`^${literal}(?:, ${literal})*$`).test(values)) return array;
-        return `ARRAY[${values.replaceAll("::character varying::text", "::character varying")}]::text[]`;
-      }),
+      definition: row.definition
+        .replace(/\('([^']*)'::character varying\)::text/g, "'$1'::character varying")
+        .replace(/ARRAY\[([^\]]*)\](?:::text\[\])?/g, (array, values) => {
+          const literal = "'(?:[^']|'')*'::character varying(?:::text)?";
+          if (!new RegExp(`^${literal}(?:, ${literal})*$`).test(values)) return array;
+          return `ARRAY[${values.replaceAll("::character varying::text", "::character varying")}]::text[]`;
+        })
+        .replace(/\((ARRAY\[[^\]]+\]::text\[\])\)/g, "$1"),
     })),
   );
 }
@@ -140,11 +143,21 @@ try {
       "work_shift_revisions",
       "work_calendars",
       "work_calendar_days",
+      "holiday_catalogs",
+      "holiday_catalog_days",
+      "holiday_catalog_requests",
+      "holiday_pdf_imports",
+      "holiday_catalog_usage",
+      "work_calendar_usage",
+      "holiday_deletions",
+      "holiday_pdf_purge_jobs",
+      "stored_files",
       "work_schedule_exceptions",
       "work_schedule_exception_sessions",
       "work_schedule_sessions",
       "work_schedule_requests",
       "work_schedule_groups",
+      "work_schedule_definition_revisions",
       "work_schedule_group_items",
     ]) {
       const constraintSql = `SELECT conname,pg_get_constraintdef(oid,true) AS definition FROM pg_constraint WHERE conrelid='public.${table}'::regclass ORDER BY conname`;
@@ -155,13 +168,18 @@ try {
       checks[`${table}_constraints_match_upgrade`] =
         constraintSignature(freshConstraints.rows) ===
         constraintSignature(existingConstraints.rows);
-      const indexSql = `SELECT indexname,indexdef FROM pg_indexes WHERE schemaname='public' AND tablename='${table}' ORDER BY indexname`;
+      const indexSql = `SELECT c.relname AS indexname,pg_get_indexdef(i.indexrelid,0,true) AS indexdef FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE i.indrelid='public.${table}'::regclass ORDER BY c.relname`;
       const [freshIndexes, existingIndexes] = await Promise.all([
         bootstrap.query(indexSql),
         upgraded.query(indexSql),
       ]);
       checks[`${table}_indexes_match_upgrade`] =
-        JSON.stringify(freshIndexes.rows) === JSON.stringify(existingIndexes.rows);
+        constraintSignature(
+          freshIndexes.rows.map((r) => ({ name: r.indexname, definition: r.indexdef })),
+        ) ===
+        constraintSignature(
+          existingIndexes.rows.map((r) => ({ name: r.indexname, definition: r.indexdef })),
+        );
       // Migration dapat menambahkan kolom snapshot di akhir tabel, sedangkan bootstrap
       // menempatkannya dekat kolom jenis. Urutan fisik tidak mengubah kontrak schema.
       const tableColumnsSql = `SELECT column_name,data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='${table}' ORDER BY column_name`;

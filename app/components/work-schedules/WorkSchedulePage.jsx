@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
-import { Button, Checkbox, Form, Input, Radio, Space, Tooltip } from "antd";
-import AppIcon from "@/app/components/icons/AppIcon";
-import { Box, useTheme } from "@mui/material";
+import { Button, Checkbox, Form, Input, Space } from "antd";
+
+import { Box } from "@mui/material";
 import Select from "@/app/components/forms/AsyncSelect";
-import ScheduleCalendar from "./ScheduleCalendar";
+import BulkScheduleExceptionDialog from "./BulkScheduleExceptionDialog";
+import { CalendarOutlined, ScheduleOutlined } from "@ant-design/icons";
+
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
@@ -14,13 +16,14 @@ import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import AppModal from "@/app/components/modals/AppModal";
-import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
+import SelectedEmployeesSummary from "@/app/components/employees/SelectedEmployeesSummary";
 import EmployeeAvatar from "@/app/components/employees/EmployeeAvatar";
 import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import { InfoField } from "@/app/components/employees/EmployeeDetailSections";
 import ScheduleHistory from "./ScheduleHistory";
-import { sessionText } from "./ScheduleSummary";
+import EmployeeScheduleSummary from "./EmployeeScheduleSummary";
+
 import Notification from "@/app/components/Notifications/Notification";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -31,14 +34,13 @@ import {
   scheduleRequest,
   requestKey,
   applyFieldErrors,
-  DateField,
   WorkScheduleFields,
   useScheduleOptions,
 } from "./ScheduleFields";
 /** Workspace sama digunakan menu utama dan detail Pegawai. */
 export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
   const user = useAuthenticatedUser();
-  const theme = useTheme();
+
   const platform = user.role_code === "superadmin";
   const manage = hrisLevel(user, "work-schedules") === "manage";
   const list = useDataList("/api/work-schedules", {
@@ -55,54 +57,41 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
   const [selected, setSelected] = useState({});
   const [photoPreview, setPhotoPreview] = useState(null);
   const [form] = Form.useForm();
-  const dayType = Form.useWatch("dayType", form);
+
   const [modal, setModal] = useState(null);
+  const [bulkTargets, setBulkTargets] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [calendarRevision, setCalendarRevision] = useState(0);
-  const invalidateCalendar = () => setCalendarRevision((n) => n + 1);
-  const [confirmAssign, setConfirmAssign] = useState(false);
   const [history, setHistory] = useState(null);
-  const [exceptionCheck, setExceptionCheck] = useState(null);
+
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
   const targets = employeeId ? list.data : Object.values(selected).filter((x) => x.org === org);
   const replacing = targets.some((t) => t.assignments?.some((a) => !a.cancelled));
   const canAct = Boolean(org && targets.length && targets.length <= 100 && !busy);
+  const unassignedTargets = targets.filter(
+    (person) =>
+      !person.assignments?.some((a) => !a.cancelled && (!a.until || a.until >= opts.today)),
+  );
+  const filter = (key, value) => {
+    setSelected({});
+    list.updateFilters({ ...list.filters, [key]: value || undefined });
+  };
   const open = (kind, item = null) => {
     form.resetFields();
-    form.setFieldsValue(
-      kind === "assign"
-        ? {}
-        : kind === "exception"
-          ? { date: opts.today, shiftIds: [], dayType: "work" }
-          : {},
-    );
-    setExceptionCheck(null);
+    form.setFieldsValue({});
     setModal({ kind, item, key: requestKey() });
   };
   const refresh = async () => {
-    invalidateCalendar();
     setSelected({});
     await list.refresh();
   };
-  const submit = async (confirmed = false) => {
+  const submit = async () => {
     if (busy) return;
     let values;
     try {
-      if (confirmed === true && confirmAssign) values = confirmAssign;
-      else {
-        await form.validateFields();
-        values = form.getFieldsValue(true);
-      }
+      await form.validateFields();
+      values = form.getFieldsValue(true);
     } catch {
-      return;
-    }
-    if (modal.kind === "exception" && exceptionCheck?.date !== values.date) {
-      form.setFields([{ name: "date", errors: ["Periksa jadwal pada tanggal ini."] }]);
-      return;
-    }
-    if (modal.kind === "assign" && confirmed !== true) {
-      setConfirmAssign({ ...values });
       return;
     }
     let endpoint,
@@ -116,15 +105,6 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
         reason: values.reason || "Penetapan jadwal awal.",
         expectedVersions: Object.fromEntries(targets.map((x) => [x.id, x.assignment_version])),
       };
-    } else if (modal.kind === "exception") {
-      endpoint = "/api/work-schedules/exceptions";
-      delete body.dayType;
-      body = {
-        ...body,
-        shiftIds: values.dayType === "off" ? [] : values.shiftIds,
-        employeeId: modal.item.id,
-        version: exceptionCheck.version,
-      };
     } else {
       endpoint = "/api/work-schedules/cancel";
       body = { ...body, id: modal.item.id, version: modal.item.version };
@@ -135,52 +115,10 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
         message: "Menyimpan jadwal...",
       });
       setModal(null);
-      setConfirmAssign(false);
       await refresh();
       showNotification("Jadwal disimpan.");
     } catch (e) {
       applyFieldErrors(form, e);
-      showNotification(e.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const checkException = async () => {
-    const date = form.getFieldValue("date");
-    if (!date) {
-      form.setFields([{ name: "date", errors: ["Isi tanggal."] }]);
-      return;
-    }
-    setBusy(true);
-    try {
-      const r = await runWithLoadingBackdrop(
-        () =>
-          scheduleRequest("/api/work-schedules/preview", {
-            organizationId: String(org),
-            employeeIds: [modal.item.id],
-            from: date,
-            until: date,
-          }),
-        { message: "Memeriksa jadwal..." },
-      );
-      const row = r.data[0];
-      if (!row)
-        throw new Error("Jadwal pada tanggal ini tidak ditemukan. Pilih tanggal lalu coba lagi.");
-      form.setFieldsValue({
-        shiftIds: row.sessions.map((x) => x.shiftId),
-        dayType: row.status === "off" || row.status === "holiday" ? "off" : "work",
-        reason: form.getFieldValue("reason") || row.reason || "",
-      });
-      setExceptionCheck({
-        date,
-        version: row.exceptionVersion,
-        summary:
-          row.sessions.map((x) => `${x.name}: ${sessionText(x.rules)}`).join(". ") ||
-          (row.status === "off" || row.status === "holiday"
-            ? "Libur."
-            : "Jadwal belum diatur untuk tanggal ini."),
-      });
-    } catch (e) {
       showNotification(e.message, "error");
     } finally {
       setBusy(false);
@@ -197,24 +135,16 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
               open("assign");
             },
           },
-          {
-            key: "exception",
-            label: "Ubah jadwal harian",
-            onClick: () => open("exception", item),
-          },
           { key: "history", label: "Riwayat jadwal", onClick: () => setHistory(item) },
         ]
       : [{ key: "history", label: "Riwayat jadwal", onClick: () => setHistory(item) }];
-  const status = (x) => {
-    const current = x.assignments?.find(
-      (a) => !a.cancelled && a.from <= opts.today && (!a.until || a.until >= opts.today),
-    );
-    if (current) return `Jadwal berlaku: ${current.patternName}`;
-    const future = x.assignments
-      ?.filter((a) => !a.cancelled && a.from > opts.today)
-      .sort((a, b) => a.from.localeCompare(b.from))[0];
-    return future ? `Jadwal mulai ${future.from}: ${future.patternName}` : "Jadwal belum diatur";
-  };
+  const scheduleSummary = (person) => (
+    <EmployeeScheduleSummary
+      assignments={person.assignments}
+      today={opts.today}
+      error={opts.error}
+    />
+  );
   const selector = (x) => (
     <Checkbox
       style={{
@@ -228,7 +158,6 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
       checked={Boolean(selected[x.id]?.org === org)}
       onChange={(e) => {
         const checked = e.target.checked;
-        invalidateCalendar();
         setSelected((old) => {
           const n = { ...old };
           if (checked) n[x.id] = { ...x, org };
@@ -268,7 +197,6 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
           }
           return next;
         });
-        invalidateCalendar();
       }}
     />
   );
@@ -289,19 +217,24 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
     </Box>
   );
   const assignAction = manage && (
-    <Button type="primary" disabled={!canAct} onClick={() => open("assign")}>
+    <Button
+      type="primary"
+      icon={<ScheduleOutlined />}
+      disabled={!canAct}
+      onClick={() => open("assign")}
+    >
       Tetapkan jadwal{targets.length ? " (" + targets.length + ")" : ""}
     </Button>
   );
   const columns = [
-    ...(!employeeId
+    ...(!employeeId && manage
       ? [{ title: selectPage, width: 70, align: "center", render: (_, x) => selector(x) }]
       : []),
     {
       title: "Pegawai",
       render: (_, x) => identity(x),
     },
-    { title: "Jadwal saat ini", render: (_, x) => status(x) },
+    { title: "Jadwal saat ini", render: (_, x) => scheduleSummary(x) },
     {
       title: "Aksi",
       align: "center",
@@ -314,20 +247,25 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
       {!employeeId && (
         <PageHeader
           title="Jadwal Pegawai"
-          description="Tetapkan jadwal kerja dan lihat hari kerja serta libur Pegawai."
-          action={assignAction}
+          description="Penetapan dan riwayat jadwal kerja Pegawai."
         />
       )}
       <OperationalFilterSection
-        description="Cari Pegawai berdasarkan nama, NIP, atau jadwal yang berlaku hari ini."
+        description="Cari Pegawai berdasarkan nama, NIP, atau status jadwal."
         onReset={() => {
           list.setSearch("");
-          list.updateFilters({ ...list.filters, without: "false" });
+          list.updateFilters({
+            organizationId: org,
+            ...(employeeId ? { employeeId } : {}),
+            scheduleStatus: "all",
+          });
           setSelected({});
-          invalidateCalendar();
         }}
         search={list.search}
-        onSearchChange={list.setSearch}
+        onSearchChange={(value) => {
+          setSelected({});
+          list.setSearch(value);
+        }}
         searchPlaceholder="Nama atau NIP"
         onRefresh={refresh}
         items={[
@@ -341,7 +279,6 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
                       value={org}
                       onChange={(organizationId) => {
                         setSelected({});
-                        invalidateCalendar();
                         list.updateFilters({ organizationId });
                       }}
                     />
@@ -350,52 +287,118 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
               ]
             : []),
           {
-            key: "without",
-            label: "Jadwal hari ini",
+            key: "scheduleStatus",
+            label: "Status jadwal",
             control: (
               <Select
-                value={list.filters.without || "false"}
-                onChange={(without) => {
-                  invalidateCalendar();
-                  list.updateFilters({ without });
+                aria-label="Status jadwal"
+                value={list.filters.scheduleStatus || "all"}
+                onChange={(scheduleStatus) => {
+                  filter("scheduleStatus", scheduleStatus);
                 }}
                 options={[
-                  { value: "false", label: "Semua Pegawai" },
-                  { value: "true", label: "Belum memiliki jadwal hari ini" },
+                  { value: "all", label: "Semua Pegawai" },
+                  { value: "assigned", label: "Sudah memiliki jadwal" },
+                  { value: "unassigned", label: "Belum memiliki jadwal" },
                 ]}
               />
             ),
           },
+          ...[
+            ["locationId", "Lokasi", "locations", "Semua lokasi"],
+            ["organizationUnitId", "Divisi & Unit", "organizationUnits", "Semua Divisi & Unit"],
+            ["positionId", "Jabatan", "positions", "Semua jabatan"],
+            ["employmentTypeId", "Jenis Kepegawaian", "employmentTypes", "Semua jenis"],
+          ].map(([key, label, source, placeholder]) => ({
+            key,
+            label,
+            control: (
+              <Select
+                allowClear
+                showSearch
+                disabled={!org || opts.loading}
+                loading={opts.loading}
+                placeholder={placeholder}
+                value={list.filters[key]}
+                onChange={(value) => filter(key, value)}
+                options={[
+                  ...(key === "employmentTypeId"
+                    ? [{ value: "without_active_contract", label: "Tanpa kontrak aktif" }]
+                    : []),
+                  ...(opts[source] || []).map((item) => ({ value: item.id, label: item.name })),
+                ]}
+              />
+            ),
+          })),
         ]}
       />
+      {org && opts.error && (
+        <AppNotice
+          tone="danger"
+          title="Pilihan jadwal belum tersedia"
+          description={opts.error}
+          action={<Button onClick={opts.onRetry}>Coba lagi</Button>}
+        />
+      )}
+      {manage && unassignedTargets.length > 0 && (
+        <AppNotice
+          tone="warning"
+          title={unassignedTargets.length + " Pegawai belum memiliki jadwal"}
+          description="Tetapkan jadwal terlebih dahulu agar jadwal harian bisa diubah, atau hapus centang pada Pegawai tersebut."
+          descriptionAlign="left"
+        />
+      )}
       <DataPanel
         title="Daftar jadwal Pegawai"
         description={
           !employeeId
             ? manage
-              ? "Pilih maksimal 100 Pegawai, lalu tekan Tetapkan jadwal."
-              : "Pilih Pegawai untuk melihat hari kerja dan liburnya."
+              ? "Pilih maksimal 100 Pegawai untuk penetapan atau perubahan jadwal harian."
+              : "Lihat jadwal yang berlaku dan riwayat penetapan Pegawai."
             : "Lihat jadwal yang berlaku, jadwal mendatang, dan riwayat penetapan Pegawai."
         }
-        action={employeeId ? assignAction : null}
         toolbar={
-          !employeeId ? (
-            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5 }}>
-              <Box sx={{ display: "none", "@media (max-width:767px)": { display: "flex" } }}>
-                {selectPage}
+          manage ? (
+            <Box
+              sx={{
+                display: { xs: "grid", sm: "flex" },
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                width: "100%",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                {!employeeId && (
+                  <Box sx={{ display: "none", "@media (max-width:767px)": { display: "flex" } }}>
+                    {selectPage}
+                  </Box>
+                )}
               </Box>
-              <FontStyle>{targets.length} Pegawai dipilih</FontStyle>
-              {targets.length > 0 && (
+              <Box
+                sx={{
+                  display: { xs: "grid", sm: "flex" },
+                  gap: 1.5,
+                  flexWrap: "wrap",
+                  "& .ant-btn": { minHeight: 44 },
+                }}
+              >
+                {assignAction}
                 <Button
-                  disabled={busy}
-                  onClick={() => {
-                    setSelected({});
-                    invalidateCalendar();
-                  }}
+                  icon={<CalendarOutlined />}
+                  disabled={
+                    !canAct ||
+                    !opts.today ||
+                    opts.loading ||
+                    Boolean(opts.error) ||
+                    unassignedTargets.length > 0
+                  }
+                  onClick={() => setBulkTargets([...targets])}
                 >
-                  Batalkan semua pilihan
+                  Ubah jadwal harian
                 </Button>
-              )}
+              </Box>
             </Box>
           ) : null
         }
@@ -412,41 +415,34 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
           renderCard={(x) => (
             <Box sx={{ display: "grid", gap: 1 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                {!employeeId && selector(x)}
+                {!employeeId && manage && selector(x)}
                 {identity(x)}
               </Box>
-              <FontStyle>{status(x)}</FontStyle>
+              {scheduleSummary(x)}
               <RowActionMenu items={actions(x)} />
             </Box>
           )}
         />
       </DataPanel>
-      {opts.today && (
-        <ScheduleCalendar
-          key={org}
+      {bulkTargets && (
+        <BulkScheduleExceptionDialog
+          employees={bulkTargets}
           organizationId={org}
-          employees={targets}
-          today={opts.today}
-          revision={calendarRevision}
+          options={opts}
+          onClose={() => setBulkTargets(null)}
+          onSaved={refresh}
+          onMessage={showNotification}
         />
       )}
       <AppModal
-        scrollHeaderWithContent
-        open={Boolean(modal) && !confirmAssign}
+        open={Boolean(modal) && !photoPreview}
+        keepMounted
         description={
           modal?.kind === "assign"
-            ? "Pilih jadwal kerja dan tanggal mulai untuk Pegawai yang dipilih. Periksa ringkasan sebelum mengonfirmasi penetapan."
-            : modal?.kind === "exception"
-              ? "Pilih waktu kerja atau tetapkan libur pada satu tanggal. Isi alasan perubahan."
-              : "Batalkan penetapan yang belum dimulai dengan alasan. Jadwal sebelumnya tidak diaktifkan kembali."
+            ? "Pilih jadwal kerja dan tanggal mulai untuk Pegawai yang dipilih."
+            : "Batalkan penetapan yang belum dimulai dengan alasan. Jadwal sebelumnya tidak diaktifkan kembali."
         }
-        title={
-          modal?.kind === "assign"
-            ? "Tetapkan jadwal"
-            : modal?.kind === "exception"
-              ? "Ubah jadwal harian"
-              : "Batalkan jadwal mendatang"
-        }
+        title={modal?.kind === "assign" ? "Tetapkan jadwal" : "Batalkan jadwal mendatang"}
         onClose={() => setModal(null)}
         disableClose={busy}
         footer={
@@ -463,10 +459,9 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
               type="primary"
               style={{ minHeight: 44, height: "auto", maxWidth: "100%", whiteSpace: "normal" }}
               loading={busy}
-              disabled={modal?.kind === "exception" && !exceptionCheck}
               onClick={() => submit()}
             >
-              {modal?.kind === "assign" ? "Lanjutkan" : "Simpan perubahan"}
+              {modal?.kind === "assign" ? "Tetapkan jadwal" : "Simpan perubahan"}
             </Button>
           </Space>
         }
@@ -478,23 +473,13 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
           requiredMark={false}
           disabled={busy}
           style={{ display: "grid", gap: 24 }}
-          onValuesChange={(changed) => {
-            if (changed.date) setExceptionCheck(null);
-          }}
         >
-          {(modal?.kind === "assign" || modal?.kind === "exception") && (
+          {modal?.kind === "assign" && (
             <Box sx={{ pb: 3, borderBottom: 1, borderColor: "divider" }}>
-              <InfoField
-                label="Pegawai"
-                valueContent={
-                  modal.kind === "exception" ? (
-                    identity(modal.item)
-                  ) : targets.length === 1 ? (
-                    identity(targets[0])
-                  ) : (
-                    <FontStyle fontWeight={600}>{targets.length} Pegawai dipilih</FontStyle>
-                  )
-                }
+              <SelectedEmployeesSummary
+                employees={targets}
+                onPreview={setPhotoPreview}
+                disabled={busy}
               />
             </Box>
           )}
@@ -508,96 +493,6 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
                 .sort()
                 .at(-1)}
             />
-          ) : modal?.kind === "exception" ? (
-            <>
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(0, 1fr) auto" },
-                  gap: 2,
-                  alignItems: "end",
-                  "& .ant-form-item": { mb: 0 },
-                }}
-              >
-                <DateField name="date" label="Tanggal yang diubah" required />
-                <Box sx={{ width: { xs: "100%", sm: 44 }, "& .ant-btn": { px: { xs: 2, sm: 0 } } }}>
-                  <Tooltip
-                    title="Periksa jadwal pada tanggal yang dipilih"
-                    trigger={["hover", "focus"]}
-                  >
-                    <Button
-                      disabled={busy}
-                      onClick={checkException}
-                      aria-label="Periksa jadwal pada tanggal yang dipilih"
-                      icon={<AppIcon icon="solar:eye-linear" fontSize={20} />}
-                      style={{
-                        width: "100%",
-                        minHeight: 44,
-                        height: "auto",
-                        whiteSpace: "normal",
-                        color: theme.status.info.main,
-                        borderColor: theme.status.info.border,
-                      }}
-                    >
-                      <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
-                        Periksa jadwal
-                      </Box>
-                    </Button>
-                  </Tooltip>
-                </Box>
-              </Box>
-              {!exceptionCheck ? (
-                <AppNotice
-                  title="Periksa jadwal sebelum mengubah"
-                  description="Tekan tombol bergambar mata untuk memuat jadwal pada tanggal yang dipilih. Setelah itu, atur waktu kerja atau pilih Libur."
-                />
-              ) : (
-                <>
-                  <AppNotice
-                    title="Jadwal pada tanggal pilihan"
-                    description={exceptionCheck.summary}
-                  />
-                  <Form.Item name="dayType" label="Pengaturan hari ini" style={{ marginBottom: 0 }}>
-                    <Radio.Group
-                      options={[
-                        { value: "work", label: "Bekerja" },
-                        { value: "off", label: "Libur" },
-                      ]}
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 16,
-                        minHeight: 44,
-                        alignItems: "center",
-                      }}
-                    />
-                  </Form.Item>
-                  {dayType === "work" ? (
-                    <Form.Item
-                      name="shiftIds"
-                      label="Waktu kerja"
-                      style={{ marginBottom: 0 }}
-                      rules={[{ required: true, message: "Pilih waktu kerja untuk tanggal ini." }]}
-                    >
-                      <Select
-                        mode="multiple"
-                        maxCount={16}
-                        showSearch
-                        optionFilterProp="label"
-                        onSearch={opts.onSearch}
-                        options={(opts.shifts || []).map((x) => ({ value: x.id, label: x.name }))}
-                        placeholder="Pilih waktu kerja"
-                      />
-                    </Form.Item>
-                  ) : (
-                    <AppNotice
-                      title="Ditetapkan sebagai libur"
-                      description="Perubahan hanya berlaku pada tanggal ini. Jadwal rutin Pegawai tetap sama."
-                    />
-                  )}
-                </>
-              )}
-            </>
           ) : modal?.kind === "cancel" ? (
             <AppNotice
               tone="warning"
@@ -621,7 +516,6 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
         </Form>
       </AppModal>
       <AppModal
-        scrollHeaderWithContent
         open={Boolean(history)}
         title="Riwayat jadwal"
         description="Lihat jadwal yang pernah ditetapkan, periode berlaku, alasan perubahan, dan pelakunya."
@@ -646,27 +540,6 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
           />
         </Box>
       </AppModal>
-      <ConfirmDialog
-        open={Boolean(confirmAssign)}
-        title="Tetapkan jadwal?"
-        description="Periksa Pegawai dan tanggal sebelum menyimpan."
-        confirmText="Tetapkan jadwal"
-        loading={busy}
-        onClose={() => setConfirmAssign(false)}
-        onConfirm={() => submit(true)}
-      >
-        <FontStyle>
-          {opts.patterns?.find((p) => p.id === confirmAssign?.patternId)?.name} ·{" "}
-          {confirmAssign?.from} — Sampai diganti
-        </FontStyle>
-        <Box sx={{ maxHeight: 240, overflow: "auto" }}>
-          {targets.map((t) => (
-            <FontStyle key={t.id}>
-              {t.full_name} · {t.employee_no}
-            </FontStyle>
-          ))}
-        </Box>
-      </ConfirmDialog>
       <ImagePreviewModal
         open={Boolean(photoPreview)}
         {...photoPreview}

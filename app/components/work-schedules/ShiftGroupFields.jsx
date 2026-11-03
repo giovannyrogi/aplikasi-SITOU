@@ -1,6 +1,7 @@
 "use client";
+import AppCollapse from "@/app/components/data-display/AppCollapse";
 import { useEffect, useState } from "react";
-import { Button, Checkbox, Collapse, Form, Input } from "antd";
+import { Button, Checkbox, Form, Input } from "antd";
 import { Box, Divider } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import AppNotice from "@/app/components/data-display/AppNotice";
@@ -26,7 +27,7 @@ function ShiftPanel({ field, locked, removable, remove, validationFocus }) {
     };
   }, [scope, validationFocus]);
   return (
-    <Collapse
+    <AppCollapse
       activeKey={expanded ? ["shift"] : []}
       onChange={(keys) => setExpanded(keys.includes("shift"))}
       items={[
@@ -47,6 +48,9 @@ function ShiftPanel({ field, locked, removable, remove, validationFocus }) {
           ),
           children: (
             <Box sx={{ p: { xs: 0, sm: 1 } }}>
+              <Form.Item name={[field.name, "patternId"]} hidden>
+                <Input />
+              </Form.Item>
               <Form.Item
                 name={[field.name, "name"]}
                 label={`Nama shift ${field.name + 1}`}

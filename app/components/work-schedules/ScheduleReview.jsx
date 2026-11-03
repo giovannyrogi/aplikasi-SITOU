@@ -6,6 +6,9 @@ import AppModal from "@/app/components/modals/AppModal";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import ShiftGroupSummary from "./ShiftGroupSummary";
 import ScheduleSummary from "./ScheduleSummary";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
+import AppNotice from "@/app/components/data-display/AppNotice";
+import dayjs from "dayjs";
 
 /** Konfirmasi terpisah; hanya tombol akhir yang memanggil penyimpanan. */
 export default function ScheduleReview({ review, calendarName, busy, onBack, onSave }) {
@@ -13,17 +16,16 @@ export default function ScheduleReview({ review, calendarName, busy, onBack, onS
   const v = review.payload;
   return (
     <AppModal
-      scrollHeaderWithContent
       open
       title="Ringkasan jadwal"
       size="lg"
-      description="Periksa hari kerja, jam, dan pengaturan lainnya. Jadwal baru disimpan setelah Anda memilih Simpan jadwal."
+      description="Periksa kembali hari dan jam kerja sebelum menyimpan."
       onClose={onBack}
       disableClose={busy}
       footer={
         <>
           <Button disabled={busy} onClick={onBack}>
-            Kembali ke form
+            Ubah jadwal
           </Button>
           <Button type="primary" loading={busy} onClick={onSave}>
             Simpan jadwal
@@ -32,6 +34,13 @@ export default function ScheduleReview({ review, calendarName, busy, onBack, onS
       }
     >
       <Box sx={{ display: "grid", gap: 3 }}>
+        {v.effectiveFrom && (
+          <AppNotice
+            descriptionAlign="left"
+            title={`Mulai berlaku ${dayjs(v.effectiveFrom).format("DD MMM YYYY")}`}
+            description={`Jadwal sebelum tanggal tersebut tetap menggunakan pengaturan lama. Alasan perubahan: ${v.reason}`}
+          />
+        )}
         <Box
           sx={{
             display: "grid",
@@ -41,40 +50,42 @@ export default function ScheduleReview({ review, calendarName, busy, onBack, onS
           }}
         >
           <Box>
-            <FontStyle fontSize={12.5} color="text.secondary">
+            <FontStyle fontSize={13} color="text.secondary">
               Nama jadwal
             </FontStyle>
-            <FontStyle fontWeight={600}>{v.name}</FontStyle>
+            <FontStyle fontSize={14} fontWeight={600} sx={{ mt: 0.5 }}>
+              {v.name}
+            </FontStyle>
           </Box>
           <Box>
-            <FontStyle fontSize={12.5} color="text.secondary">
+            <FontStyle fontSize={13} color="text.secondary">
               Status
             </FontStyle>
-            <FontStyle>
-              {v.isActive
-                ? "Aktif — dapat dipilih untuk penetapan baru"
-                : "Nonaktif — tidak dapat dipilih untuk penetapan baru"}
-            </FontStyle>
+            <Box sx={{ mt: 0.5 }}>
+              <CompactInfoChip
+                label={v.isActive ? "Aktif" : "Nonaktif"}
+                tone={v.isActive ? "success" : "neutral"}
+              />
+            </Box>
           </Box>
           <Box>
-            <FontStyle fontSize={12.5} color="text.secondary">
-              Susunan hari
+            <FontStyle fontSize={13} color="text.secondary">
+              Pola jadwal
             </FontStyle>
-            <FontStyle>
+            <FontStyle fontSize={14} sx={{ mt: 0.5 }}>
               {review.workType === "shift"
                 ? "Kerja shift"
                 : v.patternType === "weekly"
-                  ? "Mingguan, Senin sampai Minggu"
-                  : `Rotasi ${v.cycleDays} hari, berulang setelah hari terakhir`}
+                  ? "Berulang setiap minggu"
+                  : `Berulang setiap ${v.cycleDays} hari`}
             </FontStyle>
           </Box>
           <Box>
-            <FontStyle fontSize={12.5} color="text.secondary">
+            <FontStyle fontSize={13} color="text.secondary">
               Kalender libur
             </FontStyle>
-            <FontStyle>
-              {calendarName ||
-                (v.calendarId ? "Kalender yang dipilih" : "Tidak menggunakan kalender libur")}
+            <FontStyle fontSize={14} sx={{ mt: 0.5 }}>
+              {calendarName || (v.calendarId ? "Kalender yang dipilih" : "Tanpa kalender tambahan")}
             </FontStyle>
           </Box>
         </Box>

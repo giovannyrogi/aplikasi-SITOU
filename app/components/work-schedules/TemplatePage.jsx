@@ -27,6 +27,8 @@ import {
 import ShiftGroupSummary from "./ShiftGroupSummary";
 import ScheduleSummary from "./ScheduleSummary";
 import AppModal from "@/app/components/modals/AppModal";
+import AppNotice from "@/app/components/data-display/AppNotice";
+import dayjs from "dayjs";
 import { applyFieldErrors, requestKey, scheduleRequest } from "./ScheduleFields";
 
 export default function TemplatePage() {
@@ -317,13 +319,19 @@ export default function TemplatePage() {
         />
       )}
       <AppModal
-        scrollHeaderWithContent
         open={Boolean(view)}
         title={view?.name || "Jadwal kerja"}
         description="Lihat hari kerja, jam, istirahat, toleransi, dan ketentuan libur pada jadwal ini."
         onClose={() => setView(null)}
         footer={<Button onClick={() => setView(null)}>Tutup</Button>}
       >
+        {view?.latestEffectiveFrom && (
+          <AppNotice
+            title={`Pengaturan terbaru mulai ${dayjs(view.latestEffectiveFrom).format("DD MMM YYYY")}`}
+            description="Jadwal sebelum tanggal tersebut tetap menggunakan pengaturan lama."
+            sx={{ mb: 3 }}
+          />
+        )}
         {view?.kind === "shift" ? (
           <ShiftGroupSummary
             shifts={view.shifts}

@@ -20,3 +20,9 @@ dibuat ulang melalui `npm run icons:generate`.
 
 - `prune-mobile-sessions.mjs` / `npm run auth:mobile-sessions:prune`: menghapus sesi mobile expired atau revoked lebih dari satu hari, tanpa menghapus audit. Default `.env.development`, override dengan `ENV_FILE`; jadwalkan harian hanya pada environment yang diotorisasi setelah migration 065. Tidak mencetak credential/token. Lihat `docs/mobile-auth.md`.
 - `verify-schema-bootstrap.mjs` juga membandingkan kolom/constraint `mobile_auth_sessions` dengan hasil upgrade lokal.
+
+## Worker PDF SKB
+
+`npm run holiday-pdf:check` memeriksa executable Tesseract/Poppler, bahasa ind/eng/osd, storage privat, schema dan scanner. `npm run worker:holiday-pdf` menjalankan antrean PostgreSQL dan cleanup unggahan tanpa referensi; `-- --once` memproses maksimal satu pekerjaan. ENV_FILE default mengikuti NODE_ENV. Web/worker memakai database serta UPLOAD_ROOT sama. Instalasi dan process manager: docs/holiday-pdf-import.md.
+
+Worker PDF juga mengerjakan pembersihan permanen PDF katalog melalui holiday_pdf_purge_jobs setelah migration 071–072. Mode --once memproses maksimal satu pembersihan dan satu OCR. Retry pembersihan 30 detik, lease row lock, referensi revisi lain tetap terlindungi. Lihat docs/holiday-catalogs.md dan docs/holiday-pdf-import.md.

@@ -251,3 +251,13 @@ Periksa kedua tabel sebelum menjalankan. Runner development belum memiliki ledge
 20261030_068_attendance_organization_module.sql hanya menambahkan katalog attendance / Absensi pada access_modules. Tidak menambah tabel/kolom, menyalin paket Inventaris, memberi grant atau mengaktifkan organisasi. Tidak mengubah jadwal dan histori. Bootstrap final memuat seed yang sama. Keberadaan struktur 067 tetap diperiksa sebelum rollout kode jadwal.
 
 Pada database existing lengkap 067, periksa katalog attendance. Jika belum ada, jalankan npm run db:migrate -- database/migrations/20261030_068_attendance_organization_module.sql, lalu npm run db:check dan npm run db:verify-bootstrap. Jangan ulang 063–067. Runner belum memiliki ledger. Seed migration ini aman terhadap konflik kode tetapi bukan alasan menjalankan ulang migration lain. Sesudahnya Superadmin menentukan aktivasi melalui Organisasi → Fitur organisasi, organisasi lama juga default nonaktif. Tidak dijalankan otomatis ke VPS. Uji upgrade tanpa perubahan grant/histori dan bootstrap baru harus menghasilkan katalog yang sama. Rollback aplikasi tidak menghapus data jadwal atau grant, penonaktifan fitur cukup memakai kontrol resmi sebelum tindakan pemulihan berizin.
+
+Migration 070 menambah kepemilikan file platform terbatas untuk PDF SKB, antrean holiday_pdf_imports, referensi/peninjauan PDF pada revisi katalog, dukungan temuan backup platform serta penyelarasan index cleanup. Terapkan setelah 069 sebelum memakai upload PDF. Instalasi executable/worker dan prosedur VPS: docs/holiday-pdf-import.md.
+
+- 20261102_071_safe_holiday_deletion.sql: bukti penggunaan permanen, receipt penghapusan, antrean pembersihan PDF dan trigger pengaman.
+- 20261102_072_holiday_usage_audit_backfill.sql: koreksi backfill versi audit kalender legacy (hasil save hanya id, versi sebelumnya pada input). Jalankan setelah 071. Keduanya diterapkan pada development; upgrade existing memakai migration berurutan, bukan bootstrap ulang.
+
+
+### 073 — Revisi definisi jadwal
+
+20261103_073_work_schedule_definition_revisions.sql menambah versi definisi append-only dengan FK organisasi/pola/kalender, index unik pola–tanggal dan trigger pemakaian kalender. Tidak mengubah data operasional existing; baseline dibuat saat revisi pertama. Terapkan setelah 072, sinkron dengan bootstrap. Development: npm run db:migrate -- database/migrations/20261103_073_work_schedule_definition_revisions.sql. Tidak untuk mengulang bootstrap pada database berisi data.

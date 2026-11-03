@@ -8,6 +8,7 @@ import { Box, Divider } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import { DateField, TimeField, MinutesField, useScheduleOptions } from "./ScheduleFields";
+import CalendarEditor from "@/app/components/holiday-catalogs/CalendarEditor";
 const weekdays = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 export const defaultRules = {
   type: "fixed",
@@ -57,7 +58,7 @@ export default function MasterEditor({
   const type = Form.useWatch(["rules", "type"], form);
   const patternType = Form.useWatch("patternType", form);
   const cycle = Form.useWatch("cycleDays", form) || 7;
-  const opts = useScheduleOptions(organizationId, true);
+  const opts = useScheduleOptions(kind === "calendars" ? null : organizationId, true);
   const [dayPage, setDayPage] = useState(1);
   useEffect(() => {
     if (open) Promise.resolve().then(() => setDayPage(1));
@@ -73,9 +74,10 @@ export default function MasterEditor({
       ),
     });
   };
+  if (kind === "calendars")
+    return <CalendarEditor {...{ open, item, form, organizationId, onClose, onSubmit, busy }} />;
   return (
     <AppModal
-      scrollHeaderWithContent
       open={open}
       title={
         kind === "calendars"
@@ -175,71 +177,6 @@ export default function MasterEditor({
               </>
             )}
           </>
-        )}
-        {kind === "calendars" && (
-          <Form.List name="days">
-            {(fields, { add, remove }) => (
-              <>
-                <Divider sx={{ my: 3 }} />
-                <FontStyle fontWeight={600}>Tanggal libur</FontStyle>
-                <FontStyle explanation sx={{ mt: 1, mb: 2, textAlign: "left" }}>
-                  Tambahkan tanggal dan nama hari libur yang berlaku bagi organisasi.
-                </FontStyle>
-                {fields.map((f) => (
-                  <Box
-                    key={f.key}
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: {
-                        xs: "minmax(0, 1fr)",
-                        sm: "minmax(0, 1fr) minmax(0, 2fr) auto",
-                      },
-                      gap: 2,
-                      alignItems: "start",
-                      mb: 3,
-                      "& .ant-form-item": { mb: 0 },
-                    }}
-                  >
-                    <DateField name={[f.name, "date"]} label="Tanggal" required />
-                    <Form.Item
-                      name={[f.name, "name"]}
-                      label="Nama hari libur"
-                      rules={[{ required: true, message: "Isi nama hari libur." }]}
-                    >
-                      <Input maxLength={100} />
-                    </Form.Item>
-                    <Box
-                      sx={{ "& .ant-form-item-label": { display: { xs: "none", sm: "block" } } }}
-                    >
-                      <Form.Item label={<span aria-hidden="true">&nbsp;</span>}>
-                        <Tooltip title="Hapus tanggal libur" trigger={["hover", "focus"]}>
-                          <Button
-                            danger
-                            aria-label={"Hapus tanggal libur " + (f.name + 1)}
-                            onClick={() => remove(f.name)}
-                            icon={<AppIcon icon="solar:trash-bin-trash-linear" fontSize={20} />}
-                            style={{
-                              width: 44,
-                              minHeight: 44,
-                              height: 44,
-                              padding: 0,
-                            }}
-                          />
-                        </Tooltip>
-                      </Form.Item>
-                    </Box>
-                  </Box>
-                ))}
-                <Button
-                  onClick={() => add({})}
-                  disabled={fields.length >= 366}
-                  style={{ minHeight: 44, height: "auto", maxWidth: "100%", whiteSpace: "normal" }}
-                >
-                  Tambah tanggal libur
-                </Button>
-              </>
-            )}
-          </Form.List>
         )}
         {kind === "patterns" && (
           <>

@@ -33,6 +33,7 @@ export const PROTECTED_ROUTES = [
     path: "/master-data/organizations",
     roles: [ROLES.SUPERADMIN],
   },
+  { path: "/master-data/holiday-catalogs", roles: [ROLES.SUPERADMIN] },
   {
     path: "/master-data/admin-users",
     roles: [ROLES.SUPERADMIN],

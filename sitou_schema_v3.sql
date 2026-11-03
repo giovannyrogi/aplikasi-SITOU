@@ -91,7 +91,7 @@ CREATE TABLE stored_files (
   mime_type varchar(150) NOT NULL, -- MIME type hasil validasi server.
   size_bytes bigint NOT NULL CHECK (size_bytes >= 0), -- Ukuran file untuk limit dan audit.
   sha256 char(64), -- Hash integritas dan deteksi duplikasi.
-  malware_scan_status varchar(24) NOT NULL DEFAULT 'legacy_unscanned' CHECK (malware_scan_status IN ('pending','clean','infected','scan_error','legacy_unscanned')), -- Status antivirus byte file.
+  malware_scan_status varchar(24) NOT NULL DEFAULT 'legacy_unscanned' CONSTRAINT ck_stored_files_malware_scan_status CHECK (malware_scan_status IN ('pending','clean','infected','scan_error','legacy_unscanned')), -- Status antivirus byte file.
   malware_scanned_at timestamptz, -- Waktu pemeriksaan antivirus terakhir.
   malware_scan_engine varchar(80), -- Engine dan versi antivirus.
   malware_signature text, -- Nama signature bila ancaman ditemukan.
@@ -2527,3 +2527,415 @@ CREATE TABLE work_schedule_group_items (
 CREATE UNIQUE INDEX uq_work_schedule_group_item_name ON work_schedule_group_items(organization_id,group_id,lower(btrim(name))) WHERE is_current;
 CREATE UNIQUE INDEX uq_work_schedule_group_item_position ON work_schedule_group_items(organization_id,group_id,position) WHERE is_current;
 CREATE INDEX ix_work_schedule_group_items_group ON work_schedule_group_items(organization_id,group_id);
+
+-- Migration 069: platform holiday reference and explicit organization copies
+-- Platform reference only. No organization calendar or schedule is changed by this migration.
+CREATE TABLE holiday_catalogs (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ year integer NOT NULL CHECK(year BETWEEN 2000 AND 2200),
+ revision integer NOT NULL CHECK(revision>0),
+ status varchar(12) NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published')),
+ decision_number varchar(200) NOT NULL,
+ source_url varchar(1000) NOT NULL,
+ version integer NOT NULL DEFAULT 1 CHECK(version>0),
+ system_seed boolean NOT NULL DEFAULT false,
+ created_by_user_id bigint REFERENCES users(id),
+ published_by_user_id bigint REFERENCES users(id),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ published_at timestamptz,
+ UNIQUE(year,revision),
+ CHECK((status='draft' AND published_at IS NULL) OR
+       (status='published' AND published_at IS NOT NULL AND (system_seed OR published_by_user_id IS NOT NULL)))
+);
+CREATE UNIQUE INDEX uq_holiday_catalog_draft ON holiday_catalogs(year) WHERE status='draft';
+CREATE TABLE holiday_catalog_days (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ catalog_id bigint NOT NULL REFERENCES holiday_catalogs(id),
+ holiday_date date NOT NULL,
+ name varchar(100) NOT NULL CHECK(length(btrim(name))>0),
+ category varchar(16) NOT NULL CHECK(category IN ('national','joint_leave')),
+ UNIQUE(catalog_id,holiday_date)
+);
+CREATE TABLE holiday_catalog_requests (
+ actor_user_id bigint NOT NULL REFERENCES users(id),
+ request_key uuid NOT NULL,
+ payload_hash char(64) NOT NULL,
+ result jsonb NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(actor_user_id,request_key)
+);
+ALTER TABLE work_calendar_days ADD COLUMN catalog_day_id bigint REFERENCES holiday_catalog_days(id);
+CREATE INDEX idx_calendar_catalog_day ON work_calendar_days(catalog_day_id) WHERE catalog_day_id IS NOT NULL;
+
+CREATE FUNCTION guard_holiday_catalog() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF OLD.status='published' THEN RAISE EXCEPTION 'Published holiday catalog is immutable' USING ERRCODE='23514'; END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+ IF NEW.year<>OLD.year OR NEW.revision<>OLD.revision THEN
+  RAISE EXCEPTION 'Catalog identity is immutable' USING ERRCODE='23514';
+ END IF;
+ IF NEW.status='published' AND NOT EXISTS(SELECT 1 FROM holiday_catalog_days WHERE catalog_id=NEW.id) THEN
+  RAISE EXCEPTION 'Catalog must contain dates' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER guard_holiday_catalog BEFORE UPDATE OR DELETE ON holiday_catalogs FOR EACH ROW EXECUTE FUNCTION guard_holiday_catalog();
+CREATE FUNCTION guard_holiday_catalog_day() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE c holiday_catalogs;
+BEGIN
+ SELECT * INTO c FROM holiday_catalogs WHERE id=CASE WHEN TG_OP='DELETE' THEN OLD.catalog_id ELSE NEW.catalog_id END FOR UPDATE;
+ IF c.status='published' THEN RAISE EXCEPTION 'Published holiday dates are immutable' USING ERRCODE='23514'; END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+ IF TG_OP='UPDATE' AND NEW.catalog_id<>OLD.catalog_id THEN RAISE EXCEPTION 'Catalog identity is immutable' USING ERRCODE='23514'; END IF;
+ IF extract(year FROM NEW.holiday_date)<>c.year THEN RAISE EXCEPTION 'Date outside catalog year' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER guard_holiday_catalog_day BEFORE INSERT OR UPDATE OR DELETE ON holiday_catalog_days FOR EACH ROW EXECUTE FUNCTION guard_holiday_catalog_day();
+
+-- Verified against the attached SKB, not an external API. Initial publisher is the system.
+INSERT INTO holiday_catalogs(year,revision,decision_number,source_url,system_seed) VALUES
+(2026,1,'1497 Tahun 2025 / 2 Tahun 2025 / 5 Tahun 2025','https://www.kemenkopmk.go.id/sites/default/files/pengumuman/2025-09/SKB%20Libur%20Nasional%20dan%20Cuti%20Bersama%20Tahun%202026.pdf',true),
+(2027,1,'1205 Tahun 2026 / 3 Tahun 2026 / 2 Tahun 2026','https://kemenkopmk.go.id/sites/default/files/pengumuman/2026-09/SKB%20Libur%20Nasional%20dan%20Cuti%20Bersama%20Tahun%202027.pdf',true);
+INSERT INTO holiday_catalog_days(catalog_id,holiday_date,name,category)
+SELECT c.id,v.d::date,v.n,v.k FROM (VALUES
+('2026-01-01','Tahun Baru 2026 Masehi','national'),
+('2026-01-16','Isra Mikraj Nabi Muhammad saw.','national'),
+('2026-02-17','Tahun Baru Imlek 2577 Kongzili','national'),
+('2026-03-19','Hari Suci Nyepi (Tahun Baru Saka 1948)','national'),
+('2026-03-21','Idulfitri 1447 Hijriah','national'),
+('2026-03-22','Idulfitri 1447 Hijriah','national'),
+('2026-04-03','Wafat Yesus Kristus','national'),
+('2026-04-05','Hari Kebangkitan Yesus Kristus (Paskah)','national'),
+('2026-05-01','Hari Buruh Internasional','national'),
+('2026-05-14','Kenaikan Yesus Kristus','national'),
+('2026-05-27','Iduladha 1447 Hijriah','national'),
+('2026-05-31','Hari Raya Waisak 2570 BE','national'),
+('2026-06-01','Hari Lahir Pancasila','national'),
+('2026-06-16','1 Muharam Tahun Baru Islam 1448 Hijriah','national'),
+('2026-08-17','Proklamasi Kemerdekaan','national'),
+('2026-08-25','Maulid Nabi Muhammad saw.','national'),
+('2026-12-25','Kelahiran Yesus Kristus (Natal)','national'),
+('2026-02-16','Tahun Baru Imlek 2577 Kongzili','joint_leave'),
+('2026-03-18','Hari Suci Nyepi (Tahun Baru Saka 1948)','joint_leave'),
+('2026-03-20','Idulfitri 1447 Hijriah','joint_leave'),
+('2026-03-23','Idulfitri 1447 Hijriah','joint_leave'),
+('2026-03-24','Idulfitri 1447 Hijriah','joint_leave'),
+('2026-05-15','Kenaikan Yesus Kristus','joint_leave'),
+('2026-05-28','Iduladha 1447 Hijriah','joint_leave'),
+('2026-12-24','Kelahiran Yesus Kristus (Natal)','joint_leave'),
+('2027-01-01','Tahun Baru 2027 Masehi','national'),
+('2027-01-05','Isra Mikraj Nabi Muhammad saw.','national'),
+('2027-02-06','Tahun Baru Imlek 2578 Kongzili','national'),
+('2027-03-08','Hari Suci Nyepi (Tahun Baru Saka 1949)','national'),
+('2027-03-10','Idulfitri 1448 Hijriah','national'),
+('2027-03-11','Idulfitri 1448 Hijriah','national'),
+('2027-03-26','Wafat Yesus Kristus','national'),
+('2027-03-28','Hari Kebangkitan Yesus Kristus (Paskah)','national'),
+('2027-05-01','Hari Buruh Internasional','national'),
+('2027-05-06','Kenaikan Yesus Kristus','national'),
+('2027-05-17','Iduladha 1448 Hijriah','national'),
+('2027-05-20','Hari Raya Waisak 2571 BE','national'),
+('2027-06-01','Hari Lahir Pancasila','national'),
+('2027-06-06','1 Muharam Tahun Baru Islam 1449 Hijriah','national'),
+('2027-08-15','Maulid Nabi Muhammad saw.','national'),
+('2027-08-17','Proklamasi Kemerdekaan','national'),
+('2027-12-25','Kelahiran Yesus Kristus (Natal)','national'),
+('2027-12-26','Isra Mikraj Nabi Muhammad saw.','national'),
+('2027-02-05','Tahun Baru Imlek 2578 Kongzili','joint_leave'),
+('2027-03-09','Idulfitri 1448 Hijriah','joint_leave'),
+('2027-03-12','Idulfitri 1448 Hijriah','joint_leave'),
+('2027-03-15','Idulfitri 1448 Hijriah','joint_leave'),
+('2027-03-25','Wafat Yesus Kristus','joint_leave'),
+('2027-05-18','Iduladha 1448 Hijriah','joint_leave'),
+('2027-05-19','Hari Raya Waisak 2571 BE','joint_leave'),
+('2027-12-24','Kelahiran Yesus Kristus (Natal)','joint_leave')
+) AS v(d,n,k) JOIN holiday_catalogs c ON c.year=extract(year FROM v.d::date) AND c.revision=1;
+UPDATE holiday_catalogs SET status='published',published_at=now() WHERE system_seed;
+INSERT INTO audit_logs(organization_id,actor_user_id,action,entity_type,entity_id,after_data)
+SELECT NULL,NULL,'holiday_catalog.system_seed','holiday_catalog',id::text,
+ jsonb_build_object('year',year,'revision',revision,'source','migration_069','publisher','system')
+FROM holiday_catalogs WHERE system_seed;
+
+-- Migration 070: private platform SKB documents and extraction queue.
+-- Platform documents are an explicit, narrow exception to organization-owned files.
+ALTER TABLE stored_files ADD COLUMN ownership_scope varchar(20) NOT NULL DEFAULT 'organization';
+ALTER TABLE stored_files ALTER COLUMN organization_id DROP NOT NULL;
+ALTER TABLE stored_files DROP CONSTRAINT ck_stored_files_category;
+ALTER TABLE stored_files ADD CONSTRAINT ck_stored_files_category CHECK (category IN ('logo','employee_photo','attendance_photo','medical_letter','leave_attachment','contract','assignment_decree','discipline_letter','identity','education','employee_import_source','other','inventory_item_photo','inventory_transaction_attachment','holiday_catalog_source'));
+ALTER TABLE stored_files ADD CONSTRAINT ck_stored_files_ownership CHECK (
+ (ownership_scope='organization' AND organization_id IS NOT NULL AND category<>'holiday_catalog_source') OR
+ (ownership_scope='platform' AND organization_id IS NULL AND employee_id IS NULL AND onboarding_draft_id IS NULL AND category='holiday_catalog_source')
+);
+CREATE TABLE holiday_pdf_imports (
+ id uuid PRIMARY KEY,
+ actor_user_id bigint NOT NULL REFERENCES users(id),
+ request_key uuid NOT NULL,
+ year integer NOT NULL CHECK(year BETWEEN 2000 AND 2200),
+ file_id bigint NOT NULL REFERENCES stored_files(id),
+ status varchar(20) NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','running','ready','incomplete','failed','expired')),
+ stage varchar(40) NOT NULL DEFAULT 'checking',
+ progress integer NOT NULL DEFAULT 0 CHECK(progress BETWEEN 0 AND 100),
+ attempts integer NOT NULL DEFAULT 0,
+ worker_token uuid,
+ heartbeat_at timestamptz,
+ next_attempt_at timestamptz NOT NULL DEFAULT now(),
+ parser_version varchar(40),
+ result jsonb,
+ error_code varchar(80),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ completed_at timestamptz,
+ UNIQUE(actor_user_id,request_key)
+);
+CREATE INDEX ix_holiday_pdf_queue ON holiday_pdf_imports(next_attempt_at,created_at) WHERE status='queued';
+ALTER TABLE holiday_catalogs ADD COLUMN source_file_id bigint REFERENCES stored_files(id);
+ALTER TABLE holiday_catalogs ADD COLUMN pdf_import_id uuid REFERENCES holiday_pdf_imports(id);
+ALTER TABLE holiday_catalogs ADD COLUMN pdf_review jsonb;
+ALTER TABLE holiday_catalogs ADD CONSTRAINT ck_holiday_pdf_reference CHECK ((pdf_import_id IS NULL AND source_file_id IS NULL AND pdf_review IS NULL) OR (pdf_import_id IS NOT NULL AND source_file_id IS NOT NULL AND pdf_review IS NOT NULL));
+COMMENT ON TABLE holiday_pdf_imports IS 'Global Admin SITOU PDF extraction queue; uploaded content is untrusted and never publishes a catalog automatically.';
+
+ALTER TABLE system_backup_file_issues ALTER COLUMN organization_id DROP NOT NULL;
+ALTER TABLE system_backup_file_issues ADD CONSTRAINT ck_backup_issue_platform CHECK(organization_id IS NOT NULL OR (organization_name='Platform SITOU' AND employee_id IS NULL));
+
+DROP INDEX ix_stored_files_cleanup_candidates;
+CREATE INDEX ix_stored_files_cleanup_candidates ON stored_files(organization_id,deleted_at,id) WHERE lifecycle_status='deleted' AND content_purged_at IS NULL;
+
+-- Migration 071: safe permanent holiday deletion
+-- Permanent usage evidence survives removal of operational references.
+ALTER TABLE work_calendars ADD COLUMN deletion_history_verified boolean NOT NULL DEFAULT true;
+ALTER TABLE holiday_catalogs ADD COLUMN deletion_history_verified boolean NOT NULL DEFAULT true;
+CREATE TABLE holiday_catalog_usage (
+ catalog_id bigint NOT NULL REFERENCES holiday_catalogs(id),
+ organization_id bigint NOT NULL REFERENCES organizations(id),
+ calendar_id bigint NOT NULL, calendar_name varchar(100) NOT NULL,
+ first_used_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(catalog_id,organization_id,calendar_id)
+);
+CREATE TABLE work_calendar_usage (
+ organization_id bigint NOT NULL REFERENCES organizations(id), calendar_id bigint NOT NULL,
+ source_type varchar(40) NOT NULL, source_id varchar(100) NOT NULL, source_name varchar(200) NOT NULL,
+ first_used_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(organization_id,calendar_id,source_type,source_id),
+ FOREIGN KEY(organization_id,calendar_id) REFERENCES work_calendars(organization_id,id)
+);
+CREATE TABLE holiday_deletions (
+ actor_user_id bigint NOT NULL REFERENCES users(id), request_key uuid NOT NULL,
+ kind varchar(10) NOT NULL CHECK(kind IN ('catalog','calendar')), target_id bigint NOT NULL,
+ organization_id bigint REFERENCES organizations(id), version integer NOT NULL,
+ payload_hash char(64) NOT NULL, result jsonb, cleanup_file_id bigint,
+ transaction_id bigint NOT NULL DEFAULT txid_current(), created_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(actor_user_id,request_key), UNIQUE(kind,target_id),
+ CHECK((kind='catalog' AND organization_id IS NULL) OR (kind='calendar' AND organization_id IS NOT NULL))
+);
+CREATE TABLE holiday_pdf_purge_jobs (
+ file_id bigint PRIMARY KEY REFERENCES stored_files(id), attempts integer NOT NULL DEFAULT 0,
+ next_attempt_at timestamptz NOT NULL DEFAULT now(), last_error varchar(80),
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE FUNCTION holiday_json_refs(value jsonb, names text[]) RETURNS SETOF text
+LANGUAGE sql IMMUTABLE AS $$
+ WITH RECURSIVE nodes(v) AS (
+ SELECT value UNION ALL
+ SELECT child.v FROM nodes n CROSS JOIN LATERAL (
+ SELECT e.value v FROM jsonb_each(CASE WHEN jsonb_typeof(n.v)='object' THEN n.v ELSE '{}'::jsonb END) e
+ UNION ALL SELECT a.value FROM jsonb_array_elements(CASE WHEN jsonb_typeof(n.v)='array' THEN n.v ELSE '[]'::jsonb END) a
+ ) child
+ ) SELECT DISTINCT e.value #>> '{}' FROM nodes n CROSS JOIN LATERAL
+ jsonb_each(CASE WHEN jsonb_typeof(n.v)='object' THEN n.v ELSE '{}'::jsonb END) e
+ WHERE e.key=ANY(names) AND jsonb_typeof(e.value) IN ('number','string')
+$$;
+
+CREATE FUNCTION remember_holiday_catalog_use() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE source_id bigint; calendar_label text;
+BEGIN
+ IF NEW.catalog_day_id IS NULL THEN RETURN NEW; END IF;
+ SELECT c.id INTO source_id FROM holiday_catalogs c JOIN holiday_catalog_days d ON d.catalog_id=c.id
+ WHERE d.id=NEW.catalog_day_id FOR UPDATE OF c;
+ IF source_id IS NULL THEN RAISE EXCEPTION 'Catalog no longer available' USING ERRCODE='23503'; END IF;
+ SELECT name INTO calendar_label FROM work_calendars WHERE organization_id=NEW.organization_id AND id=NEW.calendar_id;
+ INSERT INTO holiday_catalog_usage(catalog_id,organization_id,calendar_id,calendar_name)
+ VALUES(source_id,NEW.organization_id,NEW.calendar_id,calendar_label) ON CONFLICT DO NOTHING;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER remember_holiday_catalog_use BEFORE INSERT OR UPDATE OF catalog_day_id ON work_calendar_days
+ FOR EACH ROW EXECUTE FUNCTION remember_holiday_catalog_use();
+
+CREATE FUNCTION remember_work_calendar_use() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.calendar_id IS NULL THEN RETURN NEW; END IF;
+ PERFORM 1 FROM work_calendars WHERE organization_id=NEW.organization_id AND id=NEW.calendar_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Calendar no longer available' USING ERRCODE='23503'; END IF;
+ INSERT INTO work_calendar_usage(organization_id,calendar_id,source_type,source_id,source_name)
+ VALUES(NEW.organization_id,NEW.calendar_id,TG_TABLE_NAME,NEW.id::text,NEW.name) ON CONFLICT DO NOTHING;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER remember_work_calendar_use BEFORE INSERT OR UPDATE OF calendar_id ON shift_patterns
+ FOR EACH ROW EXECUTE FUNCTION remember_work_calendar_use();
+CREATE TRIGGER remember_work_calendar_use BEFORE INSERT OR UPDATE OF calendar_id ON work_schedule_groups
+ FOR EACH ROW EXECUTE FUNCTION remember_work_calendar_use();
+
+INSERT INTO holiday_catalog_usage(catalog_id,organization_id,calendar_id,calendar_name)
+ SELECT DISTINCT d.catalog_id,w.organization_id,w.calendar_id,c.name FROM work_calendar_days w
+ JOIN holiday_catalog_days d ON d.id=w.catalog_day_id JOIN work_calendars c ON c.organization_id=w.organization_id AND c.id=w.calendar_id;
+INSERT INTO work_calendar_usage(organization_id,calendar_id,source_type,source_id,source_name)
+ SELECT organization_id,calendar_id,'shift_patterns',id::text,name FROM shift_patterns WHERE calendar_id IS NOT NULL
+ UNION ALL SELECT organization_id,calendar_id,'work_schedule_groups',id::text,name FROM work_schedule_groups WHERE calendar_id IS NOT NULL;
+-- Audited requests/results include previous calendar IDs and immutable definition snapshots.
+INSERT INTO work_calendar_usage(organization_id,calendar_id,source_type,source_id,source_name,first_used_at)
+ SELECT DISTINCT c.organization_id,c.id,'audit',a.id::text,'Riwayat jadwal kerja',a.occurred_at
+ FROM audit_logs a JOIN work_calendars c ON c.organization_id=a.organization_id
+ WHERE a.action LIKE 'work_schedule.%' AND EXISTS(
+ SELECT 1 FROM holiday_json_refs(jsonb_build_array(a.before_data,a.after_data),ARRAY['calendarId','calendar_id']) r WHERE r=c.id::text)
+ ON CONFLICT DO NOTHING;
+INSERT INTO holiday_catalog_usage(catalog_id,organization_id,calendar_id,calendar_name,first_used_at)
+ SELECT DISTINCT d.catalog_id,c.organization_id,c.id,c.name,min(a.occurred_at)
+ FROM audit_logs a JOIN work_calendars c ON c.organization_id=a.organization_id
+ AND (a.after_data->'result'->>'id')=c.id::text
+ JOIN holiday_catalog_days d ON EXISTS(SELECT 1 FROM holiday_json_refs(a.after_data,ARRAY['catalogDayId','catalog_day_id']) r WHERE r=d.id::text)
+ WHERE a.action='work_schedule.calendars.save' GROUP BY d.catalog_id,c.organization_id,c.id,c.name
+ ON CONFLICT DO NOTHING;
+-- Older records without a complete audited version sequence fail closed.
+UPDATE work_calendars c SET deletion_history_verified=(
+ SELECT count(DISTINCT (a.after_data->'result'->>'version'))>=c.version
+ FROM audit_logs a WHERE a.organization_id=c.organization_id AND a.action='work_schedule.calendars.save'
+ AND a.after_data->'result'->>'id'=c.id::text);
+-- Existing published trigger allows no ordinary updates, including migration metadata.
+CREATE OR REPLACE FUNCTION guard_holiday_catalog() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_OP='DELETE' THEN
+  IF NOT OLD.deletion_history_verified OR EXISTS(SELECT 1 FROM holiday_catalog_usage WHERE catalog_id=OLD.id)
+   OR NOT EXISTS(SELECT 1 FROM holiday_deletions WHERE kind='catalog' AND target_id=OLD.id AND transaction_id=txid_current() AND result IS NULL)
+  THEN RAISE EXCEPTION 'Catalog deletion blocked' USING ERRCODE='23514'; END IF;
+  RETURN OLD;
+ END IF;
+ IF OLD.status='published' AND (to_jsonb(NEW)-'deletion_history_verified')<>(to_jsonb(OLD)-'deletion_history_verified')
+ THEN RAISE EXCEPTION 'Published holiday catalog is immutable' USING ERRCODE='23514'; END IF;
+ IF NEW.year<>OLD.year OR NEW.revision<>OLD.revision THEN RAISE EXCEPTION 'Catalog identity is immutable' USING ERRCODE='23514'; END IF;
+ IF NEW.status='published' AND NOT EXISTS(SELECT 1 FROM holiday_catalog_days WHERE catalog_id=NEW.id)
+ THEN RAISE EXCEPTION 'Catalog must contain dates' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+UPDATE holiday_catalogs c SET deletion_history_verified=(
+ NOT EXISTS(SELECT 1 FROM work_calendars WHERE NOT deletion_history_verified)
+ AND EXISTS(SELECT 1 FROM audit_logs a WHERE a.entity_type='holiday_catalog' AND a.entity_id=c.id::text
+ AND a.action IN ('holiday_catalog.system_seed','holiday_catalog.save')));
+-- Restore strict update immutability after the one-time backfill.
+CREATE OR REPLACE FUNCTION guard_holiday_catalog() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_OP='DELETE' THEN
+  IF NOT OLD.deletion_history_verified OR EXISTS(SELECT 1 FROM holiday_catalog_usage WHERE catalog_id=OLD.id)
+   OR NOT EXISTS(SELECT 1 FROM holiday_deletions WHERE kind='catalog' AND target_id=OLD.id AND transaction_id=txid_current() AND result IS NULL)
+  THEN RAISE EXCEPTION 'Catalog deletion blocked' USING ERRCODE='23514'; END IF;
+  RETURN OLD;
+ END IF;
+ IF OLD.status='published' THEN RAISE EXCEPTION 'Published holiday catalog is immutable' USING ERRCODE='23514'; END IF;
+ IF NEW.year<>OLD.year OR NEW.revision<>OLD.revision THEN RAISE EXCEPTION 'Catalog identity is immutable' USING ERRCODE='23514'; END IF;
+ IF NEW.status='published' AND NOT EXISTS(SELECT 1 FROM holiday_catalog_days WHERE catalog_id=NEW.id)
+ THEN RAISE EXCEPTION 'Catalog must contain dates' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE OR REPLACE FUNCTION guard_holiday_catalog_day() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE c holiday_catalogs;
+BEGIN
+ SELECT * INTO c FROM holiday_catalogs WHERE id=CASE WHEN TG_OP='DELETE' THEN OLD.catalog_id ELSE NEW.catalog_id END FOR UPDATE;
+ IF c.status='published' THEN
+  IF TG_OP<>'DELETE' OR NOT c.deletion_history_verified OR EXISTS(SELECT 1 FROM holiday_catalog_usage WHERE catalog_id=c.id)
+   OR NOT EXISTS(SELECT 1 FROM holiday_deletions WHERE kind='catalog' AND target_id=c.id AND transaction_id=txid_current() AND result IS NULL)
+  THEN RAISE EXCEPTION 'Published holiday dates are immutable' USING ERRCODE='23514'; END IF;
+ END IF;
+ IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+ IF TG_OP='UPDATE' AND NEW.catalog_id<>OLD.catalog_id THEN RAISE EXCEPTION 'Catalog identity is immutable' USING ERRCODE='23514'; END IF;
+ IF extract(year FROM NEW.holiday_date)<>c.year THEN RAISE EXCEPTION 'Date outside catalog year' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+CREATE FUNCTION protect_holiday_usage() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN RAISE EXCEPTION 'Holiday usage evidence is immutable' USING ERRCODE='23514'; END $$;
+CREATE TRIGGER protect_holiday_usage BEFORE UPDATE OR DELETE ON holiday_catalog_usage FOR EACH ROW EXECUTE FUNCTION protect_holiday_usage();
+CREATE TRIGGER protect_holiday_usage BEFORE UPDATE OR DELETE ON work_calendar_usage FOR EACH ROW EXECUTE FUNCTION protect_holiday_usage();
+CREATE FUNCTION guard_work_calendar_deletion() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NOT OLD.deletion_history_verified OR EXISTS(SELECT 1 FROM work_calendar_usage WHERE organization_id=OLD.organization_id AND calendar_id=OLD.id)
+ OR NOT EXISTS(SELECT 1 FROM holiday_deletions WHERE kind='calendar' AND target_id=OLD.id AND organization_id=OLD.organization_id AND transaction_id=txid_current() AND result IS NULL)
+ THEN RAISE EXCEPTION 'Calendar deletion blocked' USING ERRCODE='23514'; END IF;
+ RETURN OLD;
+END $$;
+CREATE TRIGGER guard_work_calendar_deletion BEFORE DELETE ON work_calendars FOR EACH ROW EXECUTE FUNCTION guard_work_calendar_deletion();
+
+-- Migration 072: legacy audited version sequence
+-- Legacy save receipts returned only id; input.version is the audited prior version.
+CREATE OR REPLACE FUNCTION guard_holiday_catalog() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_OP='DELETE' THEN
+  IF NOT OLD.deletion_history_verified OR EXISTS(SELECT 1 FROM holiday_catalog_usage WHERE catalog_id=OLD.id)
+   OR NOT EXISTS(SELECT 1 FROM holiday_deletions WHERE kind='catalog' AND target_id=OLD.id AND transaction_id=txid_current() AND result IS NULL)
+  THEN RAISE EXCEPTION 'Catalog deletion blocked' USING ERRCODE='23514'; END IF;
+  RETURN OLD;
+ END IF;
+ IF OLD.status='published' AND (to_jsonb(NEW)-'deletion_history_verified')<>(to_jsonb(OLD)-'deletion_history_verified')
+ THEN RAISE EXCEPTION 'Published holiday catalog is immutable' USING ERRCODE='23514'; END IF;
+ IF NEW.year<>OLD.year OR NEW.revision<>OLD.revision THEN RAISE EXCEPTION 'Catalog identity is immutable' USING ERRCODE='23514'; END IF;
+ IF NEW.status='published' AND NOT EXISTS(SELECT 1 FROM holiday_catalog_days WHERE catalog_id=NEW.id)
+ THEN RAISE EXCEPTION 'Catalog must contain dates' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+
+UPDATE work_calendars c SET deletion_history_verified=(
+ SELECT count(DISTINCT coalesce((a.after_data->>'version')::integer+1,1))>=c.version
+ FROM audit_logs a WHERE a.organization_id=c.organization_id AND a.action='work_schedule.calendars.save'
+ AND a.after_data->'result'->>'id'=c.id::text);
+UPDATE holiday_catalogs c SET deletion_history_verified=(
+ NOT EXISTS(SELECT 1 FROM work_calendars WHERE NOT deletion_history_verified)
+ AND EXISTS(SELECT 1 FROM audit_logs a WHERE a.entity_type='holiday_catalog' AND a.entity_id=c.id::text
+ AND a.action IN ('holiday_catalog.system_seed','holiday_catalog.save')));
+CREATE OR REPLACE FUNCTION guard_holiday_catalog() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_OP='DELETE' THEN
+  IF NOT OLD.deletion_history_verified OR EXISTS(SELECT 1 FROM holiday_catalog_usage WHERE catalog_id=OLD.id)
+   OR NOT EXISTS(SELECT 1 FROM holiday_deletions WHERE kind='catalog' AND target_id=OLD.id AND transaction_id=txid_current() AND result IS NULL)
+  THEN RAISE EXCEPTION 'Catalog deletion blocked' USING ERRCODE='23514'; END IF;
+  RETURN OLD;
+ END IF;
+ IF OLD.status='published' THEN RAISE EXCEPTION 'Published holiday catalog is immutable' USING ERRCODE='23514'; END IF;
+ IF NEW.year<>OLD.year OR NEW.revision<>OLD.revision THEN RAISE EXCEPTION 'Catalog identity is immutable' USING ERRCODE='23514'; END IF;
+ IF NEW.status='published' AND NOT EXISTS(SELECT 1 FROM holiday_catalog_days WHERE catalog_id=NEW.id)
+ THEN RAISE EXCEPTION 'Catalog must contain dates' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END $$;
+
+-- Effective-dated definitions retain the same assignment identity and historical hours.
+CREATE TABLE work_schedule_definition_revisions (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ organization_id bigint NOT NULL REFERENCES organizations(id),
+ pattern_id bigint NOT NULL,
+ effective_from date NOT NULL,
+ pattern_type varchar(10) NOT NULL CHECK(pattern_type IN ('weekly','rotation')),
+ cycle_days smallint NOT NULL CHECK(cycle_days BETWEEN 1 AND 366),
+ calendar_id bigint,
+ holiday_policy varchar(10) NOT NULL CHECK(holiday_policy IN ('calendar','roster')),
+ days jsonb NOT NULL CHECK(jsonb_typeof(days)='array'),
+ reason text NOT NULL CHECK(length(btrim(reason))>=5),
+ created_by_user_id bigint REFERENCES users(id),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(organization_id,id), UNIQUE(organization_id,pattern_id,effective_from),
+ FOREIGN KEY(organization_id,pattern_id) REFERENCES shift_patterns(organization_id,id),
+ FOREIGN KEY(organization_id,calendar_id) REFERENCES work_calendars(organization_id,id),
+ CHECK(pattern_type<>'weekly' OR cycle_days=7),
+ CHECK(holiday_policy<>'calendar' OR calendar_id IS NOT NULL)
+);
+COMMENT ON TABLE work_schedule_definition_revisions IS 'Definisi jadwal berdasarkan tanggal berlaku; append-only. Tidak menulis ulang penetapan, snapshot absensi atau rekap.';
+CREATE FUNCTION protect_schedule_definition_revision() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN RAISE EXCEPTION 'Schedule definition revisions are immutable'; END $$;
+CREATE TRIGGER protect_schedule_definition_revision BEFORE UPDATE OR DELETE ON work_schedule_definition_revisions
+ FOR EACH ROW EXECUTE FUNCTION protect_schedule_definition_revision();
+CREATE FUNCTION remember_schedule_revision_calendar() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.calendar_id IS NOT NULL THEN
+  PERFORM 1 FROM work_calendars WHERE organization_id=NEW.organization_id AND id=NEW.calendar_id FOR UPDATE;
+  INSERT INTO work_calendar_usage(organization_id,calendar_id,source_type,source_id,source_name)
+  VALUES(NEW.organization_id,NEW.calendar_id,'schedule_revision',NEW.id::text,'Riwayat jadwal kerja') ON CONFLICT DO NOTHING;
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER remember_schedule_revision_calendar BEFORE INSERT ON work_schedule_definition_revisions
+ FOR EACH ROW EXECUTE FUNCTION remember_schedule_revision_calendar();

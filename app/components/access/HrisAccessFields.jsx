@@ -1,5 +1,6 @@
 "use client";
-import { Checkbox, Collapse, Form, Select } from "antd";
+import AppCollapse from "@/app/components/data-display/AppCollapse";
+import { Checkbox, Form, Select } from "antd";
 import { Box } from "@mui/material";
 import { HRIS_MENUS } from "@/lib/access/hrisPolicy.mjs";
 import {
@@ -97,7 +98,7 @@ export default function HrisAccessFields({ form, item, options, onDirty }) {
         />
       ) : (
         <>
-          <Collapse
+          <AppCollapse
             activeKey={expandedGroups}
             onChange={(keys) => form.setFieldValue("expandedHrisGroups", keys)}
             items={groups.map((group) => {

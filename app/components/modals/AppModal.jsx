@@ -10,6 +10,7 @@ const SIZE_WIDTH = { sm: 480, md: 720, lg: 960, xl: 1200 };
 
 export default function AppModal({
   open,
+  keepMounted = false,
   title,
   description,
   descriptionAlign = "justify",
@@ -23,7 +24,6 @@ export default function AppModal({
   footer,
   pagination,
   contentResetKey,
-  scrollHeaderWithContent = false,
   showCloseButton = true,
   disableClose = false,
   closeOnBackdrop = true,
@@ -41,6 +41,8 @@ export default function AppModal({
   const titleId = useId();
   const descriptionId = useId();
   const resolvedDescription = description || titleDescription;
+  const titleColumn = icon ? 2 : 1;
+  const desktopControlRow = resolvedDescription ? "1 / span 2" : 1;
 
   const requestClose = (event, reason) => {
     if (disableClose) return;
@@ -52,11 +54,12 @@ export default function AppModal({
   return (
     <Modal
       open={open}
+      keepMounted={keepMounted}
       onClose={requestClose}
       aria-labelledby={titleId}
       aria-describedby={resolvedDescription ? descriptionId : undefined}
       sx={{
-        display: "grid",
+        display: open ? "grid" : "none",
         gridTemplateColumns: "minmax(0, 1fr)",
         placeItems: "center",
         p: { xs: 1, sm: 2 },
@@ -88,97 +91,122 @@ export default function AppModal({
           boxShadow: "0 24px 64px rgba(17, 24, 39, 0.22)",
           outline: "none",
           ...paperSx,
+          // Hide scrollbars throughout the shared shell, while preserving native scrolling.
+          "&, & *": {
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            "&::-webkit-scrollbar": { display: "none", width: 0, height: 0 },
+          },
         }}
       >
         <Box
-          ref={scrollHeaderWithContent ? contentRef : undefined}
-          sx={
-            scrollHeaderWithContent
-              ? { flex: 1, minHeight: 0, overflowY: "auto" }
-              : { display: "contents" }
-          }
+          component="header"
+          className="app-modal-header"
+          sx={{
+            flexShrink: 0,
+            p: { xs: 2, sm: 2.5 },
+            display: "grid",
+            gridTemplateColumns: [
+              icon ? "40px" : null,
+              "minmax(0, 1fr)",
+              showCloseButton ? "44px" : null,
+            ]
+              .filter(Boolean)
+              .join(" "),
+            alignItems: "start",
+            columnGap: 1.5,
+            rowGap: 0.5,
+            minWidth: 0,
+            maxHeight: "40dvh",
+            overflowY: "auto",
+          }}
         >
-          <Box
+          {icon ? (
+            <Box sx={{ gridColumn: 1, gridRow: { xs: 1, sm: desktopControlRow } }}>
+              <AppIconTile icon={icon} tone="brand" size={40} iconSize={22} borderRadius={2} />
+            </Box>
+          ) : null}
+          <FontStyle
+            id={titleId}
+            component="h2"
+            fontSize={{ xs: 17, sm: 19 }}
+            fontWeight={700}
             sx={{
-              flexShrink: 0,
-              p: { xs: 2, sm: 2.5 },
-              display: scrollHeaderWithContent ? { xs: "grid", sm: "flex" } : "flex",
-              gridTemplateColumns: "minmax(0, 1fr) auto",
-              alignItems: "flex-start",
-              gap: 1.5,
+              gridColumn: titleColumn,
+              gridRow: 1,
+              alignSelf: { xs: "center", sm: "start" },
+              minWidth: 0,
+              lineHeight: 1.35,
             }}
           >
-            {icon ? (
-              <AppIconTile icon={icon} tone="brand" size={40} iconSize={22} borderRadius={2} />
-            ) : null}
-            <Box
+            {title}
+          </FontStyle>
+          {resolvedDescription ? (
+            <FontStyle
+              id={descriptionId}
+              explanation
+              fontSize={12.5}
               sx={{
+                gridColumn: { xs: "1 / -1", sm: titleColumn },
+                gridRow: 2,
                 minWidth: 0,
-                flex: 1,
-                ...(scrollHeaderWithContent ? { gridColumn: "1 / -1", gridRow: 2 } : {}),
+                color: theme.ui.mutedText,
+                lineHeight: 1.6,
+                textAlign: descriptionAlign,
               }}
             >
-              <FontStyle
-                id={titleId}
-                component="h2"
-                fontSize={{ xs: 17, sm: 19 }}
-                fontWeight={700}
-                sx={{ lineHeight: 1.35 }}
+              {resolvedDescription}
+            </FontStyle>
+          ) : null}
+          {showCloseButton ? (
+            <Tooltip title="Tutup">
+              <Box
+                component="span"
+                sx={{ gridColumn: titleColumn + 1, gridRow: { xs: 1, sm: desktopControlRow } }}
               >
-                {title}
-              </FontStyle>
-              {resolvedDescription ? (
-                <FontStyle
-                  id={descriptionId}
-                  explanation
-                  fontSize={12.5}
-                  sx={{
-                    mt: 0.5,
-                    color: theme.ui.mutedText,
-                    lineHeight: 1.6,
-                    textAlign: descriptionAlign,
-                  }}
+                <IconButton
+                  disabled={disableClose}
+                  onClick={(event) => requestClose(event, "closeButton")}
+                  aria-label="Tutup modal"
+                  sx={{ width: 44, height: 44 }}
                 >
-                  {resolvedDescription}
-                </FontStyle>
-              ) : null}
-            </Box>
-            {showCloseButton ? (
-              <Tooltip title="Tutup">
-                <Box
-                  component="span"
-                  sx={scrollHeaderWithContent ? { gridColumn: 2, gridRow: 1 } : undefined}
-                >
-                  <IconButton
-                    disabled={disableClose}
-                    onClick={(event) => requestClose(event, "closeButton")}
-                    aria-label="Tutup modal"
-                    sx={{ width: 44, height: 44 }}
-                  >
-                    <CloseRoundedIcon />
-                  </IconButton>
-                </Box>
-              </Tooltip>
-            ) : null}
-          </Box>
-          <Divider />
-          <Box
-            ref={scrollHeaderWithContent ? undefined : contentRef}
-            sx={{
-              flex: scrollHeaderWithContent ? undefined : 1,
-              minHeight: 0,
-              overflowY: scrollHeaderWithContent ? undefined : "auto",
-              p: { xs: 2, sm: 2.5 },
-              ...contentSx,
-            }}
-          >
-            {children}
-          </Box>
+                  <CloseRoundedIcon />
+                </IconButton>
+              </Box>
+            </Tooltip>
+          ) : null}
+        </Box>
+        <Divider />
+        <Box
+          className="app-modal-body"
+          ref={contentRef}
+          tabIndex={0}
+          role="region"
+          aria-label="Isi modal"
+          sx={{
+            flex: 1,
+            minHeight: "min(64px, 10dvh)",
+            overflowY: "auto",
+            p: { xs: 2, sm: 2.5 },
+            ...contentSx,
+          }}
+        >
+          {children}
         </Box>
         {pagination ? (
           <>
             <Divider />
-            <Box sx={{ flexShrink: 0, minWidth: 0, px: { xs: 2, sm: 2.5 }, py: 1.5 }}>
+            <Box
+              className="app-modal-pagination"
+              sx={{
+                flexShrink: 1,
+                minWidth: 0,
+                minHeight: "min(72px, 15dvh)",
+                overflowY: "auto",
+                px: { xs: 2, sm: 2.5 },
+                py: 1.5,
+              }}
+            >
               {pagination}
             </Box>
           </>
@@ -187,6 +215,8 @@ export default function AppModal({
           <>
             <Divider />
             <Box
+              component="footer"
+              className="app-modal-footer"
               sx={{
                 flexShrink: 0,
                 p: { xs: 2, sm: 2.5 },
@@ -195,6 +225,30 @@ export default function AppModal({
                 justifyContent: "flex-end",
                 flexWrap: "wrap",
                 gap: 1.5,
+                [theme.breakpoints.down("sm")]: {
+                  flexDirection: "column",
+                  alignItems: "stretch",
+                  "& > *": { width: "100%", minWidth: 0 },
+                  "& > .MuiBox-root, & > .MuiStack-root": {
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr)",
+                    gap: 1.5,
+                    alignItems: "stretch",
+                  },
+                  "& .ant-space": {
+                    width: "100%",
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                    gap: "12px !important",
+                  },
+                  "& .ant-space-item": { width: "100%", minWidth: 0 },
+                  "& .ant-btn, & .MuiButton-root": {
+                    width: "100%",
+                    minHeight: 44,
+                    height: "auto",
+                    whiteSpace: "normal",
+                  },
+                },
               }}
             >
               {footer}

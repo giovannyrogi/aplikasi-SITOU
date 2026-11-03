@@ -1,6 +1,9 @@
 "use client";
+import AppCollapse from "@/app/components/data-display/AppCollapse";
 import { useEffect, useState } from "react";
-import { Button, Checkbox, Collapse, Form, Input, Space } from "antd";
+import { Button, Checkbox, DatePicker, Form, Input, Space } from "antd";
+import dayjs from "dayjs";
+import FormSection from "@/app/components/forms/FormSection";
 import { Box, Divider } from "@mui/material";
 import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
@@ -42,7 +45,15 @@ export default function TemplateEditor({
       active = false;
     };
   }, [validationFocus]);
-  const locked = Boolean(item?.used);
+  const locked = false;
+  const revisionRequired = Boolean(item?.used || item?.latestEffectiveFrom);
+  const minimumDate = [
+    opts.today && dayjs(opts.today).add(1, "day").format("YYYY-MM-DD"),
+    item?.latestEffectiveFrom && dayjs(item.latestEffectiveFrom).add(1, "day").format("YYYY-MM-DD"),
+  ]
+    .filter(Boolean)
+    .sort()
+    .at(-1);
   const weekly = values.workType === "fixed";
   const shiftMode = values.workType === "shift";
   const legacy = values.workType === "legacy";
@@ -130,7 +141,7 @@ export default function TemplateEditor({
               </FontStyle>
               <CompactInfoChip
                 label={customDays.includes(day.day) ? "Jam khusus" : "Jam utama"}
-                tone={customDays.includes(day.day) ? "info" : "neutral"}
+                tone={customDays.includes(day.day) ? "info" : "success"}
                 sx={{
                   height: "auto",
                   minHeight: 24,
@@ -166,7 +177,6 @@ export default function TemplateEditor({
   };
   return (
     <AppModal
-      scrollHeaderWithContent
       open={open}
       title={item ? "Edit jadwal kerja" : "Buat jadwal kerja"}
       description="Pilih jenis jam kerja, lalu atur hari dan jamnya. Periksa ringkasan sebelum menyimpan."
@@ -231,12 +241,52 @@ export default function TemplateEditor({
             </Form.Item>
           )}
         </Box>
-        {locked && (
-          <AppNotice
-            tone="info"
-            title="Jadwal sudah digunakan"
-            description="Nama dan status tetap dapat diubah. Buat salinan jadwal untuk mengubah hari atau jam kerja."
-          />
+        {revisionRequired && (
+          <FormSection first divider={false} title="Mulai berlaku perubahan">
+            <AppNotice
+              descriptionAlign="left"
+              description="Pengaturan baru berlaku mulai tanggal yang Anda pilih. Jadwal dan riwayat absensi sebelum tanggal tersebut tetap menggunakan pengaturan lama."
+              sx={{ mb: 2 }}
+            />
+            {item.latestEffectiveFrom && (
+              <FontStyle explanation sx={{ mb: 2 }}>
+                Perubahan terakhir mulai berlaku{" "}
+                {dayjs(item.latestEffectiveFrom).format("DD MMM YYYY")}.
+              </FontStyle>
+            )}
+            <Form.Item
+              name="effectiveFrom"
+              label="Mulai berlaku"
+              rules={[{ required: true, message: "Pilih tanggal mulai berlaku." }]}
+            >
+              <DatePicker
+                format="DD/MM/YYYY"
+                style={{ width: "100%", maxWidth: 420 }}
+                disabled={!minimumDate || opts.loading || Boolean(opts.error)}
+                disabledDate={(date) => !minimumDate || date.format("YYYY-MM-DD") < minimumDate}
+              />
+            </Form.Item>
+            <Form.Item
+              name="reason"
+              label="Alasan perubahan"
+              rules={[
+                {
+                  required: true,
+                  whitespace: true,
+                  min: 5,
+                  message: "Isi alasan perubahan, minimal 5 karakter.",
+                },
+              ]}
+              style={{ marginBottom: 0 }}
+            >
+              <Input.TextArea
+                rows={3}
+                maxLength={1000}
+                showCount
+                placeholder="Tuliskan alasan perubahan jadwal"
+              />
+            </Form.Item>
+          </FormSection>
         )}
         {legacy && (
           <Box sx={{ display: "grid", gap: 3, my: 3 }}>
@@ -250,13 +300,13 @@ export default function TemplateEditor({
         )}
         {shiftMode && (
           <>
-            <Divider sx={{ my: 3 }} />
+            <Divider sx={{ mt: revisionRequired ? 0 : 3, mb: 3 }} />
             <ShiftGroupFields locked={locked} validationFocus={validationFocus} />
           </>
         )}
         {weekly && (
           <>
-            <Divider sx={{ my: 3 }} />
+            <Divider sx={{ mt: revisionRequired ? 0 : 3, mb: 3 }} />
             <Form.Item
               name="workingDays"
               label="Hari kerja"
@@ -286,7 +336,7 @@ export default function TemplateEditor({
             )}
             {selectedDays.length > 0 && (
               <Box sx={{ mt: 3 }}>
-                <Collapse
+                <AppCollapse
                   activeKey={dailyOpen ? ["daily"] : []}
                   onChange={(keys) => setDailyOpen(keys.includes("daily"))}
                   items={[
@@ -322,7 +372,6 @@ export default function TemplateEditor({
                 loading={opts.loading}
                 options={opts.calendars.map((c) => ({ value: c.id, label: c.name }))}
                 onSearch={opts.onSearch}
-                onChange={() => form.setFieldValue("holidayPolicy", undefined)}
               />
             </Form.Item>
             {opts.error && (
@@ -330,21 +379,6 @@ export default function TemplateEditor({
                 <FontStyle>{opts.error}</FontStyle>
                 <Button onClick={opts.onRetry}>Coba lagi</Button>
               </Box>
-            )}
-            {values.calendarId && (
-              <Form.Item
-                name="holidayPolicy"
-                label="Saat tanggal libur"
-                rules={[{ required: true, message: "Pilih ketentuan saat tanggal libur." }]}
-              >
-                <AsyncSelect
-                  disabled={locked}
-                  options={[
-                    { value: "calendar", label: "Libur mengikuti kalender" },
-                    { value: "roster", label: "Tetap bekerja sesuai jadwal" },
-                  ]}
-                />
-              </Form.Item>
             )}
           </>
         )}

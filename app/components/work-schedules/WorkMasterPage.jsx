@@ -2,6 +2,14 @@
 import { useState } from "react";
 import { Button, Form, Space } from "antd";
 import { Box } from "@mui/material";
+import {
+  EditOutlined,
+  CopyOutlined,
+  DeleteOutlined,
+  StopOutlined,
+  CheckCircleOutlined,
+  HistoryOutlined,
+} from "@ant-design/icons";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
@@ -19,6 +27,7 @@ import useAppNotification from "@/app/hooks/useAppNotification";
 import useDataList from "@/app/hooks/useDataList";
 import { hrisLevel } from "@/lib/access/hrisPolicy.mjs";
 import MasterEditor, { masterValues } from "./MasterEditor";
+import useHolidayDeletion from "@/app/components/holiday-catalogs/useHolidayDeletion";
 import TemplatePage from "./TemplatePage";
 import { scheduleRequest, requestKey, applyFieldErrors } from "./ScheduleFields";
 const endpoints = {
@@ -48,6 +57,12 @@ function MasterList({ kind }) {
   const [busy, setBusy] = useState(false);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
+  const deletion = useHolidayDeletion({
+    kind: "calendar",
+    organizationId: org,
+    onDeleted: list.refresh,
+    onMessage: showNotification,
+  });
   const open = (item = null, copy = false) => {
     form.resetFields();
     form.setFieldsValue(masterValues(item, kind, copy));
@@ -59,6 +74,12 @@ function MasterList({ kind }) {
     try {
       await form.validateFields();
       v = form.getFieldsValue(true);
+      if (kind === "calendars")
+        v.days = (v.days || []).map(({ date, name, catalogDayId }) => ({
+          date,
+          name,
+          catalogDayId: catalogDayId || null,
+        }));
       delete v.id;
       delete v.version;
     } catch {
@@ -116,6 +137,12 @@ function MasterList({ kind }) {
     setBusy(true);
     try {
       const values = masterValues(confirm, kind);
+      if (kind === "calendars")
+        values.days = values.days.map(({ date, name, catalogDayId }) => ({
+          date,
+          name,
+          catalogDayId: catalogDayId || null,
+        }));
       await runWithLoadingBackdrop(
         () =>
           scheduleRequest("/api/" + endpoints[kind], {
@@ -138,18 +165,42 @@ function MasterList({ kind }) {
   const actions = (item) => [
     ...(manage
       ? [
-          { key: "edit", label: "Edit", onClick: () => open(item) },
-          { key: "copy", label: "Duplikasi", onClick: () => open(item, true) },
+          { key: "edit", label: "Edit", icon: <EditOutlined />, onClick: () => open(item) },
+          {
+            key: "copy",
+            label: "Duplikasi",
+            icon: <CopyOutlined />,
+            onClick: () => open(item, true),
+          },
           {
             key: "status",
             label: item.is_active ? "Nonaktifkan" : "Aktifkan",
+            icon: item.is_active ? <StopOutlined /> : <CheckCircleOutlined />,
             danger: item.is_active,
             onClick: () => setConfirm(item),
           },
         ]
       : []),
     ...(kind === "shifts"
-      ? [{ key: "history", label: "Riwayat revisi", onClick: () => setHistory(item) }]
+      ? [
+          {
+            key: "history",
+            label: "Riwayat revisi",
+            icon: <HistoryOutlined />,
+            onClick: () => setHistory(item),
+          },
+        ]
+      : []),
+    ...(platform && kind === "calendars"
+      ? [
+          {
+            key: "delete",
+            label: "Hapus permanen",
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => deletion.show(item),
+          },
+        ]
       : []),
   ];
   const details = (item) =>
@@ -292,6 +343,7 @@ function MasterList({ kind }) {
         </Space>
       </AppModal>
       <Notification {...notification} onClose={closeNotification} />
+      {deletion.dialog}
     </Box>
   );
 }

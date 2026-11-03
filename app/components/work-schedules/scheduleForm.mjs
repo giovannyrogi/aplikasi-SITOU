@@ -76,6 +76,7 @@ export function templateValues(item, copy = false) {
       calendarId: item.calendar_id || null,
       holidayPolicy: item.calendar_id ? item.holiday_policy : undefined,
       shifts: item.shifts.map((shift) => ({
+        ...(!copy ? { patternId: shift.patternId } : {}),
         name: shift.name,
         rules: structuredClone(shift.rules),
       })),
@@ -128,12 +129,19 @@ export function templatePayload(values, original) {
   let days = v.days;
   if (v.patternType === "weekly") days = weeklyScheduleDays(values);
   return {
+    ...(v.effectiveFrom
+      ? { effectiveFrom: v.effectiveFrom.format("YYYY-MM-DD"), reason: v.reason }
+      : {}),
     name: v.name,
     isActive: v.isActive,
     patternType: v.patternType,
     cycleDays: v.patternType === "weekly" ? 7 : v.cycleDays,
     calendarId: v.calendarId || null,
-    holidayPolicy: v.calendarId ? v.holidayPolicy : "roster",
+    holidayPolicy: v.calendarId
+      ? v.workType === "legacy"
+        ? v.holidayPolicy
+        : "calendar"
+      : "roster",
     days: days.map((d) => ({
       day: d.day,
       sessions: d.sessions.map((s, index) => {
@@ -159,12 +167,16 @@ export function templatePayload(values, original) {
 }
 export function shiftGroupPayload(values) {
   return {
+    ...(values.effectiveFrom
+      ? { effectiveFrom: values.effectiveFrom.format("YYYY-MM-DD"), reason: values.reason }
+      : {}),
     name: values.name,
     isActive: values.isActive,
     workingDays: values.workingDays || [],
     calendarId: values.calendarId || null,
-    holidayPolicy: values.calendarId ? values.holidayPolicy : "roster",
+    holidayPolicy: values.calendarId ? "calendar" : "roster",
     shifts: (values.shifts || []).map((shift) => ({
+      ...(shift.patternId ? { patternId: shift.patternId } : {}),
       name: shift.name,
       rules: { ...emptyRules(), ...shift.rules, type: "fixed" },
     })),

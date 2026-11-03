@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // A 10 MiB PDF plus multipart boundaries must reach the bounded upload parser intact.
+  experimental: { proxyClientMaxBodySize: 11 * 1024 * 1024 },
   async headers() {
     const common = [
       { key: "X-Content-Type-Options", value: "nosniff" },
@@ -13,7 +15,10 @@ const nextConfig = {
     ];
     return [
       { source: "/:path*", headers: common },
-      { source: "/api/:path*", headers: [...common, { key: "Cache-Control", value: "private, no-store" }] },
+      {
+        source: "/api/:path*",
+        headers: [...common, { key: "Cache-Control", value: "private, no-store" }],
+      },
     ];
   },
 };

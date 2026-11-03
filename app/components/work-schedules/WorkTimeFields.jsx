@@ -1,6 +1,7 @@
 "use client";
+import AppCollapse from "@/app/components/data-display/AppCollapse";
 import { useEffect, useState } from "react";
-import { Collapse, Form } from "antd";
+import { Form } from "antd";
 import { Box } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
@@ -87,7 +88,7 @@ export default function WorkTimeFields({
         />
       </FormSettingsGroup>
       <Box sx={{ gridColumn: "1 / -1" }}>
-        <Collapse
+        <AppCollapse
           activeKey={toleranceOpen ? ["tolerance"] : []}
           onChange={(keys) => setToleranceOpen(keys.includes("tolerance"))}
           items={[

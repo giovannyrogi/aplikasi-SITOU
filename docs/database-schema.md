@@ -11,6 +11,16 @@ Dokumen ini adalah peta cepat database SITOU. Gunakan dokumen ini sebelum membuk
 
 ## Prinsip Umum
 
+- Migration 073 menambah work_schedule_definition_revisions: organisasi + pattern_id, effective_from, pattern_type/cycle_days, calendar_id/holiday_policy, days JSON referensi shift, alasan/pelaku/waktu. Baseline -infinity dibuat ketika edit terpakai pertama; revisi append-only dan FK kalender komposit. Trigger mencatat pemakaian kalender permanen. Header master tetap pengaturan terbaru; resolver membaca versi sesuai tanggal. Penetapan/snapshot/event/rekap/ledger tidak ditimpa. Lihat docs/work-schedules.md.
+
+- Ganti/Tambah jam kerja memakai schema existing: hasil lengkap sesi disimpan per Pegawai/tanggal pada exception, mode/pattern sumber pada audit. Tambah mempertahankan hasil resolver sebelumnya, bukan penambahan dinamis saat GET. Tidak mengubah snapshot terpakai atau ledger cuti.
+
+- Perubahan jadwal harian massal memakai `work_schedule_exceptions`, `work_schedule_exception_sessions`, `audit_logs` dan `work_schedule_requests` existing (`operation=exception.bulk`). Tidak ada tabel/migration baru. Batch 1–100 Pegawai × maksimal 31 tanggal menyimpan seluruh baris dan receipt/audit dalam satu transaksi; snapshot absensi dan ledger cuti tidak ditulis ulang. Rekap tanpa snapshot juga memblokir perubahan tanggal terpakai. Kontrak API dan izin: `docs/work-schedules.md`.
+
+- Pengambilan sumber katalog tahunan menggunakan schema 069 existing, tanpa migration baru. `audit_logs` mencatat `holiday_catalog.source_preview` dengan metadata/digest/hasil pengambilan; penyimpanan draft tetap pada `holiday_catalogs`/`holiday_catalog_days` dengan receipt existing. Audit pratinjau bukan publikasi dan tidak mengubah kalender organisasi.
+
+- Migration `069`: referensi global Admin SITOU berada pada `holiday_catalogs` (tahun/revisi/status/versi/sumber/pelaku), `holiday_catalog_days` (tanggal/kategori), dan `holiday_catalog_requests` (receipt pelaku + UUID + hash). Katalog terbit immutable melalui trigger. `work_calendar_days.catalog_day_id` nullable menyimpan asal tanggal; organization_id, nama dan tanggal salinan tetap pada kalender organisasi. Data lama tetap manual, tidak diperbarui otomatis. Seed resmi 2026 (17+8) dan 2027 (18+8) berprovenance sistem. Lihat `docs/holiday-catalogs.md` untuk API, peninjauan revisi dan prosedur pembaruan tahunan.
+
 - Migration `058` menambah seed menu HRIS `leave-summary-report` untuk Rekap Cuti & Izin. Tidak menambah tabel bisnis atau memberi grant otomatis. Laporan memakai `leave_requests`, `leave_entitlements`, dan `leave_balance_transactions`; lihat `docs/leave-summary-report.md`.
 
 - `organization_id` adalah batas organisasi utama pada semua tabel bisnis.
@@ -445,3 +455,13 @@ Upgrade existing memakai 20261029_067_work_schedule_shift_groups.sql sesudah 066
 Migration 20261030_068_attendance_organization_module.sql menambahkan satu seed access_modules(code='attendance',name='Absensi') secara ON CONFLICT DO NOTHING. Bootstrap final menambahkan seed yang sama. organization_modules existing menyimpan aktivasi per organisasi beserta version. Tidak ada tabel, kolom, constraint atau grant baru.
 
 Tanpa baris attendance, organisasi dianggap nonaktif. Migration tidak mengisi organization_modules atau mengubah jadwal/kalender/penetapan/grant/histori. Perubahan aktivasi hanya melalui Superadmin berizin dan diaudit. Upgrade existing menjalankan migration baru, bukan bootstrap atau ulang 063–067. Gerbang service, kontrak dan pemulihan akses ada di docs/work-schedules.md.
+
+## Migration 070: PDF SKB platform
+
+`stored_files.ownership_scope` membedakan organisasi/platform; organization_id NULL hanya kategori holiday_catalog_source dengan pemilik Pegawai/onboarding kosong. File bisnis lain tetap wajib organisasi. `holiday_pdf_imports` adalah antrean global Admin dengan request key/hash file, lease, heartbeat, retry dan hasil sumber per halaman. `holiday_catalogs.source_file_id`, `pdf_import_id`, `pdf_review` mengikat PDF asli, hasil parser dan koreksi/peninjauan ke revisi. Publikasi tetap immutable. `system_backup_file_issues.organization_id` nullable untuk temuan Platform SITOU tanpa Pegawai. Index cleanup diselaraskan untuk seluruh file deleted yang belum dipurge. Bootstrap dan kontrak: docs/holiday-pdf-import.md.
+
+## Migration 071–072: penghapusan libur aman
+
+holiday_catalog_usage menyimpan bukti pertama katalog digunakan oleh kalender organisasi, termasuk nama saat digunakan. work_calendar_usage menyimpan organisasi, kalender dan referensi jadwal historis. Keduanya append-only dan FK membatasi penghapusan master terpakai. deletion_history_verified pada master memblokir penghapusan data lama yang tidak memiliki bukti audit memadai; 072 menyesuaikan backfill dengan kontrak result.id dan input.version legacy.
+
+holiday_deletions adalah receipt minimal global khusus tindakan Admin: kind/target, organisasi kalender, actor/key/hash/version, hasil dan transaction_id. Trigger hanya mengizinkan penghapusan melalui intent dalam transaksi yang sama, dengan pemeriksaan penggunaan. holiday_pdf_purge_jobs adalah antrean global file platform tanpa organisasi fiktif; worker mengunci import/file, memeriksa referensi, menghapus byte dan metadata, lalu menyelesaikan receipt. Kedua tabel masuk dump/restore PostgreSQL. File platform tetap masuk backup privat existing.

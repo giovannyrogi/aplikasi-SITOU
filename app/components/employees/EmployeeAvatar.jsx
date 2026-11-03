@@ -3,7 +3,7 @@
 import PhotoAvatar from "@/app/components/data-display/PhotoAvatar";
 
 /** Menampilkan pas foto privat pegawai; data tanpa foto hanya menampilkan inisial. */
-export default function EmployeeAvatar({ employee, size = 44, onPreview }) {
+export default function EmployeeAvatar({ employee, size = 44, onPreview, interactive = true }) {
   const fileId = employee?.profile_photo_file_id;
   const organizationId = employee?.organization_id;
   const name = employee?.full_name || "pegawai";
@@ -24,6 +24,7 @@ export default function EmployeeAvatar({ employee, size = 44, onPreview }) {
       photoLabel="Pas foto"
       previewTitle="Pas foto pegawai"
       onPreview={onPreview}
+      interactive={interactive}
     />
   );
 }

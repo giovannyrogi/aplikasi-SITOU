@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Button, DatePicker, Form, InputNumber, Radio, TimePicker } from "antd";
+import { Button, DatePicker, Form, InputNumber, Radio } from "antd";
+import AppTimePicker from "@/app/components/forms/AppTimePicker";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import AppNotice from "@/app/components/data-display/AppNotice";
@@ -10,11 +11,12 @@ import dayjs from "dayjs";
 import { readApiResponse, applyApiFieldErrors } from "@/lib/api/clientError";
 /** Transport hanya membungkus helper error existing dan membatasi waktu tunggu. */
 export async function scheduleRequest(url, body, signal) {
+  const multipart = typeof FormData !== "undefined" && body instanceof FormData;
   return readApiResponse(
     await fetch(url, {
       method: body ? "POST" : "GET",
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
+      headers: body && !multipart ? { "Content-Type": "application/json" } : undefined,
+      body: body ? (multipart ? body : JSON.stringify(body)) : undefined,
       signal: signal
         ? AbortSignal.any([signal, AbortSignal.timeout(45000)])
         : AbortSignal.timeout(45000),
@@ -32,12 +34,12 @@ export function applyFieldErrors(form, error) {
     ),
   });
 }
-export function DateField({ name, label, required = false, ...props }) {
+export function DateField({ name, label, required = false, rules = [], ...props }) {
   return (
     <Form.Item
       name={name}
       label={label}
-      rules={required ? [{ required: true, message: "Isi tanggal." }] : []}
+      rules={[...(required ? [{ required: true, message: "Isi tanggal." }] : []), ...rules]}
       normalize={(v) => v?.format("YYYY-MM-DD") || null}
       getValueProps={(v) => ({ value: v ? dayjs(v) : null })}
     >
@@ -54,7 +56,7 @@ export function TimeField({ name, label, required = false, disabled = false }) {
       normalize={(v) => v?.format("HH:mm") || null}
       getValueProps={(v) => ({ value: v ? dayjs("2000-01-01T" + v) : null })}
     >
-      <TimePicker disabled={disabled} format="HH:mm" showNow={false} style={{ width: "100%" }} />
+      <AppTimePicker disabled={disabled} />
     </Form.Item>
   );
 }
@@ -99,7 +101,7 @@ export function useScheduleOptions(org, master = false) {
         if (!c.signal.aborted)
           setState((previous) => {
             const next = { ...r.data, organizationId: String(org), error: "", loading: false };
-            for (const key of ["patterns", "shifts", "calendars"])
+            for (const key of ["patterns", "shifts", "calendars", "adjustmentSchedules"])
               next[key] = Array.from(
                 new Map(
                   [
@@ -147,12 +149,17 @@ export function WorkScheduleFields({
   const form = Form.useFormInstance();
   const chosen = Form.useWatch([...prefix, "patternId"], { form, preserve: true });
   const options = useScheduleOptions(organizationId);
-  const pattern = options.patterns?.find((x) => x.id === chosen);
+  const source = options.patterns?.find((x) => x.id === chosen);
   const orgRef = useRef(organizationId);
   const from = Form.useWatch([...prefix, "from"], form);
+  const applicable = source?.versions?.findLast(
+    (v) => v.from === "-infinity" || v.from <= (from || options.today),
+  );
+  const pattern = applicable ? { ...source, ...applicable } : source;
   const joinedValue = Form.useWatch("joinedDate", form);
   const joined =
     joinedDate || (joinedValue?.format ? joinedValue.format("YYYY-MM-DD") : joinedValue);
+  const minimumStart = joined && joined > options.today ? joined : options.today;
   useEffect(() => {
     if (orgRef.current !== organizationId) {
       form.setFieldValue([...prefix, "patternId"], undefined);
@@ -257,7 +264,25 @@ export function WorkScheduleFields({
       )}
       {(!optional || chosen) && (
         <>
-          <DateField name={[...prefix, "from"]} label="Mulai berlaku" required />
+          <DateField
+            name={[...prefix, "from"]}
+            label="Mulai berlaku"
+            required
+            disabled={!options.today || options.loading || Boolean(options.error)}
+            disabledDate={(date) => !minimumStart || date.format("YYYY-MM-DD") < minimumStart}
+            rules={[
+              {
+                validator: (_, value) =>
+                  !value || (minimumStart && value >= minimumStart)
+                    ? Promise.resolve()
+                    : Promise.reject(
+                        new Error(
+                          "Pilih hari ini atau mendatang, tidak sebelum tanggal bergabung.",
+                        ),
+                      ),
+              },
+            ]}
+          />
           {allowEndDate && <DateField name={[...prefix, "until"]} label="Berakhir (opsional)" />}
           {!allowEndDate && (
             <AppNotice

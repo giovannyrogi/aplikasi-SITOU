@@ -1,9 +1,9 @@
 "use client";
+import { AppCollapseRegion } from "@/app/components/data-display/AppCollapse";
 
 import { useId, useState } from "react";
 import {
   Box,
-  Collapse,
   Divider,
   List,
   ListItem,
@@ -234,7 +234,7 @@ export default function SidebarContent({
                 </ListItem>
 
                 {menu.submenu ? (
-                  <Collapse id={submenuId} in={expanded} timeout={180} unmountOnExit>
+                  <AppCollapseRegion id={submenuId} in={expanded} timeout={180} unmountOnExit>
                     <List
                       disablePadding
                       aria-label={menu.label}
@@ -275,7 +275,7 @@ export default function SidebarContent({
                           ))
                         : menu.submenu.map(renderSubmenu)}
                     </List>
-                  </Collapse>
+                  </AppCollapseRegion>
                 ) : null}
               </Box>
             );

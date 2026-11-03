@@ -1,9 +1,14 @@
 "use client";
+import {
+  AppAccordion as Accordion,
+  AppAccordionSummary as AccordionSummary,
+  AppAccordionDetails as AccordionDetails,
+} from "@/app/components/data-display/AppCollapse";
 
 import { useEffect, useId, useState } from "react";
 import { Button, Skeleton } from "antd";
 import { DownloadOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
-import { Accordion, AccordionDetails, AccordionSummary, Box, useTheme } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import AppModal from "@/app/components/modals/AppModal";
 import AppNotice from "@/app/components/data-display/AppNotice";
