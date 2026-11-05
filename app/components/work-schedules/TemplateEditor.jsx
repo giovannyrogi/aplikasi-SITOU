@@ -20,7 +20,7 @@ import ScheduleSummary from "./ScheduleSummary";
 import AppNotice from "@/app/components/data-display/AppNotice";
 export default function TemplateEditor({
   open,
-  form,
+  initialValues,
   item,
   organizationId,
   onSubmit,
@@ -28,6 +28,7 @@ export default function TemplateEditor({
   busy,
   validationFocus,
 }) {
+  const [form] = Form.useForm();
   const values = Form.useWatch([], { form, preserve: true }) || {};
   const opts = useScheduleOptions(organizationId, true);
   const [editedDay, setEditedDay] = useState(null);
@@ -178,6 +179,7 @@ export default function TemplateEditor({
   return (
     <AppModal
       open={open}
+      keepMounted
       title={item ? "Edit jadwal kerja" : "Buat jadwal kerja"}
       description="Pilih jenis jam kerja, lalu atur hari dan jamnya. Periksa ringkasan sebelum menyimpan."
       size="lg"
@@ -199,14 +201,22 @@ export default function TemplateEditor({
           <Button
             type="primary"
             loading={busy}
-            onClick={() => onSubmit(opts.calendars.find((c) => c.id === values.calendarId)?.name)}
+            onClick={() =>
+              onSubmit(form, opts.calendars.find((c) => c.id === values.calendarId)?.name)
+            }
           >
             Simpan jadwal
           </Button>
         </Space>
       }
     >
-      <Form form={form} layout="vertical" requiredMark={false} onValuesChange={clearReference}>
+      <Form
+        form={form}
+        initialValues={initialValues}
+        layout="vertical"
+        requiredMark={false}
+        onValuesChange={clearReference}
+      >
         <Box
           sx={{
             display: "grid",

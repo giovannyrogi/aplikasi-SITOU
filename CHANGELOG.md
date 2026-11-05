@@ -1,5 +1,119 @@
 # Catatan perubahan SITOU
 
+## 2026-11-05 — Catatan pada hasil absensi mobile
+
+- `lib/attendance-points/mobile.js` menambahkan note nullable pada hasil simpan. withAttendanceNote dipakai oleh hasil baru serta replay. SELECT receipt ikut membaca attendance_note sehingga retry event lama tetap mendapat catatan asli, tanpa mengubah event atau receipt histori. pointName dan snapshot waktu tetap berasal dari hasil yang tersimpan.
+- `docs/mobile-attendance.md`, `docs/database-schema.md`, `README.md`, dan `AGENTS.md` menjelaskan kontrak aditif, pemilik data dan urutan rollout. Tidak ada DDL, migration baru atau perubahan sitou_schema_v3.sql.
+- ESLint service dan build Next.js lulus. Service record asli diuji dalam VM dengan storage/database sintetis untuk note terpangkas/tersimpan, replay event lama, nama titik asli meski master berubah, payload berbeda, Pegawai berbeda, tanpa catatan dan cleanup. Tidak ada file/data QA backend yang dibuat di proyek/database nyata.
+- Data catatan hanya dikembalikan melalui sesi serta receipt Pegawai/organisasi yang sesuai. Tidak ada perubahan izin, cookie/login web atau tampilan dashboard. Uji HTTP ke database nyata serta regresi web interaktif belum dijalankan pada revisi ini. Rilis backend sebelum APK yang menampilkan catatan. Tidak ada deployment atau restart VPS.
+
+## 2026-11-05 — Absensi mobile di luar radius dengan catatan
+
+- `lib/attendance-points/mobile.js` mengembalikan `requiresNote` dan `timingMessage`, mewajibkan alasan setelah validasi ulang untuk posisi di luar radius, serta menyimpan geofence `outside` dengan catatan. Kontrol sesi, titik berizin, akurasi, bukti lokasi, foto dan receipt tetap dipakai. Alur mobile ini tidak menambah tahap persetujuan. Skema existing cukup.
+- `AGENTS.md`, `docs/mobile-attendance.md`, `docs/database-schema.md`, dan `docs/attendance-points.md` menjelaskan validasi, histori, dan kompatibilitas aplikasi. Rilis API dan aplikasi mobile bersama agar klien menyediakan alasan.
+- ESLint service dan build Next.js lulus. Pemeriksaan service sintetis dalam memori lulus untuk dalam/luar radius, catatan kosong/terisi, GPS tidak akurat, titik tanpa izin, dan sesi salah. Tidak ada file uji service yang dibuat di proyek. Submit foto ke database dan regresi dashboard secara interaktif belum diuji. Tidak ada perubahan skema atau deployment VPS.
+
+## 2026-11-05 — Migration absensi dan peta di development lokal
+
+- Migration 077 dan 078 diterapkan berurutan dalam satu transaksi pada PostgreSQL development lokal sitou_db setelah prasyarat 075/076 diverifikasi. Kolom, constraint dan indeks diperiksa sebelum commit. Satu organisasi mendapat default OpenStreetMap. VPS tidak disentuh.
+
+## 2026-11-05 — Penyedia peta absensi per organisasi
+
+- Form Organisasi, schema/service master data, serta API absensi mobile menyimpan/mengirim enum penyedia tanpa key. Superadmin dan audit versi existing tetap berlaku. Migration 078, bootstrap, peta database, aturan dan kontrak diselaraskan.
+- ESLint dan uji API nyata sintetis lulus untuk default OSM, penolakan enum dan tanpa sesi, simpan Google, serta PATCH lama tanpa field. Bootstrap dan upgrade sintetis dengan organisasi lama lulus. Server, database dan folder QA dibersihkan. Migration belum diterapkan pada database operasional atau VPS.
+
+## 2026-11-05 — API absensi mobile per sesi
+
+- `app/api/mobile/attendance/`, `lib/attendance-points/mobile.js`, `lib/auth/mobile/{service,userRepository}.js`, `lib/api/multipart.js`, dan `lib/files/storage.js` menyediakan baca sesi, preflight, validasi ulang, receipt idempotensi dan foto privat. Izin memakai sesi sendiri, modul aktif dan gerbang tulis. Titik yang mewajibkan liveness/background tidak dipakai sebelum dukungan tersedia.
+- Migration 077 dan `sitou_schema_v3.sql` menautkan event ke sesi, menambah catatan serta hash receipt. Dokumen kontrak, peta database, migration, panduan titik/jadwal dan aturan diselaraskan. Belum diterapkan pada database operasional atau VPS.
+- ESLint, build Next.js, bootstrap kosong dan upgrade sintetis dengan event lama lulus. Uji API nyata pada database sintetis mencakup tanpa token, di luar radius, akurasi, foto rusak, catatan, retry paralel dan konflik payload, masuk/keluar per sesi, shift malam tersedia untuk keluar dan sesi lama ditandai lupa keluar setelah masuk sesi baru. Foto dan metadata tidak berganda. Pemindaian ClamAV dinonaktifkan di fixture lokal. Server, database dan folder foto QA dibersihkan.
+
+## 2026-11-05 — Hasil otomatis langsung masuk ke editor katalog
+
+- `HolidayCatalogPage.jsx` mengisi panel tanggal yang dapat diedit ketika Ambil data terbaru dipakai pada katalog existing. Edit draft dalam mode otomatis menyediakan Simpan perubahan. Katalog baru tetap membuka pratinjau sumber. Panduan katalog dan UI/UX diselaraskan.
+- ESLint, Prettier, dan uji Chrome lulus. Respons sumber disimulasikan. Uji memeriksa koreksi pada panel, simpan eksplisit melalui API dan database sintetis, serta pratinjau katalog baru. Server, database, dan folder QA dibersihkan.
+
+## 2026-11-05 — Panel lipat pada edit katalog
+
+- `HolidayCatalogPage.jsx` memakai `HolidayDayFields.jsx` untuk tanggal katalog pada kedua cara pengisian. Setiap panel menyediakan isian tanggal, nama, kategori, dan ikon hapus. `HolidayDateList.jsx` kembali khusus peninjauan dan pemilihan. Panduan katalog, UI/UX dan komponen diselaraskan.
+- ESLint, Prettier dan uji Chrome lulus. Panel lipat, edit nama, ikon hapus, penyimpanan dan ukuran 320/375/768/1366 px diperiksa pada database sintetis. Server, database, dan folder QA dibersihkan.
+
+## 2026-11-05 — Aksi per tanggal dan ringkasan katalog
+
+- `HolidayCatalogPage.jsx` menampilkan aksi edit/hapus per tanggal dan ringkasan tahun, nomor SKB serta tautan resmi. `HolidayDateList.jsx` menerima aksi opsional dan `HolidayDayFields.jsx` membuka serta memfokuskan tanggal yang dipilih. Panduan UI/UX, katalog, dan komponen diperbarui.
+- ESLint, Prettier, dan uji Chrome lulus. Uji menghapus satu tanggal, mengubah tanggal lain, meninjau ringkasan, dan menyimpan versi terbit baru ke database sintetis. Server, database, dan folder QA dibersihkan. Tanpa migration atau deployment.
+
+## 2026-11-05 — Tanggal tersimpan dan simpan edit katalog
+
+- `HolidayCatalogPage.jsx` menyimpan edit katalog terbit langsung dari tahap tinjauan, menampilkan tanggal tersimpan saat mode otomatis dibuka, dan menempatkan Batal di kiri pada desktop. `HolidayDateList.jsx` menerima kategori yang dibuka saat pertama tampil. Panduan katalog dan UI/UX diselaraskan.
+- ESLint, Prettier dan uji Chrome lulus. Uji mengonfirmasi tanggal langsung terlihat, tombol Batal di kiri desktop dan selebar footer di ponsel, serta satu klik Simpan perubahan mengirim POST tanpa dialog konfirmasi. Server, database sintetis, dan folder QA dibersihkan.
+
+## 2026-11-05 — Edit katalog hari libur terbit
+
+- `HolidayCatalogPage.jsx` mengganti Buat revisi dengan Edit katalog dan Simpan perubahan setelah tinjauan. Edit terbit membuka Ambil otomatis jika katalog tidak memiliki PDF. Draft baru masih dapat disimpan, dan draft existing memakai Simpan perubahan. Daftar utama menampilkan satu katalog per tahun, dengan filter histori untuk revisi dan draft lama.
+- Service, schema mutasi, HTTP dan kebijakan tahun mendukung `edit_published` dengan transaksi, audit, receipt dan version check. Revisi terbit terdahulu tetap immutable. Draft lama yang identik bisa dipakai dalam transaksi, sedangkan draft berbeda memerlukan tinjauan terpisah. Pedoman serta kontrak katalog diselaraskan.
+- ESLint, Prettier, tiga tes kebijakan dan uji API nyata pada database sintetis lulus. Skenario mencakup draft awal, publikasi, edit atomik, draft identik, histori, penolakan isi identik/versi usang dan retry. Uji Chrome lulus untuk buka edit dengan mode otomatis, ganti manual, tinjau, simpan dan satu baris per tahun. Artefak, server, dan database QA dibersihkan. Tanpa migration atau deployment.
+
+## 2026-11-05 — Ukuran kontrol pencarian peta
+
+- `LocationMapPicker.jsx` memakai tinggi kontrol tema untuk kolom pencarian dan tombol Cari. Kolom mengikuti ruang tersedia dan tombol mempertahankan lebarnya. Pedoman UI/UX diselaraskan.
+- ESLint, Prettier, dan uji Chrome lulus. Kedua kontrol sejajar dengan tinggi 44 px pada lebar 320, 375, 430, 768, dan 1366 px. Server, database sintetis, dan folder QA dibersihkan.
+
+## 2026-11-05 — Lokasi tanpa kode
+
+- Form dan daftar Lokasi, kontrak API, opsi Pegawai, struktur organisasi dan respons cakupan akun memakai ID/nama. Nama dan jenis lokasi sejajar di desktop. Koordinat didekatkan ke peta dengan teks redup, dan ikon bantuan GPS memakai warna info.
+- Template impor Pegawai v3 memakai pilihan berlabel nama/lokasi induk dengan ID. Parser memakai ID dalam organisasi aktif dan tetap memeriksa scope lokasi. Template lama perlu diunduh ulang. Batch yang sudah tervalidasi memakai ID yang sudah tersimpan.
+- Migration 076 menghapus `locations.code` dan constraint terkait. Skema bootstrap, peta database, aturan, panduan UI/UX, komponen dan impor diselaraskan. Audit historis dan identitas titik absensi dipertahankan. Migration diterapkan pada development lokal `sitou_db`, jumlah lokasi tetap 11. Belum diterapkan di VPS.
+- ESLint terarah dan build Next.js lulus. Bootstrap kosong dan upgrade sintetis dengan baris lama lulus. Chrome 320–1366 px, tambah lokasi dengan titik absen, API edit dan unduh Excel v3 lulus. Upload sampai commit impor belum diuji pada sesi ini. Server, database sintetis dan folder QA dibersihkan.
+
+## 2026-11-04 — Lebar isian titik absen
+
+- `FormSettingSwitch.jsx` menambah opsi `fullWidthChildren` dan `LocationPointFields.jsx` menggunakannya agar isian radius dan akurasi memenuhi grid form. Pedoman UI/UX dan katalog komponen diselaraskan.
+- ESLint dan pemeriksaan diff lulus. Uji Chrome membuktikan tepi grup isian sejajar pada 320, 375, 768, dan 1366 px, dengan tooltip dan penyimpanan tetap lulus. Server, database sintetis dan folder QA dibersihkan. Kode lokasi, API, dan skema tidak diubah.
+
+## 2026-11-04 — Bantuan radius dan akurasi GPS pada form Lokasi
+
+- `LocationPointFields.jsx` merapikan isian Radius absensi dan Batas akurasi GPS dalam dua kolom pada layar lebar dan satu kolom pada layar kecil. Penjelasan tersedia melalui ikon tanda seru. `LocationForm.jsx` memulihkan divider antara Titik absen dan Lokasi. Panduan UI/UX dan titik absensi diselaraskan.
+- Kode lokasi dipertahankan karena dipakai pada pencocokan impor Pegawai serta diwajibkan kontrak dan schema Lokasi. ESLint, Prettier dan uji Chrome lulus. Uji browser memeriksa posisi field pada lebar 320, 375, 768 dan 1366 px, tooltip melalui klik dan Enter, divider, serta penyimpanan radius dan batas akurasi pada database sintetis. Folder, server dan database uji dibersihkan. Tanpa perubahan API, schema atau VPS.
+
+## 2026-11-04 — Urutan status pada form Lokasi
+
+- `LocationForm.jsx` menempatkan Titik absen di atas status Lokasi tanpa garis pemisah antarsakelar. Pedoman UI/UX diselaraskan. ESLint, Prettier dan pemeriksaan diff terarah lulus.
+
+## 2026-11-04 — Pengaturan titik absen pada form Lokasi
+
+- `LocationMapPicker.jsx` merapikan jarak pencarian, peta, dan koordinat baca-saja. `LocationForm.jsx` mengelompokkan status Lokasi dan Titik absen serta memberi arahan memilih organisasi jika belum diketahui. `LocationPointFields.jsx` memakai notice aktif/nonaktif bersama dan menampilkan radius serta batas akurasi hanya saat titik aktif. Panduan dan katalog komponen diselaraskan.
+- ESLint terarah dan uji Chrome pada lebar 320–1366 px lulus. Skenario Tambah lokasi memakai organisasi sintetis dengan modul Absensi aktif. Uji memverifikasi arahan sebelum memilih organisasi, aktivasi titik, pengisian radius 100 dan akurasi 50, serta penyimpanan lokasi dan titik dalam database uji. Server dan database uji ditutup serta folder QA dihapus. Tanpa perubahan API, skema, Flutter atau VPS.
+
+## 2026-11-04 — Koordinat baca-saja pada form Lokasi
+
+- `LocationForm.jsx` menghapus input Latitude dan Longitude. Nilai tetap tersimpan dalam form dan titik wajib dipilih jika absensi diaktifkan. `LocationMapPicker.jsx` menampilkan koordinat baca-saja di bawah peta setelah pemilihan dan menghapus petunjuk serta pesan sukses pemilihan. Pesan saat layanan gagal tetap ditampilkan. Aturan, panduan fitur/UI dan katalog komponen diselaraskan.
+- ESLint terarah dan uji Chrome lokal lulus. Uji mencakup pencarian, koordinat baca-saja, keyboard, lebar 320–1366 px, kegagalan pencarian balik, serta penyimpanan koordinat ke database sintetis. Server dan database uji ditutup serta folder QA dihapus. Tanpa perubahan API, skema, Flutter atau VPS.
+
+## 2026-11-04 — Dropdown pencarian dan zoom peta Lokasi
+
+- `LocationMapPicker.jsx` memakai `AsyncSelect.jsx` untuk hasil pencarian yang menumpang di atas peta tanpa menggesernya. Tombol Cari mengikuti warna utama SITOU. Leaflet menerima roda mouse dan cubit dua jari. `LocationPointFields.jsx` memperjelas dampak titik nonaktif serta perbedaan radius dan batas akurasi. Panduan UI/UX, katalog komponen, dan panduan titik absensi diselaraskan.
+- ESLint dan Prettier terarah lulus. Chrome lokal pada database sintetis memverifikasi dropdown, pemilihan via keyboard, posisi peta tetap, zoom masuk/keluar dengan roda mouse, pengisian koordinat/alamat, lebar 320–1366 px dan simpan. Handler zoom sentuh aktif di DOM, gestur fisik belum diuji. Kontrol izin dan kontrak API tetap. Database/server uji ditutup dan salinan QA dihapus.
+
+## 2026-11-04 — Peta dan pencarian di form Lokasi
+
+- `LocationForm.jsx` menempatkan tanggal operasional sebelum peta, koordinat dan alamat. `LocationMapPicker.jsx` menampilkan peta ringkas, pencarian eksplisit dan pemilihan titik. Alamat tersedia diisi otomatis dan perubahan manual dilindungi dari respons pencarian balik yang terlambat.
+- `app/api/locations/geocode/route.js` menambah pencarian dan pencarian balik melalui Photon dengan validasi input, izin Kelola Lokasi, pemeriksaan origin, rate limit, timeout dan batas respons. `AGENTS.md`, pedoman UI/UX, katalog komponen dan panduan titik absensi diselaraskan.
+- ESLint dan Prettier untuk kode terkait lulus. Chrome lokal menguji pencarian, pengisian koordinat/alamat, keyboard, fallback gangguan layanan, lebar 320–1366 px dan simpan pada database sintetis. API diuji untuk koordinat tidak valid dan origin asing. Pencarian Photon untuk Manado mengembalikan lima hasil. Server dan database uji ditutup serta folder QA dihapus. Tanpa perubahan skema, Flutter atau deployment VPS.
+
+## 2026-11-04 — Tinjauan katalog dan kalender libur
+
+- Hasil otomatis yang disimpan langsung masuk ke Tinjau katalog. Pemeriksaan tahun dijalankan sebelum pengambilan sumber, saat simpan, dan saat publikasi. Revisi resmi mencatat acuan terbaru dan publikasi dengan isi identik ditolak. Katalog lama tetap tersedia sebagai riwayat.
+- Tanggal resmi terpilih dilipat per kategori dengan jumlah tanggal di header. Status penggunaan kalender memakai FormSettingSwitch dan notice aktif/nonaktif. Fokus nama kalender dan tahun katalog dilakukan setelah render.
+- Migration 074 diterapkan pada development lokal. Uji upgrade dan bootstrap lulus; transaksi PostgreSQL sintetis memverifikasi draft/publikasi serentak, konflik tahun, revisi identik, dan revisi berubah. Tidak ada perubahan data katalog lama atau deployment VPS.
+- Uji browser dengan respons sintetis memverifikasi tinjauan otomatis, kembali ke draft, konfirmasi terbit, aksi pada tahun yang sudah terbit, panel lipat, hapus tanggal, switch, keyboard, dan lebar 320–1366 px. Fokus ditunda sampai render selesai untuk menghindari warning `flushSync`; uji ulang tanpa warning terkait.
+
+## 2026-11-04 — Sambungan Form pada editor jadwal dan hari libur
+
+- Editor Jadwal Kerja membuat instance Form per sesi dan mengisi nilai awal melalui `initialValues`, setelah Form terpasang. Kembali dari ringkasan memakai instance yang sama. Menutup editor mengakhiri sesi sehingga pembukaan berikutnya tidak membawa isian lama.
+- Form Kalender Libur dan Katalog Hari Libur tetap terpasang pada AppModal saat tersembunyi sehingga reset dan pengisian ulang dilakukan pada instance yang terhubung.
+- QA browser pada komponen asli dengan respons sintetis: buka ulang tiga editor pada 320 dan 1366 px, navigasi Tab, nilai awal edit, isian setelah kembali dari ringkasan, serta form baru bersih. Tidak ada warning `useForm` atau penulisan API pada skenario akhir. Warning awal tidak terulang pada fixture kode lama, sehingga sumber warning pada sesi pengguna belum dipastikan.
+
 ## 2026-11-03 — Kalender libur tanpa pilihan aturan tambahan
 
 - Dropdown Saat tanggal libur dihapus dari form jadwal tetap/shift. Payload otomatis calendar bila kalender dipilih dan roster bila kosong; ringkasan langsung mengikuti kalender. Data tersimpan tidak dikonversi massal, pengaturan legacy yang tidak ditampilkan tetap dipertahankan, serta edit terpakai tetap memakai versi bertanggal existing. Aturan root, UI/UX, komponen dan panduan jadwal diselaraskan.
@@ -543,3 +657,42 @@ Migration 066 diterapkan hanya pada database development lokal. VPS belum diubah
 Artefak QA sementara yang telah dibersihkan setelah pengujian dan verifikasi path absolut: scripts/schedule-qa-loader-temporary.mjs, scripts/work-schedule-qa-temporary.mjs, scripts/work-schedule-upgrade-qa-temporary.mjs, scripts/work-schedule-ui-qa-temporary.mjs, .qa-schedule-build-source/ (termasuk junction dependency, cache/build dan AGENTS hasil Next), .qa-schedule-images/ (tiga screenshot). Database QA upgrade/fresh/service/UI dibuat dengan prefix sitou_schedule_* dan dihapus dalam finally setiap pengujian; server QA port 3101 dihentikan. Tidak menghapus suite/file existing atau server port 3000.
 
 Pembersihan akhir: seluruh empat script sementara, tiga screenshot dan folder QA beserta junction/build/cache sudah dihapus. Suite existing, node_modules asli dan server development port 3000 dipertahankan. Tidak ada data QA yang disimpan pada database development nyata. Flutter/mobile tidak dibangun karena tidak ada perubahan Dart/platform.
+
+
+## 2026-11-04 — Prinsip alur sederhana dan rancangan titik absensi
+
+- AGENTS.md mencatat penempatan pengaturan titik pada form Lokasi, pemisahan akses tambahan, dan kontrak data peta untuk Flutter. Perubahan dokumentasi saja. Pemeriksaan memakai diff Git.
+
+
+## 2026-11-04 — Titik absensi dan akses Pegawai
+
+- LocationForm.jsx dan komponen attendance-points/LocationMapPicker.jsx serta LocationPointFields.jsx menambahkan pemilih pin, isian manual, preview radius dan konfigurasi pada modal Lokasi. Leaflet 1.9.4 dicatat di package.json/package-lock.json. proxy.js mengizinkan host ubin HTTPS OpenStreetMap pada img-src.
+- Halaman organization-settings/attendance-point-access menambah penetapan beberapa titik per Pegawai, periode dan pencabutan. app/api/attendance-point-access/route.js dan lib/attendance-points/service.js memvalidasi scope, status, periode dan duplikasi. lib/master-data/schemas.js serta service.js menyimpan konfigurasi opsional dalam transaksi Lokasi.
+- menuCatalog.mjs, accessDescriptions.mjs, hrisPolicy.mjs, organizationModules.mjs, organizationModuleAccess.js dan protectedRoutes.js menyelaraskan menu, izin dan gerbang Absensi. Migration 075, schema bootstrap dan verify-schema-bootstrap.mjs menambahkan pencabutan serta memeriksa kesesuaian katalog. AGENTS, README, katalog komponen, pedoman UI, dokumentasi jadwal, peta database, panduan migration dan docs/attendance-points.md menyelaraskan alur.
+- Uji PostgreSQL sintetis lulus untuk gerbang modul, lintas organisasi, rollback lokasi dengan titik invalid, pembaruan radius, dua titik per Pegawai, periode bertabrakan, ID titik tidak dikenal, pencabutan dan pemberian ulang. Upgrade serta bootstrap kosong ekuivalen. Migration 075 sudah diterapkan di development lokal dan db:verify-bootstrap lulus. VPS belum diterapkan.
+- Risiko yang dikendalikan adalah perubahan geofence tanpa izin, kebocoran lintas scope, konfigurasi sebagian, dan pemberian akses ganda. Backend mengunci organisasi, memakai transaksi dan query berparameter, memeriksa izin dan mencatat audit. Peta memakai host ubin HTTPS tetap dengan atribusi. Kamera, GPS perangkat, upload dan validasi kejadian absensi mengikuti tahap mobile.
+
+
+
+- Build Next.js dengan webpack, ESLint pada file terkait dan enam uji transisi HRIS lulus. Uji Chrome dengan database dan ubin sintetis membuktikan pilih pin, koordinat masuk ke form, radius tersimpan, fallback manual, pemberian dan pencabutan akses, serta layout daftar 320/375/768/1366 piksel tanpa overflow halaman. Uji izin Lihat dan filter cakupan HRD lulus. Ketersediaan ubin eksternal produksi belum diuji.
+- Artefak QA berupa salinan build .qa-attendance-points dengan junction node_modules serta database sitou_point_qa_* dan sitou_point_ui_*. Skrip QA dijalankan lewat stdin tanpa menulis file uji.
+- Server, database, folder build dan junction QA sudah dibersihkan. Dependency dan suite uji existing dipertahankan.
+
+
+## 2026-11-04 — Reload berulang pada dashboard development
+
+- next.config.mjs menonaktifkan cache disk Turbopack khusus development. Pola kompilasi berulang sesuai laporan Next.js #100251. Fast Refresh tetap tersedia.
+- Next.js memuat ulang konfigurasi dan mencatat cache development nonaktif. Log tidak bertambah selama pengamatan 8 detik setelah kompilasi awal Lokasi. GET /login pada port 3000 merespons HTTP 200. Pemeriksaan sintaks dan konfigurasi lulus. Sesi browser pengguna belum diverifikasi langsung. Tidak membuat artefak pengujian.
+
+## 2026-11-05 — Bukti terstruktur dan fondasi rekap absensi
+
+- Ditambah database/migrations/20261105_079_attendance_reporting_foundation.sql; sitou_schema_v3.sql disinkronkan: kategori/menit/selisih detik, snapshot titik dan zona waktu pada event baru, constraint versi/aksi/organisasi serta index laporan. Histori lama nullable.
+- Ditambah lib/attendance-points/timing.mjs untuk perhitungan server bersama; lib/attendance-points/summaries.mjs untuk rekap per sesi. lib/attendance-points/mobile.js menyimpan bukti dan memperbarui rekap dalam transaksi file/event/receipt yang sama. Lock NO KEY UPDATE kompatibel dengan FK foto dan diuji paralel.
+- Ditambah scripts/rebuild-attendance-summaries.mjs dan script attendance:summaries:rebuild pada package.json: dry-run default, batas31 hari/100 Pegawai, organisasi terisolasi, commit per Pegawai. scripts/verify-schema-bootstrap.mjs membandingkan kedua tabel absensi.
+- AGENTS.md, README.md, database/migrations/README.md, docs/database-schema.md, docs/mobile-attendance.md dan docs/work-schedules.md diperbarui untuk kontrak, alur, operasi, risiko dan batas rekap.
+- Keamanan: input metrik tidak dipercaya dari klien; bukti memakai titik berizin server, FK komposit, raw append-only, UUID/hash payload, lock/transaksi; override HRD dan lembur disetujui dipertahankan. Tidak menambah izin/endpoint baca publik atau membuka foto/koordinat melalui log. Auth/cookie/web login tidak diubah. Tidak menambah dependency/secret.
+- Verifikasi aktual: 6 unit skenario waktu/rekap lulus; QA PostgreSQL sintetis 10 kelompok lulus (upgrade legacy, snapshot master berubah, transaksi rollback, retry hash, request UUID sama/berbeda paralel, organisasi, override, input palsu, FK lintas organisasi). QA memanggil source penyimpanan asli dengan auth/storage/preflight state diinjeksi; bukan uji HTTP/login/foto nyata penuh.
+- db:verify-bootstrap ready true: kolom/constraint/index upgrade dan bootstrap ekuivalen. Migration079 diterapkan pada sitou_db lokal. Dry-run dan apply rekap lokal sukses (1 Pegawai/1 hari); satu event lama menghasilkan needs_review dengan unassessed_events=1, tanpa membuat bukti baru palsu.
+- Lint file backend terkait lulus; npm run build lulus di luar sandbox (percobaan sandbox gagal membuat junction Turbopack). Flutter 3 test lulus, analyze tanpa isu, format sesuai, APK debug lulus. Tidak mengubah UI sehingga tidak ada render baru; uji absensi perangkat/HTTP end-to-end dan regresi interaktif login web belum dilakukan pada pekerjaan ini.
+- Batas: rekap hanya snapshot berisi event; hari tanpa event/cuti/izin/koreksi perlu rekonsiliasi laporan berikutnya. Durasi sesi terbuka tidak final; kandidat pulang lewat jam bukan lembur disetujui. Tidak ada deploy/restart/migration VPS.
+- Artefak QA yang dibuat: lib/attendance-points/reporting_temporary.test.mjs, scripts/attendance-reporting-qa.tmp.mjs; keduanya dihapus setelah hasil dicatat. Database sitou_reporting_qa_* telah dibuang (pemeriksaan sisa=0). Tidak ada foto/screenshot/dump QA dibuat.

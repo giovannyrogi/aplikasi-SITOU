@@ -61,6 +61,8 @@ Ikuti [panduan hardening dan rollout production](docs/production-hardening.md) u
 
 ## Backend SITOU Mobile
 
+Hasil simpan absensi mengembalikan catatan tersimpan melalui field tambahan `note` pada API mobile, termasuk retry event lama. Rilis backend ini sebelum APK yang menampilkan catatan. Perubahan respons ini tidak memerlukan migration tambahan pada database yang sudah menerapkan 077/078. Penerapan dan restart VPS tetap dilakukan terpisah.
+
 Beranda Flutter memakai API baca bearer `/api/mobile/home` dan `/api/mobile/profile-photo`; lihat [kontrak beranda mobile](docs/mobile-home.md). Deploy kode backend sebelum APK homepage, tanpa migration baru; login/web tetap memakai kontrak existing. Data shift/absensi/ringkasan/pengumuman contoh Flutter bukan hasil database dan belum siap operasional produksi. Penerapan VPS tetap tindakan terpisah.
 
 API login native tersedia pada `/api/auth/mobile/login`, `/me`, `/logout`; [kontrak, kebijakan dan operasional](docs/mobile-auth.md). Login web tetap memakai cookie dan perilaku existing. Sebelum mengaktifkan backend versi ini pada database existing, terapkan migration `20261027_065_mobile_auth_sessions.sql` setelah migration sebelumnya; jangan menjalankan bootstrap pada database berisi data. Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` sebelum restart.
@@ -73,7 +75,7 @@ Durasi sesi mobile ditentukan backend melalui `AUTH_MOBILE_SESSION_TTL_MINUTES=1
 
 Data Master → Jadwal Kerja menyediakan dropdown **Jam kerja tetap** atau **Kerja shift** di samping Nama jadwal pada desktop dan bertumpuk pada ponsel. Daftar memakai filter jenis dalam dropdown, dengan penjelasan singkat. Pilihan shift dapat dilipat tanpa kehilangan isian. Jam tetap memakai hari mingguan, jam utama dan perubahan per hari. Kerja shift menyediakan Tambah shift dengan nama/jam bebas, validasi benturan termasuk shift malam, serta satu pilihan shift per Pegawai. Hari yang tidak dipilih adalah Libur. Simpan jadwal membuka ringkasan sebelum konfirmasi. Kepegawaian → Jadwal Pegawai menyediakan penetapan individu/massal dan kalender otomatis. Pendaftaran memakai langkah 4 Penempatan atau Atur jadwal nanti. Data Pegawai dapat disaring berdasarkan Status perkawinan yang sama dengan pendaftaran, termasuk saat ekspor, tanpa migration tambahan. Jadwal lama tetap terbaca tanpa dikonversi. [Panduan, kontrak dan operasional](docs/work-schedules.md).
 
-Environment existing yang sudah menerapkan 066 perlu **migration 067**, lalu **068** untuk katalog Fitur Absensi sebelum backend/dashboard baru. Jika 067 sudah tersedia, jalankan hanya 068. Jangan ulang 063–066 atau memakai bootstrap untuk upgrade database berjalan. Migration 067 menambah kelompok dan relasi pilihan shift, tanpa mengubah penetapan lama. Jalankan pemeriksaan upgrade/bootstrap dan hak HRIS baca/kelola. Tidak memberi grant otomatis. Kamera/absensi mobile, kerja tambahan serta penggantian waktu belum diintegrasikan. Tidak ada deployment atau restart VPS otomatis.
+Environment existing yang sudah menerapkan 066 perlu **migration 067**, lalu **068** untuk katalog Fitur Absensi sebelum backend/dashboard baru. Jika 067 sudah tersedia, jalankan hanya 068. Jangan ulang 063–066 atau memakai bootstrap untuk upgrade database berjalan. Migration 067 menambah kelompok dan relasi pilihan shift, tanpa mengubah penetapan lama. Jalankan pemeriksaan upgrade/bootstrap dan hak HRIS baca/kelola. Tidak memberi grant otomatis. Integrasi absensi mobile memakai migration 077 dan kontrak pada [panduan absensi mobile](docs/mobile-attendance.md). Kerja tambahan dan penggantian waktu berada pada tahap berikutnya. Tidak ada deployment atau restart VPS otomatis.
 
 Kalender Libur dan Jadwal Pegawai mengikuti alur pada [panduan jadwal kerja](docs/work-schedules.md). Status kalender berada di bawah form. Penetapan jadwal tersedia pada header halaman, dengan pilihan Pegawai per halaman serta avatar privat. Perubahan tampilan ini tidak memerlukan migration atau perubahan aplikasi mobile.
 
@@ -86,3 +88,12 @@ Superadmin membuka **Organisasi → Fitur organisasi**, mengaktifkan **Fitur Abs
 Sesudah struktur 067 tersedia, jalankan **migration 068** katalog attendance sebelum rollout kode ini pada environment existing. Jangan ulang 063–067. Jalankan pemeriksaan database/bootstrap dan aktivasi organisasi secara eksplisit oleh Superadmin. Tidak ada auto-aktivasi, deployment atau restart VPS. [Kontrak API, alur dan batas integrasi mobile](docs/work-schedules.md#aktivasi-fitur-absensi-oleh-superadmin).
 
 Daftar Organisasi menampilkan kode, nama, lokasi aktif, akun HRD, akhir masa akses, serta status akses dan tiap fitur secara terpisah. Organisasi dan Jadwal Kerja berada dalam satu kelompok Kepegawaian pada Data Master. Pengelompokan ini tidak mengubah izin Organisasi yang tetap khusus Superadmin. Perapian tampilan ini tidak membutuhkan migration atau perubahan aplikasi mobile.
+
+
+## Titik absensi
+
+Koordinat dan radius ada di Data Master → Lokasi. Akses tambahan ada di Pengaturan Organisasi → Akses Titik Absensi. Database existing memerlukan migration 075 sesudah 074. Lihat docs/attendance-points.md.
+
+## Rekap absensi mobile
+
+Migration 079 wajib sebelum backend yang menyimpan bukti terstruktur. Ikuti docs/mobile-attendance.md untuk kontrak timing/snapshot, batas rekap dan perintah node scripts/rebuild-attendance-summaries.mjs. Default dry-run; --apply melakukan commit per Pegawai. ENV_FILE menentukan konfigurasi backend. Laporan tidak boleh menganggap incomplete/needs_review sebagai hasil final atau kandidat lembur sebagai lembur disetujui. Penerapan lokal tidak mencakup VPS.

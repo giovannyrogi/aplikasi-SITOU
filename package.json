@@ -35,7 +35,8 @@
     "files:scan-malware": "node scripts/scan-stored-files-malware.mjs",
     "auth:mobile-sessions:prune": "node scripts/prune-mobile-sessions.mjs",
     "worker:holiday-pdf": "node scripts/holiday-pdf-worker.mjs",
-    "holiday-pdf:check": "node scripts/check-holiday-pdf.mjs"
+    "holiday-pdf:check": "node scripts/check-holiday-pdf.mjs",
+    "attendance:summaries:rebuild": "node scripts/rebuild-attendance-summaries.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
@@ -67,6 +68,7 @@
     "framer-motion": "^13.0.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "leaflet": "1.9.4",
     "moment": "2.31.0",
     "next": "16.4.2",
     "pdf-lib": "^1.17.1",

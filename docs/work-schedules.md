@@ -22,7 +22,7 @@ Migration 068 hanya menambahkan katalog attendance pada access_modules. Tidak me
 
 ### Integrasi absensi berikutnya
 
-Kamera, lokasi dan pencatatan absensi mobile belum dibangun oleh perubahan ini. Endpoint absensi mendatang wajib memeriksa aktivasi attendance pada organisasi sesi serta permission self-service/objek dan kebijakan tulis yang berlaku. Gunakan gerbang bersama requireAttendanceModule dan urutan lock organisasi pada mutation, tanpa mempercayai flag perangkat. Login, cookie, mobile bearer, Homepage dan Cuti/izin tidak berubah. Mematikan fitur tidak menghapus data absensi yang kelak tersimpan.
+Alur kamera, lokasi dan pencatatan absensi mobile mengikuti [kontrak absensi mobile](mobile-attendance.md). Endpoint absensi mendatang wajib memeriksa aktivasi attendance pada organisasi sesi serta permission self-service/objek dan kebijakan tulis yang berlaku. Gunakan gerbang bersama requireAttendanceModule dan urutan lock organisasi pada mutation, tanpa mempercayai flag perangkat. Login, cookie, mobile bearer, Homepage dan Cuti/izin tidak berubah. Mematikan fitur tidak menghapus data absensi yang kelak tersimpan.
 
 ## Alur yang tersedia
 
@@ -273,3 +273,12 @@ Kelompok shift mempertahankan patternId pilihan existing; perubahan jam memakai 
 Semua simpan memakai lock organisasi, version check, receipt dan audit existing. Validasi menolak tanggal terpakai rekap/absensi pada periode baru, benturan sesi pada batas perubahan, penetapan berikutnya dan exception mendatang. Kegagalan membatalkan seluruh transaksi termasuk sesi baru/revisi. Tidak ada penulisan ulang absensi saat GET atau simpan master.
 
 Development: jalankan npm run db:migrate -- database/migrations/20261103_073_work_schedule_definition_revisions.sql pada database existing, bukan bootstrap ulang. Bootstrap kosong dan pemeriksaan schema mencakup tabel baru. Backup database otomatis menyertakan versi definisi. VPS mengikuti prosedur deployment terpisah.
+
+
+## Titik absensi
+
+Modul Absensi juga mengatur titik di form Lokasi dan menu Akses Titik Absensi. Izin tersebut tersendiri dari Kalender Libur, Jadwal Kerja dan Jadwal Pegawai. Lihat docs/attendance-points.md.
+
+## Konsumsi snapshot oleh absensi
+
+Absensi versi 1 menyimpan penilaian per work_schedule_sessions dan membentuk rekap pasangan lengkap dalam transaksi. Jadwal lintas hari mengikuti work_date snapshot; tanggal kejadian tetap terpisah. Jangan mengubah snapshot yang sudah dipakai event/keputusan. Rekap multi-sesi mengecualikan jeda antarsesi dan tidak menyimpulkan durasi dari sesi tanpa pulang. Kontrak dan batas laporan di docs/mobile-attendance.md.

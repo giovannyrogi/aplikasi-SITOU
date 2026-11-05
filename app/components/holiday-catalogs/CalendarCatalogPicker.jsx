@@ -1,6 +1,6 @@
 "use client";
 import CatalogDocument from "./CatalogDocument";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, InputNumber } from "antd";
 import { Box } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
@@ -15,7 +15,12 @@ export default function CalendarCatalogPicker({ organizationId, days, onReady })
     [retry, setRetry] = useState(0);
   const [state, setState] = useState({ loading: true, error: "", catalog: null, today: null });
   const [selected, setSelected] = useState([]);
+  const yearInput = useRef(null);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => yearInput.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     const load = async () => {
@@ -94,7 +99,7 @@ export default function CalendarCatalogPicker({ organizationId, days, onReady })
           Tahun katalog
         </FontStyle>
         <InputNumber
-          autoFocus
+          ref={yearInput}
           id="catalog-year"
           aria-label="Tahun katalog"
           value={year || state.year}

@@ -36,6 +36,7 @@ export default function FormSettingSwitch({
   disabled = false,
   disabledReason,
   children,
+  fullWidthChildren = false,
   switchProps = {},
   formItemProps = {},
 }) {
@@ -92,7 +93,13 @@ export default function FormSettingSwitch({
           action={control}
         />
         {enabled && children ? (
-          <Box sx={{ pt: 2, maxWidth: 560, "& > .ant-form-item:last-child": { mb: 0 } }}>
+          <Box
+            sx={{
+              pt: 2,
+              maxWidth: fullWidthChildren ? "none" : 560,
+              "& > .ant-form-item:last-child": { mb: 0 },
+            }}
+          >
             {children}
           </Box>
         ) : null}
@@ -130,7 +137,13 @@ export default function FormSettingSwitch({
         {control}
       </Box>
       {enabled && children ? (
-        <Box sx={{ pt: 2, maxWidth: 560, "& > .ant-form-item:last-child": { mb: 0 } }}>
+        <Box
+          sx={{
+            pt: 2,
+            maxWidth: fullWidthChildren ? "none" : 560,
+            "& > .ant-form-item:last-child": { mb: 0 },
+          }}
+        >
           {children}
         </Box>
       ) : null}

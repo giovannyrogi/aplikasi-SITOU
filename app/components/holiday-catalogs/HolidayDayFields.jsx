@@ -25,7 +25,8 @@ function HolidayDayPanel({ field, value = {}, evidence, year, remove, validation
       if (cancelled) return;
       setExpanded(true);
       frame = requestAnimationFrame(() => {
-        if (!cancelled && errors[0]?.name[0] === "days" && errors[0].name[1] === field.name)
+        if (cancelled) return;
+        if (errors[0]?.name[0] === "days" && errors[0].name[1] === field.name)
           form.scrollToField(errors[0].name, { focus: true, block: "nearest" });
       });
     });

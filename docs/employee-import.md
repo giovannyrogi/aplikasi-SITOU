@@ -1,5 +1,7 @@
 # Import Pegawai SITOU
 
+Template versi 3 memakai pilihan Lokasi berdasarkan nama dan lokasi induk bila ada. Pilihan menyertakan ID lokasi yang dicocokkan server dalam organisasi aktif. Unduh template baru dan pilih ulang lokasi untuk data yang berasal dari template lama. Batch yang sudah tervalidasi memakai ID lokasi tersimpan.
+
 ## Cakupan
 
 SITOU menerima satu workbook `.xlsx` maksimal 10 MB. Workbook memuat `Petunjuk`, `Pegawai`, `Kontak`, `Identitas`, `Rekening`, `Keluarga`, `Kontak_Darurat`, `Akun_Sosial`, `Pendidikan`, `Keahlian`, `Sertifikasi`, `Kontrak`, `Penempatan`, dan hidden sheet `Referensi`.

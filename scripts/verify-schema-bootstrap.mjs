@@ -116,6 +116,14 @@ try {
     checks.organization_modules_catalog_matches_upgrade =
       freshModules.rows.length === 2 &&
       JSON.stringify(freshModules.rows) === JSON.stringify(existingModules.rows);
+    const pointMenuSql = "SELECT * FROM hris_menu_definitions WHERE code='attendance-point-access'";
+    const [freshPointMenu, existingPointMenu] = await Promise.all([
+      bootstrap.query(pointMenuSql),
+      upgraded.query(pointMenuSql),
+    ]);
+    checks.attendance_point_menu_matches_upgrade =
+      freshPointMenu.rowCount === 1 &&
+      JSON.stringify(freshPointMenu.rows) === JSON.stringify(existingPointMenu.rows);
     const signatureSql = `SELECT conname,pg_get_constraintdef(oid,true) AS definition FROM pg_constraint WHERE conrelid='public.organization_retirement_policies'::regclass ORDER BY conname`;
     const [fresh, existing] = await Promise.all([
       bootstrap.query(signatureSql),
@@ -135,6 +143,8 @@ try {
       "disciplinary_action_types",
       "disciplinary_actions",
       "mobile_auth_sessions",
+      "attendance_events",
+      "attendance_daily_summaries",
       "work_shifts",
       "shift_patterns",
       "shift_pattern_days",
@@ -152,6 +162,7 @@ try {
       "holiday_deletions",
       "holiday_pdf_purge_jobs",
       "stored_files",
+      "attendance_point_assignments",
       "work_schedule_exceptions",
       "work_schedule_exception_sessions",
       "work_schedule_sessions",

@@ -1,8 +1,14 @@
 "use client";
 
 import { Select } from "antd";
-export default function AsyncSelect({ options = [], loading, ...props }) {
+export default function AsyncSelect({ options = [], loading, showSearch = true, ...props }) {
   return (
-    <Select {...props} showSearch optionFilterProp="label" loading={loading} options={options} />
+    <Select
+      {...props}
+      showSearch={showSearch}
+      optionFilterProp="label"
+      loading={loading}
+      options={options}
+    />
   );
 }

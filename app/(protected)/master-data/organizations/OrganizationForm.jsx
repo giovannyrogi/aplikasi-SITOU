@@ -5,6 +5,7 @@ import { Button, Col, DatePicker, Divider, Form, Input, Row, Select } from "antd
 import dayjs from "dayjs";
 import AppModal from "@/app/components/modals/AppModal";
 import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
+import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
@@ -32,11 +33,13 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
             organizationType: item.organization_type,
             parentId: item.parent_id || undefined,
             timezone: item.timezone,
+            attendanceMapProvider: item.attendance_map_provider ?? "openstreetmap",
             isActive: item.is_active,
           }
         : {
             organizationType: "company",
             timezone: "Asia/Makassar",
+            attendanceMapProvider: "openstreetmap",
             isActive: true,
             initialSubscription: {
               startsOn: dayjs(),
@@ -156,6 +159,20 @@ export default function OrganizationForm({ open, item, onClose, onSaved, onError
                     { value: "Asia/Makassar", label: "WITA - Asia/Makassar" },
                     { value: "Asia/Jakarta", label: "WIB - Asia/Jakarta" },
                     { value: "Asia/Jayapura", label: "WIT - Asia/Jayapura" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="attendanceMapProvider"
+                label="Peta absensi"
+                extra="Google Maps memerlukan versi aplikasi dengan key yang sudah dikonfigurasi."
+              >
+                <AsyncSelect
+                  options={[
+                    { value: "openstreetmap", label: "OpenStreetMap" },
+                    { value: "google", label: "Google Maps" },
                   ]}
                 />
               </Form.Item>

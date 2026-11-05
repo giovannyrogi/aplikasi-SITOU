@@ -152,7 +152,6 @@ CREATE TABLE locations (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID kantor/cabang/unit pasar/lokasi kerja.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik lokasi.
   parent_location_id bigint, -- Lokasi induk untuk hierarki area.
-  code varchar(30) NOT NULL, -- Kode lokasi unik dalam organisasi.
   name varchar(200) NOT NULL, -- Nama lokasi.
   location_type varchar(30) NOT NULL DEFAULT 'branch' CHECK (location_type IN ('head_office','branch','market','site','warehouse','other')), -- Jenis lokasi.
   address text, -- Alamat lengkap lokasi.
@@ -164,7 +163,6 @@ CREATE TABLE locations (
   is_active boolean NOT NULL DEFAULT true, -- Menentukan apakah lokasi boleh dipilih pada transaksi dan penempatan baru.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu record dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu record terakhir diubah.
-  CONSTRAINT uq_locations_org_code UNIQUE (organization_id,code),
   CONSTRAINT uq_locations_org_id UNIQUE (organization_id,id),
   CONSTRAINT fk_locations_parent FOREIGN KEY (organization_id,parent_location_id) REFERENCES locations(organization_id,id),
   CONSTRAINT fk_locations_logo FOREIGN KEY (organization_id,logo_file_id) REFERENCES stored_files(organization_id,id),
@@ -2549,6 +2547,10 @@ CREATE TABLE holiday_catalogs (
        (status='published' AND published_at IS NOT NULL AND (system_seed OR published_by_user_id IS NOT NULL)))
 );
 CREATE UNIQUE INDEX uq_holiday_catalog_draft ON holiday_catalogs(year) WHERE status='draft';
+ALTER TABLE holiday_catalogs
+  ADD COLUMN revision_of_id bigint CHECK (revision_of_id > 0 AND revision_of_id <> id);
+COMMENT ON COLUMN holiday_catalogs.revision_of_id IS
+  'Identitas katalog terbit yang dipilih saat membuat revisi. Snapshot tetap tersimpan jika acuan dihapus melalui alur resmi.';
 CREATE TABLE holiday_catalog_days (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  catalog_id bigint NOT NULL REFERENCES holiday_catalogs(id),
@@ -2939,3 +2941,86 @@ BEGIN
 END $$;
 CREATE TRIGGER remember_schedule_revision_calendar BEFORE INSERT ON work_schedule_definition_revisions
  FOR EACH ROW EXECUTE FUNCTION remember_schedule_revision_calendar();
+
+
+-- Migration 075
+ALTER TABLE attendance_point_assignments ADD COLUMN revoked_at timestamptz;
+INSERT INTO hris_menu_definitions(code,label,group_label,route_path,can_manage)
+VALUES ('attendance-point-access','Akses Titik Absensi','Pengaturan Organisasi','/organization-settings/attendance-point-access',true)
+ON CONFLICT (code) DO NOTHING;
+
+ALTER TABLE work_schedule_sessions
+  ADD CONSTRAINT uq_attendance_session_identity UNIQUE (organization_id, employee_id, daily_schedule_id, id);
+ALTER TABLE attendance_events
+  ADD COLUMN schedule_session_id bigint,
+  ADD COLUMN attendance_note text CHECK (char_length(attendance_note) <= 500),
+  ADD CONSTRAINT fk_attendance_work_session
+    FOREIGN KEY (organization_id, employee_id, daily_schedule_id, schedule_session_id)
+    REFERENCES work_schedule_sessions (organization_id, employee_id, daily_schedule_id, id),
+  ADD CONSTRAINT ck_mobile_work_session CHECK (schedule_session_id IS NULL OR daily_schedule_id IS NOT NULL);
+ALTER TABLE attendance_event_receipts ADD COLUMN payload_hash char(64);
+CREATE INDEX ix_attendance_session_events ON attendance_events
+  (organization_id, employee_id, schedule_session_id, occurred_at)
+  WHERE schedule_session_id IS NOT NULL;
+
+ALTER TABLE organizations
+  ADD COLUMN attendance_map_provider varchar(20) NOT NULL DEFAULT 'openstreetmap',
+  ADD CONSTRAINT ck_organizations_attendance_map_provider
+    CHECK (attendance_map_provider IN ('openstreetmap', 'google'));
+
+-- 079: Bukti terstruktur absensi dan rekap yang dapat dihitung ulang.
+-- Event lama tetap append-only. Nilai baru NULL menandakan bukti historis belum tersedia.
+ALTER TABLE attendance_events
+  ADD COLUMN assessment_version smallint CHECK (assessment_version = 1),
+  ADD COLUMN timing_category varchar(30) CHECK (timing_category IN
+    ('on_time','early_check_in','late_check_in','early_check_out','late_check_out','flexible_check_in')),
+  ADD COLUMN schedule_reference_at timestamptz,
+  ADD COLUMN schedule_offset_seconds integer,
+  ADD COLUMN early_arrival_minutes integer CHECK (early_arrival_minutes >= 0),
+  ADD COLUMN late_minutes integer CHECK (late_minutes >= 0),
+  ADD COLUMN early_leave_minutes integer CHECK (early_leave_minutes >= 0),
+  ADD COLUMN late_departure_minutes integer CHECK (late_departure_minutes >= 0),
+  ADD COLUMN point_location_id_snapshot bigint,
+  ADD COLUMN point_name_snapshot varchar(200),
+  ADD COLUMN point_latitude_snapshot numeric(10,7) CHECK (point_latitude_snapshot BETWEEN -90 AND 90),
+  ADD COLUMN point_longitude_snapshot numeric(10,7) CHECK (point_longitude_snapshot BETWEEN -180 AND 180),
+  ADD COLUMN max_accuracy_m_snapshot integer CHECK (max_accuracy_m_snapshot > 0),
+  ADD COLUMN organization_timezone_snapshot varchar(50),
+  ADD CONSTRAINT fk_attendance_location_snapshot
+    FOREIGN KEY (organization_id,point_location_id_snapshot) REFERENCES locations(organization_id,id),
+  ADD CONSTRAINT ck_attendance_assessment_complete CHECK (
+    assessment_version IS NULL OR (
+      source='mobile' AND event_type IN ('check_in','check_out')
+      AND timing_category IS NOT NULL AND schedule_reference_at IS NOT NULL
+      AND schedule_offset_seconds IS NOT NULL AND early_arrival_minutes IS NOT NULL
+      AND late_minutes IS NOT NULL AND early_leave_minutes IS NOT NULL AND late_departure_minutes IS NOT NULL
+      AND point_location_id_snapshot IS NOT NULL AND point_name_snapshot IS NOT NULL
+      AND point_latitude_snapshot IS NOT NULL AND point_longitude_snapshot IS NOT NULL
+      AND max_accuracy_m_snapshot IS NOT NULL AND organization_timezone_snapshot IS NOT NULL
+      AND allowed_radius_m IS NOT NULL AND allowed_radius_m>0 AND schedule_session_id IS NOT NULL
+    )
+  ),
+  ADD CONSTRAINT ck_attendance_timing_action CHECK (
+    timing_category IS NULL OR
+    (event_type='check_in' AND timing_category IN ('on_time','early_check_in','late_check_in','flexible_check_in')) OR
+    (event_type='check_out' AND timing_category IN ('on_time','early_check_out','late_check_out'))
+  );
+CREATE INDEX ix_attendance_timing_date ON attendance_events(organization_id,event_date,timing_category)
+  WHERE assessment_version IS NOT NULL;
+CREATE INDEX ix_attendance_daily_events ON attendance_events(organization_id,employee_id,daily_schedule_id,occurred_at)
+  WHERE daily_schedule_id IS NOT NULL;
+
+ALTER TABLE attendance_daily_summaries
+  ADD COLUMN scheduled_minutes integer NOT NULL DEFAULT 0 CHECK (scheduled_minutes>=0),
+  ADD COLUMN early_arrival_minutes integer NOT NULL DEFAULT 0 CHECK (early_arrival_minutes>=0),
+  ADD COLUMN late_departure_minutes integer NOT NULL DEFAULT 0 CHECK (late_departure_minutes>=0),
+  ADD COLUMN scheduled_session_count integer NOT NULL DEFAULT 0 CHECK (scheduled_session_count>=0),
+  ADD COLUMN completed_session_count integer NOT NULL DEFAULT 0 CHECK (completed_session_count>=0),
+  ADD COLUMN open_session_count integer NOT NULL DEFAULT 0 CHECK (open_session_count>=0),
+  ADD COLUMN missing_check_in_count integer NOT NULL DEFAULT 0 CHECK (missing_check_in_count>=0),
+  ADD COLUMN missing_check_out_count integer NOT NULL DEFAULT 0 CHECK (missing_check_out_count>=0),
+  ADD COLUMN unassessed_event_count integer NOT NULL DEFAULT 0 CHECK (unassessed_event_count>=0),
+  ADD COLUMN outside_event_count integer NOT NULL DEFAULT 0 CHECK (outside_event_count>=0),
+  ADD COLUMN calculation_details jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(calculation_details)='object');
+COMMENT ON COLUMN attendance_events.schedule_offset_seconds IS 'Selisih bertanda terhadap acuan masuk/pulang efektif; toleransi tidak menghapus bukti selisih.';
+COMMENT ON COLUMN attendance_daily_summaries.overtime_candidate_minutes IS 'Selisih menit setelah jam pulang efektif; kandidat pemeriksaan, bukan persetujuan lembur.';

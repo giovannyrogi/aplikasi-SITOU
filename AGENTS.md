@@ -177,7 +177,9 @@ Dilarang mengubah lokasi/divisi pada baris lama untuk merepresentasikan mutasi.
 
 - Tahun katalog baru dipilih melalui AppYearPicker (tahun berjalan/mendatang, tahun lampau disabled), bukan input angka manual. Tahun pada draft/revisi existing tetap dipertahankan dan dikunci. Jangan menerapkan pembatasan ini pada filter laporan historis. Tanggal manual memakai Collapse per tanggal: judul tanggal terpilih, nama dan kategori tetap terbaca ketika ditutup; baris baru terbuka, isian terpelihara, validasi membuka panel dan memfokuskan field gagal. Data otomatis dijelaskan melalui AppNotice.
 
-- Pengisian katalog tahunan boleh otomatis melalui tombol Ambil data terbaru khusus Superadmin. Fetch hanya dari endpoint penyedia tetap di server dengan timeout/batas byte, validasi tahun/tanggal/kategori/sumber SKB, rate limit dan audit pratinjau. Tampilkan perbedaan terhadap isian sebelum mengganti dan menyimpan draft secara eksplisit. Data kosong/tidak valid/gagal diambil tidak boleh mengosongkan katalog atau menebak tanggal. Publikasi tetap ditinjau, bukan otomatis, dan kalender organisasi tidak ikut berubah. Jangan menambahkan panggilan sumber eksternal pada GET kalender/resolver. Lihat docs/holiday-catalogs.md.
+- Pengisian katalog tahunan boleh otomatis melalui tombol Ambil data terbaru khusus Admin SITOU. Fetch hanya dari endpoint penyedia tetap di server dengan timeout/batas byte, validasi tahun/tanggal/kategori/sumber SKB, rate limit dan audit pratinjau. Tampilkan perbedaan terhadap isian sebelum mengganti dan menyimpan draft secara eksplisit. Setelah penyimpanan otomatis berhasil, buka Tinjau katalog langsung dengan metode otomatis tetap terpilih. Data kosong/tidak valid/gagal diambil tidak boleh mengosongkan katalog atau menebak tanggal. Publikasi tetap memerlukan konfirmasi, dan kalender organisasi tidak ikut berubah. Jangan menambahkan panggilan sumber eksternal pada GET kalender/resolver. Lihat docs/holiday-catalogs.md.
+
+- Satu katalog terbit terbaru menjadi acuan setiap tahun, dan versi lama tampil sebagai Riwayat revisi. Periksa tahun sebelum fetch sumber dan ulangi di transaksi simpan/terbitkan. Daftar utama menampilkan satu katalog per tahun. Edit katalog terbit menyimpan versi terbit baru secara atomik berdasarkan ID dan versi acuan terbaru, tanpa draft baru yang terlihat. Tolak acuan usang atau isi identik. Riwayat dan draft lama tersedia melalui filter tampilan. Pertahankan histori. Pada editor kalender organisasi, tanggal resmi yang dipilih dikelompokkan dengan AppCollapse dan jumlah tetap terlihat saat tertutup. Pakai FormSettingSwitch dengan notice aktif/nonaktif di bagian bawah.
 
 - Katalog Hari Libur adalah referensi global khusus Admin SITOU (Superadmin). Katalog terbit dan tanggalnya immutable; perubahan melalui revisi baru dengan audit. Seed resmi awal berpelaku sistem, tidak mengarang penerbit manusia. Data tahun kosong tidak ditebak. Kalender operasional tetap memiliki organization_id dan hanya berubah melalui pilihan/penyimpanan eksplisit pengguna berizin dengan Absensi aktif. Libur mingguan, nasional, cuti bersama dan libur organisasi dipisahkan. Memilih cuti bersama tidak menulis permohonan atau saldo cuti. Pemilihan katalog adalah tahap dalam AppModal kalender, bukan modal bertumpuk; preserve form, verifikasi sumber terbit di server, no-past-change, version/receipt/transaksi dan perlindungan snapshot wajib dipertahankan. Ikuti `docs/holiday-catalogs.md` untuk pembaruan tahunan dan API.
 
@@ -1066,8 +1068,8 @@ Dashboard Pegawai memakai banner profil, tiga ringkasan sesuai izin, saldo per j
 
 ## Aktivasi Fitur Absensi organisasi
 
-- Fitur Absensi memakai organization_modules code attendance dan diaktifkan hanya oleh Superadmin melalui Organisasi → Fitur organisasi. Tidak ada auto-aktivasi atau grant otomatis, termasuk organisasi existing. Cakupan saat ini Jadwal Kerja, Kalender Libur dan Jadwal Pegawai. Cuti/izin terpisah.
-- Aktivasi dan izin akun berbeda. Tiga menu memakai grant HRIS baca/kelola serta scope existing. Admin HRD penuh tidak melewati aktivasi. Penonaktifan menutup menu/API tanpa menghapus jadwal, kalender, penetapan, histori atau grant. Pengaktifan kembali mengikuti grant yang masih berlaku.
+- Fitur Absensi memakai organization_modules code attendance dan diaktifkan hanya oleh Superadmin melalui Organisasi → Fitur organisasi. Tidak ada auto-aktivasi atau grant otomatis, termasuk organisasi existing. Cakupan saat ini Jadwal Kerja, Kalender Libur, Jadwal Pegawai dan pengaturan titik absensi. Cuti/izin terpisah.
+- Aktivasi dan izin akun berbeda. Menu Absensi memakai grant HRIS baca/kelola serta scope existing. Admin HRD penuh tidak melewati aktivasi. Penonaktifan menutup menu/API tanpa menghapus jadwal, kalender, penetapan, histori atau grant. Pengaktifan kembali mengikuti grant yang masih berlaku.
 - Seluruh service jadwal, penetapan onboarding dan endpoint absensi mendatang wajib memakai gerbang server requireAttendanceModule selain permission/objek/organisasi sesi. Mutation mengunci organisasi sebelum pemeriksaan modul dan sebelum lock target lain. Jangan mempercayai snapshot/flag mobile sebagai authorization. Login dan kontrak mobile existing tidak ikut dinonaktifkan.
 - API modul bentuk lama tetap khusus Inventaris. Batch baru hanya kode allowlist, strict, atomik, audit dan version check. UI wajib membedakan loading/gagal/status nonaktif dan mempertahankan isian saat gagal. Kontrak serta migration katalog 068: docs/work-schedules.md dan database/migrations/README.md.
 
@@ -1105,3 +1107,28 @@ Dashboard Pegawai memakai banner profil, tiga ringkasan sesuai izin, saldo per j
 - Konfirmasi hapus memakai ConfirmDialog dengan penjelasan langsung: objek, konsekuensi permanen dan dampak dokumen. Tidak membungkus penjelasan atau penolakan hapus dalam AppNotice/Alert. Informasi referensi terpakai tetap terbaca sebagai isi dialog.
 - Setelah CRUD berhasil, tutup modal terkait dan tampilkan Notification melalui useAppNotification (snackbar bersama). Jangan membuka atau mempertahankan modal untuk menyampaikan sukses CRUD. Kegagalan mempertahankan isian/konteks; validasi dan status yang belum pasti tetap dapat dijelaskan inline. AppNotice tetap untuk konteks operasional menetap, bukan hasil sukses CRUD.
 - Penghapusan database yang sukses dengan PDF belum bersih menggunakan snackbar yang menyebut pembersihan sedang diproses. Pemantauan receipt hanya saat ada pekerjaan dan tab terlihat; selesaikan dengan snackbar, tanpa modal sukses. Ketidakpastian hasil request tetap memerlukan Periksa status sebelum retry.
+
+
+## Absensi self-service mobile
+
+- API self-service memakai bearer mobile dan identitas Pegawai dari sesi, gerbang modul Absensi serta hak profil dan penempatan sendiri. Preflight memeriksa titik sebelum selfie. Mutasi memvalidasi ulang, mengunci organisasi dan Pegawai, serta mencatat event append-only per sesi dan receipt idempotensi. Foto privat melalui storage existing. Di luar radius titik berizin, server menerima absensi hanya dengan alasan terisi dan menyimpan geofence `outside`. Akurasi GPS, jadwal, izin titik, serta selfie tetap wajib. Lihat `docs/mobile-attendance.md`.
+
+## Penyedia peta absensi
+
+- Peta absensi per organisasi diatur Superadmin melalui form Organisasi. Simpan pilihan allowlist dan audit; API mobile mengirim penyedia organisasi sesi tanpa kredensial. Peta tidak mengubah validasi GPS atau absensi.
+
+## Alur sederhana dan pengaturan titik absensi
+
+- Mulai dari tugas pengguna dan letakkan pengaturan yang berkaitan di layar yang sudah dikenal. Pakai menu baru hanya bila tugas, pengguna, atau hak aksesnya memang berbeda. Isi data satu kali, tampilkan pengaturan lanjutan saat diperlukan, dan gunakan label yang mudah dipahami. Kesederhanaan antarmuka tetap menjaga validasi server, izin, dan histori.
+- Rancangan absensi: konfigurasi titik dan radius berada di Data Master → Lokasi. Pengaturan Organisasi → Akses Titik Absensi menangani akses tambahan, termasuk beberapa titik dan periode penugasan. Satu alur pengisian koordinat memakai model titik absensi existing dan pemeriksaan izin tersendiri. API menyediakan koordinat, radius dalam meter, dan batas akurasi sesuai cakupan Pegawai. Backend menentukan kelayakan absensi.
+
+
+- Implementasi dashboard mengikuti docs/attendance-points.md. Master Lokasi memakai ID internal tanpa kode. Template impor Pegawai mencocokkan pilihan lokasi ke ID dalam organisasi aktif. Form Lokasi menampilkan tanggal operasional, pencarian dan peta ringkas, koordinat baca-saja, lalu alamat. Pengguna mengubah koordinat dengan memilih titik pada peta atau hasil pencarian. Alamat dapat dikoreksi. Status Lokasi dan Titik absen berada dalam satu kelompok di form tambah maupun edit. Pengaturan titik dimuat setelah organisasi diketahui. Simpan tetap satu aksi tulis. Izin titik dan akses tambahan memakai attendance-point-access serta modul Absensi. Pencabutan menyimpan revoked_at dan audit.
+
+- Hasil absensi self-service mengembalikan catatan dari event yang tersimpan. Retry memakai catatan event asli dan tetap memeriksa organisasi/Pegawai serta hash payload. Jangan mengganti lokasi absensi dengan lokasi penempatan pada respons hasil.
+
+## Data untuk laporan absensi
+
+- Gunakan metrik kategori/menit, snapshot sesi/titik/zona waktu serta versi perhitungan dari server. Jangan membaca teks UI sebagai status atau mengganti histori dengan master terbaru. Event lama tanpa bukti tetap tidak diketahui.
+- Rekap event dan receipt berada dalam satu transaksi; pertahankan override HRD, keputusan cuti/izin serta approved_overtime_minutes. Kandidat pulang lewat jam kerja bukan persetujuan lembur.
+- Durasi hanya dari pasangan masuk/pulang lengkap per sesi, kurangi istirahat dan keluarkan jeda. Sesi terbuka tidak memiliki durasi final. Hari tanpa event memerlukan rekonsiliasi izin/kalender sebelum disimpulkan absen. Ikuti docs/mobile-attendance.md.

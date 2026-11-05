@@ -6,6 +6,7 @@ import { ImportOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons"
 import FormSection from "@/app/components/forms/FormSection";
 import IconActionButton from "@/app/components/actions/IconActionButton";
 import EmptyState from "@/app/components/data-display/EmptyState";
+import AppCollapse from "@/app/components/data-display/AppCollapse";
 import AppModal from "@/app/components/modals/AppModal";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import FontStyle from "@/app/components/font-style/FontStyle";
@@ -33,7 +34,9 @@ export default function CalendarEditor({
   const days = Form.useWatch("days", { form, preserve: true }) || emptyDays;
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   useEffect(() => {
-    if (open && stage === "form" && context.today) form.getFieldInstance("name")?.focus();
+    if (!open || stage !== "form" || !context.today) return;
+    const frame = requestAnimationFrame(() => form.getFieldInstance("name")?.focus());
+    return () => cancelAnimationFrame(frame);
   }, [open, stage, form, context.today]);
   useEffect(() => {
     if (!open || !organizationId) return;
@@ -73,6 +76,7 @@ export default function CalendarEditor({
   return (
     <AppModal
       open={open}
+      keepMounted
       onClose={onClose}
       disableClose={busy}
       size="lg"
@@ -85,7 +89,9 @@ export default function CalendarEditor({
             : "Buat kalender libur"
       }
       description={
-        stage === "catalog" ? "Pilih tanggal dari katalog resmi." : "Atur hari libur organisasi."
+        stage === "catalog"
+          ? "Pilih libur nasional dan cuti bersama yang berlaku."
+          : "Pilih tanggal dari katalog atau tambahkan libur khusus organisasi."
       }
       contentResetKey={stage}
       footer={
@@ -125,7 +131,7 @@ export default function CalendarEditor({
           />
         )}
         <Form form={form} layout="vertical" requiredMark={false} onFinish={onSubmit}>
-          <FormSection first title="Identitas kalender">
+          <FormSection first title="Nama dan isi kalender">
             <Form.Item
               name="name"
               label="Nama kalender"
@@ -139,10 +145,78 @@ export default function CalendarEditor({
             {(fields, { add, remove }) => {
               const official = fields.filter((f) => days[f.name]?.catalogDayId);
               const manual = fields.filter((f) => !days[f.name]?.catalogDayId);
+              const removeDay = (f, day, index) => (
+                <IconActionButton
+                  label={
+                    locked(day) && item
+                      ? "Tanggal lampau tidak dapat dihapus"
+                      : "Hapus tanggal libur " + (day.name || index + 1)
+                  }
+                  icon={<DeleteOutlined />}
+                  danger
+                  disabled={(locked(day) && Boolean(item)) || !context.today || busy}
+                  onClick={() => remove(f.name)}
+                />
+              );
+              const groups = [...new Set(official.map((f) => days[f.name]?.category))].map(
+                (category) => {
+                  const rows = official.filter((f) => days[f.name]?.category === category);
+                  return {
+                    key: category || "other",
+                    label: (
+                      <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                        <FontStyle fontWeight={600}>{categoryLabel(category)}</FontStyle>
+                        <CompactInfoChip label={`${rows.length} tanggal`} tone="neutral" />
+                      </Box>
+                    ),
+                    children: (
+                      <Box
+                        component="ul"
+                        sx={{
+                          m: 0,
+                          p: 0,
+                          listStyle: "none",
+                          "& > li + li": { borderTop: 1, borderColor: "divider" },
+                        }}
+                      >
+                        {rows.map((f, index) => {
+                          const day = days[f.name];
+                          return (
+                            <Box
+                              component="li"
+                              key={f.key}
+                              sx={{
+                                display: "grid",
+                                gridTemplateColumns: "minmax(0, 1fr) auto",
+                                alignItems: "center",
+                                gap: 1.5,
+                                py: 1.5,
+                              }}
+                            >
+                              <Box sx={{ minWidth: 0, display: "grid", gap: 0.5 }}>
+                                <FontStyle fontWeight={600} sx={{ overflowWrap: "anywhere" }}>
+                                  {day.name}
+                                </FontStyle>
+                                <FontStyle color="text.secondary">
+                                  {displayDate(day.date)}
+                                </FontStyle>
+                                <FontStyle color="text.secondary">
+                                  Katalog {day.catalogYear} · Revisi {day.catalogRevision}
+                                  {locked(day) && item ? " · Tanggal lampau terkunci" : ""}
+                                </FontStyle>
+                              </Box>
+                              {removeDay(f, day, index)}
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    ),
+                  };
+                },
+              );
               const renderDay = (f, index) => {
                 const day = days[f.name] || {};
                 const past = locked(day);
-                const source = Boolean(day.catalogDayId);
                 return (
                   <Box
                     key={f.key}
@@ -158,20 +232,7 @@ export default function CalendarEditor({
                   >
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
                       <Box sx={{ flex: 1, minWidth: 0, display: "grid", gap: 1 }}>
-                        {source ? (
-                          <CompactInfoChip
-                            label={categoryLabel(day.category)}
-                            tone={day.category === "national" ? "success" : "info"}
-                            sx={{ justifySelf: "start" }}
-                          />
-                        ) : (
-                          <FontStyle fontWeight={600}>Hari libur {index + 1}</FontStyle>
-                        )}
-                        {source && (
-                          <FontStyle color="text.secondary">
-                            Katalog {day.catalogYear} · Revisi {day.catalogRevision}
-                          </FontStyle>
-                        )}
+                        <FontStyle fontWeight={600}>Hari libur {index + 1}</FontStyle>
                         {past && (
                           <CompactInfoChip
                             label="Tanggal lampau terkunci"
@@ -180,19 +241,9 @@ export default function CalendarEditor({
                           />
                         )}
                       </Box>
-                      <IconActionButton
-                        label={
-                          past && item
-                            ? "Tanggal lampau tidak dapat dihapus"
-                            : "Hapus tanggal libur " + (day.name || index + 1)
-                        }
-                        icon={<DeleteOutlined />}
-                        danger
-                        disabled={(past && Boolean(item)) || !context.today || busy}
-                        onClick={() => remove(f.name)}
-                      />
+                      {removeDay(f, day, index)}
                     </Box>
-                    {source || past ? (
+                    {past ? (
                       <InfoFieldGrid
                         items={[
                           ["Tanggal", displayDate(day.date)],
@@ -240,7 +291,7 @@ export default function CalendarEditor({
                 <>
                   <FormSection
                     title="Libur dari katalog"
-                    description="Pilih libur nasional dan cuti bersama yang berlaku."
+                    description="Buka kategori untuk melihat tanggal yang sudah ditambahkan."
                     action={
                       <IconActionButton
                         label="Tambahkan dari katalog"
@@ -251,17 +302,17 @@ export default function CalendarEditor({
                     }
                   >
                     {official.length ? (
-                      <Box sx={{ display: "grid", gap: 2 }}>{official.map(renderDay)}</Box>
+                      <AppCollapse items={groups} />
                     ) : (
                       <EmptyState
                         compact
-                        description="Belum ada tanggal dari katalog. Pilih melalui tombol impor di atas."
+                        description="Belum ada tanggal. Pilih Tambahkan dari katalog untuk memulai."
                       />
                     )}
                   </FormSection>
                   <FormSection
                     title="Libur organisasi"
-                    description="Atur tanggal libur tambahan khusus organisasi."
+                    description="Tambahkan hari libur khusus organisasi."
                     action={
                       <IconActionButton
                         label="Tambah libur organisasi"
@@ -280,10 +331,7 @@ export default function CalendarEditor({
                     {manual.length ? (
                       <Box sx={{ display: "grid", gap: 2 }}>{manual.map(renderDay)}</Box>
                     ) : (
-                      <EmptyState
-                        compact
-                        description="Belum ada libur organisasi. Gunakan tombol tambah untuk membuat tanggal."
-                      />
+                      <EmptyState compact description="Belum ada libur khusus organisasi." />
                     )}
                   </FormSection>
                   {fields.length >= 366 && (
@@ -299,8 +347,17 @@ export default function CalendarEditor({
           <FormSection title="Penggunaan kalender" divider={false}>
             <FormSettingSwitch
               name="isActive"
-              title="Kalender aktif"
-              description="Kalender aktif dapat dipilih pada jadwal kerja."
+              notice={{
+                on: {
+                  title: "Kalender aktif",
+                  description: "Kalender ini dapat dipilih saat mengatur jadwal kerja.",
+                },
+                off: {
+                  title: "Kalender nonaktif",
+                  description:
+                    "Kalender ini tidak dapat dipilih untuk pengaturan jadwal baru. Jadwal yang sudah menggunakannya tetap tersimpan.",
+                },
+              }}
               disabled={busy}
             />
           </FormSection>

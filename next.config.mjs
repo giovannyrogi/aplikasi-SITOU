@@ -2,7 +2,11 @@
 const nextConfig = {
   poweredByHeader: false,
   // A 10 MiB PDF plus multipart boundaries must reach the bounded upload parser intact.
-  experimental: { proxyClientMaxBodySize: 11 * 1024 * 1024 },
+  experimental: {
+    proxyClientMaxBodySize: 11 * 1024 * 1024,
+    // Next.js #100251: persisted dev cache can trigger an HMR reload loop after restart.
+    turbopackFileSystemCacheForDev: false,
+  },
   async headers() {
     const common = [
       { key: "X-Content-Type-Options", value: "nosniff" },

@@ -87,7 +87,6 @@ export default function LocationsPage() {
             {i.name}
           </FontStyle>
           <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            <CompactInfoChip label={i.code} />
             <CompactInfoChip label={LABEL[i.location_type]} tone="info" />
           </Box>
         </Box>
@@ -120,7 +119,6 @@ export default function LocationsPage() {
             {i.name}
           </FontStyle>
           <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            <CompactInfoChip label={i.code} />
             <CompactInfoChip label={LABEL[i.location_type]} tone="info" />
           </Box>
         </Box>
@@ -154,7 +152,7 @@ export default function LocationsPage() {
         title="Filter lokasi"
         description="Cari dan saring daftar lokasi sesuai kebutuhan."
         searchLabel="Cari lokasi"
-        searchPlaceholder="Nama atau kode lokasi"
+        searchPlaceholder="Nama lokasi atau organisasi"
         statusLabel="Status lokasi"
         search={list.search}
         onSearchChange={list.setSearch}

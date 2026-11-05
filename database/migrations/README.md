@@ -257,7 +257,31 @@ Migration 070 menambah kepemilikan file platform terbatas untuk PDF SKB, antrean
 - 20261102_071_safe_holiday_deletion.sql: bukti penggunaan permanen, receipt penghapusan, antrean pembersihan PDF dan trigger pengaman.
 - 20261102_072_holiday_usage_audit_backfill.sql: koreksi backfill versi audit kalender legacy (hasil save hanya id, versi sebelumnya pada input). Jalankan setelah 071. Keduanya diterapkan pada development; upgrade existing memakai migration berurutan, bukan bootstrap ulang.
 
-
 ### 073 — Revisi definisi jadwal
 
 20261103_073_work_schedule_definition_revisions.sql menambah versi definisi append-only dengan FK organisasi/pola/kalender, index unik pola–tanggal dan trigger pemakaian kalender. Tidak mengubah data operasional existing; baseline dibuat saat revisi pertama. Terapkan setelah 072, sinkron dengan bootstrap. Development: npm run db:migrate -- database/migrations/20261103_073_work_schedule_definition_revisions.sql. Tidak untuk mengulang bootstrap pada database berisi data.
+
+### 074 — Acuan revisi katalog hari libur
+
+`20261104_074_holiday_catalog_revision_base.sql` menambahkan kolom nullable `revision_of_id` tanpa mengubah katalog atau kalender lama. Terapkan sesudah 073 dan sebelum kode yang membaca kolom baru. Gunakan `npm run db:migrate -- database/migrations/20261104_074_holiday_catalog_revision_base.sql` untuk database development yang belum memiliki kolom tersebut. Jangan mengulang migration atau bootstrap pada database existing.
+
+
+## 075 — Akses Titik Absensi
+
+Jalankan 20261104_075_attendance_point_access.sql sesudah 074. Menambah revoked_at nullable dan katalog menu HRIS. Bootstrap telah disinkronkan. Panduan ada di docs/attendance-points.md.
+
+### Migration 078 — Penyedia peta absensi
+
+Tambahkan pilihan peta pada organisasi dengan default OpenStreetMap. Terapkan setelah 077 sebelum rilis dashboard dan API baru.
+
+### Migration 077 — Absensi mobile per sesi
+
+Terapkan setelah 076. Menautkan event ke sesi kerja dan menambah catatan serta hash receipt. Event lama tetap bisa dibaca. Rilis API bersama skema baru. Lihat `docs/mobile-attendance.md`.
+
+### Migration 076 — Lokasi tanpa kode
+
+Menghapus `locations.code` setelah migration 075. ID dan relasi lokasi tetap. Terapkan bersama rilis web yang sudah memakai ID. Template impor Pegawai baru memakai versi 3. Hentikan penulisan saat pergantian rilis dan siapkan backup sebelum migration karena nilai kode lama dihapus.
+
+### 079 — bukti dan rekap absensi
+
+20261105_079_attendance_reporting_foundation.sql menambah metrik waktu terstruktur, snapshot titik/zona waktu, constraint komposit serta metrik rekap sesi. Jalankan melalui runner existing setelah 078. Tidak mengubah event lama dan tidak membuat bukti historis perkiraan. Rekap ulang opsional melalui scripts/rebuild-attendance-summaries.mjs; baca docs/mobile-attendance.md untuk dry-run, batas batch dan pemilihan ENV_FILE. Jalur upgrade dan bootstrap dibandingkan oleh db:verify-bootstrap.

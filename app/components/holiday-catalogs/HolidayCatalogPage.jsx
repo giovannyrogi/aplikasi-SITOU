@@ -5,7 +5,6 @@ import { Box } from "@mui/material";
 import {
   EyeOutlined,
   EditOutlined,
-  CopyOutlined,
   DeleteOutlined,
   CloudDownloadOutlined,
 } from "@ant-design/icons";
@@ -21,6 +20,7 @@ import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import HolidayDayFields from "./HolidayDayFields";
 import FormSection from "@/app/components/forms/FormSection";
+import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import AppYearPicker from "@/app/components/forms/AppYearPicker";
 import CatalogEntryMethod from "./CatalogEntryMethod";
 import HolidayPdfSource from "./HolidayPdfSource";
@@ -46,6 +46,7 @@ export default function HolidayCatalogPage() {
   const list = useDataList("/api/system/holiday-catalogs");
   const [form] = Form.useForm();
   const [entryMethod, setEntryMethod] = useState("automatic");
+  const [yearConflict, setYearConflict] = useState(null);
   const [validationFailure, setValidationFailure] = useState(null);
   const selectedYear = Form.useWatch("year", form);
   const [pdfStage, setPdfStage] = useState(false),
@@ -75,9 +76,10 @@ export default function HolidayCatalogPage() {
     onDeleted: list.refresh,
     onMessage: showNotification,
   });
-  const open = (item, copy = false) => {
+  const open = (item, editPublished = false) => {
+    setYearConflict(null);
     pdf.reset();
-    setEntryMethod(item ? "manual" : "automatic");
+    setEntryMethod(item && (!editPublished || item.pdf_import_id) ? "manual" : "automatic");
     form.resetFields();
     setPdfStage(false);
     setPdfReady(false);
@@ -97,19 +99,46 @@ export default function HolidayCatalogPage() {
         : { year: new Date().getFullYear(), decisionNumber: "", sourceUrl: "", days: [] },
     );
     setEditor({
-      item: copy ? null : item,
-      sourceCatalog: item,
-      readOnly: Boolean(item?.status === "published" && !copy),
+      item,
+      editPublished,
+      readOnly: Boolean(item?.status === "published" && !editPublished),
       key: requestKey(),
     });
   };
   const input = () => ({
     ...form.getFieldsValue(true),
     ...(pdfReference ? { pdfImportId: pdfReference.id, pdfReviewed: pdfReference.reviewed } : {}),
-    operation: "save",
+    operation: editor.editPublished ? "edit_published" : "save",
     ...(editor.item ? { id: editor.item.id, version: editor.item.version } : {}),
     requestKey: editor.key,
   });
+  const reportConflict = (failure, year) => {
+    setYearConflict(
+      ["DRAFT_EXISTS", "CATALOG_YEAR_PUBLISHED", "CATALOG_REVISION_STALE"].includes(failure.code)
+        ? { year, status: failure.code === "DRAFT_EXISTS" ? "draft" : "published" }
+        : null,
+    );
+    setError(failure.message);
+  };
+  const openExisting = async () => {
+    if (!yearConflict || busy) return;
+    setBusy(true);
+    try {
+      const response = await scheduleRequest(
+        `/api/system/holiday-catalogs?year=${yearConflict.year}&pageSize=2&view=history`,
+      );
+      const existing = response.data.find((row) => row.status === yearConflict.status);
+      if (existing) open(existing);
+      else {
+        setYearConflict(null);
+        setError("Katalog sudah berubah. Coba lagi.");
+      }
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const validate = async () => {
     try {
       await form.validateFields();
@@ -125,33 +154,45 @@ export default function HolidayCatalogPage() {
     setError("");
     return parsed.data;
   };
-  const persistDraft = async (value) => {
+  const persistDraft = async (value, reviewAfterSave = false) => {
     if (busy) return;
     setError("");
+    setYearConflict(null);
     setBusy(true);
     try {
       const r = await runWithLoadingBackdrop(
         () => scheduleRequest("/api/system/holiday-catalogs", value),
         { message: "Menyimpan draft..." },
       );
-      form.setFieldsValue({
+      const saved = {
         year: r.data.year,
         decisionNumber: r.data.decision_number,
         sourceUrl: r.data.source_url,
         days: r.data.days.map(({ date, name, category }) => ({ date, name, category })),
-      });
+      };
+      form.setFieldsValue(saved);
       // Continue with the exact server version. Unsaved form edits never get published.
       setEditor({ item: r.data, readOnly: false, key: requestKey() });
       setPdfStage(false);
-      setEntryMethod("manual");
       pdf.reset();
       setPdfReference(r.data.pdf_import_id ? { id: r.data.pdf_import_id, reviewed: true } : null);
-      setReview(null);
+      setReview(
+        reviewAfterSave
+          ? {
+              ...saved,
+              id: r.data.id,
+              version: r.data.version,
+              ...(r.data.pdf_import_id
+                ? { pdfImportId: r.data.pdf_import_id, pdfReviewed: true }
+                : {}),
+            }
+          : null,
+      );
       setSourcePreview(null);
       showNotification("Draft tersimpan. Tinjau sebelum diterbitkan.");
       await list.refresh();
     } catch (e) {
-      setError(e.message);
+      reportConflict(e, value.year);
       applyFieldErrors(form, e);
       setValidationFailure({
         fields: form.getFieldsError().filter((field) => field.errors.length),
@@ -184,15 +225,30 @@ export default function HolidayCatalogPage() {
     const previous = (form.getFieldValue("days") || []).filter((d) => d?.date);
     setBusy(true);
     setError("");
+    setYearConflict(null);
     try {
       const response = await runWithLoadingBackdrop(
-        () => scheduleRequest("/api/system/holiday-catalogs/source", { year }),
+        () =>
+          scheduleRequest("/api/system/holiday-catalogs/source", {
+            year,
+            ...(editor.editPublished
+              ? { revisionOf: editor.item.id }
+              : editor.item
+                ? { id: editor.item.id }
+                : {}),
+          }),
         { message: "Mengambil data hari libur..." },
       );
-      setSourcePreview({ candidate: response.data, previous, saveKey: requestKey() });
+      if (editor.item) {
+        const { decisionNumber, sourceUrl, days } = response.data;
+        form.setFieldsValue({ decisionNumber, sourceUrl, days });
+        setValidationFailure(null);
+      } else {
+        setSourcePreview({ candidate: response.data, previous, saveKey: requestKey() });
+      }
       if (pdfReference) setPdfReference((r) => ({ ...r, reviewed: false }));
     } catch (e) {
-      setError(e.message);
+      reportConflict(e, year);
     } finally {
       setBusy(false);
     }
@@ -211,7 +267,6 @@ export default function HolidayCatalogPage() {
         sourceUrl,
         days,
         requestKey: sourcePreview.saveKey,
-        ...(editor.item ? { id: editor.item.id, version: editor.item.version } : {}),
       },
       { error: scheduleValidationMessage },
     );
@@ -219,7 +274,7 @@ export default function HolidayCatalogPage() {
       setError("Hasil sumber tidak dapat disimpan. Ambil ulang data.");
       return;
     }
-    await persistDraft(parsed.data);
+    await persistDraft(parsed.data, true);
   };
   const preview = async () => {
     try {
@@ -237,19 +292,23 @@ export default function HolidayCatalogPage() {
         () =>
           scheduleRequest("/api/system/holiday-catalogs", {
             ...review,
-            operation: "publish",
+            operation: editor.editPublished ? "edit_published" : "publish",
             requestKey: editor.key,
           }),
-        { message: "Menerbitkan katalog..." },
+        { message: editor.editPublished ? "Menyimpan perubahan..." : "Menerbitkan katalog..." },
       );
       setConfirm(false);
       setEditor(null);
       setReview(null);
-      showNotification("Katalog diterbitkan. Kalender organisasi tetap mengikuti pilihan HRD.");
+      showNotification(
+        editor.editPublished
+          ? "Perubahan katalog tersimpan."
+          : "Katalog diterbitkan. Kalender organisasi tetap mengikuti pilihan HRD.",
+      );
       await list.refresh();
     } catch (e) {
       setConfirm(false);
-      setError(e.message);
+      reportConflict(e, review.year);
     } finally {
       setBusy(false);
     }
@@ -261,12 +320,12 @@ export default function HolidayCatalogPage() {
       icon: x.status === "published" ? <EyeOutlined /> : <EditOutlined />,
       onClick: () => open(x),
     },
-    ...(x.status === "published"
+    ...(x.is_current
       ? [
           {
             key: "revise",
-            label: "Buat revisi",
-            icon: <CopyOutlined />,
+            label: "Edit katalog",
+            icon: <EditOutlined />,
             onClick: () => open(x, true),
           },
         ]
@@ -281,8 +340,8 @@ export default function HolidayCatalogPage() {
   ];
   const status = (x) => (
     <CompactInfoChip
-      label={x.status === "published" ? "Terbit" : "Draft"}
-      tone={x.status === "published" ? "success" : "warning"}
+      label={x.status === "draft" ? "Draft" : x.is_current ? "Terbit" : "Riwayat revisi"}
+      tone={x.status === "draft" ? "warning" : x.is_current ? "success" : "neutral"}
     />
   );
   const columns = [
@@ -329,6 +388,27 @@ export default function HolidayCatalogPage() {
         onReset={() => list.updateFilters({})}
         items={[
           {
+            key: "view",
+            label: "Tampilan",
+            control: (
+              <AsyncSelect
+                aria-label="Tampilan katalog"
+                value={list.filters.view || "current"}
+                options={[
+                  { value: "current", label: "Katalog terbaru" },
+                  { value: "history", label: "Semua revisi dan draft" },
+                ]}
+                onChange={(view) =>
+                  list.updateFilters({
+                    ...list.filters,
+                    view: view === "history" ? view : undefined,
+                  })
+                }
+                style={{ width: "100%" }}
+              />
+            ),
+          },
+          {
             key: "year",
             label: "Tahun",
             control: (
@@ -339,14 +419,19 @@ export default function HolidayCatalogPage() {
                 precision={0}
                 value={list.filters.year || null}
                 placeholder="Semua tahun"
-                onChange={(year) => list.updateFilters(year ? { year } : {})}
+                onChange={(year) =>
+                  list.updateFilters({ ...list.filters, year: year || undefined })
+                }
                 style={{ width: "100%" }}
               />
             ),
           },
         ]}
       />
-      <DataPanel title="Daftar katalog" description="Katalog terbit disimpan sebagai revisi tetap.">
+      <DataPanel
+        title="Daftar katalog"
+        description="Daftar utama menampilkan satu katalog per tahun."
+      >
         <ResponsiveDataView
           data={list.data}
           columns={columns}
@@ -375,6 +460,7 @@ export default function HolidayCatalogPage() {
       </DataPanel>
       <AppModal
         open={Boolean(editor) && !confirm}
+        keepMounted
         onClose={closeEditor}
         disableClose={busy || pdf.busy}
         title={
@@ -386,7 +472,9 @@ export default function HolidayCatalogPage() {
                 ? "Tinjau data dari sumber"
                 : review
                   ? "Tinjau katalog"
-                  : "Draft katalog hari libur"
+                  : editor?.editPublished
+                    ? "Edit katalog hari libur"
+                    : "Draft katalog hari libur"
         }
         description={
           pdfStage ? "Cocokkan tanggal dengan PDF sumber." : "Siapkan referensi hari libur."
@@ -396,7 +484,14 @@ export default function HolidayCatalogPage() {
         contentResetKey={pdfStage ? "pdf" : sourcePreview ? "source" : review ? "review" : "form"}
         footer={
           editor?.readOnly ? (
-            <Button onClick={closeEditor}>Tutup</Button>
+            <>
+              <Button onClick={closeEditor}>Tutup</Button>
+              {editor.item.is_current && (
+                <Button type="primary" onClick={() => open(editor.item, true)}>
+                  Edit katalog
+                </Button>
+              )}
+            </>
           ) : pdfStage ? (
             <>
               <Button onClick={() => setPdfStage(false)} disabled={busy}>
@@ -421,7 +516,7 @@ export default function HolidayCatalogPage() {
                   setError("");
                 }}
               >
-                Kembali ke draft
+                Kembali ke form
               </Button>
               <Button
                 type="primary"
@@ -435,17 +530,24 @@ export default function HolidayCatalogPage() {
           ) : review ? (
             <>
               <Button disabled={busy} onClick={() => setReview(null)}>
-                Kembali ke draft
+                Kembali ke form
               </Button>
-              <Button type="primary" disabled={!reviewedSaved} onClick={() => setConfirm(true)}>
-                Terbitkan katalog
+              <Button
+                type="primary"
+                disabled={busy || (!editor.editPublished && !reviewedSaved)}
+                loading={busy}
+                onClick={() => (editor.editPublished ? void publish() : setConfirm(true))}
+              >
+                {editor.editPublished ? "Simpan perubahan" : "Terbitkan katalog"}
               </Button>
             </>
           ) : entryMethod === "automatic" ? (
             <>
-              <Button disabled={busy || pdf.busy} onClick={closeEditor}>
-                Batal
-              </Button>
+              <Box sx={{ mr: { sm: "auto" } }}>
+                <Button disabled={busy || pdf.busy} onClick={closeEditor}>
+                  Batal
+                </Button>
+              </Box>
               <Button
                 type="primary"
                 icon={<CloudDownloadOutlined />}
@@ -455,23 +557,37 @@ export default function HolidayCatalogPage() {
               >
                 Ambil data terbaru
               </Button>
+              {editor?.item && !editor.editPublished && (
+                <Button disabled={busy || pdfUnready || pdf.busy} onClick={save}>
+                  Simpan perubahan
+                </Button>
+              )}
+              {editor?.item && (
+                <Button disabled={busy || pdfUnready || pdf.busy} onClick={preview}>
+                  {editor.editPublished ? "Tinjau perubahan" : "Tinjau katalog"}
+                </Button>
+              )}
             </>
           ) : (
             <>
-              <Button disabled={busy || pdf.busy} onClick={closeEditor}>
-                Batal
-              </Button>
-              <Button
-                type={editor?.item ? "default" : "primary"}
-                disabled={pdfUnready || pdf.busy}
-                loading={busy}
-                onClick={save}
-              >
-                Simpan draft
-              </Button>
+              <Box sx={{ mr: { sm: "auto" } }}>
+                <Button disabled={busy || pdf.busy} onClick={closeEditor}>
+                  Batal
+                </Button>
+              </Box>
+              {!editor?.editPublished && (
+                <Button
+                  type={editor?.item ? "default" : "primary"}
+                  disabled={pdfUnready || pdf.busy}
+                  loading={busy}
+                  onClick={save}
+                >
+                  {editor?.item ? "Simpan perubahan" : "Simpan draft"}
+                </Button>
+              )}
               {editor?.item && (
                 <Button disabled={busy || pdfUnready || pdf.busy} type="primary" onClick={preview}>
-                  Tinjau katalog
+                  {editor.editPublished ? "Tinjau perubahan" : "Tinjau katalog"}
                 </Button>
               )}
             </>
@@ -483,6 +599,13 @@ export default function HolidayCatalogPage() {
             tone="danger"
             title="Perubahan belum diproses"
             description={error}
+            action={
+              yearConflict && (
+                <Button disabled={busy} onClick={openExisting}>
+                  {yearConflict.status === "draft" ? "Buka draft" : "Lihat katalog terbit"}
+                </Button>
+              )
+            }
             sx={{ mb: 3 }}
           />
         )}
@@ -499,7 +622,7 @@ export default function HolidayCatalogPage() {
                 const parsed = catalogMutation.safeParse(
                   {
                     ...candidate,
-                    operation: "save",
+                    operation: editor.editPublished ? "edit_published" : "save",
                     requestKey: editor.key,
                     ...(editor.item ? { id: editor.item.id, version: editor.item.version } : {}),
                   },
@@ -549,21 +672,27 @@ export default function HolidayCatalogPage() {
         )}
         {!pdfStage && !sourcePreview && (review || editor?.readOnly) ? (
           <Box sx={{ display: "grid", gap: 3 }}>
-            <FontStyle fontWeight={600}>Tahun {review?.year || editor.item.year}</FontStyle>
-            <FontStyle>SKB {review?.decisionNumber || editor.item.decision_number}</FontStyle>
-            {(review?.sourceUrl || editor?.item?.source_url) && (
-              <FontStyle>
-                <a
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href={review?.sourceUrl || editor.item.source_url}
-                >
-                  Buka sumber resmi
-                </a>
+            <Box sx={{ display: "grid", gap: 0.5, minWidth: 0 }}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", columnGap: 2 }}>
+                <FontStyle fontWeight={600}>Katalog {review?.year || editor.item.year}</FontStyle>
+                {(review ? review.sourceUrl : editor.item.source_url) && (
+                  <FontStyle component="span">
+                    <a
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      href={review ? review.sourceUrl : editor.item.source_url}
+                    >
+                      Lihat SKB resmi
+                    </a>
+                  </FontStyle>
+                )}
+              </Box>
+              <FontStyle color="text.secondary">
+                Nomor SKB {review?.decisionNumber || editor.item.decision_number}
               </FontStyle>
-            )}
-            <CatalogDocument catalog={editor?.item || editor?.sourceCatalog} />
-            {review && !reviewedSaved && (
+            </Box>
+            <CatalogDocument catalog={editor?.item} />
+            {review && !editor?.editPublished && !reviewedSaved && (
               <AppNotice
                 tone="warning"
                 title="Ada perubahan yang belum disimpan"
@@ -609,11 +738,7 @@ export default function HolidayCatalogPage() {
               >
                 <AppYearPicker
                   aria-label="Tahun katalog"
-                  disabled={
-                    Boolean(editor?.item || editor?.sourceCatalog) ||
-                    Boolean(pdf.file) ||
-                    Boolean(pdfReference)
-                  }
+                  disabled={Boolean(editor?.item) || Boolean(pdf.file) || Boolean(pdfReference)}
                   minYear={new Date().getFullYear()}
                 />
               </Form.Item>
@@ -627,7 +752,11 @@ export default function HolidayCatalogPage() {
               <FormSection title="Data otomatis" divider={false}>
                 <AppNotice
                   title="Ambil data setahun"
-                  description="Pilih Ambil data terbaru, lalu periksa tanggal dan kategori terhadap SKB sebelum menyimpan draft."
+                  description={
+                    editor?.item
+                      ? "Ambil data terbaru untuk mengganti isian tanggal di form ini. Periksa dan koreksi sebelum menyimpan."
+                      : "Pilih Ambil data terbaru, lalu periksa tanggal dan kategori terhadap SKB sebelum menyimpan draft."
+                  }
                 />
               </FormSection>
             )}
@@ -638,7 +767,7 @@ export default function HolidayCatalogPage() {
               >
                 <HolidayPdfSource
                   importer={pdf}
-                  savedCatalog={editor?.item || editor?.sourceCatalog}
+                  savedCatalog={editor?.item}
                   disabled={busy}
                   onSelect={async (file) => {
                     try {
@@ -652,7 +781,7 @@ export default function HolidayCatalogPage() {
                   }}
                   onRemove={() => {
                     pdf.reset();
-                    const prior = editor?.item || editor?.sourceCatalog;
+                    const prior = editor?.item;
                     setPdfReference(
                       prior?.pdf_import_id ? { id: prior.pdf_import_id, reviewed: false } : null,
                     );
@@ -689,6 +818,8 @@ export default function HolidayCatalogPage() {
                   </Form.Item>
                 </Box>
               </FormSection>
+            </Box>
+            <Box sx={{ display: entryMethod === "manual" || editor?.item ? "block" : "none" }}>
               <FormSection
                 title="Tanggal hari libur"
                 description="Isi tanggal, nama dan kategori sesuai keputusan resmi."

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Button, Form } from "antd";
+import { Button } from "antd";
 import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
@@ -50,7 +50,6 @@ export default function TemplatePage() {
     list.updateFilters({ ...list.filters, standalone: type === "fixed" ? "true" : undefined });
   };
   const org = list.filters.organizationId;
-  const [form] = Form.useForm();
   const [editor, setEditor] = useState(null);
   const [view, setView] = useState(null);
   const [review, setReview] = useState(null);
@@ -61,11 +60,14 @@ export default function TemplatePage() {
   const open = (item = null, copy = false) => {
     setValidationFocus(null);
     setReview(null);
-    form.resetFields();
-    form.setFieldsValue(templateValues(item, copy));
-    setEditor({ item: copy ? null : item, source: item, key: requestKey() });
+    setEditor({
+      item: copy ? null : item,
+      source: item,
+      key: requestKey(),
+      initialValues: templateValues(item, copy),
+    });
   };
-  const reportErrors = (error) => {
+  const reportErrors = (form, error) => {
     let focusDay;
     const dayError = Object.keys(error.fieldErrors || {}).find((key) => /^days\.\d+\./.test(key));
     if (dayError) {
@@ -101,7 +103,7 @@ export default function TemplatePage() {
     applyFieldErrors(form, error);
     showNotification(error.message, "error");
   };
-  const prepareReview = async (calendarName) => {
+  const prepareReview = async (form, calendarName) => {
     if (busy) return;
     try {
       await form.validateFields();
@@ -124,11 +126,12 @@ export default function TemplatePage() {
         error.fieldErrors = Object.fromEntries(
           parsed.error.issues.map((issue) => [issue.path.join("."), issue.message]),
         );
-        reportErrors(error);
+        reportErrors(form, error);
         return;
       }
       setReview({
         ...next,
+        form,
         payload: parsed.data,
         calendarName:
           calendarName ||
@@ -138,13 +141,13 @@ export default function TemplatePage() {
       });
     } catch (error) {
       if (error.errorFields) {
-        reportErrors({
+        reportErrors(form, {
           message: error.errorFields[0]?.errors?.[0] || "Periksa isian jadwal.",
           fieldErrors: Object.fromEntries(
             error.errorFields.map((field) => [field.name.join("."), field.errors[0]]),
           ),
         });
-      } else reportErrors(error);
+      } else reportErrors(form, error);
     }
   };
   const save = async () => {
@@ -171,7 +174,7 @@ export default function TemplatePage() {
       showNotification("Jadwal kerja disimpan.");
     } catch (error) {
       setReview(null);
-      reportErrors(error);
+      reportErrors(review.form, error);
     } finally {
       setBusy(false);
     }
@@ -229,7 +232,6 @@ export default function TemplatePage() {
                       onChange={(organizationId) => {
                         setEditor(null);
                         setReview(null);
-                        form.resetFields();
                         list.updateFilters({ ...list.filters, organizationId });
                       }}
                     />
@@ -299,7 +301,7 @@ export default function TemplatePage() {
         <TemplateEditor
           key={editor.key}
           open={!review}
-          form={form}
+          initialValues={editor.initialValues}
           item={editor.item}
           source={editor.source}
           organizationId={org}
