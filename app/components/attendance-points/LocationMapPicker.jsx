@@ -18,7 +18,7 @@ async function geocode(payload, signal) {
   return (await readApiResponse(response)).data;
 }
 
-export default function LocationMapPicker({ latitude, longitude, radius, onPick }) {
+export default function LocationMapPicker({ latitude, longitude, radius, onError, onPick }) {
   const { token } = theme.useToken();
   const container = useRef(null);
   const searchField = useRef(null);
@@ -27,6 +27,7 @@ export default function LocationMapPicker({ latitude, longitude, radius, onPick 
   const [map, setMap] = useState(null);
   const [status, setStatus] = useState("loading");
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState();
   const [results, setResults] = useState([]);
   const [resultsOpen, setResultsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,7 +59,7 @@ export default function LocationMapPicker({ latitude, longitude, radius, onPick 
         tiles.on("tileerror", () => setStatus((value) => (value === "ready" ? value : "error")));
         tiles.addTo(instance);
         layer.current = L.layerGroup().addTo(instance);
-        observer = new ResizeObserver(() => instance.invalidateSize({ pan: false }));
+        observer = new ResizeObserver(() => instance.invalidateSize({ pan: true, animate: false }));
         observer.observe(container.current);
         setMap({ instance, L });
       })
@@ -92,9 +93,11 @@ export default function LocationMapPicker({ latitude, longitude, radius, onPick 
         fillOpacity: 0.12,
         interactive: false,
       }).addTo(layer.current);
-    if (!positioned.current || !map.instance.getBounds().contains(point))
-      map.instance.setView(point, 17);
-    positioned.current = true;
+    // Fokus awal saja. Memilih titik tidak mengubah zoom atau area yang sedang dilihat.
+    if (!positioned.current) {
+      map.instance.setView(point, 17, { animate: false });
+      positioned.current = true;
+    }
   }, [map, latitude, longitude, radius]);
 
   useEffect(() => {
@@ -106,18 +109,24 @@ export default function LocationMapPicker({ latitude, longitude, radius, onPick 
       const point = event.latlng.wrap();
       const latitude = Number(point.lat.toFixed(7));
       const longitude = Number(point.lng.toFixed(7));
+      positioned.current = true;
       const applyAddress = onPick(latitude, longitude);
       const controller = new AbortController();
       request.current = controller;
-      setMessage("Mencari alamat titik…");
+      setSelected(undefined);
+      setQuery("");
+      setMessage("");
       try {
         const [result] = await geocode({ latitude, longitude }, controller.signal);
         if (controller.signal.aborted) return;
-        if (result) applyAddress(result.address);
-        setMessage(result ? "" : "Alamat titik belum ditemukan. Isi alamat secara manual.");
+        if (result) {
+          applyAddress(result.address);
+          setSelected({ value: "selected", label: result.address });
+        }
+        if (!result) onError?.("Alamat titik belum ditemukan. Isi alamat secara manual.");
       } catch {
         if (!controller.signal.aborted)
-          setMessage("Alamat titik gagal dimuat. Isi alamat secara manual.");
+          onError?.("Alamat titik gagal dimuat. Isi alamat secara manual.");
       }
     }
     const element = container.current;
@@ -132,7 +141,7 @@ export default function LocationMapPicker({ latitude, longitude, radius, onPick 
       map.instance.off("click", pick);
       element.removeEventListener("keydown", pickCenter);
     };
-  }, [map, onPick, status]);
+  }, [map, onPick, status, onError]);
 
   async function search() {
     const value = query.trim();
@@ -171,6 +180,8 @@ export default function LocationMapPicker({ latitude, longitude, radius, onPick 
       <Space.Compact block style={{ minWidth: 0 }}>
         <AsyncSelect
           ref={searchField}
+          labelInValue
+          value={selected}
           id="location-map-search"
           style={{ flex: "1 1 0", minWidth: 0, height: token.controlHeight }}
           placeholder="Contoh: Pasar Paal Dua, Manado"
@@ -187,6 +198,7 @@ export default function LocationMapPicker({ latitude, longitude, radius, onPick 
             onSearch: (value) => {
               request.current?.abort();
               setBusy(false);
+              setSelected(undefined);
               setQuery(value.slice(0, 120));
               setResults([]);
               setResultsOpen(false);
@@ -203,10 +215,13 @@ export default function LocationMapPicker({ latitude, longitude, radius, onPick 
             event.preventDefault();
             void search();
           }}
-          onSelect={(index) => {
-            const result = results[index];
+          onSelect={(selection) => {
+            const result = results[selection.value];
+            if (!result) return;
+            if (map) positioned.current = true;
+            setSelected({ value: "selected", label: result.address });
             onPick(result.latitude, result.longitude, result.address);
-            map?.instance.setView([result.latitude, result.longitude], 17);
+            map?.instance.panTo([result.latitude, result.longitude], { animate: false });
             setQuery("");
             setResults([]);
             setResultsOpen(false);

@@ -41,3 +41,12 @@ node scripts/rebuild-attendance-summaries.mjs --organization=1 --from=2026-11-05
 node scripts/rebuild-attendance-summaries.mjs --organization=1 --from=2026-11-05 --until=2026-11-05 --apply
 ```
 ID/tanggal contoh harus disesuaikan. Perintah hanya merekap snapshot berisi event dan mempertahankan keputusan HRD; bukan mengesahkan histori yang belum lengkap.
+## Absen pada hari libur (migration 080)
+
+Klien yang mendukung alur ini mengirim header `X-SITOU-Attendance-Version: 2` pada ketiga endpoint absensi. Klien lama tetap menerima sesi terjadwal dengan kontrak sebelumnya. Header hanya menyatakan kemampuan klien. Kelayakan tetap diperiksa dari sesi, modul, hak akses, penetapan dan revisi efektif di server.
+
+- GET mengembalikan `holidayName` dan `allowHolidayAttendance` untuk hari berjalan. Sesi absen saat libur mengembalikan `holidayWork: true`, `holidayName` dan jam rencana null. Server menerbitkan aksi sesuai urutan absen. Shift malam yang belum ditutup tetap menggunakan tanggal kerja awal dan diselesaikan sebelum memulai absen tanpa jadwal pada hari libur.
+- Preflight dan hasil simpan memisahkan `outsideRadius` dari `requiresNote`. Absen masuk dan pulang pada hari libur memerlukan alasan 1–500 karakter setelah trim. Kiriman kosong ditolak dengan `HOLIDAY_NOTE_REQUIRED`. Bukti foto, validasi titik/GPS, nonce permintaan, dan idempotensi tetap mengikuti alur yang sama.
+- Event `holiday_work` memiliki `timing.version: 2` dan `category: not_applicable`. Acuan dan metrik penilaian waktu bernilai null. Rekap menyimpan tanggal dan status libur, penanda bekerja saat libur, serta durasi aktual setelah pasangan lengkap. Persetujuan lembur dan kompensasi tidak dibuat oleh alur ini.
+
+Urutan rilis adalah migration 080 setelah 079, backend, lalu klien Flutter yang mendukung header baru.

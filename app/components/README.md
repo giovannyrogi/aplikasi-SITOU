@@ -680,3 +680,8 @@ TemplateEditor tidak menampilkan Saat tanggal libur. templatePayload dan shiftGr
 ## Titik absensi
 
 LocationMapPicker memakai AsyncSelect untuk dropdown hasil pencarian dan menampilkan peta ringkas langsung dalam form AppModal Lokasi. Pilihan titik menampilkan koordinat baca-saja dan mengisi alamat yang tersedia. LocationPointFields memuat konfigurasi titik sesuai organisasi dan hak akses. Status Lokasi dan Titik absen memakai FormSettingSwitch dalam satu FormSettingsGroup. Akses Titik Absensi memakai filter, tabel/kartu, modal dan notifikasi bersama.
+
+LocationMapPicker memakai onError untuk notifikasi kegagalan reverse geocode. Pencarian selalu kosong ketika dibuka, sedangkan field Alamat mempertahankan alamat tersimpan. LabelInValue terkontrol mempertahankan pilihan baru selama form terbuka. Pusat/zoom awal dipasang satu kali pada koordinat pertama yang sah. Klik peta dan perubahan radius/koordinat setelahnya hanya menggambar ulang marker/radius tanpa mengubah viewport. Hasil pencarian memakai panTo tanpa mengganti zoom. LocationForm memberi key per lokasi/organisasi agar state tidak bocor antar record. Kontrak API/payload tidak berubah.
+
+Pemilihan titik pertama oleh pengguna juga menandai peta sudah digunakan sebelum koordinat digambar, sehingga lokasi tanpa koordinat tersimpan tidak memicu zoom awal ketika pengguna sudah menentukan zoom sendiri.
+Form Jadwal Kerja memakai `FormSettingSwitch` untuk izin absen pada hari libur. Letakkan satu switch di bagian aturan hari libur, termasuk untuk kelompok shift. `HolidayAttendanceNotice` memakai `AppNotice` untuk menjelaskan status pada ringkasan dan detail jadwal.

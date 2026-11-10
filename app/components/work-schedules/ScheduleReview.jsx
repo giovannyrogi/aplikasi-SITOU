@@ -5,7 +5,7 @@ import { Box } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import ShiftGroupSummary from "./ShiftGroupSummary";
-import ScheduleSummary from "./ScheduleSummary";
+import ScheduleSummary, { HolidayAttendanceNotice } from "./ScheduleSummary";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import dayjs from "dayjs";
@@ -89,6 +89,7 @@ export default function ScheduleReview({ review, calendarName, busy, onBack, onS
             </FontStyle>
           </Box>
         </Box>
+        <HolidayAttendanceNotice allowed={v.allowHolidayAttendance} />
         {review.workType === "shift" ? (
           <ShiftGroupSummary
             shifts={v.shifts}

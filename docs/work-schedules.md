@@ -282,3 +282,10 @@ Modul Absensi juga mengatur titik di form Lokasi dan menu Akses Titik Absensi. I
 ## Konsumsi snapshot oleh absensi
 
 Absensi versi 1 menyimpan penilaian per work_schedule_sessions dan membentuk rekap pasangan lengkap dalam transaksi. Jadwal lintas hari mengikuti work_date snapshot; tanggal kejadian tetap terpisah. Jangan mengubah snapshot yang sudah dipakai event/keputusan. Rekap multi-sesi mengecualikan jeda antarsesi dan tidak menyimpulkan durasi dari sesi tanpa pulang. Kontrak dan batas laporan di docs/mobile-attendance.md.
+## Absen pada hari libur
+
+Buka **Jadwal Kerja**, buat atau edit jadwal, lalu aktifkan **Izinkan absen pada hari libur** di bagian aturan hari libur. Satu pengaturan berlaku untuk seluruh pilihan dalam satu kelompok shift. Jadwal baru dan jadwal yang sudah ada mulai dengan opsi nonaktif. Perubahan jadwal terpakai mengikuti tanggal efektif, alasan, dan audit yang sama dengan perubahan aturan jadwal lainnya.
+
+Opsi ini berlaku pada libur mingguan dan hari libur kalender bagi Pegawai dengan penetapan yang berlaku. Jadwal khusus berisi jam kerja yang ditetapkan HRD selalu dipakai lebih dulu dan dinilai sesuai jam tersebut. Tanpa jadwal khusus, Pegawai dapat mencatat satu pasangan absen masuk dan pulang dengan alasan pada setiap kiriman. Kelola Jadwal Kerja dan aktivasi modul Absensi tetap diperlukan. Lihat [kontrak absensi mobile](mobile-attendance.md).
+
+API buat/edit jadwal reguler dan kelompok shift menerima boolean opsional `allowHolidayAttendance`. Saat edit, field yang tidak dikirim mempertahankan nilai tersimpan. Respons master mengembalikan `allow_holiday_attendance`.

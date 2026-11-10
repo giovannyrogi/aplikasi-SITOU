@@ -6,6 +6,18 @@ import AppNotice from "@/app/components/data-display/AppNotice";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 
 export const weekNames = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+export function HolidayAttendanceNotice({ allowed = false }) {
+  return (
+    <AppNotice
+      title={allowed ? "Absen pada hari libur diizinkan" : "Absen pada hari libur tidak diizinkan"}
+      description={
+        allowed
+          ? "Tanpa jadwal kerja khusus, Pegawai wajib mengisi alasan. Waktu masuk dan pulang dicatat tanpa penilaian terlambat atau pulang awal."
+          : "Pegawai memerlukan jadwal kerja khusus dari HRD untuk absen pada hari libur."
+      }
+    />
+  );
+}
 export function sessionText(rules) {
   if (!rules || rules.type === "off") return "Libur";
   if (rules.type === "field") return "Kerja lapangan";

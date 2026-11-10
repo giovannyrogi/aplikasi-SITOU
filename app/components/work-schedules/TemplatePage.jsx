@@ -25,7 +25,7 @@ import {
   scheduleValidationMessage,
 } from "@/lib/work-schedules/schemas.mjs";
 import ShiftGroupSummary from "./ShiftGroupSummary";
-import ScheduleSummary from "./ScheduleSummary";
+import ScheduleSummary, { HolidayAttendanceNotice } from "./ScheduleSummary";
 import AppModal from "@/app/components/modals/AppModal";
 import AppNotice from "@/app/components/data-display/AppNotice";
 import dayjs from "dayjs";
@@ -334,6 +334,9 @@ export default function TemplatePage() {
             sx={{ mb: 3 }}
           />
         )}
+        <Box sx={{ mb: 3 }}>
+          <HolidayAttendanceNotice allowed={view?.allow_holiday_attendance} />
+        </Box>
         {view?.kind === "shift" ? (
           <ShiftGroupSummary
             shifts={view.shifts}

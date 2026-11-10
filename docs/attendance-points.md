@@ -24,3 +24,5 @@ Migration 075 menambah revoked_at dan seed menu. Jalankan sesudah 074 pada datab
 
 Acuan diperiksa 4 November 2026. [Leaflet](https://leafletjs.com/reference.html) · [Kebijakan ubin OpenStreetMap](https://operations.osmfoundation.org/policies/tiles/).
 
+
+Saat Edit lokasi dibuka, peta berpusat pada koordinat tersimpan dan kolom pencarian awalnya kosong untuk mencari lokasi baru. Klik titik mempertahankan pusat dan zoom pengguna, sementara pencarian baru hanya menggeser pusat tanpa mengganti zoom. Membuka form tidak memanggil geocoding atau mengubah alamat. Pilihan pencarian baru mempertahankan label selama form terbuka. Alamat tersimpan tetap tampil pada field Alamat, bukan kolom pencarian. Tidak ada pesan proses pencarian balik di bawah koordinat. Kegagalan pencarian balik memakai notifikasi existing dan alamat masih dapat diisi manual.

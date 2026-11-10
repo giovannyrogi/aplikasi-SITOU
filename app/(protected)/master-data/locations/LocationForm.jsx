@@ -243,6 +243,8 @@ export default function LocationForm({
               >
                 {open && (
                   <LocationMapPicker
+                    key={`${item?.id || "new"}-${organizationId || ""}`}
+                    onError={onError}
                     longitude={longitude}
                     radius={pointEnabled ? radius : null}
                     onPick={pickPoint}

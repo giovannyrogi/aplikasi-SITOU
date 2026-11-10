@@ -97,3 +97,6 @@ Koordinat dan radius ada di Data Master → Lokasi. Akses tambahan ada di Pengat
 ## Rekap absensi mobile
 
 Migration 079 wajib sebelum backend yang menyimpan bukti terstruktur. Ikuti docs/mobile-attendance.md untuk kontrak timing/snapshot, batas rekap dan perintah node scripts/rebuild-attendance-summaries.mjs. Default dry-run; --apply melakukan commit per Pegawai. ENV_FILE menentukan konfigurasi backend. Laporan tidak boleh menganggap incomplete/needs_review sebagai hasil final atau kandidat lembur sebagai lembur disetujui. Penerapan lokal tidak mencakup VPS.
+
+Form Edit lokasi memulihkan titik, radius dan field Alamat tersimpan tanpa geocoding otomatis, sementara kolom pencarian selalu mulai kosong. Klik titik mempertahankan pusat/zoom pengguna dan hasil pencarian menggeser peta tanpa mengganti zoom. Pemilihan titik baru tetap memakai alur serta validasi server existing. Panduan: docs/attendance-points.md.
+Absen pada hari libur memakai kebijakan per jadwal dan memerlukan migration 080. Baca [pengaturan Jadwal Kerja](docs/work-schedules.md) dan [kontrak absensi mobile](docs/mobile-attendance.md).

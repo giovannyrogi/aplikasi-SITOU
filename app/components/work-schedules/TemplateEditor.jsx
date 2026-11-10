@@ -384,6 +384,11 @@ export default function TemplateEditor({
                 onSearch={opts.onSearch}
               />
             </Form.Item>
+            <FormSettingSwitch
+              name="allowHolidayAttendance"
+              title="Izinkan absen pada hari libur"
+              description="Berlaku saat tidak ada jadwal kerja khusus. Catatan wajib diisi."
+            />
             {opts.error && (
               <Box role="alert">
                 <FontStyle>{opts.error}</FontStyle>

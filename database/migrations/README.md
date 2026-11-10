@@ -285,3 +285,6 @@ Menghapus `locations.code` setelah migration 075. ID dan relasi lokasi tetap. Te
 ### 079 — bukti dan rekap absensi
 
 20261105_079_attendance_reporting_foundation.sql menambah metrik waktu terstruktur, snapshot titik/zona waktu, constraint komposit serta metrik rekap sesi. Jalankan melalui runner existing setelah 078. Tidak mengubah event lama dan tidak membuat bukti historis perkiraan. Rekap ulang opsional melalui scripts/rebuild-attendance-summaries.mjs; baca docs/mobile-attendance.md untuk dry-run, batas batch dan pemilihan ENV_FILE. Jalur upgrade dan bootstrap dibandingkan oleh db:verify-bootstrap.
+### 080 — Absen pada hari libur
+
+Jalankan `npm run db:migrate -- database/migrations/20261105_080_holiday_attendance.sql` pada database development yang sudah menerapkan 079. Migration menambah kebijakan per jadwal, bukti bekerja saat libur, serta metrik rekap yang membedakan nilai nol dari penilaian yang tidak berlaku. Lihat [kontrak absensi mobile](../../docs/mobile-attendance.md).
