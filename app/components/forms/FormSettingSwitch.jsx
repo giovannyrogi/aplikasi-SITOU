@@ -27,9 +27,11 @@ export function FormSettingsGroup({ children, sx }) {
 /**
  * Pengaturan boolean yang menyatukan label, bantuan, aksesibilitas, dan field lanjutan.
  * Field lanjutan dilepas dari tampilan saat nonaktif, tetapi nilainya tetap dipertahankan Form.
+ * Di dalam Form.List, watchName memakai jalur lengkap, sedangkan name relatif terhadap daftar.
  */
 export default function FormSettingSwitch({
   name,
+  watchName = name,
   title,
   description,
   notice,
@@ -41,7 +43,7 @@ export default function FormSettingSwitch({
   formItemProps = {},
 }) {
   const form = Form.useFormInstance();
-  const enabled = Form.useWatch(name, form);
+  const enabled = Form.useWatch(watchName, form);
   const descriptionId = useId();
   const helpText = disabled && disabledReason ? disabledReason : description;
   const currentNotice = notice ? (enabled ? notice.on : notice.off) : null;

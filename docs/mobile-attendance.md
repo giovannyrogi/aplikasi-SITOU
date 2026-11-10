@@ -7,11 +7,25 @@ Flutter memakai bearer mobile dan identitas Pegawai dari sesi. Hak profil dan pe
 - POST `/api/mobile/attendance/events` menerima multipart dengan satu bagian teks `data` (JSON preflight ditambah `proof`, UUID `clientEventId`, dan `note` maksimal 500 karakter, wajib bila posisi akhir di luar radius) serta satu `photo` maksimal 5 MiB. Backend memvalidasi ulang dan mengembalikan hasil dengan jam UTC, tanggal kerja, sesi, titik, dan zona waktu. Respons sukses juga berisi `note` string atau null dari catatan event yang tersimpan. Nilai telah dipangkas pada validasi input dan dibatasi 500 karakter. `pointName` berasal dari titik absensi yang dipakai, bukan profil/penempatan Pegawai. `occurredAt` dan `timezone` menentukan tanggal/jam kejadian; `workDate` tetap tanggal kerja sesi. UUID sama dan payload/foto sama mengembalikan hasil asli. Replay event lama melengkapi `note` dari `attendance_events.attendance_note` tanpa mengubah event atau receipt tersimpan. UUID dengan isi berbeda ditolak.
 - Posisi di luar radius memakai titik yang berizin dan GPS yang memenuhi batas akurasi. Preflight mengembalikan `requiresNote: true`. Saat kirim, server menghitung ulang jarak dan menolak catatan kosong dengan HTTP 422 `OUTSIDE_NOTE_REQUIRED`. Event yang diterima menyimpan `geofence_status = outside` dan catatannya, dengan `validation_status = valid` sehingga urutan masuk/keluar tetap berjalan. Alur ini tidak memiliki tahap persetujuan. Klien lama menerima kontrak tambahan secara kompatibel, tetapi dapat gagal kirim di luar radius bila belum menyediakan isian catatan. Rilis aplikasi bersama perubahan API.
 - Sesi tanpa aturan masuk khusus dibuka sejak awal tanggal kerja untuk sesi pertama. Sesi berikutnya dibuka setelah batas sesi sebelumnya bila tidak memiliki jendela khusus. Absen keluar mengacu ke sesi masuk terakhir yang belum ditutup. Memulai sesi lain meninggalkan sesi lama tanpa jam keluar. Shift malam mengikuti tanggal mulai. Waktu event online mengikuti server.
-- Foto privat memakai kategori `attendance_photo` pada `UPLOAD_ROOT/org_<id>/absensi/<tahun>/`. Metadata dan event berada dalam transaksi. Gunakan ClamAV sesuai konfigurasi deployment dan aturan upload existing. UUID bukan akses baca foto, dan respons absensi tidak mengandung URL foto.
+- Foto privat memakai kategori `attendance_photo`. Metadata dan event berada dalam transaksi. Gunakan ClamAV sesuai konfigurasi deployment dan aturan upload existing. Akses file mengikuti file ID berizin. Respons absensi tidak memuat URL, nama fisik atau path foto.
 
 Pengaturan **Data Master → Organisasi → Peta absensi** hanya dapat disimpan Superadmin. `attendanceMapProvider` opsional pada API organisasi, dengan pilihan `openstreetmap` atau `google`. Default organisasi baru dan existing adalah OpenStreetMap. PATCH yang tidak mengirim pilihan mempertahankan nilai tersimpan. GET absensi mengirim `mapProvider` dari organisasi sesi. Tidak ada API key, URL tile, atau kredensial di API ini. Migration 078 wajib sebelum merilis kode baru.
 
 Migration 077 menambahkan `schedule_session_id` dan `attendance_note` pada event, constraint komposit sesi, serta hash payload di receipt. Event lama masih bisa memiliki relasi sesi kosong. Sebelum merilis backend, terapkan migration dan restart aplikasi bersama rilisnya. Endpoint login, cookie web dan endpoint dashboard tetap memakai kontrak existing. Jangan terapkan skema bootstrap ke database existing.
+
+## Susunan folder selfie baru
+
+Contoh object key relatif terhadap UPLOAD_ROOT:
+
+```text
+org_1/absensi/2026/kantor-pusat-12/unit-operasional-5/11/10/budi-pulang-002523-<uuid>.png
+```
+
+- Tahun, bulan dan hari berasal dari tanggal kerja sesi. Foto pulang setelah tengah malam tetap berada bersama foto masuk pada tanggal kerja yang sama. Jam HHmmss berasal dari waktu server dalam zona organisasi.
+- Lokasi dan divisi/unit memakai nama penempatan utama efektif pada tanggal kerja, terikat organisasi dan pegawai sesi. Akhiran ID menjaga nama hasil normalisasi tetap terpisah. Titik absen aktual tetap tercatat secara terpisah. Bila penempatan tidak tersedia pada tanggal kerja, folder memakai tanpa-penempatan dan tanpa-unit tanpa memperluas hak absen.
+- Nama file memakai awalan nama depan, jenis absen, jam, dan UUID penuh buatan server. Server menormalisasi label ke huruf ASCII, angka dan tanda hubung, membatasi panjang dan memakai pegawai jika nama depan tidak dapat dibentuk dengan aman. Angka dikeluarkan dari nama depan. Ekstensi mengikuti MIME yang terdeteksi dari byte. Nama lengkap, NIP, NIK dan nama file klien tidak dipakai pada path.
+- POST events memeriksa ulang izin, jadwal, titik, receipt dan bukti GPS sebelum menentukan folder. File ditulis sementara di folder tujuan dan dipublikasikan atomik tanpa timpa lewat hard link pada filesystem lokal. Gunakan volume UPLOAD_ROOT yang mendukung hard link. Kegagalan transaksi membersihkan file baru. Replay mengembalikan hasil sebelumnya tanpa menulis file lagi.
+- Database memakai stored_files.object_key dan attendance_events.photo_file_id yang sudah ada. Pemeliharaan dan backup membaca object key tersimpan. File dari format terdahulu tetap dapat dibaca dari metadata bila ada. Struktur ini berlaku saat backend baru berjalan dan tidak membutuhkan migrasi database atau perubahan APK.
 
 ## Bukti terstruktur dan rekap (migration 079)
 
@@ -50,3 +64,21 @@ Klien yang mendukung alur ini mengirim header `X-SITOU-Attendance-Version: 2` pa
 - Event `holiday_work` memiliki `timing.version: 2` dan `category: not_applicable`. Acuan dan metrik penilaian waktu bernilai null. Rekap menyimpan tanggal dan status libur, penanda bekerja saat libur, serta durasi aktual setelah pasangan lengkap. Persetujuan lembur dan kompensasi tidak dibuat oleh alur ini.
 
 Urutan rilis adalah migration 080 setelah 079, backend, lalu klien Flutter yang mendukung header baru.
+
+## Bukti GPS dekat batas radius
+
+Setelah sampel lolos batas akurasi, preflight dan hasil simpan mengembalikan nearRadiusBoundary berupa boolean. Server menandai jika nilai mutlak selisih jarak terhadap radius kurang dari atau sama dengan angka akurasi. Jarak dan akurasi dipakai sebelum pembulatan. Hasil simpan dihitung ulang dengan konfigurasi yang berlaku saat event disimpan dan menjadi bagian dari attendance_events.validation_details.result. Input tetap memakai allowlist yang sama. Penanda tidak mengubah geofence_status, aturan catatan, ataupun keputusan validasi event. Tinjau penanda bersama posisi, jarak dan akurasi, tanpa menyimpulkan manipulasi GPS hanya dari penanda tersebut.
+
+Replay mengembalikan penanda event asli. Event lama tanpa penanda berarti belum dinilai dan tetap tidak diubah. Kolom JSONB existing sudah sesuai untuk bukti per event, sehingga tidak diperlukan tabel, kolom, index atau migration baru. Tampilan dan filter laporan ditunda. Pengaturan radius serta batas akurasi setiap lokasi dipertahankan.
+
+## Absen di luar jadwal
+
+Setelah semua sesi terjadwal pada hari kerja berakhir, backend menawarkan sesi tambahan apabila tidak ada sesi yang harus ditutup. Jadwal khusus diselesaikan oleh resolver existing dan mendapat prioritas yang sama dengan sesi terjadwal lainnya. Jika jadwal khusus berakhir lebih malam, sesi tambahan baru tersedia setelah jam akhirnya. Hari libur tetap memakai kebijakan absen saat libur. Hari tanpa jadwal tidak memperoleh sesi tambahan otomatis.
+
+Sesi tambahan berisi waktu aktual dari server dan alasan wajib saat masuk dan pulang. Nomor 17–32 dicadangkan untuk pasangan sesi tambahan pada tanggal kerja, terpisah dari sesi terjadwal 1–16. Mulai sesi tambahan berikutnya setelah sesi sebelumnya ditutup. Absen pulang dapat dicatat setelah tengah malam memakai tanggal kerja asal selama sesi masih terbuka.
+
+Klien versi 3 mengirim X-SITOU-Attendance-Version: 3 pada endpoint baca, preflight, dan events. Versi 2 tetap mendukung hari libur. Sesi tambahan hanya ditawarkan untuk versi 3. DTO sesi, preflight dan hasil memakai outsideSchedule. Lokasi di luar radius tetap memakai outsideRadius sehingga kedua penanda dapat muncul bersama. Pengiriman tanpa alasan ditolak dengan OUTSIDE_SCHEDULE_NOTE_REQUIRED. Backend memeriksa ulang sesi dan akses di bawah lock yang sama dengan absensi lain. Replay identik tetap mengembalikan event asli.
+
+Migration 081 menambah outside_schedule_session_no pada attendance_events dan mengizinkan work_context=outside_schedule dengan penilaian versi 2, kategori not_applicable, dan tautan ke jadwal harian existing. Sesi tambahan tidak membuat shift fiktif. Rekap memasangkan nomor sesi dalam satu jadwal harian, menjumlahkan durasi aktual, dan menyimpan outsideScheduleSessions serta outsideScheduleWorkedMinutes dalam calculation_details. Hari dengan sesi tambahan ditandai needs_review. Durasi tambahan tidak mengisi kandidat atau persetujuan lembur. Absensi terjadwal yang terlewat tetap tercatat.
+
+Urutan rilis adalah migration 081 setelah 080, backend, lalu APK dengan header versi 3. Sebelum memasang APK baru pada server lama yang memerlukan akses hari libur, naikkan versi backend agar versi 3 dikenali.

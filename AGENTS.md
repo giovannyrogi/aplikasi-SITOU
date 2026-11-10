@@ -55,6 +55,7 @@ Route handler tidak boleh berisi query dan aturan bisnis panjang. Gunakan servic
 
 - Skema referensi: `sitou_schema_v3.sql`.
 - Panduan baca cepat database: `docs/database-schema.md`. Buka dokumen ini lebih dulu untuk memahami tabel, kolom penting, relasi, dan aturan data; buka `sitou_schema_v3.sql` hanya ketika perlu detail constraint, index, view SQL, atau membuat migration.
+- Sebelum mengusulkan tabel atau kolom, periksa skema acuan, migration, relasi, dan sumber data yang sudah ada. Catat alasan pemilihan desain. Pakai struktur yang sudah ada bila makna, batas organisasi, dan kebutuhan histori terpenuhi. Tambah struktur hanya untuk kebutuhan yang tidak dapat dipenuhi dengan desain saat ini, misalnya relasi, constraint, atau pencarian. Jika struktur berubah, sinkronkan migration, skema acuan, dan dokumentasi pada perubahan yang sama.
 - Perubahan database hanya melalui migration baru; jangan mengedit database produksi manual.
 - Setiap migration baru yang mengubah schema wajib pada perubahan yang sama direfleksikan ke `sitou_schema_v3.sql`. File tersebut harus selalu merepresentasikan schema akhir setelah seluruh migration diterapkan dan menjadi sumber bootstrap untuk membuat database SITOU baru dari kondisi kosong.
 - Pembaruan `sitou_schema_v3.sql` tidak menggantikan migration dan tidak boleh dipakai untuk memperbarui database yang sudah berjalan. Database development, staging, dan production yang sudah ada tetap disinkronkan dengan menjalankan migration yang belum tercatat.
@@ -333,7 +334,8 @@ Lifecycle tindakan disiplin wajib mempertahankan histori: status `draft` masih d
 - Dokumen histori resmi seperti kontrak, SK penempatan, dan surat sanksi memakai soft delete/retention dan tidak boleh dihapus fisik melalui form profil. Lampiran profil yang dapat diganti seperti pas foto, identitas, pendidikan, dan sertifikasi wajib menghapus byte fisik setelah penghapusan referensi database berhasil.
 - Development memakai `UPLOAD_ROOT` atau default `<project>/uploads`; production wajib memakai mounted persistent storage yang dibackup, bukan filesystem ephemeral.
 - Struktur pegawai wajib `org_{organizationId}/pegawai/employee_{employeeId}/{kategori}/{tahun}/{uuid}.{ext}`. Kategori meliputi `pas_foto`, `identitas/ktp`, `identitas/kk`, `identitas/npwp`, `kontrak`, `pendidikan`, `sertifikasi`, `sanksi/sp1|sp2|sp3|lainnya`, dan `dokumen_lain`.
-- Nama fisik wajib UUID. Nama pegawai, NIK, nomor rekening, nomor surat, dan data pribadi lain dilarang berada dalam object key, path, atau log.
+- Nama fisik wajib memuat UUID. Nama pegawai, NIK, nomor rekening, nomor surat, dan data pribadi lain dilarang berada dalam object key, path, atau log. Pengecualian khusus selfie absensi baru mengizinkan awalan nama depan yang disanitasi pada nama fisik di storage privat. Nama lengkap, NIP dan NIK tetap dilarang. Path atau nama fisik selfie tidak boleh dikirim ke klien atau ditulis di log.
+- Selfie absensi baru memakai org_<id>/absensi/<tahun>/<lokasi>-<id>/<unit>-<id>/<bulan>/<hari>/<nama-depan>-<masuk|pulang>-<HHmmss>-<uuid>.<ext>. Gunakan penempatan utama efektif pada tanggal kerja dan jam kejadian dalam zona organisasi. Semua segmen berasal dari data server dan nama label dinormalisasi serta dibatasi. UUID dan publikasi atomik tanpa timpa melindungi file yang sudah ada.
 - Browser hanya menerima ID metadata dan mengakses `/api/uploads/:fileId`; endpoint catch-all berdasarkan path dilarang.
 - Response file memakai `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`, CSP ketat, nama download tersanitasi, authorization organisasi/scope, dan audit untuk preview/download sensitif.
 - Gambar menerima JPEG/PNG/WebP maksimal 5 MB. Dokumen menerima PDF maksimal 10 MB; DOCX hanya untuk kategori yang membutuhkannya dan tidak dipreview inline. MIME harus dideteksi dari byte.
@@ -605,6 +607,7 @@ Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau developme
 - Proses paralel wajib memakai token/counter provider agar satu proses yang selesai tidak menutup backdrop milik proses lain. Gunakan loading lokal seperti skeleton, spinner tombol, atau loading select hanya untuk proses nonblocking yang terbatas pada komponen tersebut.
 - Status berhasil atau gagal pada login, navigasi yang memerlukan feedback, dan CRUD wajib memakai reusable `app/components/Notifications/Notification.jsx`. Periksa komponen loading dan notifikasi yang ada sebelum membuat komponen baru.
 - Status tidak hanya disampaikan dengan warna; tambahkan label/ikon.
+- Pada tampilan dan laporan absensi, gunakan komponen bersama dengan warna semantik, label dan ikon per kategori. Gunakan hijau untuk absensi normal, jingga untuk terlambat, emas tua untuk pulang lebih awal, hijau kebiruan untuk masuk lebih awal, biru untuk pulang lebih lambat, merah untuk di luar radius, dan abu kebiruan untuk bekerja saat libur. Tampilkan kondisi waktu dan lokasi secara terpisah jika keduanya berlaku. Ambil kategori dari data backend dan gunakan token tema terpusat.
 - List umum memasking data sensitif.
 - Pimpinan melihat ringkasan dan histori, bukan tombol edit.
 - Form panjang memakai stepper, draft server yang aman, dan peringatan perubahan belum disimpan.
@@ -1110,6 +1113,8 @@ Dashboard Pegawai memakai banner profil, tiga ringkasan sesuai izin, saldo per j
 
 
 ## Absensi self-service mobile
+
+- Jadwal khusus dan sesi terjadwal selalu didahulukan. Setelah seluruh sesi tanggal kerja berakhir dan tidak ada sesi terbuka, klien absensi versi 3 dapat mencatat sesi tambahan terpisah. Alasan, GPS, titik berizin dan selfie tetap wajib. Pasangkan masuk/pulang dengan nomor sesi tambahan dan tandai untuk tinjauan. Simpan di luar jadwal terpisah dari terlambat, hari libur, dan lembur disetujui. Lihat docs/mobile-attendance.md.
 
 - API self-service memakai bearer mobile dan identitas Pegawai dari sesi, gerbang modul Absensi serta hak profil dan penempatan sendiri. Preflight memeriksa titik sebelum selfie. Mutasi memvalidasi ulang, mengunci organisasi dan Pegawai, serta mencatat event append-only per sesi dan receipt idempotensi. Foto privat melalui storage existing. Di luar radius titik berizin, server menerima absensi hanya dengan alasan terisi dan menyimpan geofence `outside`. Akurasi GPS, jadwal, izin titik, serta selfie tetap wajib. Lihat `docs/mobile-attendance.md`.
 

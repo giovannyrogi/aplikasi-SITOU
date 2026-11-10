@@ -288,3 +288,5 @@ Menghapus `locations.code` setelah migration 075. ID dan relasi lokasi tetap. Te
 ### 080 — Absen pada hari libur
 
 Jalankan `npm run db:migrate -- database/migrations/20261105_080_holiday_attendance.sql` pada database development yang sudah menerapkan 079. Migration menambah kebijakan per jadwal, bukti bekerja saat libur, serta metrik rekap yang membedakan nilai nol dari penilaian yang tidak berlaku. Lihat [kontrak absensi mobile](../../docs/mobile-attendance.md).
+
+Migration 081 menambah nomor pasangan untuk sesi tambahan, context bukti di luar jadwal dan constraint alasan pada attendance_events. Jalankan npm run db:migrate -- database/migrations/20261110_081_outside_schedule_attendance.sql pada development sesudah 080, lalu npm run db:verify-bootstrap. Urutan penerapan adalah migration, backend, kemudian APK dengan header versi 3. [Kontrak absensi](../../docs/mobile-attendance.md#absen-di-luar-jadwal).

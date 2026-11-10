@@ -24,7 +24,7 @@ konfirmasi menampilkan organisasi asal dari server.
 Kategori resmi dan employee_id bukan bukti bahwa file masih digunakan. Referensi
 histori tetap dilindungi tanpa menyaring status akhir pegawai. Draft aktif dan
 upload baru dilindungi. Inventaris filesystem mencocokkan semua lifecycle agar
-arsip retained/purged/quarantined tidak dianggap file tanpa catatan.
+arsip retained/purged/quarantined tidak dianggap file tanpa catatan. Selfie absensi dikelompokkan menurut penempatan dan tanggal kerja. Pemeliharaan mengikuti object key tersimpan dan referensi absensi pada kedua susunan folder. [Susunan selfie](mobile-attendance.md#susunan-folder-selfie-baru)
 
 ## Eksekusi dan keamanan
 

@@ -1,5 +1,10 @@
 # Catatan perubahan SITOU
 
+## 2026-11-10 — Notifikasi switch jadwal kerja
+
+- Modal Buat/Edit Jadwal Kerja memakai notifikasi bersama untuk Pulang hari berikutnya, Kurangi durasi kerja dengan istirahat, dan Izinkan absen pada hari libur. Notifikasi mengikuti nilai setiap pengaturan, termasuk pada jam khusus dan pilihan shift.
+- Chrome lokal dengan data sintetis memverifikasi status, navigasi keyboard, nilai form, dan tata letak pada lebar 320–1920 piksel. Build produksi terisolasi dan 20 tes jadwal lulus.
+
 ## 2026-11-10 — Absen pada hari libur
 
 - Form dan ringkasan Jadwal Kerja menambahkan izin absen pada hari libur. Kebijakan tersimpan per jadwal tetap atau kelompok shift. Perubahan jadwal terpakai menggunakan revisi bertanggal. Jadwal khusus HRD dan tanggal kerja awal shift malam tetap berlaku.
@@ -741,3 +746,33 @@ Pembersihan akhir: seluruh empat script sementara, tiga screenshot dan folder QA
 - Lint file backend terkait lulus; npm run build lulus di luar sandbox (percobaan sandbox gagal membuat junction Turbopack). Flutter 3 test lulus, analyze tanpa isu, format sesuai, APK debug lulus. Tidak mengubah UI sehingga tidak ada render baru; uji absensi perangkat/HTTP end-to-end dan regresi interaktif login web belum dilakukan pada pekerjaan ini.
 - Batas: rekap hanya snapshot berisi event; hari tanpa event/cuti/izin/koreksi perlu rekonsiliasi laporan berikutnya. Durasi sesi terbuka tidak final; kandidat pulang lewat jam bukan lembur disetujui. Tidak ada deploy/restart/migration VPS.
 - Artefak QA yang dibuat: lib/attendance-points/reporting_temporary.test.mjs, scripts/attendance-reporting-qa.tmp.mjs; keduanya dihapus setelah hasil dicatat. Database sitou_reporting_qa_* telah dibuang (pemeriksaan sisa=0). Tidak ada foto/screenshot/dump QA dibuat.
+
+## 2026-11-10 — Bukti GPS dekat batas radius
+
+- lib/attendance-points/mobile.js menghitung nearRadiusBoundary dari jarak server, radius titik dan akurasi perangkat sebelum pembulatan. Hasil preflight dan simpan memuat boolean tersebut. Hasil akhir masuk ke attendance_events.validation_details.result, ikut dikembalikan saat replay, dan tidak mengubah status geofence atau catatan wajib untuk absensi di luar radius.
+- AGENTS.md, docs/database-schema.md dan docs/mobile-attendance.md mendokumentasikan pemeriksaan skema, API, dan bukti historis. Tabel/kolom/migration baru tidak diperlukan karena penanda merupakan bukti per event, dan event lama tanpa penanda tetap belum dinilai. Struktur absensi sampai 080 terkonfirmasi pada DB development melalui query metadata. Tidak ada perubahan dashboard, pengaturan kantor atau VPS.
+- Risiko dan kontrol: penanda dihitung server setelah batas akurasi lolos dan input klien tetap memakai allowlist. GPS yang meragukan dekat batas tidak dianggap kecurangan. Hasil tidak memberi jaminan terhadap koordinat yang dipalsukan oleh klien termodifikasi. Penyimpanan dan log tidak menambah data sensitif baru.
+- Verifikasi: QA service sumber asli dengan PostgreSQL temporary tables (auth/storage/snapshot sintetis) lulus untuk dalam/luar/batas, toleransi akurasi, input palsu, perhitungan ulang saat menyimpan, JSONB, replay identik/konflik/legacy dan catatan wajib. Rollback/drop otomatis membersihkan tabel sintetis. Tiga rute absensi lokal tanpa sesi mengembalikan 401 UNAUTHENTICATED. ESLint file terkait, 20 tes regresi jadwal, dan build Next.js lulus. Skrip sementara scripts/gps-boundary-qa.tmp.mjs dibersihkan.
+
+### Pedoman indikator absensi
+
+- AGENTS.md dan docs/ui-ux-guidelines.md menyelaraskan warna, label, dan ikon tiap kondisi absensi dengan mobile. Keterangan waktu dan lokasi bisa berdampingan sebagai indikator berbeda. Pedoman ini menjadi acuan untuk daftar, detail dan laporan absensi. Pemeriksaan dilakukan pada perubahan dokumen. Tidak ada perubahan kode dashboard, API, skema atau VPS untuk penyelarasan tampilan ini.
+
+### Sinkronisasi pedoman warna absensi
+
+- AGENTS.md dan docs/ui-ux-guidelines.md menetapkan emas tua untuk Pulang lebih awal agar selaras dengan mobile. Perubahan dokumen ini diverifikasi melalui diff dan tidak mengubah kode dashboard atau penyimpanan absensi.
+
+## 2026-11-10 — Struktur privat selfie absensi
+
+- lib/attendance-points/mobile.js memvalidasi sesi, izin, GPS, jadwal dan receipt sebelum menyimpan file. Penempatan utama dan nama depan diambil dari profil sesi di organisasi yang sama, berdasarkan tanggal kerja. Pengiriman ulang mengembalikan hasil existing sebelum penulisan file. Titik absen aktual tetap berasal dari titik yang dipakai.
+- lib/files/storage.js menyimpan selfie baru menurut tahun, nama lokasi dan unit berakhiran ID, bulan dan hari. Nama fisik berisi nama depan tersanitasi, jenis absen, jam kejadian zona organisasi dan UUID. Format diambil dari byte. File sementara diterbitkan secara atomik tanpa menimpa file yang ada dan dibersihkan bila transaksi gagal. Upload pegawai umum memakai pipeline yang sama dengan tujuan existing.
+- lib/storage-maintenance/shared.mjs, worker.mjs dan service.js menyamarkan nama fisik selfie tanpa metadata pada label karantina. Worker dan lib/api/routeHelpers.js mencatat kode operasi pada kegagalan filesystem agar nama/path tidak bocor melalui pesan error OS.
+- AGENTS.md, docs/mobile-attendance.md, docs/database-schema.md dan docs/storage-maintenance.md menyelaraskan kontrak, pengecualian terbatas untuk nama depan dan operasi pemeliharaan. Pengelompokan memakai kolom existing dan hanya berlaku pada selfie baru. Tidak ada perubahan endpoint, skema, permission, APK atau deployment VPS. UPLOAD_ROOT perlu filesystem dengan hard link.
+- QA: alur preflight/simpan sintetis memakai sumber handler dan filesystem nyata dengan stub transaksi, sesi, jadwal dan pemindaian. Lulus untuk shift lintas tengah malam, titik berbeda dari penempatan, request paralel dan replay, konflik payload, path injection, MIME palsu, rollback, UUID sama dipaksa, symlink, tanpa penempatan, isolasi key organisasi, pemeliharaan dan regresi staging pas foto. Query penempatan PostgreSQL development lulus dalam transaksi baca saja. Ketiga endpoint lokal mengembalikan HTTP 401 tanpa sesi. Lint file terkait dan build Next.js lulus. Absensi dengan akun nyata, perangkat, dan rollout VPS belum diuji. Pengujian memakai scripts/attendance-photo-qa.tmp.mjs dan direktori sistem sementara yang dibersihkan setelah uji.
+
+## 2026-11-10 — Sesi absensi di luar jadwal
+
+- lib/attendance-points/outside-schedule.mjs dan mobile.js menawarkan sesi tambahan setelah seluruh sesi terjadwal hari kerja berakhir dan sesi terbuka telah ditutup. Resolver jadwal khusus tetap menjadi sumber jadwal. Nomor tambahan 17–32 memisahkan masuk/pulang tambahan dari shift terjadwal. Kontrak 3 mengirim outsideSchedule. Versi 2 tetap mendapat sesi terjadwal dan kebijakan libur. Preflight dan simpan memakai izin, lokasi, foto, lock dan idempotensi existing. Alasan masuk/pulang wajib dan tersimpan sebagai bagian bukti.
+- database/migrations/20261110_081_outside_schedule_attendance.sql dan sitou_schema_v3.sql menambah nomor pasangan serta constraint context/alasan. Jadwal harian existing tetap induk untuk relasi tanggal kerja. Penilaian versi 2 memakai kategori not_applicable. lib/attendance-points/timing.mjs dan summaries.mjs mencatat durasi tambahan secara terpisah, mempertahankan absen terjadwal yang terlewat, dan menandai rekap perlu tinjauan. Durasi tambahan tidak menyetujui atau menambah kandidat lembur.
+- AGENTS.md, README.md, database/migrations/README.md, docs/database-schema.md, docs/mobile-attendance.md, docs/work-schedules.md dan docs/ui-ux-guidelines.md diperbarui. Deployment memerlukan migration lalu backend dan APK. VPS belum diterapkan.
+- QA lokal: dry-run migration dengan rollback lulus, migration 081 diterapkan ke sitou_db dan db:verify-bootstrap menyatakan skema event, index dan constraint setara. Handler asli diuji dengan jadwal lokal, override jadwal khusus sintetis, sesi autentikasi dan storage stub, serta INSERT pada tabel sementara yang di-rollback. Lulus untuk versi 2/3, prioritas jadwal khusus, alasan wajib dan constraint, payload organisasi palsu, replay/konflik, pulang lintas tengah malam, nomor sesi berikutnya dan rekap tanpa lembur. Endpoint lokal tanpa sesi mengembalikan 401. Lint terkait dan build Next.js lulus. Tidak mengirim absensi nyata atau foto. Tidak ada skrip QA baru yang tersimpan di proyek backend.

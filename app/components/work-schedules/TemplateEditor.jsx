@@ -387,7 +387,18 @@ export default function TemplateEditor({
             <FormSettingSwitch
               name="allowHolidayAttendance"
               title="Izinkan absen pada hari libur"
-              description="Berlaku saat tidak ada jadwal kerja khusus. Catatan wajib diisi."
+              notice={{
+                on: {
+                  title: "Absen pada hari libur diizinkan",
+                  description:
+                    "Jika tidak ada jadwal kerja khusus, Pegawai dapat absen dengan alasan.",
+                },
+                off: {
+                  title: "Absen pada hari libur dibatasi",
+                  description:
+                    "Pegawai hanya dapat absen pada hari libur jika ada jadwal kerja khusus.",
+                },
+              }}
             />
             {opts.error && (
               <Box role="alert">

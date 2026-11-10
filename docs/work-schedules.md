@@ -289,3 +289,7 @@ Buka **Jadwal Kerja**, buat atau edit jadwal, lalu aktifkan **Izinkan absen pada
 Opsi ini berlaku pada libur mingguan dan hari libur kalender bagi Pegawai dengan penetapan yang berlaku. Jadwal khusus berisi jam kerja yang ditetapkan HRD selalu dipakai lebih dulu dan dinilai sesuai jam tersebut. Tanpa jadwal khusus, Pegawai dapat mencatat satu pasangan absen masuk dan pulang dengan alasan pada setiap kiriman. Kelola Jadwal Kerja dan aktivasi modul Absensi tetap diperlukan. Lihat [kontrak absensi mobile](mobile-attendance.md).
 
 API buat/edit jadwal reguler dan kelompok shift menerima boolean opsional `allowHolidayAttendance`. Saat edit, field yang tidak dikirim mempertahankan nilai tersimpan. Respons master mengembalikan `allow_holiday_attendance`.
+
+### Prioritas jadwal untuk absensi
+
+Jadwal khusus tetap menentukan sesi yang berlaku pada tanggal kerja. Backend hanya membuka sesi tambahan setelah sesi terjadwal terakhir berakhir dan sesi sebelumnya sudah ditutup. Sesi tambahan tidak mengubah jadwal Pegawai. Lihat [kontrak absensi](mobile-attendance.md#absen-di-luar-jadwal).

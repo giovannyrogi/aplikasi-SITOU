@@ -76,15 +76,37 @@ export default function WorkTimeFields({
       <FormSettingsGroup sx={{ gridColumn: "1 / -1", mt: 1, mb: 3 }}>
         <FormSettingSwitch
           name={path("nextDay")}
+          watchName={[...watchPrefix, "nextDay"]}
           title="Pulang hari berikutnya"
           disabled={readOnly}
-          description="Aktifkan jika jam pulang melewati tengah malam. Contoh: masuk 22.00, pulang 06.00 besok."
+          notice={{
+            on: {
+              title: "Pulang hari berikutnya",
+              description: "Jam pulang jatuh pada hari berikutnya.",
+            },
+            off: {
+              title: "Pulang pada hari yang sama",
+              description:
+                "Aktifkan jika jam pulang melewati tengah malam, misalnya masuk pukul 22.00 dan pulang pukul 06.00 besok.",
+            },
+          }}
         />
         <FormSettingSwitch
           name={path("deductBreak")}
+          watchName={[...watchPrefix, "deductBreak"]}
           title="Kurangi durasi kerja dengan istirahat"
           disabled={readOnly}
-          description="Aktifkan untuk mengurangi durasi kerja dengan waktu istirahat."
+          notice={{
+            on: {
+              title: "Istirahat mengurangi durasi kerja",
+              description: "Waktu istirahat dikurangi dari rentang jam kerja.",
+            },
+            off: {
+              title: "Istirahat tetap dihitung",
+              description:
+                "Durasi kerja dihitung dari seluruh rentang jam masuk hingga jam pulang.",
+            },
+          }}
         />
       </FormSettingsGroup>
       <Box sx={{ gridColumn: "1 / -1" }}>
