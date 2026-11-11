@@ -1900,6 +1900,7 @@ COMMENT ON TABLE inventory_warehouses IS 'Gudang organisasi pada lokasi operasio
 COMMENT ON TABLE organization_modules IS 'Aktivasi fitur organisasi terpisah dari paket akun; tanpa record berarti nonaktif.';
 INSERT INTO access_modules(code,name) VALUES('inventory','Inventaris');
 INSERT INTO access_modules(code,name) VALUES('attendance','Absensi');
+INSERT INTO access_modules(code,name) VALUES('attendance_selfie_check','Pemeriksaan selfie');
 INSERT INTO access_packages(code,module_code,name) VALUES
  ('inventory_reader','inventory','Pembaca Persediaan'),('inventory_manager','inventory','Pengelola Persediaan');
 INSERT INTO permissions(code,description) VALUES
@@ -2016,6 +2017,7 @@ CREATE TABLE hris_menu_definitions (
 );
 INSERT INTO hris_menu_definitions(code,label,group_label,route_path,can_manage) VALUES
  ('leave-summary-report','Rekap Cuti & Izin','Laporan','/reports/leave-summary',false),
+ ('attendance-summary-report','Rekap Absensi','Laporan','/reports/attendance-summary',false),
  ('dashboard','Dashboard','Dashboard','/dashboard',false),
  ('master-locations','Lokasi','Data Master','/master-data/locations',true),
  ('master-organization-unit-types','Jenis Unit Organisasi','Data Master','/master-data/organization-unit-types',true),

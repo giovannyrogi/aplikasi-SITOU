@@ -108,13 +108,13 @@ try {
   try {
     await upgraded.connect();
     const moduleCatalogSql =
-      "SELECT code,name FROM access_modules WHERE code IN ('inventory','attendance') ORDER BY code";
+      "SELECT code,name FROM access_modules WHERE code IN ('inventory','attendance','attendance_selfie_check') ORDER BY code";
     const [freshModules, existingModules] = await Promise.all([
       bootstrap.query(moduleCatalogSql),
       upgraded.query(moduleCatalogSql),
     ]);
     checks.organization_modules_catalog_matches_upgrade =
-      freshModules.rows.length === 2 &&
+      freshModules.rows.length === 3 &&
       JSON.stringify(freshModules.rows) === JSON.stringify(existingModules.rows);
     const pointMenuSql = "SELECT * FROM hris_menu_definitions WHERE code='attendance-point-access'";
     const [freshPointMenu, existingPointMenu] = await Promise.all([

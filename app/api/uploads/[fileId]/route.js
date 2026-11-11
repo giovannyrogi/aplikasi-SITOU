@@ -89,6 +89,8 @@ export async function GET(request, { params }) {
     const sensitive = await actorHasPermission(user, "private_files.read_sensitive");
     if (!/^\d+$/.test(fileId)) throw new ServiceError("FILE_FORBIDDEN", "Anda tidak memiliki akses ke file tersebut.", 403);
     const file = await getStoredFile(fileId, organizationId);
+    if (file.category === "attendance_photo")
+      throw new ServiceError("FILE_FORBIDDEN", "Buka foto melalui rincian Rekap Absensi.", 403);
     if (request.method === "DELETE" && !canUseHrisFile(user,file.category,true)) throw new ServiceError("FILE_FORBIDDEN","Pengubahan lampiran ini belum diberikan.",403);
     const actorPhoto = file.category === "employee_photo" && new URL(request.url).searchParams.has("inventoryActorTransactionId");
     const selfView = new URL(request.url).searchParams.get("view") === "self";

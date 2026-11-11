@@ -202,6 +202,8 @@ Koreksi salah input penempatan menggunakan `PATCH /api/employees/:employeeId/ass
 | `attendance_events`            | Event absensi mentah partisi bulanan.            | `event_date`, `employee_id`, `receipt_id`, `daily_schedule_id`, `schedule_session_id`, `attendance_point_id`, `device_id`, `event_type`, `occurred_at`, `source`, koordinat, validasi, foto, `geofence_status`, `attendance_note`, offline flag. Untuk event mobile di luar radius, service mewajibkan catatan dan menyimpan `outside`. API hasil mobile mengembalikan `attendance_note` sebagai `note`, termasuk replay event lama, tanpa perubahan struktur. |
 | `attendance_daily_summaries`   | Rekap cepat dashboard.                           | `employee_id`, `work_date`, clock-in/out pertama/akhir, menit kerja/terlambat/pulang awal/lembur, `attendance_status`, versi kalkulasi, override HRD.                               |
 
+Laporan Rekap Absensi membaca rekap harian dan bukti event berdasarkan tanggal kerja. Foto absensi dilayani oleh endpoint khusus dengan scope laporan dan audit. Lihat [kontrak laporan](attendance-summary-report.md).
+
 ## Cuti, Izin, dan Disiplin
 
 | Tabel                        | Fungsi                                                                                                 | Kolom Kunci                                                                                                                                                                  |
@@ -466,6 +468,8 @@ Upgrade existing memakai 20261029_067_work_schedule_shift_groups.sql sesudah 066
 Migration 20261030_068_attendance_organization_module.sql menambahkan satu seed access_modules(code='attendance',name='Absensi') secara ON CONFLICT DO NOTHING. Bootstrap final menambahkan seed yang sama. organization_modules existing menyimpan aktivasi per organisasi beserta version. Tidak ada tabel, kolom, constraint atau grant baru.
 
 Tanpa baris attendance, organisasi dianggap nonaktif. Migration tidak mengisi organization_modules atau mengubah jadwal/kalender/penetapan/grant/histori. Perubahan aktivasi hanya melalui Superadmin berizin dan diaudit. Upgrade existing menjalankan migration baru, bukan bootstrap atau ulang 063–067. Gerbang service, kontrak dan pemulihan akses ada di docs/work-schedules.md.
+
+Migration 082 menambahkan `attendance_selfie_check` ke `access_modules`. Pengaturan dan versi disimpan di `organization_modules` karena identitas organisasi, status, versi, dan audit sudah didukung. Tanpa baris organisasi, pemeriksaan nonaktif. Tidak ada tabel, kolom, atau perubahan data absensi lama.
 
 ## Migration 070: PDF SKB platform
 

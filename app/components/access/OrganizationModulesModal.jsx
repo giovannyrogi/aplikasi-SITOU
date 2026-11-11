@@ -6,10 +6,25 @@ import AppModal from "@/app/components/modals/AppModal";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import AppNotice from "@/app/components/data-display/AppNotice";
-import { ORGANIZATION_MODULES } from "@/lib/access/organizationModules.mjs";
+import { ORGANIZATION_MODULES, SELFIE_CHECK_MODULE } from "@/lib/access/organizationModules.mjs";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
 import { readApiResponse, applyApiFieldErrors } from "@/lib/api/clientError";
+
+const featureDescriptions = {
+  inventory: {
+    on: "Akun yang diberi akses dapat mengelola gudang, persediaan, dan transaksi.",
+    off: "Akses inventaris ditutup. Data gudang dan transaksi tetap tersimpan.",
+  },
+  attendance: {
+    on: "HRD dapat mengelola jadwal kerja, kalender libur, dan titik absen sesuai hak akses.",
+    off: "Akses fitur absensi ditutup. Data dan hak akses tetap tersimpan.",
+  },
+  [SELFIE_CHECK_MODULE]: {
+    on: "Saat absen di HP, kamera memandu posisi wajah dan memeriksa kejelasan foto.",
+    off: "Pegawai tetap mengambil selfie dengan kamera seperti biasa.",
+  },
+};
 
 export default function OrganizationModulesModal({ organization, onClose, onSaved, onError }) {
   const [form] = Form.useForm();
@@ -19,6 +34,7 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState(null);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
+  const attendanceEnabled = Form.useWatch("attendance", form);
   const dirtyRef = useRef(false);
   const close = useFormModalClose(form, onClose, () => dirtyRef.current);
   const callbacks = useRef({ onError, onSaved });
@@ -90,7 +106,7 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
     }
   };
   const disabledNames = pending
-    ?.filter((change) => !change.isEnabled)
+    ?.filter((change) => !change.isEnabled && change.moduleCode !== SELFIE_CHECK_MODULE)
     .map((change) => ORGANIZATION_MODULES.find((item) => item.code === change.moduleCode).label)
     .join(" dan ");
   return (
@@ -100,7 +116,7 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
         title="Fitur organisasi"
         description={organization?.name}
         icon="navigation:organization-settings"
-        size="md"
+        size="sm"
         onClose={close.requestClose}
         disableClose={saving}
         footer={
@@ -147,34 +163,50 @@ export default function OrganizationModulesModal({ organization, onClose, onSave
               onClose();
               return;
             }
-            if (changes.some((change) => !change.isEnabled)) setPending(changes);
+            if (
+              changes.some(
+                (change) => !change.isEnabled && change.moduleCode !== SELFIE_CHECK_MODULE,
+              )
+            )
+              setPending(changes);
             else void save(changes);
           }}
         >
-          <Box sx={{ display: "grid", gap: 3, "& .form-setting-switch": { py: 0 } }}>
+          <Box
+            sx={{ display: "grid", gap: { xs: 1.5, sm: 2 }, "& .form-setting-switch": { py: 0 } }}
+          >
             {modules &&
-              ORGANIZATION_MODULES.map((item) => (
-                <FormSettingSwitch
-                  key={item.code}
-                  name={item.code}
-                  notice={{
-                    on: {
-                      title: "Fitur " + item.label + " aktif",
-                      description:
-                        item.code === "attendance"
-                          ? "Jadwal Kerja, Kalender Libur dan Jadwal Pegawai dapat digunakan HRD sesuai hak aksesnya."
-                          : "Inventaris dapat digunakan oleh akun yang diberi akses.",
-                    },
-                    off: {
-                      title: "Fitur " + item.label + " nonaktif",
-                      description:
-                        item.code === "attendance"
-                          ? "Akses jadwal ditutup. Data dan hak akses HRD tetap tersimpan. Hanya Admin SITOU yang dapat mengaktifkannya."
-                          : "Akses Inventaris ditutup. Gudang, transaksi dan hak akses akun tetap tersimpan.",
-                    },
-                  }}
-                />
-              ))}
+              ORGANIZATION_MODULES.map((item) => {
+                const locked = item.parent === "attendance" && !attendanceEnabled;
+                const descriptions = featureDescriptions[item.code];
+                const title = "Fitur " + item.label;
+                const offNotice = {
+                  title: title + " nonaktif",
+                  description: locked
+                    ? "Aktifkan fitur Absensi untuk menggunakan deteksi wajah."
+                    : descriptions.off,
+                  tone: "warning",
+                };
+
+                return (
+                  <FormSettingSwitch
+                    key={item.code}
+                    name={item.code}
+                    title={title}
+                    notice={{
+                      on: locked
+                        ? offNotice
+                        : { title: title + " aktif", description: descriptions.on },
+                      off: offNotice,
+                    }}
+                    noticeProps={{ descriptionAlign: "left" }}
+                    disabled={locked}
+                    formItemProps={
+                      locked ? { getValueProps: () => ({ checked: false }) } : undefined
+                    }
+                  />
+                );
+              })}
           </Box>
         </Form>
       </AppModal>

@@ -4,6 +4,8 @@ Migration `060` menambahkan sasaran jenis kelamin pada master cuti/izin. Semua a
 
 Migration `058` mendaftarkan menu **Rekap Cuti & Izin** (`leave-summary-report`) sebagai laporan read-only. Tidak menambah grant HRD terdelegasi secara otomatis; atur melalui Akun & Akses. Bootstrap baru sudah memuat menu ini.
 
+Migration `083` mendaftarkan menu baca saja **Rekap Absensi** (`attendance-summary-report`). Atur grant HRD terdelegasi melalui Akun & Akses. Bootstrap baru memuat definisi yang sama.
+
 Migration `054` menambahkan transaksi stok multi-barang, draft, saldo awal per barang–gudang, riwayat stok append-only, saldo turunan, referensi pengembalian/pembatalan, dan permission mutasi untuk Pengelola Gudang. Terapkan setelah migration `053`, lalu deploy API dan UI transaksi dalam satu rilis. Backup database development/produksi sesuai prosedur sebelum upgrade; jangan menjalankan migration ini dua kali. Kartu Stok tetap tahap berikutnya dan membaca riwayat yang sama.
 Migration `055` menambah kategori lampiran privat transaksi dan trigger database yang menolak edit/hapus transaksi terposting serta riwayat stok. Terapkan sesudah `054` sebelum memakai upload bukti transaksi.
 
@@ -290,3 +292,5 @@ Menghapus `locations.code` setelah migration 075. ID dan relasi lokasi tetap. Te
 Jalankan `npm run db:migrate -- database/migrations/20261105_080_holiday_attendance.sql` pada database development yang sudah menerapkan 079. Migration menambah kebijakan per jadwal, bukti bekerja saat libur, serta metrik rekap yang membedakan nilai nol dari penilaian yang tidak berlaku. Lihat [kontrak absensi mobile](../../docs/mobile-attendance.md).
 
 Migration 081 menambah nomor pasangan untuk sesi tambahan, context bukti di luar jadwal dan constraint alasan pada attendance_events. Jalankan npm run db:migrate -- database/migrations/20261110_081_outside_schedule_attendance.sql pada development sesudah 080, lalu npm run db:verify-bootstrap. Urutan penerapan adalah migration, backend, kemudian APK dengan header versi 3. [Kontrak absensi](../../docs/mobile-attendance.md#absen-di-luar-jadwal).
+
+Migration 082 menambahkan entri katalog Pemeriksaan selfie. Terapkan setelah 081 melalui `npm run db:migrate -- database/migrations/20261111_082_attendance_selfie_check.sql` pada development, lalu jalankan `npm run db:verify-bootstrap`. Urutan rilis adalah migration, backend, aplikasi v4, lalu pengaktifan per organisasi setelah verifikasi perangkat.

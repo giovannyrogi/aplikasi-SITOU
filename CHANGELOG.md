@@ -1,5 +1,30 @@
 # Catatan perubahan SITOU
 
+## 2026-11-11 — Kepadatan Rekap Absensi
+
+- Daftar menampilkan satu indikator prioritas dengan tombol +N untuk sisanya. Istilah Durasi bersih menjelaskan pengurangan istirahat sesuai jadwal. Modal menyatukan judul dan isi panel waktu, menyandingkan waktu dengan indikator, dan membatasi gambar utuh ke bingkai foto.
+- Chrome dengan respons sintetis memverifikasi enam lebar layar, navigasi keyboard, tinggi baris, serta foto potret dan kegagalan pemuatan. Simulasi perhitungan mengonfirmasi durasi dari selisih 14 menit dengan dan tanpa pengurangan istirahat.
+
+## 2026-11-11 — Tampilan Rekap Absensi
+
+- Filter pencarian tampil sebelum Rentang Tanggal. Tabel menampilkan pas foto Pegawai, jadwal, jam masuk dan pulang, serta status dan indikator di kolom terpisah. Rincian menempatkan catatan dan waktu di atas galeri foto.
+- Uji Chrome dengan respons sintetis mencakup pemilih tanggal saat opsi dimuat, fokus modal, pratinjau foto, dan enam lebar layar. Uji query PostgreSQL mencakup jadwal lintas hari, pas foto terkait, durasi keterlambatan, dan cakupan lokasi.
+
+## 2026-11-11 — Rekap Absensi
+
+- Laporan menampilkan rekap Pegawai per tanggal kerja, filter penempatan dan indikator, ekspor Excel, serta rincian bukti masuk dan pulang dengan foto privat berizin.
+- Migration 083 mendaftarkan menu baca saja untuk HRD dan Admin SITOU. Cakupan lokasi diterapkan pada daftar, ekspor, rincian, dan foto.
+- QA lokal mencakup bootstrap dan migration, isolasi dua organisasi, pembatasan lokasi, pergantian tanggal shift malam, ekspor, audit foto, serta Chrome pada enam lebar layar. Build produksi dan 29 tes lulus.
+
+## 2026-11-11 — Tampilan fitur organisasi
+
+- Fitur Deteksi wajah memakai kartu status dan sakelar yang sama dengan Inventaris dan Absensi. Modal lebih ringkas, dengan penjelasan aktif, nonaktif, dan kebutuhan mengaktifkan Absensi.
+
+## 2026-11-11 — Pemeriksaan selfie absensi
+
+- Admin SITOU dapat mengatur Pemeriksaan selfie per organisasi di bawah Absensi. Migration 082 menambahkan entri katalog. API mobile versi 4 mengikat versi pengaturan ke bukti pemeriksaan lokasi dan kiriman.
+- QA lokal: migration 082 diterapkan dan pembandingan dengan bootstrap kosong lulus. Build Next.js, lint file terkait, regresi jadwal/akun, serta penolakan akses API tanpa sesi lulus.
+
 ## 2026-11-11 — Sumber aturan dan bacaan selektif
 
 - AGENTS.md menjadi entrypoint ringkas ke docs/README.md. Detail dipindahkan ke pemilik bidang pada docs/rules, pedoman UI dipilah pada docs/ui, dan referensi API komponen dipilah pada docs/components. Panduan instalasi/operasional tetap tersedia, terpisah dari aturan dan histori changelog.

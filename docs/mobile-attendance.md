@@ -93,6 +93,12 @@ Migration 081 menambah outside_schedule_session_no pada attendance_events dan me
 
 Urutan rilis adalah migration 081 setelah 080, backend, lalu APK dengan header versi 3. Sebelum memasang APK baru pada server lama yang memerlukan akses hari libur, naikkan versi backend agar versi 3 dikenali.
 
+## Pemeriksaan selfie per organisasi
+
+Header `X-SITOU-Attendance-Version: 4` mendukung pemeriksaan selfie. GET dan preflight mengembalikan `selfiePolicy: { enabled, version }`. Tanpa baris organisasi, nilainya nonaktif dengan versi 0. Kiriman v4 menyertakan `selfiePolicyVersion` dari preflight. Versi ini terikat ke bukti lokasi dan diperiksa terhadap pengaturan terbaru saat mencatat event. Bila berubah, API mengembalikan `SELFIE_POLICY_CHANGED` (409) dan aplikasi mengarahkan kembali ke peta. Retry yang sudah tercatat mengembalikan hasil tersimpan setelah pemeriksaan kepemilikan dan payload.
+
+Jika pemeriksaan aktif, permintaan baru dari versi lama mendapat `APP_UPDATE_REQUIRED` (409). Saat nonaktif, alur versi lama tetap tersedia sesuai dukungan sesi masing-masing. Hanya Admin SITOU yang mengubah pengaturan melalui fitur organisasi. Penilaian visual berjalan di Flutter dan header versi adalah kontrak kompatibilitas aplikasi, bukan bukti integritas perangkat atau identitas Pegawai. Server tetap memvalidasi foto, sesi, dan lokasi seperti sebelumnya.
+
 ## Absensi self-service mobile
 
 - Jadwal khusus dan sesi terjadwal selalu didahulukan. Setelah seluruh sesi tanggal kerja berakhir dan tidak ada sesi terbuka, klien absensi versi 3 dapat mencatat sesi tambahan terpisah. Alasan, GPS, titik berizin dan selfie tetap wajib. Pasangkan masuk/pulang dengan nomor sesi tambahan dan tandai untuk tinjauan. Simpan di luar jadwal terpisah dari terlambat, hari libur, dan lembur disetujui. Lihat docs/mobile-attendance.md.

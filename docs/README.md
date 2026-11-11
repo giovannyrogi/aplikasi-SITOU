@@ -39,6 +39,7 @@ Gunakan tabel ini untuk memilih sumber sesuai tugas, bukan daftar bacaan wajib s
 | Katalog, kalender organisasi, penghapusan | [Katalog libur](holiday-catalogs.md) |
 | Unggah SKB, parser/worker, setup Windows/VPS | [PDF SKB](holiday-pdf-import.md), hanya section OS/operasi yang diperlukan |
 | Impor, event, geofence, rekap dan aturan domain absensi | [Aturan absensi](rules/attendance.md) |
+| Filter, indikator, rincian foto, dan Excel Rekap Absensi | [Laporan Rekap Absensi](attendance-summary-report.md) |
 | Kontrak self-service, preflight, foto, waktu dan sesi | [API absensi mobile](mobile-attendance.md) |
 | Titik, radius, lokasi dan akses tambahan | [Titik absensi](attendance-points.md) |
 | Login native/session | [Auth mobile](mobile-auth.md) |

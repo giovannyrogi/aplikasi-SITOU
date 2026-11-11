@@ -35,6 +35,7 @@ export default function FormSettingSwitch({
   title,
   description,
   notice,
+  noticeProps,
   disabled = false,
   disabledReason,
   children,
@@ -87,6 +88,7 @@ export default function FormSettingSwitch({
         }}
       >
         <AppNotice
+          {...noticeProps}
           role="group"
           tone={currentNotice?.tone || (enabled ? "success" : "warning")}
           title={currentNotice?.title}

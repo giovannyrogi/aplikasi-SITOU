@@ -50,7 +50,9 @@
 
 - Gunakan theme.brand untuk identitas SITOU, theme.status untuk success/warning/info/danger/neutral, palette MUI untuk state komponen, dan theme.ui untuk kebutuhan visual reusable atau halaman khusus. Token AntD harus mengambil sumber warna yang sama agar MUI dan AntD konsisten.
 
-- Warna aksi unduhan dan backup memakai `theme.action` / `ACTION_TONES`: detail biru, paket lengkap teal, ZIP database biru, ZIP seluruh file ungu, verifikasi hijau, dan hapus merah danger. Unduhan tidak memakai merah; merah brand tetap boleh untuk pembuatan data. Tombol AntD memakai `data-action-tone` dengan nilai `detail|download|database|files|verify|danger` agar hover dan fokus konsisten. Label/ikon tetap wajib; jangan mengandalkan warna saja.
+- Aksi yang sama pada tabel menggunakan komponen, varian, dan warna yang sama. Pakai tampilan bawaan TableExportMenu untuk ekspor tabel dan tombol ikon netral untuk membuka rincian dari baris. Gunakan ukuran serta warna teks yang seragam untuk data biasa. Warna semantik dipakai untuk status, indikator, dan umpan balik yang memerlukan pembeda.
+
+- Aksi khusus unduhan dan backup memakai `theme.action` / `ACTION_TONES`. Pada alur backup, detail memakai biru, paket lengkap teal, ZIP database biru, ZIP seluruh file ungu, verifikasi hijau, dan hapus merah. Tombol AntD memakai `data-action-tone` dengan nilai `detail|download|database|files|verify|danger` agar hover dan fokus konsisten. Sertakan label aksesibel atau ikon sesuai fungsi.
 
 - Informasi dan peringatan panjang memakai teks rata kiri-kanan dengan baris terakhir rata kiri, pembungkusan aman, ikon di awal, serta jarak yang cukup pada mobile.
 
@@ -147,6 +149,8 @@
 - UI wajib diuji pada viewport 320, 375, 768, 1024, 1366, dan 1920px, browser zoom, keyboard navigation, focus order, overflow, overlap, kontras, serta safe area/keyboard mobile.
 
 - Dilarang memakai orb, bokeh, gradient dekoratif, nested card, shadow tebal, radius berlebihan, palette satu nada, padding ekstrem, atau dekorasi yang mengurangi keterbacaan.
+
+- Gunakan elevasi halus dari token tema untuk memperjelas hierarki, misalnya pada satu panel utama dalam modal. Pertahankan permukaan lain dengan pemisah atau border ringan agar informasi mudah dipindai pada layar sempit.
 
 - Komposisi jenis kelamin, status pegawai, masa kerja, jenis kepegawaian, lokasi, dan unit adalah snapshot kondisi saat ini tanpa filter tanggal. Kasus disiplin resmi dan aktivitas terbaru maksimal lima item tanpa batas rentang tanggal; prioritas maksimal lima item terpenting. Seluruh data tetap mengikuti role, organisasi, serta cakupan lokasi actor di backend.
 

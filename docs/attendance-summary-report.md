@@ -1,0 +1,14 @@
+# Rekap Absensi
+
+**Laporan → Rekap Absensi** menampilkan satu baris per Pegawai dan tanggal kerja yang memiliki rekap tersimpan. Daftar ini membaca hasil olahan `attendance_daily_summaries`. Tanggal tanpa rekap perlu rekonsiliasi jadwal, kalender, dan cuti/izin sebelum bisa ditampilkan sebagai tidak hadir.
+
+- Halaman menempatkan filter bersama langsung di atas panel hasil. Desktop menampilkan tabel dan ponsel menampilkan kartu rincian per baris. Ringkasan metrik halaman tidak ditampilkan.
+- Cari Pegawai tampil sebelum Rentang Tanggal. Tabel memisahkan Jadwal Kerja, Jam Masuk, Jam Pulang, Status, dan Indikator. Keterlambatan tampil bersama durasinya jika tersedia. Galeri rincian memuat foto yang dapat langsung ditekan serta keterangan untuk absen yang belum tercatat, absensi tanpa foto, atau foto yang gagal dimuat. Data waktu dan catatan tampil di atas galeri.
+- Rentang awal mengikuti hari ini di zona waktu organisasi. Rentang maksimal 92 hari inklusif. Cari nama atau NIP, lalu saring berdasarkan lokasi, Divisi & Unit, jabatan, jenis kepegawaian, atau indikator. Penempatan utama dan kontrak dibaca menurut tanggal kerja.
+- Indikator waktu berasal dari kategori yang tersimpan pada setiap bukti masuk dan pulang. Filter Tepat waktu mencocokkan masuk atau pulang tepat waktu. Status harian, geofence, kedekatan batas radius, dan konteks hari libur/di luar jadwal tetap terpisah. Bukti lama tanpa penilaian ditandai Waktu belum dinilai.
+- Jam masuk pertama dan pulang terakhir ditampilkan bersama tanggal kerja. Jam setelah tengah malam menampilkan tanggal lokal tambahan. Durasi bersih menjumlahkan waktu pada pasangan masuk–pulang, dikurangi istirahat jika pengaturan jadwal mengaktifkan pengurangan. Hasil per sesi paling rendah nol menit. Durasi ditampilkan saat rekap menandai seluruh sesi lengkap. Modal menampilkan jam terjadwal serta setiap bukti masuk dan pulang. Foto yang tersedia dapat diperbesar melalui pratinjau gambar.
+- Akses baca menu `attendance-summary-report` khusus HRD dan Admin SITOU. Fitur Absensi harus aktif. HRD terdelegasi memerlukan grant laporan. Admin SITOU memilih organisasi. Scope lokasi diterapkan pada penempatan tanggal kerja di daftar, Excel, detail, dan foto.
+- Foto memerlukan `private_files.read_sensitive`. Endpoint mencocokkan pas foto dengan foto profil aktif Pegawai. Foto masuk dan pulang harus terhubung dengan event Pegawai pada rekap tersebut. Keduanya mengikuti cakupan lokasi laporan dan tercatat di audit. Tautan umum lampiran mengarahkan pengguna ke rincian Rekap Absensi untuk foto absensi.
+- Excel menggunakan filter yang sama dengan daftar dan memuat hingga 5.000 baris lengkap. Ekspor lebih besar meminta penyempitan filter. NIP tetap teks. Foto, catatan Pegawai dan koordinat dikecualikan dari Excel. Aksi PDF menampilkan Coming soon.
+
+Migration 083 mendaftarkan menu baca saja tanpa memberikan grant kepada HRD terdelegasi. Jalankan migration sebelum rilis.

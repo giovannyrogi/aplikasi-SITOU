@@ -51,6 +51,13 @@ export async function PATCH(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("access.modules.manage");
   if (response) return response;
+  if (user.role_code !== "superadmin")
+    return errorResponse(
+      "FORBIDDEN",
+      "Hanya Admin SITOU dapat mengatur fitur organisasi.",
+      403,
+      requestId,
+    );
   const rejected = await validateMutationRequest(request, user.id, requestId);
   if (rejected) return rejected;
   const parsed = await readJson(request, moduleUpdateSchema.or(moduleBatchSchema), requestId);

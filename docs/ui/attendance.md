@@ -11,3 +11,11 @@ Saat Edit lokasi dibuka, peta berpusat pada koordinat tersimpan dan kolom pencar
 Gunakan komponen status bersama pada daftar, detail dan laporan. Pasangkan setiap kategori dengan label dan ikon yang mudah dipahami. Warna mengikuti makna yang sama dengan mobile: hijau untuk absensi normal, jingga untuk terlambat, emas tua untuk pulang lebih awal, hijau kebiruan untuk masuk lebih awal, biru untuk pulang lebih lambat, merah untuk di luar radius, dan abu kebiruan untuk bekerja saat libur. Tampilkan status waktu dan lokasi sebagai indikator terpisah jika keduanya berlaku. Pulang lebih lambat tetap dibedakan dari lembur yang disetujui. Penanda dekat batas radius merupakan informasi tinjauan terpisah dari status di luar radius.
 
 Absen di luar jadwal memakai penanda merah tua dan teks yang berbeda dari Di luar radius. Gunakan outsideSchedule atau work_context=outside_schedule dari backend. Rekap sesi tambahan dapat ditinjau tanpa menampilkan persetujuan lembur yang belum ada.
+
+## Kepadatan Rekap Absensi
+
+Tampilkan satu indikator prioritas pada daftar. Tombol +N membuka indikator lainnya lewat panel ringkas agar jumlah indikator tidak menambah tinggi baris. Utamakan kejadian yang perlu perhatian, seperti di luar radius, di luar jadwal, dan terlambat. Pada rincian, letakkan indikator di samping waktu terkait ketika ruang mencukupi dan izinkan pembungkusan alami pada ponsel.
+
+Letakkan judul Waktu absensi di dalam panel. Foto masuk dan pulang memakai bingkai responsif dengan dimensi gambar dibatasi ke area bingkai dan `object-fit: contain`. Label tiap foto cukup untuk mengenali arah absensi. Pertahankan pratinjau dan keterangan ketika foto gagal dimuat atau belum tersedia.
+
+Referensi ditinjau 11 November 2026. [Carbon Data table](https://www.carbondesignsystem.com/building-blocks/core/components/data-table/guidelines) menjadi acuan penyajian ringkas dengan rincian sesuai kebutuhan. [MDN object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/object-fit) menjelaskan cara mempertahankan seluruh gambar dalam bingkai.
