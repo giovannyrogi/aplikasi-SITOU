@@ -2,6 +2,16 @@
 
 Flutter memakai bearer mobile dan identitas Pegawai dari sesi. Hak profil dan penempatan sendiri, status akun, organisasi, modul Absensi, serta akses tulis untuk preflight/kirim diperiksa di server. Katalog jadwal dan titik tetap dikelola dari dashboard.
 
+Keterangan pulang yang melewati jadwal pada mobile memakai **Pulang lewat jam kerja** diikuti selisih waktu dari server, misalnya **30 menit** atau **1 jam 15 menit**. Formatter presentasi bersama dipakai pada tinjauan dan hasil absensi. Kategori/timestamp/angka penilaian serta pesan mentah API tetap kompatibel; perubahan bahasa ini tidak mengubah perhitungan atau persetujuan lembur.
+
+## Urutan masuk dan pulang lintas hari
+
+Backend memprioritaskan sesi masuk yang masih terbuka. Contoh: masuk 11 November pukul 23.55 untuk jam 22.00–01.00 tetap dipulangkan pada tanggal kerja 11 November setelah tengah malam. Masuk pada jadwal 12 November belum tersedia sebelum pulang tersebut disimpan. Penguncian berlaku untuk jadwal reguler, tambahan, dan absen saat libur. GET, preflight dan transaksi kirim memakai aturan yang sama; request masuk lama yang sudah terbuka di perangkat tetap ditolak bila sesi lain belum selesai. Lock Pegawai pada transaksi event mencegah dua pengiriman paralel melewati pemeriksaan.
+
+Flutter memprioritaskan sesi terbuka pada kartu Beranda serta memakai daftar tindakan yang sama untuk tombol dan pemilih jam. Identitas tetap pasangan `workDate` dan `sessionNo`; nomor sama pada dua tanggal bukan sesi yang sama. Nama tampilan menghapus akhiran internal `— sesi N`, dan rentang jam tidak menambahkan `(+1 hari)`. Timestamp UTC, tanggal kerja, urutan sesi dan perhitungan lintas hari tetap dipertahankan. Catatan lama yang sudah ditandai lupa pulang tidak diperbaiki otomatis oleh perubahan ini.
+
+Perubahan tidak memerlukan migration. Terapkan backend baru dan bangun/pasang ulang aplikasi Flutter untuk memperoleh penguncian tombol serta label baru. Backend baru juga menolak masuk yang tidak sah dari APK lama; tidak mengubah event atau histori yang sudah tersimpan.
+
 - GET `/api/mobile/attendance` mengembalikan `timezone`, `today`, `status`, sesi berisi tanggal kerja, urutan, jam UTC, absen aktual, tindakan, serta status lupa keluar. Titik berisi ID, nama, koordinat, radius dan batas akurasi. Pegawai ditangguhkan hanya mendapat status baca.
 - POST `/api/mobile/attendance/preflight` menerima JSON `action`, `workDate`, `sessionNo`, `pointId`, `latitude`, `longitude`, `accuracy`. Respons berisi `proof` bertanda tangan dengan masa lima menit, jarak, status, pesan, `offerNote`, dan `requiresNote`. Bukti ini hanya berlaku pada sesi dan titik yang diperiksa.
 - POST `/api/mobile/attendance/events` menerima multipart dengan satu bagian teks `data` (JSON preflight ditambah `proof`, UUID `clientEventId`, dan `note` maksimal 500 karakter, wajib bila posisi akhir di luar radius) serta satu `photo` maksimal 5 MiB. Backend memvalidasi ulang dan mengembalikan hasil dengan jam UTC, tanggal kerja, sesi, titik, dan zona waktu. Respons sukses juga berisi `note` string atau null dari catatan event yang tersimpan. Nilai telah dipangkas pada validasi input dan dibatasi 500 karakter. `pointName` berasal dari titik absensi yang dipakai, bukan profil/penempatan Pegawai. `occurredAt` dan `timezone` menentukan tanggal/jam kejadian; `workDate` tetap tanggal kerja sesi. UUID sama dan payload/foto sama mengembalikan hasil asli. Replay event lama melengkapi `note` dari `attendance_events.attendance_note` tanpa mengubah event atau receipt tersimpan. UUID dengan isi berbeda ditolak.
@@ -82,3 +92,19 @@ Klien versi 3 mengirim X-SITOU-Attendance-Version: 3 pada endpoint baca, preflig
 Migration 081 menambah outside_schedule_session_no pada attendance_events dan mengizinkan work_context=outside_schedule dengan penilaian versi 2, kategori not_applicable, dan tautan ke jadwal harian existing. Sesi tambahan tidak membuat shift fiktif. Rekap memasangkan nomor sesi dalam satu jadwal harian, menjumlahkan durasi aktual, dan menyimpan outsideScheduleSessions serta outsideScheduleWorkedMinutes dalam calculation_details. Hari dengan sesi tambahan ditandai needs_review. Durasi tambahan tidak mengisi kandidat atau persetujuan lembur. Absensi terjadwal yang terlewat tetap tercatat.
 
 Urutan rilis adalah migration 081 setelah 080, backend, lalu APK dengan header versi 3. Sebelum memasang APK baru pada server lama yang memerlukan akses hari libur, naikkan versi backend agar versi 3 dikenali.
+
+## Absensi self-service mobile
+
+- Jadwal khusus dan sesi terjadwal selalu didahulukan. Setelah seluruh sesi tanggal kerja berakhir dan tidak ada sesi terbuka, klien absensi versi 3 dapat mencatat sesi tambahan terpisah. Alasan, GPS, titik berizin dan selfie tetap wajib. Pasangkan masuk/pulang dengan nomor sesi tambahan dan tandai untuk tinjauan. Simpan di luar jadwal terpisah dari terlambat, hari libur, dan lembur disetujui. Lihat docs/mobile-attendance.md.
+
+- API self-service memakai bearer mobile dan identitas Pegawai dari sesi, gerbang modul Absensi serta hak profil dan penempatan sendiri. Preflight memeriksa titik sebelum selfie. Mutasi memvalidasi ulang, mengunci organisasi dan Pegawai, serta mencatat event append-only per sesi dan receipt idempotensi. Foto privat melalui storage existing. Di luar radius titik berizin, server menerima absensi hanya dengan alasan terisi dan menyimpan geofence `outside`. Akurasi GPS, jadwal, izin titik, serta selfie tetap wajib. Lihat `docs/mobile-attendance.md`.
+
+## Penyedia peta absensi
+
+- Peta absensi per organisasi diatur Superadmin melalui form Organisasi. Simpan pilihan allowlist dan audit; API mobile mengirim penyedia organisasi sesi tanpa kredensial. Peta tidak mengubah validasi GPS atau absensi.
+
+## Data untuk laporan absensi
+
+- Gunakan metrik kategori/menit, snapshot sesi/titik/zona waktu serta versi perhitungan dari server. Jangan membaca teks UI sebagai status atau mengganti histori dengan master terbaru. Event lama tanpa bukti tetap tidak diketahui.
+- Rekap event dan receipt berada dalam satu transaksi; pertahankan override HRD, keputusan cuti/izin serta approved_overtime_minutes. Kandidat pulang lewat jam kerja bukan persetujuan lembur.
+- Durasi hanya dari pasangan masuk/pulang lengkap per sesi, kurangi istirahat dan keluarkan jeda. Sesi terbuka tidak memiliki durasi final. Hari tanpa event memerlukan rekonsiliasi izin/kalender sebelum disimpulkan absen. Ikuti docs/mobile-attendance.md.

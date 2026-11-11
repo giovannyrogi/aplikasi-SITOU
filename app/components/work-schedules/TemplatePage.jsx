@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Button } from "antd";
 import { Box } from "@mui/material";
+import { CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
@@ -9,6 +10,7 @@ import OperationalFilterSection from "@/app/components/filters/OperationalFilter
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
+import usePermanentDeletion from "@/app/components/actions/usePermanentDeletion";
 import Notification from "@/app/components/Notifications/Notification";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
@@ -57,6 +59,19 @@ export default function TemplatePage() {
   const [validationFocus, setValidationFocus] = useState(null);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const { notification, showNotification, closeNotification } = useAppNotification();
+  const deletion = usePermanentDeletion({
+    endpointFor: (item) =>
+      `/api/work-schedule-${item.kind === "shift" ? "groups" : "templates"}/${item.id}/deletion`,
+    confirmationFor: () =>
+      "Jadwal ini akan dihapus permanen dari daftar Jadwal Kerja. Tindakan ini tidak dapat dibatalkan.",
+    organizationId: org,
+    onMessage: showNotification,
+    onDeleted: () => {
+      const { page, pageSize } = list.pagination;
+      if (list.data.length === 1 && page > 1) list.setPage(page - 1, pageSize);
+      else return list.refresh();
+    },
+  });
   const open = (item = null, copy = false) => {
     setValidationFocus(null);
     setReview(null);
@@ -180,11 +195,28 @@ export default function TemplatePage() {
     }
   };
   const actions = (item) => [
-    { key: "view", label: "Lihat jadwal", onClick: () => setView(item) },
+    { key: "view", label: "Lihat jadwal", icon: <EyeOutlined />, onClick: () => setView(item) },
     ...(manage
       ? [
-          { key: "edit", label: "Edit jadwal", onClick: () => open(item) },
-          { key: "copy", label: "Buat salinan jadwal", onClick: () => open(item, true) },
+          { key: "edit", label: "Edit jadwal", icon: <EditOutlined />, onClick: () => open(item) },
+          {
+            key: "copy",
+            label: "Buat salinan jadwal",
+            icon: <CopyOutlined />,
+            onClick: () => open(item, true),
+          },
+        ]
+      : []),
+    ...(platform && org
+      ? [
+          {
+            key: "delete",
+            label: "Hapus permanen",
+            icon: <DeleteOutlined />,
+            danger: true,
+            disabled: deletion.busy,
+            onClick: () => deletion.show(item),
+          },
         ]
       : []),
   ];
@@ -355,6 +387,7 @@ export default function TemplatePage() {
           />
         )}
       </AppModal>
+      {deletion.dialog}
       <Notification {...notification} onClose={closeNotification} />
     </Box>
   );

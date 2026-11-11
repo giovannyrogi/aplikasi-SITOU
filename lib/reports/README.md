@@ -9,14 +9,23 @@ ditampilkan sebagai ringkasan dan histori lengkap dimuat terpisah saat modal dib
 ## Akses dan penggunaan
 
 - Menu Laporan → Kontrak Akan Berakhir: default hari ini sampai 30 hari mendatang, inklusif. Satu baris adalah satu kontrak; ringkasan juga menghitung pegawai unik.
+
 - Menu Laporan → Proyeksi Pensiun: default hari ini sampai tanggal yang sama 12 bulan mendatang. Ulang tahun sesuai usia pensiun organisasi adalah tanggal proyeksi, bukan keputusan pensiun otomatis. Kelahiran 29 Februari dijepit ke 28 Februari jika diperlukan.
+
 - Tahun ini berarti 1 Januari–31 Desember. Kelompok sudah lewat secara default tidak membatasi tanggal awal. Kelompok tanggal lahir perlu diperiksa mengabaikan periode proyeksi.
+
 - Filter tersimpan pada URL. Kartu dashboard menyertakan periode dan kelompok yang dihitung agar tautan membukakan hasil setara. Indikator ini memakai periode sendiri, terpisah dari rentang statistik dashboard lainnya.
+
 - Pegawai aktif/probation/suspended yang tidak dihapus logis termasuk; status final dan draft dikecualikan. Proyeksi tidak mengubah status pegawai.
+
 - Jenis kepegawaian pada proyeksi pensiun mengutamakan kontrak active yang sudah dimulai, meskipun tanggal akhirnya lewat. Jika tidak ada, gunakan histori renewed/expired terbaru yang sudah dimulai; draft, cancelled, terminated, dan kontrak masa depan tidak menjadi acuan. Filter dan Excel menggunakan sumber yang sama. “Belum ditentukan” hanya bila tidak ada kontrak resmi yang memenuhi aturan tersebut.
+
 - Kolom Kontrak berikutnya tidak ditampilkan pada tabel/kartu hasil kontrak. Informasi lanjutan tetap tersedia pada rincian, filter, dan Excel.
+
 - Kontrak resmi dengan akhir terbatas termasuk, kecuali dibatalkan/terminated atau histori sudah digantikan. Kontrak renewed yang masih berlaku dan memiliki lanjutan terjadwal tetap ditampilkan; draft bukan bukti perpanjangan selesai.
+
 - Superadmin memilih satu organisasi. HRD mengikuti organisasi dan cakupan lokasi; Pimpinan membaca organisasi sendiri. Pegawai ditolak. Kontrak memerlukan employees.read dan contracts.read, pensiun employees.read.
+
 - Menu Laporan → Sanksi Pegawai mengecualikan draft untuk seluruh role. Pegawai final tetap dapat
   tampil selama profil tidak dihapus logis; HRD dengan scope terpilih tetap memerlukan penempatan
   utama aktif di lokasi yang diizinkan.
@@ -51,14 +60,18 @@ Kelompok diurutkan tanggal proyeksi naik, sesuai laporan. Panel menggantikan gra
 ## Verifikasi lokal
 
 - prosedur verifikasi fitur: tanggal, perpindahan filter, dan workbook.
+
 - prosedur verifikasi fitur: database uji terpisah dengan fixture sintetis, dibuang setelah pengujian; periode, kontrak lanjutan, jenis kepegawaian, scope, pagination, dan EXPLAIN.
+
 - prosedur verifikasi fitur: memerlukan server development serta akun lokal per role; menguji izin, isolasi, dashboard dan Excel tanpa mencetak kredensial/data pribadi. Ekspor uji menghasilkan audit.
+
 - prosedur verifikasi fitur: memerlukan Playwright/Chrome (opsional PLAYWRIGHT_MODULE_PATH dan CHROME_PATH), server lokal, akun HRD. Isi laporan dimock dengan data sintetis untuk screenshot 320–1920px dalam `.next/report-qa`.
+
 - Jalankan `npm run lint` dan `npm run build`. Tema mengikuti provider aplikasi; provider saat ini menetapkan mode light, sehingga dark mode penuh memerlukan dukungan theme global, bukan warna khusus pada laporan.
 
-Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.
+Rujukan: [Verifikasi](../../docs/dashboard-workspace.md#verifikasi).
 
-Jadwal Kontrak Berakhir menggantikan rekap histori kontrak: jumlah kontrak aktif yang telah mulai, pegawai aktif/probation/suspended, bertanggal akhir mulai hari ini menurut timezone organisasi sampai akhir bulan kalender ke-12. Query dashboard dan laporan memakai buildReportQuery yang sama dengan contractStatus=active; kontrak draft, dibatalkan, berakhir, diperpanjang, tanpa tanggal akhir, serta pegawai final tidak dihitung. Setiap bulan menampilkan jumlah kontrak akan berakhir. Lihat pegawai hanya tersedia bagi akun berizin laporan Kontrak Akan Berakhir, mempertahankan organisasi dan rentang bulan. Tidak memakai label Aktif/Selesai atau diperpanjang pada panel jadwal.
+Rujukan: [File pengujian sementara saat pengembangan](../../docs/rules/quality.md#file-pengujian-sementara-saat-pengembangan).
 
 ## Rekap Cuti & Izin
 

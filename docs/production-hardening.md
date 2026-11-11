@@ -103,7 +103,7 @@ Kedua proses `sitou` dan `sitou-file-cleanup-worker` harus berstatus `online`. W
 
 ## 5. Nginx
 
-Gunakan contoh [nginx-sitou.conf.example](../deploy/nginx-sitou.conf.example). Ketentuan utamanya:
+Konfigurasi Nginx dikelola pada server. Terapkan ketentuan berikut pada konfigurasi situs SITOU (contoh file nginx-sitou.conf.example tidak tersedia dalam checkout ini):
 
 - HTTPS wajib dan HTTP dialihkan ke HTTPS.
 - `client_max_body_size 120m`.

@@ -40,9 +40,13 @@ Respons membawa `sections`, `unavailable`, `warehouses`, `period`, `generatedAt`
 ## Angka dan grafik
 
 - Stok membaca `STOCK_SOURCE_SQL` yang sama dengan Stok Barang: barang–gudang aktif dengan histori, < minimum Di bawah minimum, 0 Habis, >= minimum Cukup. Histori kosong dikecualikan. Urutan perhatian Habis, rasio stok/minimum terkecil, nama/ID deterministik. Tidak ada agregasi kuantitas antar-satuan.
+
 - Grafik kondisi stok menghitung pasangan barang–gudang, bukan barang unik lintas gudang.
+
 - Aktivitas bulan organisasi mulai tanggal 1 sampai hari ini. Kartu dan rincian tetap bulan ini. Grafik memakai trendPeriod: year (default, Januari sampai Desember), month (tanggal), week (Senin sampai Minggu dengan hari dan tanggal). Grafik tahun mengisi bulan tanpa transaksi, termasuk bulan mendatang, dengan 0 agar garis mencapai Desember. Nilai ini menunjukkan belum ada transaksi tercatat, bukan prediksi. Grafik bulan dan minggu juga mengisi tanggal tanpa transaksi sampai akhir periode dengan 0. Semua area memakai kurva smooth dan isian transparan dari adapter bersama seperti grafik HRD. Menghitung dokumen receipt/issue/return/stocktake resmi tanpa pembatalan; opening/reversal dikecualikan.
+
 - Penyaluran menghitung dokumen issue yang tidak dibatalkan sampai akhir periode, sama dengan aturan Distribusi Barang. Grafik tujuan menghitung transaksi, bukan nilai pembelian/jumlah barang campuran.
+
 - Draft tidak masuk angka stok/statistik resmi. Filter tidak memberi akses tambahan.
 
 ## Verifikasi
@@ -55,7 +59,7 @@ Schema dan grant historis tetap; tidak ada migration baru. UI tidak menambahkan 
 
 Tab berada setelah header profil bersama. Draft tidak dikirim API dashboard. Pegawai memiliki akses cepat ke bagian informasi pribadi yang sudah berizin. Grafik area penuh memakai empat warna yang sama dengan ringkasan dan ikon transaksi terbaru. Label bulan disingkat pada layar kecil.
 
-Dashboard Inventaris: tab memakai garis bawah. Stok menipis/habis memakai kartu produk horizontal yang dapat digeser dengan keyboard/sentuhan; transaksi bulanan berupa daftar jenis dan jumlah di atas kartu ringkasan. Tooltip aktivitas memakai tanggal lengkap, sumbu area menyisakan ruang puncak dan ujung label.
+Rujukan presentasi Dashboard Inventaris: [aturan dashboard Inventaris](rules/dashboard.md#dashboard-pegawai-dan-inventaris). Ketentuan tanpa tab menggantikan rancangan tab terdahulu.
 
 Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.
 
@@ -75,9 +79,7 @@ Cuti & Izin kini menyertakan seluruh jenis aktif organisasi (0 jika belum diguna
 
 Visual Cuti & Izin menggunakan donat, bukan lingkaran penuh; total pencatatan di tengah dibuat tebal dan tetap terlihat saat hover. Daftar jenis/jumlah tetap di samping pada desktop dan di bawah pada ponsel. Warna pertama merah SITOU, pendamping memakai token tema.
 
-Jadwal Kontrak Berakhir menggantikan rekap histori kontrak: jumlah kontrak aktif yang telah mulai, pegawai aktif/probation/suspended, bertanggal akhir mulai hari ini menurut timezone organisasi sampai akhir bulan kalender ke-12. Query dashboard dan laporan memakai buildReportQuery yang sama dengan contractStatus=active; kontrak draft, dibatalkan, berakhir, diperpanjang, tanpa tanggal akhir, serta pegawai final tidak dihitung. Setiap bulan menampilkan jumlah kontrak akan berakhir. Lihat pegawai hanya tersedia bagi akun berizin laporan Kontrak Akan Berakhir, mempertahankan organisasi dan rentang bulan. Tidak memakai label Aktif/Selesai atau diperpanjang pada panel jadwal.
-
-Jadwal Kontrak Berakhir memakai kalender brand merah untuk bulan dengan data. Ikon mata membuka ContractEmployeesModal di dashboard, memakai API laporan yang sama dan filter bulan/organisasi/status aktif. Modal memakai AppModal, ResponsiveDataView, DataPagination cursor, ReportIdentity/ReportRemaining, dan ImagePreviewModal untuk pas foto. Pemeriksaan izin laporan tetap di backend; menutup modal mempertahankan halaman serta posisi dashboard.
+Rujukan: [File pengujian sementara saat pengembangan](rules/quality.md#file-pengujian-sementara-saat-pengembangan).
 
 ## Stok perlu diisi kembali
 
@@ -93,7 +95,6 @@ Urutan bagian Inventaris: pilihan Gudang, kartu ringkasan berizin (Stok di bawah
 
 RecentInventoryTransactions menampilkan maksimal lima transaksi resmi dari DTO yang sudah berizin sebagai kartu dengan aksen jenis, shadow token tema dan hover ringan. KindMark/AppIconTile dipakai ulang; override tone hanya untuk menyamakan biru Pengembalian dan ungu Stok opname dengan legenda Dashboard. Setiap kartu memisahkan jenis/status/jumlah jenis barang, Tanggal transaksi, Gudang, Disimpan oleh (ActorIdentity dengan pas foto privat dan jabatan), serta tombol Lihat detail. Desktop/tablet memakai ikon mata 44px dengan tooltip, mobile di bawah 768px memakai ikon dan teks. Transaksi dibatalkan memakai status dan aksen merah tanpa menyembunyikan identitas atau angka asal. Desktop empat bagian sejajar, tablet dua kolom, mobile satu kolom dengan divider tipis serta tombol 44px selebar kartu. Reduced motion menonaktifkan efek terangkat. Tombol membaca GET /api/inventory/transactions/:id dengan organizationId dan private/no-store, lalu membuka TransactionDetailModal yang sama langsung di Dashboard tanpa navigasi. Endpoint tetap memeriksa izin transaksi serta scope gudang. Loading/error memakai komponen bersama, klik ganda dicegah, request dibatalkan saat komponen dilepas/organisasi berubah. Modal Dashboard tidak menerima onCancel. Menutup modal mempertahankan URL dan posisi gulir. Data, filter organisasi/gudang, serta urutan tetap sama.
 
-
 ## Redesign ruang kerja Pegawai (059)
 
 Dashboard Pegawai menampilkan sapaan, tanggal organisasi, banner profil brand, status/jenis/Divisi & Unit, empat kartu ringkasan sesuai izin, akses cepat ke section pribadi, serta penempatan dan kontrak. Kartu saldo menampilkan seluruh jenis bersaldo dengan Hak/Terpakai/Sisa dan satuan masing-masing. Saldo yang belum memiliki entitlement tetap null; jenis tanpa saldo tidak diberi angka palsu. Ringkasan cuti disetujui berdasarkan tahun tanggal mulai; menunggu meliputi seluruh pengajuan submitted. Daftar dibatasi lima terbaru menurut ID, filter status hanya berlaku pada lima data itu. Rincian memakai AppModal pada Dashboard. Pengajuan baru dan koreksi tetap melalui HRD; tidak menambahkan workflow pengajuan/approval mandiri.
@@ -103,7 +104,6 @@ Migration 059 memberi `leave_requests.read_self` dan `disciplinary_actions.read_
 Navigasi seluruh role kini menampilkan organisasi dan lokasi utama di sidebar. TopMenu memakai avatar privat + nama depan/terakhir + jabatan, fallback username/role; menu Profil/Keluar dan lifecycle logout tetap sama. SubscriptionAccessCard memindahkan masa akses dari topbar/banner ke bawah sidebar/drawer, dengan label status, tanggal Indonesia, sisa hari dari server, serta Perpanjang akses yang hanya menampilkan Coming soon. Masa tenggang memakai tanggal tenggang; kartu tidak muncul untuk platform tanpa organisasi. Menu dan kartu tetap dapat digulir pada viewport pendek.
 
 Verifikasi perubahan: schema bootstrap serta migration idempotent di database sementara; ledger grant/carryover/usage/restoration, saldo belum tersedia, draft, periode sanksi, scope akun/organisasi, permission ditolak dan EXPLAIN ANALYZE BUFFERS. UI diuji desktop/mobile dengan data synthetic melalui intersepsi API; akun, perpanjangan, filter dan modal. File uji sementara dibersihkan setelah selesai.
-
 
 ## Penyederhanaan Dashboard Pegawai
 
@@ -115,9 +115,7 @@ EmployeeLeavePanel menggantikan akses cepat, saldo terpisah dan informasi kepega
 
 Endpoint GET /api/dashboard/leave_self/:id menolak parameter query dan permintaan orang lain/organisasi lain/draft. Pegawai, HRD, dan Pimpinan berprofil tertaut memakai mode pribadi yang mengunci employee.user_id dan organization_id dari sesi. Endpoint file dalam mode pribadi hanya membuka leave_attachment dengan permission read_self, kepemilikan employee dan relasi permintaan nondraft yang cocok; scan, audit preview/download, CSP dan private/no-store tetap berjalan.
 
-
 Verifikasi penyederhanaan: ESLint pada komponen/service/route terkait; build produksi; browser 320, 375, 768, 1366 dan 1920 px; buka rincian tanpa pindah halaman; saldo terisi/belum ditetapkan; modal saldo; kontrak bertanggal akhir/tanpa tanggal akhir; API sendiri dan penolakan target lain/query. Authorization lampiran diuji dengan tabel temporer PostgreSQL sintetis untuk organisasi lain, pegawai lain, draft, file tanpa relasi, kategori salah dan permission dicabut. Tanggal pada rincian menggunakan timezone organisasi agar konsisten dengan ringkasan. Seluruh artefak uji sementara dibersihkan.
-
 
 ## Penyederhanaan tiga kartu dan rincian disiplin pribadi
 
@@ -126,7 +124,6 @@ Kartu Menunggu HRD dihapus, sehingga grid desktop berisi tiga kartu. Masa kerja 
 EmployeeDisciplinePanel berada di kolom kiri setelah cuti. Kartu memisahkan nama/status dari periode berlaku dan tombol Lihat detail. Modal memakai DisciplineCaseDetailModal bersama. Endpoint discipline_self memeriksa permission, organisasi, pegawai dari sesi dan keberadaan tindakan nondraft sebelum membaca rincian, mengecualikan catatan internal, serta mengaudit pembacaan. Surat memakai endpoint file privat dengan pemeriksaan pemilik dan relasi tindakan resmi; draft, file tanpa relasi dan pegawai/organisasi lain ditolak. Perubahan ini tidak menambah permission HRIS generik maupun mengubah schema.
 
 Verifikasi perubahan tiga kartu: build produksi dan ESLint berhasil; browser 320–1920 px tanpa overflow, tab Menunggu, penghapusan blok saldo/keterangan HRD, dan pembukaan modal kasus tanpa navigasi berhasil. Pemeriksaan API pribadi dan isolasi kasus/surat dengan tabel PostgreSQL temporer mencakup pemilik, organisasi lain, draft, file tanpa relasi dan pencabutan permission. Artefak uji sementara dibersihkan.
-
 
 ## Saldo pilihan, masa kerja ringkas dan riwayat sanksi
 
@@ -137,7 +134,6 @@ personalPresentation.mjs memvalidasi tanggal dan bagian masa kerja; hanya bagian
 DisciplineHistoryList dipakai dashboard (lima terbaru) dan AppModal riwayat (10 per halaman), dengan summary aktif, nama/status/periode/chevron. GET /api/dashboard/discipline_self hanya menerima cursor dan mengembalikan items, active, total, next. SQL memfilter organisasi/user/nondraft, mengurutkan issued_date/id menurun; cursor bertanda HMAC mengikat user, organisasi dan versi urutan. Permission dibaca ulang setiap request. Detail tetap memakai endpoint self dan modal bersama; status belum mulai juga konsisten di detail. Riwayat disembunyikan saat detail tampil lalu posisi, halaman dan fokus dikembalikan. Error dapat dicoba ulang, request dibatalkan saat ditutup/unmount. Tidak ada migration baru.
 
 Verifikasi saldo/riwayat: browser 320–1920 px tanpa overflow, pilihan saldo tersimpan setelah reload, jenis hari/jam, saldo belum ditetapkan/nol/negatif, nama panjang, modal detail tunggal, pemulihan fokus/halaman, error dan coba lagi. PostgreSQL temporer dengan 23 tindakan resmi membuktikan keyset 10/10/3 tanpa duplikasi dan penolakan cursor lintas akun/organisasi/tamper. Fokus isi modal dipulihkan setelah pagination agar Escape bekerja saat tombol halaman berikutnya nonaktif.
-
 
 ## Layout terbaru: profil bersama dan sidebar ringkas
 

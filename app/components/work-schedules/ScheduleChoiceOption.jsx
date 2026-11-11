@@ -9,7 +9,14 @@ export default function ScheduleChoiceOption({ option }) {
         {option.data.displayName}
       </FontStyle>
       {option.data.disabled && (
-        <FontStyle fontSize={13} color="text.secondary" sx={{ mt: 0.5 }}>
+        <FontStyle
+          fontSize={13}
+          color="text.secondary"
+          sx={(theme) => ({
+            mt: 0.5,
+            color: option.data.conflict ? theme.status.danger.text : undefined,
+          })}
+        >
           {option.data.disabledReason || "Tidak dapat dipilih"}
         </FontStyle>
       )}

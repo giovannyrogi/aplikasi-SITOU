@@ -94,17 +94,18 @@ export default function WorkTimeFields({
         <FormSettingSwitch
           name={path("deductBreak")}
           watchName={[...watchPrefix, "deductBreak"]}
-          title="Kurangi durasi kerja dengan istirahat"
+          title="Kurangi waktu istirahat dari durasi kerja"
           disabled={readOnly}
           notice={{
             on: {
-              title: "Istirahat mengurangi durasi kerja",
-              description: "Waktu istirahat dikurangi dari rentang jam kerja.",
+              title: "Waktu istirahat dikurangi dari durasi kerja",
+              description:
+                "Misalnya, jadwal 09.00–17.00 dengan istirahat 60 menit dihitung sebagai 7 jam kerja.",
             },
             off: {
-              title: "Istirahat tetap dihitung",
+              title: "Waktu istirahat termasuk dalam durasi kerja",
               description:
-                "Durasi kerja dihitung dari seluruh rentang jam masuk hingga jam pulang.",
+                "Misalnya, jadwal 09.00–17.00 dengan istirahat 60 menit dihitung sebagai 8 jam kerja.",
             },
           }}
         />

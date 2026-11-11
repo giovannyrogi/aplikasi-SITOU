@@ -5,7 +5,7 @@ import { Button, Checkbox, Form, Input, Space } from "antd";
 import { Box } from "@mui/material";
 import Select from "@/app/components/forms/AsyncSelect";
 import BulkScheduleExceptionDialog from "./BulkScheduleExceptionDialog";
-import { CalendarOutlined, ScheduleOutlined } from "@ant-design/icons";
+import { CalendarOutlined, HistoryOutlined, ScheduleOutlined } from "@ant-design/icons";
 
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
@@ -20,7 +20,6 @@ import SelectedEmployeesSummary from "@/app/components/employees/SelectedEmploye
 import EmployeeAvatar from "@/app/components/employees/EmployeeAvatar";
 import ImagePreviewModal from "@/app/components/modals/ImagePreviewModal";
 import AppNotice from "@/app/components/data-display/AppNotice";
-import { InfoField } from "@/app/components/employees/EmployeeDetailSections";
 import ScheduleHistory from "./ScheduleHistory";
 import EmployeeScheduleSummary from "./EmployeeScheduleSummary";
 
@@ -59,7 +58,7 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
   const [form] = Form.useForm();
 
   const [modal, setModal] = useState(null);
-  const [bulkTargets, setBulkTargets] = useState(null);
+  const [adjustmentTargets, setAdjustmentTargets] = useState(null);
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState(null);
 
@@ -68,10 +67,10 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
   const targets = employeeId ? list.data : Object.values(selected).filter((x) => x.org === org);
   const replacing = targets.some((t) => t.assignments?.some((a) => !a.cancelled));
   const canAct = Boolean(org && targets.length && targets.length <= 100 && !busy);
-  const unassignedTargets = targets.filter(
-    (person) =>
-      !person.assignments?.some((a) => !a.cancelled && (!a.until || a.until >= opts.today)),
-  );
+  const hasSchedule = (person) =>
+    person.assignments?.some((a) => !a.cancelled && (!a.until || a.until >= opts.today));
+  const unassignedTargets = targets.filter((person) => !hasSchedule(person));
+  const adjustmentReady = Boolean(org && opts.today && !opts.loading && !opts.error && !busy);
   const filter = (key, value) => {
     setSelected({});
     list.updateFilters({ ...list.filters, [key]: value || undefined });
@@ -124,20 +123,42 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
       setBusy(false);
     }
   };
-  const actions = (item) =>
-    manage
+  const actions = (item) => [
+    ...(manage
       ? [
           {
             key: "assign",
             label: "Tetapkan jadwal",
+            icon: <ScheduleOutlined />,
             onClick: () => {
               setSelected({ [item.id]: { ...item, org } });
               open("assign");
             },
           },
-          { key: "history", label: "Riwayat jadwal", onClick: () => setHistory(item) },
+          {
+            key: "adjust",
+            label:
+              adjustmentReady && !hasSchedule(item) ? (
+                <Box>
+                  Ubah jadwal harian
+                  <FontStyle sx={{ mt: 0.25 }}>Tetapkan jadwal terlebih dahulu</FontStyle>
+                </Box>
+              ) : (
+                "Ubah jadwal harian"
+              ),
+            icon: <CalendarOutlined />,
+            disabled: !adjustmentReady || !hasSchedule(item),
+            onClick: () => setAdjustmentTargets([item]),
+          },
         ]
-      : [{ key: "history", label: "Riwayat jadwal", onClick: () => setHistory(item) }];
+      : []),
+    {
+      key: "history",
+      label: "Riwayat jadwal",
+      icon: <HistoryOutlined />,
+      onClick: () => setHistory(item),
+    },
+  ];
   const scheduleSummary = (person) => (
     <EmployeeScheduleSummary
       assignments={person.assignments}
@@ -387,14 +408,8 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
                 {assignAction}
                 <Button
                   icon={<CalendarOutlined />}
-                  disabled={
-                    !canAct ||
-                    !opts.today ||
-                    opts.loading ||
-                    Boolean(opts.error) ||
-                    unassignedTargets.length > 0
-                  }
-                  onClick={() => setBulkTargets([...targets])}
+                  disabled={!canAct || !adjustmentReady || unassignedTargets.length > 0}
+                  onClick={() => setAdjustmentTargets([...targets])}
                 >
                   Ubah jadwal harian
                 </Button>
@@ -424,12 +439,12 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
           )}
         />
       </DataPanel>
-      {bulkTargets && (
+      {adjustmentTargets && (
         <BulkScheduleExceptionDialog
-          employees={bulkTargets}
+          employees={adjustmentTargets}
           organizationId={org}
           options={opts}
-          onClose={() => setBulkTargets(null)}
+          onClose={() => setAdjustmentTargets(null)}
           onSaved={refresh}
           onMessage={showNotification}
         />
@@ -515,31 +530,21 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
           )}
         </Form>
       </AppModal>
-      <AppModal
-        open={Boolean(history)}
-        title="Riwayat jadwal"
-        description="Lihat jadwal yang pernah ditetapkan, periode berlaku, alasan perubahan, dan pelakunya."
-        onClose={() => setHistory(null)}
-        footer={<Button onClick={() => setHistory(null)}>Tutup</Button>}
-      >
-        <Box sx={{ display: "grid", gap: 3 }}>
-          {history && (
-            <Box sx={{ pb: 3, borderBottom: 1, borderColor: "divider" }}>
-              <InfoField label="Pegawai" valueContent={identity(history)} />
-            </Box>
-          )}
-          <ScheduleHistory
-            assignments={history?.assignments || []}
-            today={opts.today}
-            timezone={opts.timezone || user.organization_timezone || "UTC"}
-            manage={manage}
-            onCancel={(assignment) => {
-              setHistory(null);
-              open("cancel", assignment);
-            }}
-          />
-        </Box>
-      </AppModal>
+      {history && (
+        <ScheduleHistory
+          key={history.id}
+          employeeIdentity={identity(history)}
+          assignments={history.assignments || []}
+          today={opts.today}
+          timezone={opts.timezone || user.organization_timezone || "UTC"}
+          manage={manage}
+          onClose={() => setHistory(null)}
+          onCancel={(assignment) => {
+            setHistory(null);
+            open("cancel", assignment);
+          }}
+        />
+      )}
       <ImagePreviewModal
         open={Boolean(photoPreview)}
         {...photoPreview}

@@ -2,6 +2,10 @@
 
 SITOU (Sistem Informasi Teknologi dan Organisasi Unit) adalah dashboard HRIS multi-organisasi untuk mengelola organisasi, lokasi, akun Admin/HRD, pegawai, penempatan, kontrak, absensi, izin, dokumen, dan disiplin secara terisolasi per organisasi.
 
+## Dokumentasi
+
+Pilih aturan, kontrak dan panduan operasional melalui [indeks dokumentasi](docs/README.md). AGENTS.md mengatur rute bacaan, bukan salinan seluruh aturan.
+
 ## Teknologi
 
 - Next.js App Router dan React
@@ -85,10 +89,9 @@ Dialog Jadwal Pegawai memakai penetapan tanpa tanggal berakhir, perubahan satu t
 
 Superadmin membuka **Organisasi → Fitur organisasi**, mengaktifkan **Fitur Absensi**, lalu menyimpan. Modul mencakup Jadwal Kerja, Kalender Libur dan Jadwal Pegawai. HRD tetap memerlukan izin menu yang sesuai. Tanpa aktivasi, termasuk pada organisasi lama, menu/API jadwal tertutup meskipun akun adalah Admin HRD penuh. Penonaktifan menyimpan data dan grant untuk pengaktifan kembali. Cuti/izin serta login tetap terpisah.
 
-Sesudah struktur 067 tersedia, jalankan **migration 068** katalog attendance sebelum rollout kode ini pada environment existing. Jangan ulang 063–067. Jalankan pemeriksaan database/bootstrap dan aktivasi organisasi secara eksplisit oleh Superadmin. Tidak ada auto-aktivasi, deployment atau restart VPS. [Kontrak API, alur dan batas integrasi mobile](docs/work-schedules.md#aktivasi-fitur-absensi-oleh-superadmin).
+Sesudah struktur 067 tersedia, jalankan **migration 068** katalog attendance sebelum rollout kode ini pada environment existing. Jangan ulang 063–067. Jalankan pemeriksaan database/bootstrap dan aktivasi organisasi secara eksplisit oleh Superadmin. Tidak ada auto-aktivasi, deployment atau restart VPS. [Kontrak API, alur dan batas integrasi mobile](docs/work-schedules.md#aktivasi-fitur-absensi-oleh-admin-sitou).
 
 Daftar Organisasi menampilkan kode, nama, lokasi aktif, akun HRD, akhir masa akses, serta status akses dan tiap fitur secara terpisah. Organisasi dan Jadwal Kerja berada dalam satu kelompok Kepegawaian pada Data Master. Pengelompokan ini tidak mengubah izin Organisasi yang tetap khusus Superadmin. Perapian tampilan ini tidak membutuhkan migration atau perubahan aplikasi mobile.
-
 
 ## Titik absensi
 

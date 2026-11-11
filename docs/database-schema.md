@@ -26,9 +26,13 @@ Dokumen ini adalah peta cepat database SITOU. Gunakan dokumen ini sebelum membuk
 - Migration `058` menambah seed menu HRIS `leave-summary-report` untuk Rekap Cuti & Izin. Tidak menambah tabel bisnis atau memberi grant otomatis. Laporan memakai `leave_requests`, `leave_entitlements`, dan `leave_balance_transactions`; lihat `docs/leave-summary-report.md`.
 
 - `organization_id` adalah batas organisasi utama pada semua tabel bisnis.
+
 - Histori pegawai tidak ditimpa: kontrak ada di `employment_contracts`, penempatan/rolling ada di `employee_assignments`, dan event absensi mentah ada di `attendance_events`.
+
 - File privat tidak pernah dikirim sebagai `object_key` langsung ke browser. Metadata file ada di `stored_files`, termasuk `employee_id` atau `onboarding_draft_id` untuk otorisasi pemilik.
+
 - Event absensi mentah append-only. Rekap cepat dashboard ada di `attendance_daily_summaries` dan boleh dihitung ulang.
+
 - Role stabil di tabel `roles.code`: `superadmin`, `hrd`, `leader`, dan `employee`.
 
 ## Organisasi, File, Branding, Struktur
@@ -42,9 +46,13 @@ Kebijakan baru langsung menjadi acuan proyeksi seluruh pegawai yang hubungan ker
 ### Alur onboarding dan masa akses
 
 1. Superadmin membuat identitas `organizations` dan periode pertama `organization_subscriptions` dalam satu transaksi.
+
 2. Superadmin atau Admin/HRD menyiapkan `organization_unit_types` sebelum membuat struktur pada `organization_units`.
+
 3. Superadmin membuat minimal satu `locations` yang aktif dan berada dalam umur operasional.
+
 4. Superadmin membuat kredensial `users`, memasang role `hrd`, menautkan profil pegawai bila tersedia, lalu menetapkan cakupan lokasi.
+
 5. Organisasi siap digunakan ketika status administratif aktif, memiliki langganan efektif `active`/`grace`, lokasi operasional, dan Admin/HRD aktif.
 
 `organizations.attendance_map_provider` menyimpan pilihan `openstreetmap` atau `google` dengan default `openstreetmap` (migration 078). Pilihan hanya memengaruhi tampilan mobile.
@@ -264,9 +272,13 @@ Cleanup manual terkonfirmasi memeriksa organisasi, semua referensi termasuk vers
 ## Kapan Membuka SQL
 
 - Membuat migration baru atau memvalidasi constraint/FK/index.
+
 - Mengecek enum `CHECK` secara persis.
+
 - Mengecek definisi partition `attendance_events`.
+
 - Mengecek definisi view atau fungsi PostgreSQL.
+
 - Menjalankan query plan atau debugging database sungguhan.
 
 ## Fondasi Inventaris
@@ -308,14 +320,7 @@ Snapshot GET /api/access/me kini juga menyertakan inventory.catalog.read.
 
 ### Satuan tanpa kode input dan chip master persediaan
 
-Satuan Barang tidak meminta atau menampilkan kode. API menerima kode opsional untuk
-kompatibilitas klien lama; create tanpa kode membuat kode internal UUID di server,
-edit tanpa kode mempertahankan nilai lama. Tidak ada perubahan schema atau backfill.
-Nama satuan wajib dan unik per organisasi; konflik ditampilkan pada field nama.
-Kode barang/kategori/gudang tampil sebagai CompactInfoChip tone info di bawah nama
-pada kolom identitas yang sama dan pada kartu mobile. Kategori, satuan, aturan
-pecahan, dan status memakai chip semantik yang sudah tersedia; nama dan uraian
-bebas tetap teks agar penanda penting tidak tenggelam dalam terlalu banyak chip.
+Rujukan: [Satuan tanpa kode input dan chip master persediaan](rules/inventory.md#satuan-tanpa-kode-input-dan-chip-master-persediaan).
 
 ### Tingkat akses Inventaris — migration 049
 
@@ -328,7 +333,9 @@ hanya all. Tidak ada perubahan tabel/grant atau backfill data bisnis.
 ## Pemisahan master dan operasional — migration 050
 
 - Lihat Saja (inventory_reader): baca Stok Barang/Transaksi Barang/Distribusi Barang, scope gudang all/selected; tidak membuka atau mengubah master.
+
 - Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Sejak migration 054, transaksi stok dapat dicatat dan dibatalkan dalam gudang berizin.
+
 - Pengelola Master Inventaris (inventory_master): baca/tambah/edit/nonaktifkan Barang/Kategori/Satuan/Gudang, termasuk membuat gudang. Cakupan organisasi, disimpan scope_mode=all dan warehouseIds kosong. Tidak memberi akses operasional stok/transaksi/laporan/minimum; bukan seluruh gudang operasional.
 
 Satu akun dapat menerima tiga pilihan tersebut secara independen. Form master
@@ -469,7 +476,6 @@ Tanpa baris attendance, organisasi dianggap nonaktif. Migration tidak mengisi or
 holiday_catalog_usage menyimpan bukti pertama katalog digunakan oleh kalender organisasi, termasuk nama saat digunakan. work_calendar_usage menyimpan organisasi, kalender dan referensi jadwal historis. Keduanya append-only dan FK membatasi penghapusan master terpakai. deletion_history_verified pada master memblokir penghapusan data lama yang tidak memiliki bukti audit memadai; 072 menyesuaikan backfill dengan kontrak result.id dan input.version legacy.
 
 holiday_deletions adalah receipt minimal global khusus tindakan Admin: kind/target, organisasi kalender, actor/key/hash/version, hasil dan transaction_id. Trigger hanya mengizinkan penghapusan melalui intent dalam transaksi yang sama, dengan pemeriksaan penggunaan. holiday_pdf_purge_jobs adalah antrean global file platform tanpa organisasi fiktif; worker mengunci import/file, memeriksa referensi, menghapus byte dan metadata, lalu menyelesaikan receipt. Kedua tabel masuk dump/restore PostgreSQL. File platform tetap masuk backup privat existing.
-
 
 ## Titik absensi dashboard — migration 075
 

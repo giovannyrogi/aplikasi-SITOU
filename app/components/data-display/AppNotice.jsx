@@ -19,6 +19,7 @@ export default function AppNotice({
   children,
   action,
   compact = false,
+  centerContent = false,
   descriptionAlign = "justify",
   sx,
   style,
@@ -38,7 +39,7 @@ export default function AppNotice({
       sx={[
         {
           display: "flex",
-          alignItems: "flex-start",
+          alignItems: centerContent ? "center" : "flex-start",
           flexWrap: "wrap",
           gap: compact ? 1 : 1.5,
           minWidth: 0,
@@ -56,7 +57,11 @@ export default function AppNotice({
       <AppIcon
         icon={icons[tone] || icons.info}
         fontSize={compact ? "18px" : "22px"}
-        style={{ color: palette.main, flexShrink: 0, marginTop: compact ? 1 : 2 }}
+        style={{
+          color: palette.main,
+          flexShrink: 0,
+          marginTop: centerContent ? 0 : compact ? 1 : 2,
+        }}
         aria-hidden="true"
       />
       <Box

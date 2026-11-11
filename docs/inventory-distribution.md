@@ -6,12 +6,19 @@ Laporan hanya membaca penyaluran resmi; tidak membuat transaksi, saldo penerima,
 ## Periode dan jumlah
 
 - `from`–`to` memilih **tanggal kejadian penyaluran**, inklusif. Bawaan awal bulan sampai hari ini dari zona organisasi.
+
 - Pengembalian terkait dan pembatalannya dihitung sampai `to`, termasuk pengembalian setelah tanggal penyaluran. Pengembalian dari penyaluran sebelum `from` tidak termasuk cohort laporan ini.
+
 - Pembatalan penyaluran baru menghapus efek penyalurannya jika tanggal pembatalan pada/sebelum `to`. Pembatalan setelah akhir periode tidak mengubah angka periode sebelumnya.
+
 - `original_quantity`: jumlah dokumen asal yang tetap immutable.
+
 - `distributed_quantity`: jumlah efektif penyaluran (nol jika dibatalkan sampai tanggal akhir).
+
 - `returned_quantity`: pengembalian terkait yang masih berlaku sampai tanggal akhir.
+
 - `net_quantity`: penyaluran efektif dikurangi pengembalian. **Bukan stok penerima atau bukti pemakaian.**
+
 - Stok opname, stok awal, koreksi stok awal, dan penerimaan tidak menjadi penyaluran; tidak dijumlahkan pada laporan ini. Rumus saldo gudang tidak diubah.
 
 Tujuan lokasi/unit dan penerima berasal dari header transaksi asal. Rolling Pegawai tidak memindahkan histori distribusi. Nama master/profil dibaca dari referensi saat laporan dibuat; ID tujuan transaksi tetap asal. Data nonaktif tetap dapat dibaca untuk histori.
@@ -21,8 +28,11 @@ Tujuan lokasi/unit dan penerima berasal dari header transaksi asal. Rolling Pega
 Filter: organisasi (Superadmin), Cari data (nama/kode barang, penerima atau nomor memo), Periode penyaluran melalui DatePicker.RangePicker bersama, gudang asal, Nama barang, lokasi tujuan, Divisi & Unit tujuan, Pegawai penerima, status `effective|cancelled|all`. Semua filter digabung sebagai irisan.
 
 - Rincian: satu baris per barang dalam satu transaksi penyaluran, jumlah efektif/return/bersih, status pada akhir periode, dan rincian transaksi berizin.
+
 - Halaman berfokus pada filter dan tabel, tanpa empat kartu ringkasan transaksi/barang/tujuan/penerima. Total/pagination tetap memakai filter yang sama. Tidak ada penjumlahan lintas satuan.
+
 - Pagination keyset, ukuran 10/20/50, cursor terikat seluruh filter dan scope. Hasil dan total dibaca pada snapshot PostgreSQL `REPEATABLE READ READ ONLY` yang sama; tanpa cache payload.
+
 - Loading/error/kosong dibedakan. Error tidak ditampilkan sebagai statistik nol.
 
 ## Hak akses dan rincian
@@ -51,7 +61,7 @@ Identitas pencatat memakai nama pertama–terakhir dari profil Pegawai pada orga
 
 Format jumlah pada Excel mengikuti presisi setiap nilai: bilangan bulat tanpa pemisah desimal, pecahan maksimal tiga desimal tanpa nol tambahan. Jangan memakai format desimal opsional `#,##0.###` yang dapat menghasilkan titik/koma kosong. Jumlah biasa tetap numeric; jumlah di luar batas presisi aman tetap teks agar tidak dibulatkan.
 
-Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.
+Rujukan: [Verifikasi](dashboard-workspace.md#verifikasi).
 
 Cari data berada sebelum Periode penyaluran. Rentang tanggal memperbarui from/to
 secara bersamaan; menghapus rentang atau Atur ulang kembali ke awal bulan sampai

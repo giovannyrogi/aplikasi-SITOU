@@ -30,10 +30,15 @@ suffix paket Ubuntu/Debian. Versi yang tidak dikenali ditolak secara terpisah;
 versi major klien yang lebih lama daripada server tetap menggagalkan backup.
 
 - Instal PostgreSQL client dengan `pg_dump` dan `pg_restore` versi **tidak lebih tua** daripada PostgreSQL server pada lingkungan tersebut. Tambahkan binarinya ke `PATH`, atau atur `PG_DUMP_PATH` dan `PG_RESTORE_PATH` dengan path absolut.
+
 - Kode ZIP menggunakan `@zip.js/zip.js` dalam proses Node dan tidak menjalankan alat ZIP eksternal atau meletakkan kata sandi pada command line. Pada Windows/Ubuntu, uji pembukaan ZIP AES-256 dengan aplikasi ekstraksi yang mendukungnya; Explorer bawaan Windows tidak dijadikan acuan kompatibilitas.
+
 - Web dan worker harus menggunakan `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, serta `UPLOAD_ROOT` yang sama. `UPLOAD_ROOT` wajib privat dan persisten.
+
 - `BACKUP_ROOT` opsional, default `<project>/.sitou-backups`; paket terenkripsi disimpan di sana sampai dihapus manual. Pada VPS, tetapkan direktori privat persisten di luar checkout aplikasi agar paket tidak hilang saat deploy. `BACKUP_SNAPSHOT_ROOT` opsional, default saudara dari `UPLOAD_ROOT`; harus berada pada volume yang sama agar hardlink dapat dibuat. Keduanya harus berada di luar `UPLOAD_ROOT` dan `public`, privat, dan hanya dapat diakses akun proses SITOU.
+
 - Proses web harus diizinkan menjalankan Node child process serta membaca seluruh `UPLOAD_ROOT`. Terapkan migration backup hingga `043` sebelum deploy web dan worker. Proses PM2 bernama `sitou-backup-expiry-worker` dipertahankan untuk kompatibilitas deployment lama, tetapi pada versi ini **tidak lagi menghapus backup siap berdasarkan waktu**; tugasnya membersihkan sisa backup gagal/dihapus serta proses yang macet.
+
 - Pastikan ruang bebas cukup untuk dump database, paket terenkripsi, dan overhead. Perkiraan pada form adalah indikasi, bukan batas tepat. Karena hasil tidak kedaluwarsa, pantau kapasitas `BACKUP_ROOT` dan simpan salinan terpisah di luar VPS. Kehilangan VPS dapat menghilangkan backup yang hanya disimpan di VPS.
 
 Sebelum deployment perubahan backup ke VPS, buat backup manual PostgreSQL dan `UPLOAD_ROOT` dengan prosedur operasional lama. Terapkan migration yang belum ada secara berurutan hingga `043`, lalu deploy web dan worker yang sudah diperbarui bersama. Jika `042` sudah diterapkan, jalankan hanya `043`. Backup lama yang masih `ready` tetap dapat diunduh tanpa tenggat; backup yang sudah `expired` tidak dapat dipulihkan dari metadata. Jangan menerapkan migration pada produksi secara manual di luar prosedur deployment.
@@ -71,8 +76,11 @@ Kata sandi dikirim melalui stdin. Jangan menyertakannya pada command line atau l
 Untuk uji pemulihan berkala, gunakan server PostgreSQL dan direktori upload **terpisah dari produksi**:
 
 1. Buat database kosong dan role PostgreSQL dengan hak yang sesuai. Paket `pg_dump` satu database tidak mencakup role global, konfigurasi PostgreSQL, sertifikat, atau secret `.env`.
+
 2. Ekstrak paket ke staging privat, lalu jalankan `pg_restore --no-owner --no-acl --dbname=<database-staging> <folder-ekstraksi>/sitou_db_backup_YYYYMMDD_HHmmss_WITA.dump`.
+
 3. Atur `UPLOAD_ROOT` staging ke `<folder-ekstraksi>/uploads`, sediakan secret/environment staging yang benar, lalu jalankan `npm run db:check` dan pemeriksaan beberapa foto/dokumen resmi dari lebih dari satu organisasi.
+
 4. Catat waktu pemulihan dan hasilnya. Jangan menjalankan restore dari dashboard atau menimpa produksi tanpa maintenance window, backup produksi tambahan, dan prosedur terpisah yang disetujui.
 
 ## Clean restore seluruh sistem
@@ -99,4 +107,4 @@ Jika proses worker terputus, heartbeat yang tidak berubah selama sepuluh menit m
 
 Detail pekerjaan Superadmin menampilkan kode dan penjelasan kegagalan `pg_dump` yang disanitasi. Jika dump biasa berhasil tetapi backup gagal, catat `error_code` pekerjaan terbaru; jangan menyimpulkan masalah path atau versi dari pesan umum. Detail SQL, kata sandi, dan path privat tidak ditampilkan.
 
-Catatan pemeliharaan: runner pengujian otomatis dan folder tests dihapus atas keputusan proyek. Uraian pengujian di atas menjadi acuan pemeriksaan; perintah pengujian lama tidak tersedia. Gunakan lint, build, dan smoke test di lingkungan terpisah untuk perubahan berikutnya.
+Rujukan: [Verifikasi](dashboard-workspace.md#verifikasi).

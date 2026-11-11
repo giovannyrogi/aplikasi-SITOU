@@ -54,7 +54,7 @@ export function ScheduleSessionDetails({ rules, showSettings = false }) {
   if (rules.type !== "field") {
     fields.push([
       "Istirahat",
-      `${rules.breakMinutes || 0} menit${Number(rules.breakMinutes) > 0 ? (rules.deductBreak ? " · Dikurangi dari waktu kerja" : " · Tetap dihitung sebagai waktu kerja") : ""}`,
+      `${rules.breakMinutes || 0} menit${Number(rules.breakMinutes) > 0 ? (rules.deductBreak ? " · Dikurangi dari durasi kerja" : " · Termasuk dalam durasi kerja") : ""}`,
     ]);
   }
   if (showSettings) {

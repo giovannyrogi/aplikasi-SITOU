@@ -126,3 +126,8 @@ Migration 071–072 development dan bootstrap kosong cocok. QA sintetis 40 asser
 ## Presentasi kalender dan penghapusan
 
 Menu aksi katalog/kalender memakai ikon outline sesuai fungsi. Konfirmasi hapus menjelaskan dampak secara langsung tanpa AppNotice. Setelah berhasil, modal ditutup dan snackbar bersama menampilkan hasil; pembersihan PDF yang masih berjalan disebutkan secara eksplisit dan dipantau saat tab terlihat. Form kalender memisahkan identitas, tanggal katalog, tanggal organisasi dan penggunaan; aksi impor/tambah/hapus memakai tombol ikon berlabel/tooltip dan EmptyState per kelompok. Isian tetap utuh saat berpindah tahap katalog atau request gagal.
+
+## Penghapusan katalog dan kalender libur
+
+- Hapus permanen hanya Admin SITOU melalui preview dan konfirmasi berizin. Katalog yang pernah disalin ke kalender dan kalender yang pernah dipakai jadwal tidak boleh dihapus, termasuk setelah referensinya dilepas. Bukti penggunaan append-only dan riwayat yang belum dapat dipastikan memblokir penghapusan. Tanggal lampau saja bukan penggunaan. Jangan menghapus histori atau menonaktifkan trigger untuk melewati perlindungan.
+- Penghapusan database/audit/receipt/antrean PDF atomik. PDF bersama tetap disimpan; worker membersihkan byte dan metadata PDF tanpa referensi. Jangan menyatakan seluruh dokumen bersih sebelum antrean selesai. Pesan menyebut penyebab konkret: terpakai, riwayat belum pasti, dokumen diproses, versi berubah, atau kendala sistem dengan ID referensi. Koneksi terputus diperiksa melalui receipt sebelum retry. Lihat docs/holiday-catalogs.md.

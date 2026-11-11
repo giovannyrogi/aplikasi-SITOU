@@ -15,7 +15,9 @@ Titik absensi aktif dapat menjadi titik dasar bagi Pegawai yang penempatannya be
 Modul Absensi harus aktif. Hak HRIS attendance-point-access Lihat/Kelola mengatur konfigurasi titik dan akses tambahan. Menulis lewat form Lokasi juga memerlukan Kelola Lokasi. HRD dengan cakupan terpilih hanya boleh mengelola Pegawai dan titik dalam cakupannya. Tidak ada grant delegasi otomatis.
 
 - GET /api/attendance-point-access menerima organizationId, search, page, pageSize dan status untuk daftar. options=employees atau options=points memberi maksimal 50 opsi. configuration=1 dengan locationId opsional memberi konfigurasi pada form Lokasi.
+
 - POST /api/attendance-point-access menerima organizationId, employeeId, pointIds, from dan until. Pencabutan menerima organizationId dan revokeId. Role, organisasi, modul, scope, origin, rate limit dan referensi diperiksa di server. Periode tumpang tindih ditolak atomik dengan 409. Pencabutan ulang tidak menambah audit. Jika hasil kirim belum diketahui, muat ulang daftar sebelum mengulang.
+
 - POST /api/locations dan PATCH /api/locations/:id menyimpan nama serta data lokasi tanpa field `code`. Daftar dan opsi menggunakan ID serta nama. Kedua aksi simpan menerima attendancePoint opsional dengan enabled, radiusMeters dan maxAccuracyMeters. Saat diaktifkan, lokasi aktif, pasangan koordinat, radius 5–50000 meter dan akurasi 1–50000 meter wajib. PATCH tetap memakai version lokasi.
 
 API self-service absensi mobile menggabungkan titik dasar dan tambahan, menyaring revoked_at, organisasi, status dan periode titik/lokasi, lalu mengirim ID, nama, koordinat, radius, dan batas akurasi. Backend memeriksa izin, jarak serta akurasi sebelum kamera dan saat kirim. Lihat [kontrak absensi mobile](mobile-attendance.md).
@@ -24,5 +26,14 @@ Migration 075 menambah revoked_at dan seed menu. Jalankan sesudah 074 pada datab
 
 Acuan diperiksa 4 November 2026. [Leaflet](https://leafletjs.com/reference.html) · [Kebijakan ubin OpenStreetMap](https://operations.osmfoundation.org/policies/tiles/).
 
+Rujukan: [Pemilih titik lokasi](ui/attendance.md#pemilih-titik-lokasi).
 
-Saat Edit lokasi dibuka, peta berpusat pada koordinat tersimpan dan kolom pencarian awalnya kosong untuk mencari lokasi baru. Klik titik mempertahankan pusat dan zoom pengguna, sementara pencarian baru hanya menggeser pusat tanpa mengganti zoom. Membuka form tidak memanggil geocoding atau mengubah alamat. Pilihan pencarian baru mempertahankan label selama form terbuka. Alamat tersimpan tetap tampil pada field Alamat, bukan kolom pencarian. Tidak ada pesan proses pencarian balik di bawah koordinat. Kegagalan pencarian balik memakai notifikasi existing dan alamat masih dapat diisi manual.
+## Alur sederhana dan pengaturan titik absensi
+
+- Mulai dari tugas pengguna dan letakkan pengaturan yang berkaitan di layar yang sudah dikenal. Pakai menu baru hanya bila tugas, pengguna, atau hak aksesnya memang berbeda. Isi data satu kali, tampilkan pengaturan lanjutan saat diperlukan, dan gunakan label yang mudah dipahami. Kesederhanaan antarmuka tetap menjaga validasi server, izin, dan histori.
+
+- Rancangan absensi: konfigurasi titik dan radius berada di Data Master → Lokasi. Pengaturan Organisasi → Akses Titik Absensi menangani akses tambahan, termasuk beberapa titik dan periode penugasan. Satu alur pengisian koordinat memakai model titik absensi existing dan pemeriksaan izin tersendiri. API menyediakan koordinat, radius dalam meter, dan batas akurasi sesuai cakupan Pegawai. Backend menentukan kelayakan absensi.
+
+- Implementasi dashboard mengikuti docs/attendance-points.md. Master Lokasi memakai ID internal tanpa kode. Template impor Pegawai mencocokkan pilihan lokasi ke ID dalam organisasi aktif. Form Lokasi menampilkan tanggal operasional, pencarian dan peta ringkas, koordinat baca-saja, lalu alamat. Pengguna mengubah koordinat dengan memilih titik pada peta atau hasil pencarian. Alamat dapat dikoreksi. Status Lokasi dan Titik absen berada dalam satu kelompok di form tambah maupun edit. Pengaturan titik dimuat setelah organisasi diketahui. Simpan tetap satu aksi tulis. Izin titik dan akses tambahan memakai attendance-point-access serta modul Absensi. Pencabutan menyimpan revoked_at dan audit.
+
+- Hasil absensi self-service mengembalikan catatan dari event yang tersimpan. Retry memakai catatan event asli dan tetap memeriksa organisasi/Pegawai serta hash payload. Jangan mengganti lokasi absensi dengan lokasi penempatan pada respons hasil.

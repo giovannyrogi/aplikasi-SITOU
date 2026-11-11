@@ -13,6 +13,7 @@ import AppNotice from "@/app/components/data-display/AppNotice";
 import DataPagination from "@/app/components/data-display/DataPagination";
 import ScheduleSummary, { ScheduleSessionDetails } from "./ScheduleSummary";
 import DailyAdjustmentReview from "./DailyAdjustmentReview";
+import ScheduleConflictDetails from "./ScheduleConflictDetails";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { scheduleRequest, requestKey, applyFieldErrors } from "./ScheduleFields";
@@ -20,8 +21,10 @@ import useAdditionalScheduleUsage from "./useAdditionalScheduleUsage";
 import ScheduleChoiceOption from "./ScheduleChoiceOption";
 import {
   additionalUsageReason,
+  additionalUsageConflict,
   replacementUsageReason,
   ALREADY_USED,
+  TIME_CONFLICT,
   shortUsageReason,
 } from "@/lib/work-schedules/additionalUsage.mjs";
 
@@ -78,6 +81,11 @@ export default function BulkScheduleExceptionDialog({
   );
   const reasonFor = (item) => reasons.get(item?.patternId) || "";
   const choiceReason = reasonFor(choice);
+  const hasTimeConflict = choiceReason === TIME_CONFLICT;
+  const conflict = useMemo(
+    () => (hasTimeConflict ? additionalUsageConflict(choice, usage.data, from, until) : null),
+    [hasTimeConflict, choice, usage.data, from, until],
+  );
   const blockedSelection =
     !validRange || usage.loading || Boolean(usage.error) || Boolean(choiceReason);
   const [busy, setBusy] = useState(false),
@@ -86,8 +94,6 @@ export default function BulkScheduleExceptionDialog({
   const [receipt] = useState(requestKey);
   const [photoPreview, setPhotoPreview] = useState(null);
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
-  const displayRange = (input) =>
-    `${dayjs(input.from).format("DD/MM/YYYY")}–${dayjs(input.until).format("DD/MM/YYYY")}`;
   const preview = async () => {
     if (blockedSelection) return;
     try {
@@ -113,14 +119,19 @@ export default function BulkScheduleExceptionDialog({
         () => scheduleRequest("/api/work-schedules/exceptions/bulk/preview", input),
         { message: "Memeriksa perubahan jam kerja..." },
       );
-      setReview({ input: { ...input, reason: v.reason }, ...response.data });
+      setReview({
+        ...response.data,
+        input: { ...input, reason: v.reason.trim() },
+        scheduleName: schedule?.name,
+        shiftLabel: schedule?.kind === "shift" ? choice?.name : null,
+      });
       setPage(1);
       setStage("review");
     } catch (e) {
       setError(
         typeof e.code === "string"
           ? e.message
-          : "Rincian perubahan belum dapat ditampilkan. Periksa koneksi, lalu coba lagi.",
+          : "Tinjauan belum bisa dibuka. Periksa koneksi, lalu coba lagi.",
       );
       applyFieldErrors(form, {
         ...e,
@@ -149,16 +160,14 @@ export default function BulkScheduleExceptionDialog({
           }),
         { message: "Menyimpan perubahan jam kerja..." },
       );
-      onMessage(
-        `Jadwal harian ${response.data.employeeCount} Pegawai untuk ${response.data.dayCount} hari berhasil disimpan.`,
-      );
+      onMessage(`Perubahan jadwal untuk ${response.data.employeeCount} Pegawai berhasil disimpan.`);
       onClose();
       await onSaved();
     } catch (e) {
       setError(
         typeof e.code === "string"
           ? e.message
-          : "Status penyimpanan belum dapat dipastikan. Coba Simpan perubahan lagi tanpa mengubah isian untuk memeriksa hasil permintaan yang sama.",
+          : "Status penyimpanan belum pasti. Tekan Simpan perubahan lagi dengan isian yang sama.",
       );
     } finally {
       setBusy(false);
@@ -169,11 +178,19 @@ export default function BulkScheduleExceptionDialog({
       <AppModal
         keepMounted
         open={!photoPreview}
-        title={stage === "review" ? "Tinjau perubahan jadwal" : "Ubah jadwal harian"}
+        title={
+          stage === "review"
+            ? "Tinjau perubahan jadwal"
+            : stage === "conflict"
+              ? "Rincian benturan jam kerja"
+              : "Ubah jadwal harian"
+        }
         description={
           stage === "review"
-            ? "Periksa tanggal, jam kerja, dan alasan sebelum menyimpan."
-            : "Ganti atau tambahkan jam kerja pada tanggal yang Anda pilih. Jadwal utama pada tanggal lain tetap berlaku."
+            ? "Periksa perubahan jam kerja sebelum menyimpan."
+            : stage === "conflict"
+              ? "Benturan pertama pada periode yang dipilih."
+              : "Ganti atau tambahkan jam kerja pada tanggal yang Anda pilih. Jadwal utama pada tanggal lain tetap berlaku."
         }
         icon="solar:calendar-date-bold-duotone"
         onClose={onClose}
@@ -183,7 +200,7 @@ export default function BulkScheduleExceptionDialog({
           stage === "review" && review && review.changes.length > 10 ? (
             <DataPagination
               pagination={{ page, pageSize, total: review.changes.length }}
-              displayedCount={Math.min(pageSize, review.changes.length - (page - 1) * pageSize)}
+              summary={`Halaman ${page} dari ${Math.ceil(review.changes.length / pageSize)}`}
               onPageChange={(next, size) => {
                 setPage(next);
                 setPageSize(size);
@@ -193,24 +210,36 @@ export default function BulkScheduleExceptionDialog({
         }
         footer={
           <>
-            <Button disabled={busy} onClick={stage === "review" ? () => setStage("form") : onClose}>
-              {stage === "review" ? "Kembali" : "Batal"}
-            </Button>
             <Button
-              type="primary"
-              loading={busy}
-              disabled={stage === "form" && blockedSelection}
-              onClick={stage === "review" ? save : preview}
+              disabled={busy}
+              onClick={
+                stage !== "form"
+                  ? () => {
+                      setError("");
+                      setStage("form");
+                    }
+                  : onClose
+              }
             >
-              {stage === "review" ? "Simpan perubahan" : "Tinjau perubahan"}
+              {stage !== "form" ? "Kembali" : "Batal"}
             </Button>
+            {stage !== "conflict" && (
+              <Button
+                type="primary"
+                loading={busy}
+                disabled={stage === "form" && blockedSelection}
+                onClick={stage === "review" ? save : preview}
+              >
+                {stage === "review" ? "Simpan perubahan" : "Tinjau perubahan"}
+              </Button>
+            )}
           </>
         }
       >
         {error && (
           <AppNotice
             tone="danger"
-            title="Perubahan belum selesai"
+            title={stage === "review" ? "Perubahan belum tersimpan" : "Tinjauan belum tersedia"}
             description={error}
             sx={{ mb: 3 }}
           />
@@ -221,39 +250,14 @@ export default function BulkScheduleExceptionDialog({
           disabled={busy}
         />
         {stage === "review" && review && (
-          <Box sx={{ display: "grid", gap: 3, mt: 3 }}>
-            <AppNotice
-              title={`${review.employeeCount} Pegawai · ${review.dayCount} hari`}
-              description={`${review.changeCount} jadwal akan diubah pada ${displayRange(review.input)}.`}
-            />
-            {review.input.mode === "replace" && review.existingCount > 0 && (
-              <AppNotice
-                tone="warning"
-                title="Perubahan jadwal sebelumnya akan diganti"
-                description={`${review.existingCount} perubahan jadwal pada tanggal yang dipilih akan diganti. Jadwal utama pada tanggal lain tetap sama.`}
-              />
-            )}
-            <Box>
-              <FontStyle fontSize={14} fontWeight={600}>
-                {review.input.mode === "add" ? "Tambah jam kerja" : "Ganti jam kerja"}
-              </FontStyle>
-              <FontStyle fontSize={14}>
-                {schedule?.name}
-                {choice?.label ? ` · ${choice.label}` : ""}
-              </FontStyle>
-            </Box>
-            <DailyAdjustmentReview changes={review.changes} page={page} pageSize={pageSize} />
-            <Box>
-              <FontStyle fontSize={14} fontWeight={600}>
-                Alasan perubahan
-              </FontStyle>
-              <FontStyle fontSize={14}>{review.input.reason}</FontStyle>
-            </Box>
-            <AppNotice
-              title="Berlaku pada tanggal yang dipilih"
-              description="Perubahan hanya berlaku untuk Pegawai dan tanggal yang dipilih, termasuk hari libur. Jadwal utama pada tanggal lain tetap sama."
-            />
-          </Box>
+          <DailyAdjustmentReview review={review} page={page} pageSize={pageSize} />
+        )}
+        {stage === "conflict" && conflict && (
+          <ScheduleConflictDetails
+            conflict={conflict}
+            employees={employees}
+            timezone={usage.data.timezone}
+          />
         )}
         <Box sx={{ display: stage === "form" ? "block" : "none", mt: 3 }}>
           <Form
@@ -350,11 +354,22 @@ export default function BulkScheduleExceptionDialog({
               )}
               {choiceReason && (
                 <AppNotice
-                  tone="warning"
+                  tone={hasTimeConflict ? "danger" : "warning"}
+                  centerContent
+                  descriptionAlign="left"
                   description={
                     choiceReason === ALREADY_USED
                       ? "Jadwal yang dipilih sudah digunakan. Pilih jadwal lain."
-                      : `${choiceReason} Pilih jadwal lain.`
+                      : hasTimeConflict
+                        ? "Jam kerja bertabrakan. Pilih jadwal atau tanggal lain."
+                        : `${choiceReason} Pilih jadwal lain.`
+                  }
+                  action={
+                    conflict && (
+                      <Button onClick={() => setStage("conflict")} style={{ minHeight: 44 }}>
+                        Lihat rincian
+                      </Button>
+                    )
                   }
                   sx={{ mb: 2 }}
                 />
@@ -375,6 +390,7 @@ export default function BulkScheduleExceptionDialog({
               >
                 <AsyncSelect
                   placeholder="Pilih jadwal kerja"
+                  status={hasTimeConflict && schedule?.choices.length === 1 ? "error" : undefined}
                   optionRender={(option) => <ScheduleChoiceOption option={option} />}
                   loading={options.loading || usage.loading}
                   disabled={
@@ -399,6 +415,7 @@ export default function BulkScheduleExceptionDialog({
                       label: s.name + (reason ? ` — ${reason}` : ""),
                       disabled: blocked,
                       disabledReason: reason,
+                      conflict: reason === shortUsageReason(TIME_CONFLICT),
                       title: reason || s.name,
                     };
                   })}
@@ -426,6 +443,7 @@ export default function BulkScheduleExceptionDialog({
               >
                 <AsyncSelect
                   placeholder="Pilih shift"
+                  status={hasTimeConflict ? "error" : undefined}
                   optionRender={(option) => <ScheduleChoiceOption option={option} />}
                   disabled={busy || usage.loading || Boolean(usage.error)}
                   options={(schedule?.choices || []).map((c) => ({
@@ -436,6 +454,7 @@ export default function BulkScheduleExceptionDialog({
                       (reasonFor(c) ? ` — ${shortUsageReason(reasonFor(c))}` : ""),
                     disabled: Boolean(reasonFor(c)),
                     disabledReason: shortUsageReason(reasonFor(c)),
+                    conflict: reasonFor(c) === TIME_CONFLICT,
                   }))}
                 />
               </Form.Item>

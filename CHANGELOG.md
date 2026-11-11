@@ -1,5 +1,51 @@
 # Catatan perubahan SITOU
 
+## 2026-11-11 — Sumber aturan dan bacaan selektif
+
+- AGENTS.md menjadi entrypoint ringkas ke docs/README.md. Detail dipindahkan ke pemilik bidang pada docs/rules, pedoman UI dipilah pada docs/ui, dan referensi API komponen dipilah pada docs/components. Panduan instalasi/operasional tetap tersedia, terpisah dari aturan dan histori changelog.
+- Aturan membaca ulang kini berdasarkan perubahan sumber, perpindahan cakupan atau kebutuhan konteks, bukan setiap perintah. Skill proyek disimpan di docs/skills/sitou-ui-ux; entrypoint skill lokal hanya merujuk sumber tersebut. Referensi bagian lama, path mesin dan acuan tab dashboard yang telah diganti diselaraskan tanpa mengubah kode/izin aplikasi.
+- Pemeriksaan dokumen mencakup penelusuran butir asli, pasangan duplikasi, tautan/anchor, metadata skill dan diff. Tidak ada migration, perubahan database, build aplikasi atau deployment pada penataan dokumentasi ini. Snapshot/script audit sementara dibersihkan.
+
+- Keterangan mobile untuk pulang setelah jadwal diselaraskan menjadi **Pulang lewat jam kerja** dengan durasi jam/menit dari server. Perubahan pada formatter presentasi Flutter bersama; perhitungan dan kontrak API tetap berlaku.
+
+## 2026-11-11 — Urutan absensi lintas hari dan rincian perubahan jadwal
+
+- Backend memblokir masuk ke sesi/tanggal lain selama absen masuk sebelumnya belum dipulangkan. Pemeriksaan dipakai pada status, preflight dan transaksi simpan. Flutter memprioritaskan sesi terbuka di Beranda serta memakai pilihan tindakan yang sama pada tombol dan pemilih jam. Nama sesi internal dan anotasi +1 hari disembunyikan dari tampilan; tanggal kerja/timestamp tetap dipertahankan. Tidak ada migration atau perubahan event historis.
+- Tinjauan memakai AppCollapse per rentang tanggal/Pegawai dengan jam dan alasan masing-masing. Catatan terdahulu membaca alasan dari audit berizin. Penanda libur menyebut sumber kalender atau libur jadwal. Notice benturan memakai warna danger, ikon sejajar teks, serta Lihat rincian dalam modal yang sama dengan isian tetap tersimpan ketika kembali.
+- QA lokal: 25 skenario aturan/penguncian sesi lulus; service PostgreSQL sintetis memverifikasi simpan, penolakan campuran tanpa perubahan parsial, alasan audit, sumber libur dan status/preflight overnight. Lint/format serta build Next.js lulus. Fixture browser diperiksa pada 320/375/768/1024/1366/1600 px, layar pendek, keyboard, footer dan pemeliharaan isian. Flutter analyze bersih dan lima tes termasuk render header 320/390 px dengan teks diperbesar lulus. Pengujian kamera/GPS dan APK pada perangkat fisik serta VPS belum dilakukan.
+
+- Tinjauan perubahan jadwal menampilkan Periode dan Jenis perubahan, jam kerja yang berlaku dan tambahan atau pengganti, lalu Alasan perubahan. Jam yang dipertahankan dan periode penuh tampil sekali. Uji Chrome desktop serta ponsel 320 px dengan data sintetis memeriksa mode tambah dan ganti, perbedaan antarhari, hari libur, keadaan kosong, footer dan Escape. Lint dan format lulus.
+
+- Menu Aksi Jadwal Pegawai menampilkan ikon outline pada Tetapkan jadwal, Ubah jadwal harian, dan Riwayat jadwal. Render dan fokus diperiksa pada desktop serta ponsel 320 px untuk akses Kelola dan Lihat Saja. Lint dan format lulus.
+
+## 2026-11-10 — Aksi jadwal harian per Pegawai dan tinjauan tanpa tabel
+
+- Menu Aksi membuka Ubah jadwal harian untuk Pegawai pada baris itu. Toolbar memakai pilihan satu hingga 100 Pegawai. Akses Kelola dan syarat penetapan aktif atau mendatang berlaku pada kedua alur.
+- Ringkasan menampilkan Sebelum dan Sesudah tanpa tabel. Tanggal berurutan dengan rincian dan status libur yang sama digabung per Pegawai dalam satu halaman.
+- Uji browser dengan data sintetis pada desktop dan ponsel 320 px memeriksa target permintaan, akses baca, menu nonaktif, pengelompokan tanggal, jam lintas tengah malam, footer dan Escape. Lint dan format komponen terdampak lulus. Artefak QA dibersihkan.
+
+## 2026-11-10 — Ringkas tinjauan perubahan jadwal
+
+- Tinjauan menggabungkan periode, pilihan jam kerja, dan alasan. Perbandingan Sebelum/Sesudah menampilkan satu rentang per baris, dengan penanda untuk jam tambahan, hari libur, dan jam yang berakhir keesokan harinya.
+- Uji browser dengan isian dan respons sintetis pada lebar 320, 800, dan 1280 px memeriksa gulir horizontal, fokus, footer, peringatan penggantian, pagination, dan pemeliharaan isian saat kembali setelah gagal simpan. Lint dan format komponen terdampak lulus.
+
+## 2026-11-10 — Hapus jadwal kerja dan perbaikan jam tambahan
+
+- Admin SITOU dapat menghapus jadwal tetap atau kelompok shift yang belum pernah dipakai. Jadwal terpakai dan riwayat lama yang belum dapat dipastikan menampilkan alasan penolakan. Penghapusan, audit, dan receipt disimpan dalam satu transaksi. Tidak ada migration baru.
+- Tinjauan perubahan harian mengurutkan revisi berdasarkan pola dan tanggal efektif. Pratinjau dan simpan kini menerima jadwal dengan beberapa revisi tanpa gagal saat membuat tanda versi.
+- Uji API pada bootstrap PostgreSQL sintetis memverifikasi pratinjau dan simpan dua tanggal lintas revisi, retry, penghapusan tetap/shift, pemakaian kembali nama kelompok, histori terpakai dan arsip, izin, lingkup organisasi, modul nonaktif, origin, versi usang, audit, dan receipt. Sebanyak 21 tes jadwal serta lint dan format file yang diubah lulus.
+- Uji browser desktop dan ponsel 320 px memeriksa alasan penolakan, penutupan dengan Escape, tombol konfirmasi selebar footer dengan tinggi minimal 44 px dan jarak 12 px, serta snackbar dan pembaruan daftar setelah data dihapus. Database dan artefak QA dibersihkan.
+
+## 2026-11-10 — Ringkas riwayat jadwal Pegawai
+
+- Riwayat memakai AppCollapse dengan nama, periode, dan status pada setiap judul panel. Rincian dibuka satu per satu. Modal menampilkan lima penetapan per halaman dengan navigasi bersama dan kembali ke awal daftar saat halaman berganti.
+- Uji browser dengan 12 penetapan sintetis memeriksa keyboard, halaman terakhir, alasan pembatalan, aksi jadwal mendatang, akses lihat saja, dan kondisi kosong. Render desktop serta mobile 320 px diperiksa. Pada layar 320 × 740 px, slot navigasi dapat digulir secara lokal. Lint dan format komponen terdampak lulus.
+
+## 2026-11-10 — Perjelas pengaturan waktu istirahat
+
+- Judul switch menjelaskan apakah waktu istirahat dikurangi dari atau termasuk dalam durasi kerja. Kedua kondisi memakai contoh 09.00–17.00 dengan istirahat 60 menit agar selisih 7 dan 8 jam mudah dipahami. Ringkasan memakai istilah durasi kerja yang sama.
+- Uji komponen dengan data sintetis memverifikasi kedua kondisi melalui tombol Spasi di desktop dan mobile 320 px. Teks terbaca tanpa overflow horizontal dan footer mobile berukuran 44 px dengan jarak 12 px. Lint dan pemeriksaan format file terdampak lulus.
+
 ## 2026-11-10 — Notifikasi switch jadwal kerja
 
 - Modal Buat/Edit Jadwal Kerja memakai notifikasi bersama untuk Pulang hari berikutnya, Kurangi durasi kerja dengan istirahat, dan Izinkan absen pada hari libur. Notifikasi mengikuti nilai setiap pengaturan, termasuk pada jam khusus dan pilihan shift.
