@@ -34,7 +34,7 @@ npm run db:migrate -- database/migrations/NAMA_FILE.sql
 ```
 
 4. Verifikasi schema, constraint, index, data, API terkait, dan production build.
-5. Sinkronkan `sitou_schema_v3.sql` dan `docs/database-schema.md` agar database baru langsung memakai kondisi akhir.
+5. Sinkronkan [skema bootstrap](../../sitou_schema_v3.sql) agar database baru memakai struktur akhir. Perbarui [aturan data](../../docs/rules/data.md) bila kontrak atau ketentuan model data berubah.
 
 Migration yang telah diterapkan tidak boleh diedit. Koreksi dibuat sebagai migration bernomor berikutnya.
 
@@ -164,7 +164,7 @@ menggunakan composite FK organisasi/membership. Schema bootstrap memuat perubaha
 sama. Tidak mengaktifkan konfigurasi atau mengubah hak akun lama melalui migration.
 Superadmin menetapkan admin penuh melalui form akun, lalu admin meninjau grant lama.
 Uji upgrade/bootstrap, delegasi, version/rollback, session aktif dan lifecycle guard
-melalui test:inventory:http pada database terpisah. Lihat docs/hris-access-design.md.
+melalui test:inventory:http pada database terpisah. Lihat docs/rules/api-security.md.
 
 ## 052 — Delegasi akun Pegawai dan fitur
 
@@ -228,7 +228,7 @@ constraint `organization_hris_access_policies_check` sudah tidak ada, dan untuk
 062 periksa enam grant pribadi pada masing-masing role HRD/Pimpinan.
 Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` setelah upgrade.
 
-- 063: hubungan penggantian sanksi untuk pemulihan terkonfirmasi dan penghapusan logis kasus tanpa tindakan. Backfill hanya dari audit yang terbukti; pencabutan lama tidak diperbaiki otomatis. Lihat docs/disciplinary-restoration.md.
+- 063: hubungan penggantian sanksi untuk pemulihan terkonfirmasi dan penghapusan logis kasus tanpa tindakan. Backfill hanya dari audit yang terbukti; pencabutan lama tidak diperbaiki otomatis. Lihat docs/rules/product.md.
 
 - 064: counter atomik nomor kasus per organisasi/tahun pencatatan, backfill dari
   nomor tertinggi termasuk kasus terhapus, serta index urutan histori pegawai.
@@ -236,7 +236,7 @@ Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` setelah upgrade.
 
 ## 065 — Sesi SITOU Mobile
 
-`20261027_065_mobile_auth_sessions.sql` menambah tabel sesi bearer opaque terpisah dari cookie web, dengan hash token, expiry maksimal tujuh hari dan FK organisasi/profil/membership. Jalankan pada database existing setelah migration sebelumnya; tidak mengganti akun atau password. Bootstrap final sudah memuat struktur yang sama. Verifikasi `npm run db:verify-bootstrap`; pemeliharaan `npm run auth:mobile-sessions:prune`. Kontrak/rollout: `docs/mobile-auth.md`. Tidak diterapkan otomatis ke VPS.
+`20261027_065_mobile_auth_sessions.sql` menambah tabel sesi bearer opaque terpisah dari cookie web, dengan hash token, expiry maksimal tujuh hari dan FK organisasi/profil/membership. Jalankan pada database existing setelah migration sebelumnya; tidak mengganti akun atau password. Bootstrap final sudah memuat struktur yang sama. Verifikasi `npm run db:verify-bootstrap`; pemeliharaan `npm run auth:mobile-sessions:prune`. Kontrak/rollout: `docs/mobile-api.md`. Tidak diterapkan otomatis ke VPS.
 
 ## 066 — Jadwal fleksibel
 
@@ -254,7 +254,7 @@ Periksa kedua tabel sebelum menjalankan. Runner development belum memiliki ledge
 
 Pada database existing lengkap 067, periksa katalog attendance. Jika belum ada, jalankan npm run db:migrate -- database/migrations/20261030_068_attendance_organization_module.sql, lalu npm run db:check dan npm run db:verify-bootstrap. Jangan ulang 063–067. Runner belum memiliki ledger. Seed migration ini aman terhadap konflik kode tetapi bukan alasan menjalankan ulang migration lain. Sesudahnya Superadmin menentukan aktivasi melalui Organisasi → Fitur organisasi, organisasi lama juga default nonaktif. Tidak dijalankan otomatis ke VPS. Uji upgrade tanpa perubahan grant/histori dan bootstrap baru harus menghasilkan katalog yang sama. Rollback aplikasi tidak menghapus data jadwal atau grant, penonaktifan fitur cukup memakai kontrol resmi sebelum tindakan pemulihan berizin.
 
-Migration 070 menambah kepemilikan file platform terbatas untuk PDF SKB, antrean holiday_pdf_imports, referensi/peninjauan PDF pada revisi katalog, dukungan temuan backup platform serta penyelarasan index cleanup. Terapkan setelah 069 sebelum memakai upload PDF. Instalasi executable/worker dan prosedur VPS: docs/holiday-pdf-import.md.
+Migration 070 menambah kepemilikan file platform terbatas untuk PDF SKB, antrean holiday_pdf_imports, referensi/peninjauan PDF pada revisi katalog, dukungan temuan backup platform serta penyelarasan index cleanup. Terapkan setelah 069 sebelum memakai upload PDF. Instalasi executable/worker dan prosedur VPS: scripts/README.md.
 
 - 20261102_071_safe_holiday_deletion.sql: bukti penggunaan permanen, receipt penghapusan, antrean pembersihan PDF dan trigger pengaman.
 - 20261102_072_holiday_usage_audit_backfill.sql: koreksi backfill versi audit kalender legacy (hasil save hanya id, versi sebelumnya pada input). Jalankan setelah 071. Keduanya diterapkan pada development; upgrade existing memakai migration berurutan, bukan bootstrap ulang.
@@ -270,7 +270,7 @@ Migration 070 menambah kepemilikan file platform terbatas untuk PDF SKB, antrean
 
 ## 075 — Akses Titik Absensi
 
-Jalankan 20261104_075_attendance_point_access.sql sesudah 074. Menambah revoked_at nullable dan katalog menu HRIS. Bootstrap telah disinkronkan. Panduan ada di docs/attendance-points.md.
+Jalankan 20261104_075_attendance_point_access.sql sesudah 074. Menambah revoked_at nullable dan katalog menu HRIS. Bootstrap telah disinkronkan. Panduan ada di docs/work-schedules.md.
 
 ### Migration 078 — Penyedia peta absensi
 
@@ -278,7 +278,7 @@ Tambahkan pilihan peta pada organisasi dengan default OpenStreetMap. Terapkan se
 
 ### Migration 077 — Absensi mobile per sesi
 
-Terapkan setelah 076. Menautkan event ke sesi kerja dan menambah catatan serta hash receipt. Event lama tetap bisa dibaca. Rilis API bersama skema baru. Lihat `docs/mobile-attendance.md`.
+Terapkan setelah 076. Menautkan event ke sesi kerja dan menambah catatan serta hash receipt. Event lama tetap bisa dibaca. Rilis API bersama skema baru. Lihat `docs/mobile-api.md`.
 
 ### Migration 076 — Lokasi tanpa kode
 
@@ -286,11 +286,11 @@ Menghapus `locations.code` setelah migration 075. ID dan relasi lokasi tetap. Te
 
 ### 079 — bukti dan rekap absensi
 
-20261105_079_attendance_reporting_foundation.sql menambah metrik waktu terstruktur, snapshot titik/zona waktu, constraint komposit serta metrik rekap sesi. Jalankan melalui runner existing setelah 078. Tidak mengubah event lama dan tidak membuat bukti historis perkiraan. Rekap ulang opsional melalui scripts/rebuild-attendance-summaries.mjs; baca docs/mobile-attendance.md untuk dry-run, batas batch dan pemilihan ENV_FILE. Jalur upgrade dan bootstrap dibandingkan oleh db:verify-bootstrap.
+20261105_079_attendance_reporting_foundation.sql menambah metrik waktu terstruktur, snapshot titik/zona waktu, constraint komposit serta metrik rekap sesi. Jalankan melalui runner existing setelah 078. Tidak mengubah event lama dan tidak membuat bukti historis perkiraan. Rekap ulang opsional melalui scripts/rebuild-attendance-summaries.mjs; baca docs/mobile-api.md untuk dry-run, batas batch dan pemilihan ENV_FILE. Jalur upgrade dan bootstrap dibandingkan oleh db:verify-bootstrap.
 ### 080 — Absen pada hari libur
 
-Jalankan `npm run db:migrate -- database/migrations/20261105_080_holiday_attendance.sql` pada database development yang sudah menerapkan 079. Migration menambah kebijakan per jadwal, bukti bekerja saat libur, serta metrik rekap yang membedakan nilai nol dari penilaian yang tidak berlaku. Lihat [kontrak absensi mobile](../../docs/mobile-attendance.md).
+Jalankan `npm run db:migrate -- database/migrations/20261105_080_holiday_attendance.sql` pada database development yang sudah menerapkan 079. Migration menambah kebijakan per jadwal, bukti bekerja saat libur, serta metrik rekap yang membedakan nilai nol dari penilaian yang tidak berlaku. Lihat [kontrak absensi mobile](../../docs/mobile-api.md#absensi-mobile-sitou).
 
-Migration 081 menambah nomor pasangan untuk sesi tambahan, context bukti di luar jadwal dan constraint alasan pada attendance_events. Jalankan npm run db:migrate -- database/migrations/20261110_081_outside_schedule_attendance.sql pada development sesudah 080, lalu npm run db:verify-bootstrap. Urutan penerapan adalah migration, backend, kemudian APK dengan header versi 3. [Kontrak absensi](../../docs/mobile-attendance.md#absen-di-luar-jadwal).
+Migration 081 menambah nomor pasangan untuk sesi tambahan, context bukti di luar jadwal dan constraint alasan pada attendance_events. Jalankan npm run db:migrate -- database/migrations/20261110_081_outside_schedule_attendance.sql pada development sesudah 080, lalu npm run db:verify-bootstrap. Urutan penerapan adalah migration, backend, kemudian APK dengan header versi 3. [Kontrak absensi](../../docs/mobile-api.md#absen-di-luar-jadwal).
 
 Migration 082 menambahkan entri katalog Pemeriksaan selfie. Terapkan setelah 081 melalui `npm run db:migrate -- database/migrations/20261111_082_attendance_selfie_check.sql` pada development, lalu jalankan `npm run db:verify-bootstrap`. Urutan rilis adalah migration, backend, aplikasi v4, lalu pengaktifan per organisasi setelah verifikasi perangkat.

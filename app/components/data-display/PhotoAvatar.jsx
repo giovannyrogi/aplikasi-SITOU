@@ -13,6 +13,8 @@ export default function PhotoAvatar({
   previewTitle = photoLabel,
   onPreview,
   interactive = true,
+  variant = "circular",
+  fallbackIcon,
 }) {
   const theme = useTheme();
   const [failed, setFailed] = useState(false);
@@ -34,12 +36,17 @@ export default function PhotoAvatar({
     border: "1px solid " + alpha(theme.palette.primary.main, 0.16),
     fontSize: size * 0.3,
     fontWeight: 700,
+    ...(variant === "rounded" && { borderRadius: 2.5 }),
   };
 
   if (!photoUrl || failed) {
     return (
-      <Avatar aria-label={`Inisial ${name}`} sx={avatarSx}>
-        {initials}
+      <Avatar
+        variant={variant}
+        aria-label={fallbackIcon ? `Foto ${name} tidak tersedia` : `Inisial ${name}`}
+        sx={avatarSx}
+      >
+        {fallbackIcon || initials}
       </Avatar>
     );
   }
@@ -64,7 +71,7 @@ export default function PhotoAvatar({
         p: 0,
         bgcolor: "transparent",
         border: 0,
-        borderRadius: "50%",
+        borderRadius: variant === "rounded" ? 2.5 : variant === "square" ? 0 : "50%",
         cursor: interactive ? "pointer" : "default",
         "&:focus-visible": {
           outline: "2px solid " + theme.palette.primary.main,
@@ -72,7 +79,7 @@ export default function PhotoAvatar({
         },
       }}
     >
-      <Avatar sx={avatarSx}>
+      <Avatar variant={variant} sx={avatarSx}>
         <Box
           component="img"
           src={photoUrl}

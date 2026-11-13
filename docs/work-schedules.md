@@ -1,4 +1,11 @@
-# Jadwal kerja SITOU
+# Jadwal kerja, hari libur dan absensi
+
+Bagian terkait
+
+- [Aturan domain absensi](#aturan-domain-absensi)
+- [Katalog hari libur dan kalender organisasi](#katalog-hari-libur-dan-kalender-organisasi)
+- [Titik Absensi dan akses tambahan](#titik-absensi-dan-akses-tambahan)
+- [Rekap Absensi](#rekap-absensi-1)
 
 ## Aktivasi Fitur Absensi oleh Admin SITOU
 
@@ -22,11 +29,11 @@ Migration 068 hanya menambahkan katalog attendance pada access_modules. Tidak me
 
 ### Integrasi absensi berikutnya
 
-Alur kamera, lokasi dan pencatatan absensi mobile mengikuti [kontrak absensi mobile](mobile-attendance.md). Endpoint absensi mendatang wajib memeriksa aktivasi attendance pada organisasi sesi serta permission self-service/objek dan kebijakan tulis yang berlaku. Gunakan gerbang bersama requireAttendanceModule dan urutan lock organisasi pada mutation, tanpa mempercayai flag perangkat. Login, cookie, mobile bearer, Homepage dan Cuti/izin tidak berubah. Mematikan fitur tidak menghapus data absensi yang kelak tersimpan.
+Alur kamera, lokasi dan pencatatan absensi mobile mengikuti [kontrak absensi mobile](mobile-api.md#absensi-mobile-sitou). Endpoint absensi mendatang wajib memeriksa aktivasi attendance pada organisasi sesi serta permission self-service/objek dan kebijakan tulis yang berlaku. Gunakan gerbang bersama requireAttendanceModule dan urutan lock organisasi pada mutation, tanpa mempercayai flag perangkat. Login, cookie, mobile bearer, Homepage dan Cuti/izin tidak berubah. Mematikan fitur tidak menghapus data absensi yang kelak tersimpan.
 
 ## Alur yang tersedia
 
-Kalender Libur mendukung pemilihan dari Katalog Hari Libur resmi dan tanggal manual organisasi. Katalog platform dikelola Admin SITOU melalui Draft → Tinjau → Terbitkan; HRD menyalin pilihan secara eksplisit dan menyimpan kalender atomik. Cuti bersama terpisah dan tidak mengurangi saldo cuti. Kalender lama serta snapshot tidak diubah otomatis. Prosedur lengkap, sumber SKB 2026–2027, revisi, izin dan kontrak API ada di `docs/holiday-catalogs.md`.
+Kalender Libur mendukung pemilihan dari Katalog Hari Libur resmi dan tanggal manual organisasi. Katalog platform dikelola Admin SITOU melalui Draft → Tinjau → Terbitkan; HRD menyalin pilihan secara eksplisit dan menyimpan kalender atomik. Cuti bersama terpisah dan tidak mengurangi saldo cuti. Kalender lama serta snapshot tidak diubah otomatis. Prosedur lengkap, sumber SKB 2026–2027, revisi, izin dan kontrak API ada di `docs/work-schedules.md`.
 
 Data Master → Jadwal Kerja menyediakan dua jenis jadwal. Isi Nama jadwal, lalu pilih **Jam kerja tetap** atau **Kerja shift** melalui dropdown Jenis jam kerja. Kedua field sejajar pada desktop dan bertumpuk selebar area pada ponsel. Pilihan jenis tidak diisi otomatis pada jadwal baru. URL menu dan hak akses existing tetap dipertahankan.
 
@@ -181,11 +188,9 @@ Preview memuat employeeId,date,status,isHoliday,holidayName,assignmentId,excepti
 
 GET templates memakai pagination/search/status existing. Setiap jadwal memuat days.sessions (shiftId,name,rules), used dan nama kalender. Opsi penetapan menambah ringkasan days, holiday_policy, calendar_name, today/timezone tanpa membuka izin mengelola master. POST sesi harus tepat salah satu shiftId atau rules. Backend memverifikasi organisasi, kelengkapan hari, aturan, overlap dan version. Sesi inline identik dalam request disimpan sekali, referensi lama tidak diubah. Idempotency memakai receipt existing dengan operasi template.save. Tanggal kalender GET memakai format date-only. Respons/envelope/error/timezone mengikuti preview existing. Generator lama tetap tersedia untuk kompatibilitas dan bukan prasyarat tampilan kalender baru.
 
-## Batas tahap berikutnya
+## Batas kerja tambahan
 
-Rancangan absensi lanjutan: kamera → tinjau foto, jadwal, dan kondisi validasi → field alasan/catatan muncul pada form yang sama jika diperlukan → satu tombol Kirim absen masuk atau Kirim absen keluar. Catatan terlambat dapat opsional sesuai kebijakan. Sesi tambahan/hari libur wajib beralasan dan pengakuannya menunggu peninjauan HRD. Alasan bukan persetujuan. Titik/radius, foto, validasi server, mobile dan alur persetujuan tersebut belum diaktifkan oleh penyederhanaan dashboard ini.
-
-Absensi mobile, persetujuan kerja tambahan dan penggantian waktu belum diintegrasikan. Kerja tambahan adalah sesi terpisah dengan waktu/durasi dinamis, bukan selalu malam atau dua jam (contoh uji 45/120/195 menit). Durasi diakui HRD setelah memperhitungkan istirahat. Penggantian harus menentukan tanggal/rentang, maksimal menit diakui, tanpa pemakaian ganda. Tidak otomatis ke besok. Alasan kejadian di luar jadwal bukan persetujuan. Tidak membuat saldo waktu/kompensasi, payroll, atau mengubah event absensi existing.
+Kirim absensi, termasuk alasan bila diwajibkan, mengikuti [kontrak API Mobile](mobile-api.md#absensi-mobile-sitou). Catatan terlambat dapat opsional sesuai kebijakan. Alasan absen pada hari libur atau di luar jadwal tidak memberi persetujuan lembur atau kompensasi. Pengakuan durasi kerja tambahan dan penggantian waktu belum dibangun. Rancang penggantian dengan tanggal atau rentang yang eksplisit, durasi yang disetujui setelah istirahat, dan perlindungan terhadap pemakaian ganda. Jangan memindahkannya otomatis ke hari berikutnya atau mengubah event absensi yang sudah tercatat.
 
 ## Migration dan rollout
 
@@ -223,25 +228,11 @@ Riwayat jadwal menampilkan lima penetapan per halaman sesuai urutan terbaru dari
 
 Perubahan ini hanya antarmuka dashboard. Tidak mengubah schema, endpoint, permission, histori database, pencatatan absensi atau source mobile.
 
-## Urutan penggunaan untuk HRD
-
-1. Jika organisasi memiliki libur pada tanggal khusus, buka Pengaturan Organisasi → Kalender Libur. Buat kalender, tambahkan tanggal/nama hari libur dan simpan dalam status aktif. Langkah ini opsional. Libur rutin seperti Minggu diatur pada hari kerja, bukan diinput berulang ke kalender.
-2. Buka Data Master → Jadwal Kerja, pilih Buat jadwal kerja, isi nama lalu pilih Jam kerja tetap atau Kerja shift. Jam tetap untuk hari mingguan dengan jam utama. Kerja shift menyediakan beberapa pilihan bernama bebas untuk dipilih per Pegawai.
-3. Pilih hari kerja. Hari yang tidak dipilih adalah Libur. Buat jadwal terpisah bagi kelompok dengan hari libur rutin berbeda.
-4. Atur jam masuk/pulang dan istirahat. Pada Kerja shift gunakan Tambah shift untuk setiap pilihan beserta nama/jamnya. Pulang hari berikutnya untuk jam yang melewati tengah malam. Pengurangan istirahat mengurangi durasi kerja, bukan memajukan jam pulang. Toleransi waktu serta Atur jam kerja per hari hanya diisi bila diperlukan.
-5. Bila memakai kalender, jadwal otomatis mengikuti tanggal liburnya. Aktifkan jadwal lalu Simpan jadwal, periksa Ringkasan jadwal dan konfirmasi simpan. Membuat jadwal belum menetapkannya ke Pegawai.
-6. Buka Kepegawaian → Jadwal Pegawai. Pilih Pegawai (maksimal 100), tekan Tetapkan jadwal, pilih jadwal atau satu pilihan shift, isi Mulai berlaku, lalu tekan Tetapkan jadwal. Jadwal baru berlaku sampai diganti. HRD/Pimpinan yang memiliki profil Pegawai juga memerlukan penetapan eksplisit yang sama. Pegawai baru dapat memilih jadwal saat pendaftaran sesuai izin existing.
-7. Pilih Pegawai dan gunakan Ubah jadwal harian untuk mengganti atau menambahkan jam pada rentang maksimal 31 hari dengan alasan. Gunakan Tetapkan jadwal untuk mengganti aturan rutin mulai tanggal baru, dan Riwayat jadwal untuk menelusuri periode serta pelakunya.
-
-Pada Ubah jadwal harian, tombol mata dengan tooltip Periksa jadwal pada tanggal yang dipilih memanggil preview baca existing agar aturan dan versi tanggal dimuat sebelum perubahan. Ini bukan penyimpanan. Pada lebar mulai 600px hanya ikon 44×44px. Di ponsel lebih kecil tampil ikon serta teks Periksa jadwal selebar area. Tooltip dapat muncul saat hover maupun fokus keyboard. Tombol tempat sampah pada Kalender Libur juga 44×44px dengan tooltip Hapus tanggal libur dan nama aksesibel per baris. Menghapus baris pada form tidak mengirim mutation sampai Simpan kalender.
-
-Pada form hak akses HRD, tiga menu Absensi tetap terlihat saat fitur nonaktif. Checkbox dan tingkat akses terkunci dengan pesan merah yang meminta pengguna menghubungi Admin SITOU. Pilih semua hanya mengubah menu yang tersedia dan mempertahankan izin lama pada menu terkunci. Setelah fitur aktif, izin dapat diatur kembali.
-
-PDF referensi katalog libur tersedia melalui alur unggah Admin SITOU pada docs/holiday-pdf-import.md. Impor/publikasi tidak mengubah kalender organisasi atau snapshot jadwal; HRD tetap meninjau dan menyimpan pilihan kalender secara eksplisit.
+Pada Ubah jadwal harian, Periksa jadwal membaca preview dan versi tanggal tanpa menyimpan. Pada lebar mulai 600 px, gunakan tombol ikon mata 44×44 px dengan tooltip dan nama aksesibel. Pada ponsel yang lebih sempit, tampilkan ikon dan teks Periksa jadwal. Tombol hapus tanggal pada kalender memakai ikon, tooltip, dan nama aksesibel per baris. Penghapusan baris baru disimpan saat Simpan kalender.
 
 ## Menghapus kalender libur
 
-Aksi Hapus permanen khusus Admin SITOU dan hanya kalender yang belum pernah direferensikan oleh jadwal. Nonaktif atau referensi yang kemudian dilepas tidak menghapus bukti penggunaan. Penolakan menyebut nama/jumlah referensi. Kalender percobaan yang hanya memuat tanggal katalog boleh dihapus, tetapi katalog sumber tetap tercatat pernah digunakan. Lihat docs/holiday-catalogs.md untuk API, error, receipt dan pembersihan PDF.
+Aksi Hapus permanen khusus Admin SITOU dan hanya kalender yang belum pernah direferensikan oleh jadwal. Nonaktif atau referensi yang kemudian dilepas tidak menghapus bukti penggunaan. Penolakan menyebut nama/jumlah referensi. Kalender percobaan yang hanya memuat tanggal katalog boleh dihapus, tetapi katalog sumber tetap tercatat pernah digunakan. Lihat docs/work-schedules.md untuk API, error, receipt dan pembersihan PDF.
 
 Form Kalender Libur memakai FormSection untuk identitas, sumber katalog, libur organisasi dan penggunaan. Kelompok kosong memakai EmptyState.compact; impor/tambah/hapus memakai IconActionButton berlabel dan tooltip. Sumber resmi memakai InfoFieldGrid readonly. Hasil simpan/hapus memakai snackbar bersama setelah modal ditutup; konfirmasi hapus berisi penjelasan langsung. Proses perancangan frontend wajib mengikuti AGENTS.md dan docs/ui-ux-guidelines.md.
 
@@ -287,22 +278,22 @@ Development: jalankan npm run db:migrate -- database/migrations/20261103_073_wor
 
 ## Titik absensi
 
-Modul Absensi juga mengatur titik di form Lokasi dan menu Akses Titik Absensi. Izin tersebut tersendiri dari Kalender Libur, Jadwal Kerja dan Jadwal Pegawai. Lihat docs/attendance-points.md.
+Modul Absensi juga mengatur titik di form Lokasi dan menu Akses Titik Absensi. Izin tersebut tersendiri dari Kalender Libur, Jadwal Kerja dan Jadwal Pegawai. Lihat docs/work-schedules.md.
 
 ## Konsumsi snapshot oleh absensi
 
-Absensi versi 1 menyimpan penilaian per work_schedule_sessions dan membentuk rekap pasangan lengkap dalam transaksi. Jadwal lintas hari mengikuti work_date snapshot; tanggal kejadian tetap terpisah. Jangan mengubah snapshot yang sudah dipakai event/keputusan. Rekap multi-sesi mengecualikan jeda antarsesi dan tidak menyimpulkan durasi dari sesi tanpa pulang. Kontrak dan batas laporan di docs/mobile-attendance.md.
+Absensi versi 1 menyimpan penilaian per work_schedule_sessions dan membentuk rekap pasangan lengkap dalam transaksi. Jadwal lintas hari mengikuti work_date snapshot; tanggal kejadian tetap terpisah. Jangan mengubah snapshot yang sudah dipakai event/keputusan. Rekap multi-sesi mengecualikan jeda antarsesi dan tidak menyimpulkan durasi dari sesi tanpa pulang. Kontrak dan batas laporan di docs/mobile-api.md.
 ## Absen pada hari libur
 
 Buka **Jadwal Kerja**, buat atau edit jadwal, lalu aktifkan **Izinkan absen pada hari libur** di bagian aturan hari libur. Satu pengaturan berlaku untuk seluruh pilihan dalam satu kelompok shift. Jadwal baru dan jadwal yang sudah ada mulai dengan opsi nonaktif. Perubahan jadwal terpakai mengikuti tanggal efektif, alasan, dan audit yang sama dengan perubahan aturan jadwal lainnya.
 
-Opsi ini berlaku pada libur mingguan dan hari libur kalender bagi Pegawai dengan penetapan yang berlaku. Jadwal khusus berisi jam kerja yang ditetapkan HRD selalu dipakai lebih dulu dan dinilai sesuai jam tersebut. Tanpa jadwal khusus, Pegawai dapat mencatat satu pasangan absen masuk dan pulang dengan alasan pada setiap kiriman. Kelola Jadwal Kerja dan aktivasi modul Absensi tetap diperlukan. Lihat [kontrak absensi mobile](mobile-attendance.md).
+Opsi ini berlaku pada libur mingguan dan hari libur kalender bagi Pegawai dengan penetapan yang berlaku. Jadwal khusus berisi jam kerja yang ditetapkan HRD selalu dipakai lebih dulu dan dinilai sesuai jam tersebut. Tanpa jadwal khusus, Pegawai dapat mencatat satu pasangan absen masuk dan pulang dengan alasan pada setiap kiriman. Kelola Jadwal Kerja dan aktivasi modul Absensi tetap diperlukan. Lihat [kontrak absensi mobile](mobile-api.md#absensi-mobile-sitou).
 
 API buat/edit jadwal reguler dan kelompok shift menerima boolean opsional `allowHolidayAttendance`. Saat edit, field yang tidak dikirim mempertahankan nilai tersimpan. Respons master mengembalikan `allow_holiday_attendance`.
 
 ### Prioritas jadwal untuk absensi
 
-Jadwal khusus tetap menentukan sesi yang berlaku pada tanggal kerja. Backend hanya membuka sesi tambahan setelah sesi terjadwal terakhir berakhir dan sesi sebelumnya sudah ditutup. Sesi tambahan tidak mengubah jadwal Pegawai. Lihat [kontrak absensi](mobile-attendance.md#absen-di-luar-jadwal).
+Jadwal khusus tetap menentukan sesi yang berlaku pada tanggal kerja. Backend hanya membuka sesi tambahan setelah sesi terjadwal terakhir berakhir dan sesi sebelumnya sudah ditutup. Sesi tambahan tidak mengubah jadwal Pegawai. Lihat [kontrak absensi](mobile-api.md#absen-di-luar-jadwal).
 
 ## Shift dan jadwal
 
@@ -332,11 +323,11 @@ Jadwal khusus tetap menentukan sesi yang berlaku pada tanggal kerja. Backend han
 
 - Tahun katalog baru dipilih melalui AppYearPicker (tahun berjalan/mendatang, tahun lampau disabled), bukan input angka manual. Tahun pada draft/revisi existing tetap dipertahankan dan dikunci. Jangan menerapkan pembatasan ini pada filter laporan historis. Tanggal manual memakai Collapse per tanggal: judul tanggal terpilih, nama dan kategori tetap terbaca ketika ditutup; baris baru terbuka, isian terpelihara, validasi membuka panel dan memfokuskan field gagal. Data otomatis dijelaskan melalui AppNotice.
 
-- Pengisian katalog tahunan boleh otomatis melalui tombol Ambil data terbaru khusus Admin SITOU. Fetch hanya dari endpoint penyedia tetap di server dengan timeout/batas byte, validasi tahun/tanggal/kategori/sumber SKB, rate limit dan audit pratinjau. Tampilkan perbedaan terhadap isian sebelum mengganti dan menyimpan draft secara eksplisit. Setelah penyimpanan otomatis berhasil, buka Tinjau katalog langsung dengan metode otomatis tetap terpilih. Data kosong/tidak valid/gagal diambil tidak boleh mengosongkan katalog atau menebak tanggal. Publikasi tetap memerlukan konfirmasi, dan kalender organisasi tidak ikut berubah. Jangan menambahkan panggilan sumber eksternal pada GET kalender/resolver. Lihat docs/holiday-catalogs.md.
+- Pengisian katalog tahunan boleh otomatis melalui tombol Ambil data terbaru khusus Admin SITOU. Fetch hanya dari endpoint penyedia tetap di server dengan timeout/batas byte, validasi tahun/tanggal/kategori/sumber SKB, rate limit dan audit pratinjau. Tampilkan perbedaan terhadap isian sebelum mengganti dan menyimpan draft secara eksplisit. Setelah penyimpanan otomatis berhasil, buka Tinjau katalog langsung dengan metode otomatis tetap terpilih. Data kosong/tidak valid/gagal diambil tidak boleh mengosongkan katalog atau menebak tanggal. Publikasi tetap memerlukan konfirmasi, dan kalender organisasi tidak ikut berubah. Jangan menambahkan panggilan sumber eksternal pada GET kalender/resolver. Lihat docs/work-schedules.md.
 
 - Satu katalog terbit terbaru menjadi acuan setiap tahun, dan versi lama tampil sebagai Riwayat revisi. Periksa tahun sebelum fetch sumber dan ulangi di transaksi simpan/terbitkan. Daftar utama menampilkan satu katalog per tahun. Edit katalog terbit menyimpan versi terbit baru secara atomik berdasarkan ID dan versi acuan terbaru, tanpa draft baru yang terlihat. Tolak acuan usang atau isi identik. Riwayat dan draft lama tersedia melalui filter tampilan. Pertahankan histori. Pada editor kalender organisasi, tanggal resmi yang dipilih dikelompokkan dengan AppCollapse dan jumlah tetap terlihat saat tertutup. Pakai FormSettingSwitch dengan notice aktif/nonaktif di bagian bawah.
 
-- Katalog Hari Libur adalah referensi global khusus Admin SITOU (Superadmin). Katalog terbit dan tanggalnya immutable; perubahan melalui revisi baru dengan audit. Seed resmi awal berpelaku sistem, tidak mengarang penerbit manusia. Data tahun kosong tidak ditebak. Kalender operasional tetap memiliki organization_id dan hanya berubah melalui pilihan/penyimpanan eksplisit pengguna berizin dengan Absensi aktif. Libur mingguan, nasional, cuti bersama dan libur organisasi dipisahkan. Memilih cuti bersama tidak menulis permohonan atau saldo cuti. Pemilihan katalog adalah tahap dalam AppModal kalender, bukan modal bertumpuk; preserve form, verifikasi sumber terbit di server, no-past-change, version/receipt/transaksi dan perlindungan snapshot wajib dipertahankan. Ikuti `docs/holiday-catalogs.md` untuk pembaruan tahunan dan API.
+- Katalog Hari Libur adalah referensi global khusus Admin SITOU (Superadmin). Katalog terbit dan tanggalnya immutable; perubahan melalui revisi baru dengan audit. Seed resmi awal berpelaku sistem, tidak mengarang penerbit manusia. Data tahun kosong tidak ditebak. Kalender operasional tetap memiliki organization_id dan hanya berubah melalui pilihan/penyimpanan eksplisit pengguna berizin dengan Absensi aktif. Libur mingguan, nasional, cuti bersama dan libur organisasi dipisahkan. Memilih cuti bersama tidak menulis permohonan atau saldo cuti. Pemilihan katalog adalah tahap dalam AppModal kalender, bukan modal bertumpuk; preserve form, verifikasi sumber terbit di server, no-past-change, version/receipt/transaksi dan perlindungan snapshot wajib dipertahankan. Ikuti `docs/work-schedules.md` untuk pembaruan tahunan dan API.
 
 Form jadwal baru memiliki dua jenis: Jam kerja tetap dan Kerja shift. Jam tetap memakai hari mingguan dengan jam utama serta pengecualian per hari. Kerja shift memuat pilihan bernama bebas, masing-masing satu rentang waktu pasti. HRD memilih satu pilihan untuk tiap Pegawai, bukan menetapkan seluruh pilihan sebagai waktu kerja Pegawai tersebut. Tidak mengaktifkan rotasi atau jam fleksibel pada form baru. Data lama tetap terbaca tanpa konversi diam-diam.
 
@@ -366,3 +357,268 @@ Untuk shift lintas tengah malam, kaitkan event ke `work_date` jadwal, bukan seka
 - Kalender Libur menempatkan status aktif/nonaktif paling bawah melalui FormSettingSwitch dan notice bersama. Tanggal dan nama dikelompokkan per hari; field manual dua kolom di desktop dan satu kolom di ponsel, dengan aksi hapus ikon pada header baris. Jadwal Pegawai menempatkan Tetapkan jadwal pada PageHeader, atau header panel saat tertanam pada detail Pegawai. Checkbox header hanya memilih halaman terlihat dengan status sebagian terpilih, batas 100 dan jumlah pilihan yang jelas. Batalkan semua pilihan bukan penghapusan data. Avatar/NIP mengikuti EmployeeAvatar dan pola Data Pegawai, foto tetap privat, berizin serta terbatas scope. Grant jadwal tidak membuka dokumen lain atau mutation file.
 
 - Dialog Jadwal Pegawai memakai identitas berlabel dan komponen bersama AppNotice/InfoField/EmptyState. Penetapan baru pada workspace Jadwal Pegawai tanpa field tanggal akhir dan mengirim until:null, tanpa menulis ulang periode lama. Ubah jadwal harian memisahkan tanggal, pemeriksaan jadwal, pilihan Bekerja/Libur dan alasan. dayType hanya state UI, tidak masuk API. Riwayat memakai kartu status/periode/pelaku/waktu/alasan berlabel melalui ScheduleHistory, CompactInfoChip dan InfoFieldGrid. Tidak menebak data audit yang kosong.
+
+## Aturan domain absensi
+
+### Absensi tahap dashboard
+
+Jangan memaksa HRD memasukkan ratusan pegawai satu per satu. Implementasikan urutan berikut:
+
+1. Download template Excel/CSV dengan NIP, tanggal, jam masuk, jam pulang, status, dan catatan.
+
+2. Upload ke file privat dan buat `attendance_import_batches`.
+
+3. Parse ke `attendance_import_rows` tanpa langsung menulis event final.
+
+4. Tampilkan preview dan error per baris: NIP tidak ada, duplikat, tanggal invalid, di luar organisasi, atau urutan jam salah.
+
+5. Commit seluruh baris valid dalam transaksi/batch yang idempotent.
+
+6. Buat event `source='import'`, hitung ulang rekap terkait, dan tulis audit.
+
+Sediakan input manual hanya untuk koreksi kasus kecil. Setiap koreksi menyimpan alasan, actor, dan audit.
+
+Web kiosk/PWA capture boleh ditambahkan sebagai jembatan, tetapi harus memanggil endpoint attendance yang sama dengan mobile masa depan. Jangan membuat database kedua.
+
+### Kontrak mobile attendance
+
+- Sesi masuk yang masih terbuka diprioritaskan untuk pulang, termasuk setelah tengah malam. Selama sesi tersebut terbuka, server tidak menawarkan atau menerima masuk pada sesi/tanggal lain; pemeriksaan diulang dalam transaksi event setelah lock Pegawai. Identitas sesi adalah tanggal kerja dan nomor sesi, bukan nomor sesi saja. Data lama berstatus lupa pulang tidak ditulis ulang. Label mobile menyembunyikan akhiran sesi internal dan anotasi +1 hari; timestamp serta tanggal kerja pada API tetap utuh.
+
+Mobile mengirim UUID `client_event_id` yang tetap sama saat retry. Server:
+
+1. Autentikasi user dan petakan ke pegawai.
+
+2. Buat/ambil `attendance_event_receipts` berdasarkan `(organization_id, client_event_id)`.
+
+3. Jika receipt sudah `stored`, kembalikan hasil lama tanpa insert baru.
+
+4. Ambil jadwal dan titik yang berlaku pada waktu kejadian.
+
+5. Validasi waktu, koordinat, akurasi, radius, foto, perangkat, dan batas replay.
+
+6. Simpan foto privat lebih dahulu secara aman, lalu event dan status receipt dalam transaksi terkoordinasi.
+
+7. Jalankan rekap dan indikator secara asinkron/idempotent.
+
+Event offline diperbolehkan sesuai kebijakan organisasi. Simpan `occurred_at`, `received_at`, timezone, serta flag offline. Jangan memakai jam perangkat tanpa pemeriksaan deviasi.
+
+### Geofence, foto, dan validasi background
+
+- `attendance_points` menyimpan koordinat, radius, batas akurasi, dan kebutuhan foto.
+
+- `attendance_point_assignments` dapat menarget pegawai, divisi, atau lokasi dengan periode berlaku.
+
+- Event menyimpan snapshot `distance_from_point_m` dan `allowed_radius_m`; perubahan radius tidak mengubah histori.
+
+- Backend menghitung jarak dan tidak mempercayai boolean `inside_geofence` dari klien.
+
+- Koordinat dan foto dianggap data sensitif dengan retention yang jelas.
+
+- Foto wajib memiliki pemeriksaan MIME nyata, ukuran, dimensi, hash, dan malware scan bila tersedia.
+
+- Validasi background/liveness adalah hasil verifikasi, bukan bukti absolut. Status meragukan masuk `needs_review`.
+
+- Jangan menyimpan biometric embedding mentah tanpa keputusan hukum, keamanan, dan retention terpisah.
+
+### Rekap absensi
+
+`attendance_events` adalah bukti mentah. `attendance_daily_summaries` menyimpan:
+
+- hadir, terlambat, tidak hadir, cuti, izin, sakit, dinas, libur, tidak lengkap, perlu tinjau;
+
+- jam masuk pertama dan pulang terakhir;
+
+- menit kerja, terlambat, pulang awal, kandidat lembur, dan lembur disetujui;
+
+- versi kalkulasi dan waktu hitung.
+
+Rekap harus mempertimbangkan jadwal, event valid, izin disetujui, hari libur, dan koreksi HRD. Perubahan aturan memicu recalculation terkontrol, bukan update event mentah.
+
+Dashboard dan laporan rutin membaca rekap, bukan menghitung jutaan event setiap request.
+
+## Katalog hari libur dan kalender organisasi
+
+### Sumber dan pemisahan
+
+Libur mingguan berasal dari hari kerja pada jadwal. Katalog platform menyediakan referensi tanggal **Libur nasional** dan **Cuti bersama**. HRD memilih tanggal yang berlaku pada kalender organisasi dan dapat menambah **Libur organisasi** secara manual. Kalender lama tidak berubah oleh instalasi katalog, publikasi, atau revisi. Memilih cuti bersama tidak membuat permohonan cuti dan tidak menulis ledger saldo.
+
+Data bawaan migration 069 diverifikasi terhadap lampiran SKB pemerintah, bukan perkiraan kalender atau API eksternal:
+
+- [SKB 2026, lampiran halaman 3–4](https://www.kemenkopmk.go.id/sites/default/files/pengumuman/2025-09/SKB%20Libur%20Nasional%20dan%20Cuti%20Bersama%20Tahun%202026.pdf): nomor 1497/2025, 2/2025, 5/2025; 17 tanggal nasional dan 8 cuti bersama.
+- [SKB 2027, lampiran halaman 4–5](https://kemenkopmk.go.id/sites/default/files/pengumuman/2026-09/SKB%20Libur%20Nasional%20dan%20Cuti%20Bersama%20Tahun%202027.pdf): nomor 1205/2026, 3/2026, 2/2026; 18 tanggal nasional dan 8 cuti bersama. Dua Isra Mikraj pada 5 Januari dan 26 Desember tetap merupakan dua tanggal resmi.
+
+Tahun Baru selalu tercantum 1 Januari; 31 Desember tidak ditambahkan sebagai libur nasional. Nama ditulis dengan ejaan UI yang konsisten tanpa mengubah tanggal atau kategori resmi. Publikasi awal berpelaku sistem (`system_seed`, actor audit NULL), bukan identitas manusia rekaan.
+
+### Prosedur Admin SITOU
+
+**Gunakan dan simpan draft** pada pengisian otomatis langsung membuka **Tinjau katalog** dari versi yang tersimpan, dengan metode otomatis tetap terpilih. Publikasi tetap memerlukan konfirmasi. Pengisian manual tetap menyimpan draft sebelum membuka tinjauan.
+
+Pemeriksaan tahun dilakukan sebelum mengambil data dari sumber, lalu diulangi dalam transaksi simpan dan terbitkan. Jika draft sudah ada, buka draft tersebut. Jika tahun sudah terbit, gunakan **Edit katalog** pada katalog terbaru. Tanggal tersimpan tampil sebagai panel lipat per tanggal. Jika Ambil data terbaru dipilih saat mengedit, hasil langsung mengisi panel dan baru disimpan lewat aksi simpan. Buka panel untuk mengubah tanggal, nama atau kategori, atau gunakan ikon sampah di header untuk menghapus tanggal dari form. Perubahan daftar masuk ke versi baru saat disimpan. Pada tahap tinjauan, **Simpan perubahan** langsung menerbitkan versi baru dalam satu transaksi. Daftar utama menampilkan satu katalog per tahun. Pilih **Semua revisi dan draft** untuk melihat histori dan draft lama. Publikasi ditolak jika acuan berubah atau isi tanggal, kategori, nama, nomor keputusan dan URL sumber sama dengan katalog terbit terbaru. Revisi sebelumnya tetap terbaca sebagai **Riwayat revisi**. Draft lama tanpa acuan tidak dapat diterbitkan untuk tahun yang sudah terbit; salin koreksi yang masih diperlukan sebelum menghapus draft melalui alur resmi dan membuat revisi dari katalog terbaru.
+
+Kelompok Libur nasional dan Cuti bersama pada detail/tinjauan katalog, hasil sumber API/OCR serta pemilih kalender memakai Collapse yang awalnya tertutup. Jumlah tanggal dan pilihan tetap terlihat pada header. Buka kategori untuk membaca tabel/kartu atau memilih tanggal; menutupnya tidak menghapus pilihan atau mengubah data.
+
+Form draft dimulai dengan dua pilihan **Ambil otomatis** atau **Input manual + PDF**. Pilihan otomatis menampilkan tahun dan tindakan Ambil data terbaru. Pilihan manual menampilkan bagian Dokumen SKB (FileUploadField bersama), Identitas keputusan, Tanggal hari libur dan pemeriksaan PDF. Bagian tanggal memiliki keadaan kosong, penghitung batas 366, serta aksi tambah/hapus berikon dengan nama aksesibel. Pilihan metode tidak menghapus isian.
+
+Tahun katalog menentukan tahun sumber yang diambil dan tahun seluruh tanggal pada revisi. Katalog baru memakai pemilih tahun saja: tahun berjalan dan mendatang dapat dipilih, tahun sebelumnya disabled. Tahun draft/revisi existing tetap ditampilkan dan dikunci agar histori tidak berpindah tahun. Ini pembatasan pilihan form, bukan penghapusan akses katalog lama. Entri manual dapat dilipat per tanggal; judul mengikuti tanggal yang dipilih beserta nama dan kategori. Baris baru terbuka, isian tertutup tetap disimpan dan divalidasi, serta panel gagal terbuka kembali. Penjelasan Data otomatis memakai AppNotice bersama.
+
+PDF yang selesai dibaca tidak mengisi atau menyimpan tanggal secara otomatis. Admin boleh mengisi tanggal sendiri, atau Tinjau hasil pembacaan → Gunakan hasil pembacaan untuk mengganti isian setelah mencocokkan perbedaannya. Simpan draft tetap terpisah, lalu Tinjau katalog → Terbitkan. PDF sah menggantikan kewajiban tautan pemerintah; pengisian lewat tautan resmi lama tetap kompatibel. Rincian alur dan setup OCR: `scripts/README.md`.
+
+1. Buka **Data Master → Katalog Hari Libur**, khusus Superadmin. Pilih tahun atau buat katalog baru. Tahun yang belum tersedia tidak diisi dari tahun sebelumnya.
+2. Pilih **Ambil data terbaru** untuk mengisi satu tahun sekaligus dari Indonesian Holidays. Tahun, tanggal, nama, kategori, nomor keputusan dan tautan SKB diperiksa server. Tinjau tambahan/perubahan/penghapusan terhadap isian sekarang, lalu **Gunakan dan simpan draft**. Kembali ke draft mempertahankan isian sebelumnya. Pengambilan gagal atau tahun belum tersedia tidak menghapus isian maupun katalog tersimpan.
+   Pengisian manual tetap tersedia: isi nomor keputusan, tautan HTTPS pemerintah berakhiran domain `.go.id`, tanggal, nama dan kategori. Satu tanggal hanya sekali, maksimal 366 tanggal per revisi, seluruhnya dalam tahun yang sama (2000–2200).
+3. Cocokkan setiap tanggal, kategori dan nama dengan lampiran keputusan resmi. Tautan disimpan sebagai referensi; server tidak mengambil URL pengguna dan tidak melakukan sinkronisasi eksternal saat GET.
+4. **Simpan draft**, kemudian **Tinjau katalog**. Perubahan belum disimpan memblokir publikasi. Kembali ke draft mempertahankan isian.
+5. **Terbitkan katalog** meminta konfirmasi. Publikasi mengikat versi yang telah ditinjau, menyimpan pelaku/waktu/audit dan menjadi referensi baca HRD. Katalog terbit dan tanggalnya dilindungi trigger database dari perubahan. Penghapusan hanya melalui pemeriksaan belum pernah digunakan pada bagian Penghapusan permanen.
+6. Jika SKB berubah, pilih **Edit katalog**, tinjau sumber dan tanggal, lalu pilih **Simpan perubahan**. Revisi lama tetap tersimpan. Draft lama yang identik dapat dipakai dalam transaksi simpan, sementara draft dengan perubahan perlu ditinjau secara eksplisit.
+
+Pembaruan tahunan adalah tugas Admin SITOU melalui UI, dengan pengisian otomatis melalui tombol atau pengisian manual. Tidak memerlukan rilis aplikasi atau penulisan SQL manual. Tidak ada scheduler pengambilan otomatis pada tahap ini. Katalog belum tersedia ditampilkan jelas kepada HRD.
+
+### Pengambilan data setahun
+
+Sumber pihak ketiga adalah [Indonesian Holidays](https://github.com/ahrulsyamil/indonesian-holidays), endpoint tetap `https://indonesian-holidays.ahrulsyamil.com/holidays/{year}`. Sumber ini menyediakan kategori national_holiday/joint_leave dan metadata SKB. Sumber resmi keputusan tetap tautan pemerintah; data pihak ketiga wajib ditinjau Admin sebelum diterbitkan. Data 2026 berhasil diambil saat verifikasi implementasi, sedangkan respons penyedia 2027 masih kosong meskipun katalog bawaan SITOU 2027 sudah tersedia. Kekosongan penyedia tidak dianggap pembatalan keputusan dan tidak mengosongkan katalog SITOU.
+
+Pengambilan hanya melalui POST Superadmin, maksimal 5 permintaan per menit per akun/IP. Browser mengirim tahun saja, tanpa URL bebas. Server memakai domain tetap, menolak redirect, batas waktu 15 detik dan respons maksimal 256 KiB. Validasi memeriksa JSON, tahun/count, kategori, konsistensi penanda nasional, tanggal valid dalam tahun yang sama, duplikasi, batas 366 dan sumber SKB HTTPS pemerintah. Data satu tanggal dengan beberapa kategori ditolak untuk peninjauan manual, bukan digabung/dihilangkan diam-diam.
+
+Respons hanya mengisi tahap pratinjau dalam AppModal yang sama. Data lama tidak berubah sampai Admin memilih **Gunakan dan simpan draft**; tindakan ini mengganti seluruh tanggal dan metadata sumber draft melalui API simpan existing dengan optimistic version, receipt, transaksi dan audit. Pratinjau tanggal ditambah/diubah/dihapus memakai isian form saat pengambilan, termasuk perubahan yang belum disimpan. Setelah simpan otomatis, modal langsung membuka Tinjau. Publikasi tetap melalui konfirmasi Terbitkan, dan katalog terbit tetap immutable. Tidak ada pengambilan eksternal saat GET kalender, login, pergantian tahun atau resolusi jadwal.
+
+Pengambilan berhasil diaudit sebagai `holiday_catalog.source_preview`, dengan pelaku, tahun, penyedia/URL tetap, waktu server, digest SHA-256, sumber SKB dan hasil normalisasi berstatus `preview_only`. Ini bukti pengambilan, bukan klaim hasil sudah disimpan atau sudah diverifikasi pemerintah. Simpan/publikasi tetap memiliki audit terpisah. Gagal mengaudit pratinjau membatalkan respons pengambilan; gagal menyimpan mempertahankan pratinjau dan isian agar dapat dicoba lagi. Riwayat tersimpan dapat digunakan ketika penyedia tidak tersedia.
+
+### Prosedur HRD
+
+1. Fitur Absensi organisasi harus aktif dan akun memiliki akses baca/kelola Kalender Libur. Admin HRD penuh tetap mengikuti gerbang fitur. Katalog global dapat dibaca hanya melalui konteks organisasi yang sah.
+2. Buka Kalender Libur, buat atau edit kalender. Isi nama, lalu **Tambahkan dari katalog**. Ini tahap dalam AppModal yang sama, bukan modal bertumpuk; isian form dipertahankan.
+3. Tahun awal mengikuti tanggal saat ini di zona organisasi. Libur nasional hari ini/mendatang yang belum tercatat dipilih awal. Cuti bersama tidak dipilih awal. Tanggal lampau terkunci. Tanggal yang sudah ada, termasuk tanggal manual, tidak ditimpa atau digandakan.
+4. Periksa kategori, tanggal, sumber SKB, dan jumlah pratinjau. **Tambahkan ke form** hanya mengubah draft lokal. Isian resmi dari katalog tidak dapat diubah tanggal/namanya. Gunakan **Tambah libur organisasi** untuk tanggal manual.
+5. Jika revisi terbaru berbeda dari tanggal katalog lama, pemilih menampilkan rincian perbedaannya. Kalender tidak diselaraskan otomatis. Untuk mengganti tanggal mendatang yang telah ada, hapus tanggal itu pada form, buka pemilih kembali, dan tinjau penggantinya. Tanggal lampau tetap tidak dapat diubah.
+6. **Simpan kalender** memvalidasi dan menyimpan seluruh kalender dalam satu transaksi, termasuk asal tanggal, version check, audit dan receipt retry. Gagal menyimpan mempertahankan form. Versi usang memerlukan muat ulang, bukan penimpaan data orang lain.
+7. Pilih kalender pada jadwal, kemudian pilih **Libur mengikuti kalender** atau **Tetap bekerja sesuai jadwal**. Tetapkan jadwal secara eksplisit kepada Pegawai. Tidak ada pewarisan berdasarkan agama, role, lokasi atau unit. Perubahan khusus pada tanggal tetap memiliki prioritas resolver existing.
+
+Snapshot jadwal yang telah menjadi bukti tidak ditulis ulang. Katalog hanya dipakai saat menyalin tanggal ke kalender, bukan sumber runtime resolver absensi.
+
+### Kontrak API
+
+Semua respons memakai envelope SITOU, `private, no-store`, session server dan pesan aman. Mutation memakai origin guard, pembatasan payload/rate, schema strict, transaksi dan audit.
+
+- `GET /api/system/holiday-catalogs?year=2027&page=1&pageSize=20` (tambahkan `view=history` untuk semua revisi dan draft): Superadmin saja. Tahun opsional; pagination maksimal 100. Mengembalikan revisi beserta tanggal, versi, sumber, status, penerbit dan jumlah. `search` kosong dan `status=all` diterima untuk kompatibilitas hook daftar bersama.
+- `POST /api/system/holiday-catalogs/source`: Superadmin saja, body strict `{year:2026,id?:string,revisionOf?:string}`. Mengembalikan `{year,decisionNumber,sourceUrl,days,provider,providerUrl,fetchedAt,digest}` dalam envelope SITOU tanpa menulis draft/publikasi. `HOLIDAY_YEAR_UNAVAILABLE` (422) berarti penyedia belum memiliki data, `HOLIDAY_SOURCE_UNAVAILABLE` (503) berarti sumber tidak dapat dihubungi, dan `HOLIDAY_SOURCE_INVALID` (502) berarti respons tidak lolos pemeriksaan. Ketiganya mempertahankan data yang sudah ada. API simpan draft tetap memvalidasi isi hasil yang dipilih Admin dan tidak mempercayai provenance klien sebagai bukti resmi.
+- `POST /api/system/holiday-catalogs`: `{operation:"save"|"publish"|"edit_published",requestKey:UUID,id?:string,version?:number,year:number,decisionNumber:string,sourceUrl:string,days:[{date:"YYYY-MM-DD",name:string,category:"national"|"joint_leave"}]}`. Tanpa id membuat draft tahun baru. `edit_published` menerima id dan versi katalog terbit terbaru dan langsung membuat versi terbit baru secara atomik. Edit/publikasi wajib versi sesuai. Publikasi memerlukan id dan isi yang persis sama dengan draft tersimpan. RequestKey terikat pelaku dan hash payload; retry sama mengembalikan hasil lama, payload berbeda 409. Lock per tahun mencegah draft/revisi ganda.
+- `GET /api/holiday-catalogs?organizationId=ID&year=2027`: Superadmin/HRD berizin Kalender Libur, Absensi aktif. HRD dikunci ke organisasi session. Tahun opsional mengikuti hari ini organisasi. Data `{today,year,catalog:null|{id,year,revision,decision_number,source_url,published_at,days}}`; setiap tanggal memiliki id string, date, name, category. Tahun kosong bukan error dan tidak menghasilkan perkiraan tanggal.
+- `POST /api/work-calendars`: kontrak existing ditambah `days[].catalogDayId?:string|null`. Date/name tetap wajib. ID diverifikasi terhadap tanggal katalog terbit dan harus cocok date/name. Category/revision/source tidak diterima dari klien; response daftar memperoleh metadata dari referensi server. Payload lama tetap sah, termasuk penyimpanan tanpa perubahan sumber pada tanggal existing. Tanggal manual lama tetap manual. Batas 366, optimistic version, no-past-change, receipt serta perlindungan histori existing tetap berlaku.
+
+`VERSION_CONFLICT`, `DRAFT_EXISTS`, `PUBLISHED_IMMUTABLE`, `INVALID_CATALOG_SOURCE` menyatakan konflik yang perlu ditinjau pengguna. Kegagalan menulis audit/receipt membatalkan seluruh mutation.
+
+### Penyimpanan dan penerapan
+
+Migration `20261101_069_holiday_catalog.sql` menambah tiga tabel global referensi: `holiday_catalogs`, `holiday_catalog_days`, `holiday_catalog_requests`. Pengecualian lintas organisasi ini khusus katalog platform; bukan tabel operasional organisasi. `work_calendar_days.catalog_day_id` nullable mereferensikan snapshot katalog terbit. Nama/tanggal tetap tersimpan pada kalender organisasi beserta organization_id existing. FK katalog mempertahankan sumber; metadata kategori dan revisi diperoleh melalui join. Tidak ada perubahan ledger cuti, penetapan Pegawai atau snapshot existing.
+
+Bootstrap `sitou_schema_v3.sql` memuat schema akhir dan seed sama. Database berjalan memakai migration 069, bukan menjalankan bootstrap kembali. Tidak menjalankan ulang 063–068, tidak mengaktifkan modul/grant otomatis, dan tidak melakukan deployment VPS.
+
+### Dasar rancangan
+
+Pemisahan jenis hari libur mengikuti [Talenta Calendar](https://help-center.talenta.co/hc/en-us/articles/11903599156889-How-to-Manage-Calendar-Sub-Menu). Pemilihan referensi dan penambahan manual mengikuti [Zoho People Holidays](https://help.zoho.com/portal/en/kb/people/administrator-guide/leave/operations/articles/managing-holidays). SITOU tetap memakai persetujuan eksplisit organisasi, source resmi dan alur saldo cuti terpisah sesuai keputusan produk.
+
+### Opsi kedua: unggah PDF SKB
+
+Unggah PDF SKB menyediakan pembacaan lokal melalui worker Tesseract/Poppler, pratinjau dengan sumber halaman, koreksi dan peninjauan eksplisit. PDF asli disimpan privat per revisi, dapat dilihat Admin serta HRD berizin setelah terbit. PDF bertahun berbeda tidak dapat dipakai. Pengambilan API/manual tetap tersedia. Kontrak save juga menerima pdfImportId dan pdfReviewed; sourceUrl boleh kosong hanya dengan PDF sah. Langkah development, migration 070, pemasangan VPS, keamanan, API, backup dan diagnosis dijelaskan lengkap di [Panduan PDF SKB](../scripts/README.md#unggah-pdf-skb-dan-operasional-ocr).
+
+### Penghapusan permanen — migration 071–072
+
+Hanya Admin SITOU yang dapat menghapus satu revisi katalog atau satu kalender organisasi. Berlaku juga untuk katalog bawaan dan kalender yang dibuat HRD. Tidak ada penghapusan massal. Data pengguna existing tidak dihapus oleh migration.
+
+1. Pilih Aksi → Hapus permanen. Sistem memeriksa penggunaan, versi dan dokumen.
+2. Jika pernah dipakai, tampilkan alasan beserta nama dan jumlah referensi; tombol konfirmasi tidak tersedia. Katalog dianggap digunakan setelah tanggalnya disimpan ke kalender, walaupun kalender tersebut belum dipakai jadwal. Kalender dianggap digunakan setelah dipilih pada pola/kelompok jadwal, termasuk histori nonaktif. Melepas referensi atau menghapus kalender percobaan tidak menghapus bukti penggunaan katalog.
+3. Data lama memerlukan rantai versi audit yang lengkap. Migration 072 membaca versi sebelum perubahan dari payload audit lama karena hasil save legacy hanya berisi ID. Ketidakpastian tetap diblokir; tidak ada tombol reset bukti penggunaan.
+4. Untuk data belum digunakan, konfirmasi menjelaskan identitas, organisasi, dampak revisi dan PDF. Jika revisi terbaru dihapus, revisi terbit sebelumnya tersedia kembali; jika tidak ada, tahun tampil belum tersedia. Seed tidak diulang saat GET atau restart.
+5. Penghapusan header/tanggal, audit minimal, tombstone receipt serta antrean pembersihan PDF satu transaksi. Histori operasional dan audit lama tidak dihapus. Retry save lama terhadap tombstone menghasilkan ALREADY_DELETED.
+6. PDF bersama tetap disimpan. PDF terakhir ditandai tidak tersedia, lalu worker:holiday-pdf menghapus byte, catatan impor dan stored_files. Status sementara: Data berhasil dihapus. Pembersihan dokumen masih diproses. Receipt pembersihan dipantau di latar belakang selama halaman aktif, tanpa mempertahankan modal sukses. Periksa status dalam dialog tetap tersedia jika hasil request penghapusan belum pasti. Jika storage gagal, worker mencoba ulang setelah 30 detik. Audit dan receipt minimal tetap tersimpan setelah pembersihan.
+
+#### Kontrak API penghapusan
+
+- GET/POST /api/system/holiday-catalogs/:id/deletion: khusus Admin SITOU, tanpa organizationId.
+- GET/POST /api/work-calendars/:id/deletion: khusus Admin SITOU, organizationId wajib dan diverifikasi; Absensi serta organisasi aktif tetap diperiksa.
+- GET biasa menghasilkan eligible, code/message, version, name, organization, usages (maksimal 20), usageCount, document dan revisionEffect. GET dengan requestKey UUID membaca receipt: state not_found atau deleted, cleanupPending dan message. Tidak mengirim path privat.
+- POST menerima JSON strict version positif, requestKey UUID, serta organizationId khusus kalender. Origin wajib dan diperiksa, maksimum 2 KiB, maksimum 10 percobaan per menit per akun/IP pada bucket penghapusan bersama. Preview bukan otorisasi final; service memeriksa ulang dalam transaksi dengan parent lock yang juga dipakai trigger referensi baru.
+- Respons private/no-store dan nosniff. Error internal hanya kode aman serta ID referensi. Request key sama dengan payload berbeda ditolak. Jika koneksi putus, periksa receipt sebelum mencoba ulang dengan key yang sama.
+
+| Kode                          | Arti dan tindakan                                                          |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| CATALOG_USED / CALENDAR_USED  | Pernah digunakan; lihat referensi, data tidak dapat dihapus.               |
+| HISTORY_UNVERIFIED            | Riwayat penggunaan perlu diperiksa; penghapusan diblokir.                  |
+| DOCUMENT_BUSY                 | Dokumen masih diproses; tunggu lalu coba lagi.                             |
+| VERSION_CONFLICT              | Data berubah; muat ulang dan tinjau kembali.                               |
+| ALREADY_DELETED               | Data sudah dihapus; perbarui daftar.                                       |
+| FORBIDDEN / SESSION_EXPIRED   | Tidak berizin atau sesi berakhir; masuk kembali dengan akun berwenang.     |
+| RATE_LIMITED / INVALID_ORIGIN | Tunggu sebentar atau muat ulang dari aplikasi.                             |
+| DELETE_FAILED                 | Transaksi belum berhasil; coba lagi dengan ID referensi untuk penelusuran. |
+
+Pembersihan PDF tertunda bukan kegagalan penghapusan database. Saat hasil request belum diketahui, UI tidak mengizinkan konfirmasi ulang sebelum status diperiksa.
+
+DOCUMENT_QUARANTINED memblokir penghapusan bila dokumen dikarantina/terinfeksi; selesaikan penanganan keamanan melalui prosedur storage. DOCUMENT_UNSAFE memblokir pemilik/kategori/backend dokumen yang tidak sesuai. Penghapusan katalog tidak melewati karantina. DELETE_STATUS_UNKNOWN meminta pemeriksaan receipt ketika koneksi database terputus dan hasil commit belum dapat dipastikan.
+
+Pratinjau penghapusan juga diaudit (holiday_catalog.delete_preview / holiday_calendar.delete_preview), termasuk pemeriksaan lintas organisasi oleh Admin SITOU. Audit mencatat kelayakan, kode penolakan dan jumlah referensi tanpa menyalin seluruh detail penggunaan.
+
+### Presentasi kalender dan penghapusan
+
+Menu aksi katalog/kalender memakai ikon outline sesuai fungsi. Konfirmasi hapus menjelaskan dampak secara langsung tanpa AppNotice. Setelah berhasil, modal ditutup dan snackbar bersama menampilkan hasil; pembersihan PDF yang masih berjalan disebutkan secara eksplisit dan dipantau saat tab terlihat. Form kalender memisahkan identitas, tanggal katalog, tanggal organisasi dan penggunaan; aksi impor/tambah/hapus memakai tombol ikon berlabel/tooltip dan EmptyState per kelompok. Isian tetap utuh saat berpindah tahap katalog atau request gagal.
+
+### Penghapusan katalog dan kalender libur
+
+- Hapus permanen hanya Admin SITOU melalui preview dan konfirmasi berizin. Katalog yang pernah disalin ke kalender dan kalender yang pernah dipakai jadwal tidak boleh dihapus, termasuk setelah referensinya dilepas. Bukti penggunaan append-only dan riwayat yang belum dapat dipastikan memblokir penghapusan. Tanggal lampau saja bukan penggunaan. Jangan menghapus histori atau menonaktifkan trigger untuk melewati perlindungan.
+- Penghapusan database/audit/receipt/antrean PDF atomik. PDF bersama tetap disimpan; worker membersihkan byte dan metadata PDF tanpa referensi. Jangan menyatakan seluruh dokumen bersih sebelum antrean selesai. Pesan menyebut penyebab konkret: terpakai, riwayat belum pasti, dokumen diproses, versi berubah, atau kendala sistem dengan ID referensi. Koneksi terputus diperiksa melalui receipt sebelum retry. Lihat docs/work-schedules.md.
+
+## Titik Absensi dan akses tambahan
+
+Di Data Master → Lokasi, isi tanggal operasional lalu cari nama tempat atau alamat dengan **Cari** atau Enter. Pilih hasil dari dropdown di bawah kolom pencarian atau klik titik pada peta. Gunakan roda mouse di atas peta atau cubit dengan dua jari untuk memperbesar dan memperkecil. Dengan keyboard, fokuskan peta, geser dengan tombol panah, lalu tekan Enter untuk memilih titik tengah. Latitude dan Longitude tampil sebagai informasi baca-saja di bawah peta. Pilih titik lain untuk mengubah koordinat. Alamat diisi bila tersedia dan bisa dikoreksi manual. Lingkaran menampilkan radius jika sudah diisi. Leaflet dan ubin HTTPS OpenStreetMap memakai atribusi serta cache browser.
+
+`POST /api/locations/geocode` menerima `{ query }` untuk maksimal lima hasil atau `{ latitude, longitude }` untuk mencari alamat titik terpilih. Endpoint memerlukan sesi HRD/Admin, izin Kelola Lokasi, origin yang valid dan memeriksa batas 30 permintaan per menit. Backend hanya meneruskan teks pencarian atau koordinat pilihan ke [layanan publik Photon](https://github.com/komoot/photon/blob/master/README.md). Ketersediaan dan kelengkapan alamat mengikuti layanan tersebut.
+
+Di Pengaturan Organisasi → Akses Titik Absensi, pilih satu Pegawai, maksimal 25 titik, tanggal mulai dan akhir opsional. Akses tambahan berlaku bersama titik dasar dari penempatan. Cabut akses mengakhiri penetapan sekarang dan mempertahankan baris serta audit.
+
+Master Lokasi memakai ID dan nama tanpa field Kode. Satu titik yang dikelola form Lokasi memakai kode internal LOCATION_<id> karena kolom code existing wajib. Koordinat tervalidasi disimpan ke lokasi dan titik dalam satu transaksi. Koordinat absensi adalah milik attendance_points. Payload Lokasi lama yang hanya berisi data administratif tidak mengubah titik. Penyimpanan titik membuat penetapan dasar untuk lokasi terkait. Penetapan tambahan memakai target Pegawai. Tanggal akses inklusif di zona organisasi.
+
+Pada Tambah lokasi dan Edit lokasi, status Lokasi dan Titik absen berada dalam satu kelompok. Pilih organisasi terlebih dahulu bila form belum memiliki organisasi. Radius dan batas akurasi muncul saat titik absen diaktifkan. Pilih ikon tanda seru di samping field untuk membaca penjelasan. Titik baru bisa disimpan sekaligus dengan lokasi jika modul dan izin mengizinkan.
+
+Titik absensi aktif dapat menjadi titik dasar bagi Pegawai yang penempatannya berlaku di lokasi tersebut, atau titik tambahan bagi Pegawai yang diberi akses. Titik nonaktif tetap dapat tercatat pada lokasi penempatan yang aktif, tetapi tidak dipakai untuk absen. Radius menentukan batas area absensi. Untuk absensi mobile di luar area, Pegawai wajib mengisi alasan setelah selfie dan server menyimpan status di luar radius. Batas akurasi GPS membatasi perkiraan meleset yang dilaporkan perangkat, sehingga posisi yang terlihat berada dalam radius bisa tetap perlu diambil ulang.
+
+Modul Absensi harus aktif. Hak HRIS attendance-point-access Lihat/Kelola mengatur konfigurasi titik dan akses tambahan. Menulis lewat form Lokasi juga memerlukan Kelola Lokasi. HRD dengan cakupan terpilih hanya boleh mengelola Pegawai dan titik dalam cakupannya. Tidak ada grant delegasi otomatis.
+
+- GET /api/attendance-point-access menerima organizationId, search, page, pageSize dan status untuk daftar. options=employees atau options=points memberi maksimal 50 opsi. configuration=1 dengan locationId opsional memberi konfigurasi pada form Lokasi.
+
+- POST /api/attendance-point-access menerima organizationId, employeeId, pointIds, from dan until. Pencabutan menerima organizationId dan revokeId. Role, organisasi, modul, scope, origin, rate limit dan referensi diperiksa di server. Periode tumpang tindih ditolak atomik dengan 409. Pencabutan ulang tidak menambah audit. Jika hasil kirim belum diketahui, muat ulang daftar sebelum mengulang.
+
+- POST /api/locations dan PATCH /api/locations/:id menyimpan nama serta data lokasi tanpa field `code`. Daftar dan opsi menggunakan ID serta nama. Kedua aksi simpan menerima attendancePoint opsional dengan enabled, radiusMeters dan maxAccuracyMeters. Saat diaktifkan, lokasi aktif, pasangan koordinat, radius 5–50000 meter dan akurasi 1–50000 meter wajib. PATCH tetap memakai version lokasi.
+
+API self-service absensi mobile menggabungkan titik dasar dan tambahan, menyaring revoked_at, organisasi, status dan periode titik/lokasi, lalu mengirim ID, nama, koordinat, radius, dan batas akurasi. Backend memeriksa izin, jarak serta akurasi sebelum kamera dan saat kirim. Lihat [kontrak absensi mobile](mobile-api.md#absensi-mobile-sitou).
+
+Migration 075 menambah revoked_at dan seed menu. Jalankan sesudah 074 pada database existing. Bootstrap sitou_schema_v3.sql memuat struktur akhir.
+
+Acuan diperiksa 4 November 2026. [Leaflet](https://leafletjs.com/reference.html) · [Kebijakan ubin OpenStreetMap](https://operations.osmfoundation.org/policies/tiles/).
+
+Rujukan: [Pemilih titik lokasi](ui-ux-guidelines.md#pemilih-titik-lokasi).
+
+### Alur sederhana dan pengaturan titik absensi
+
+- Mulai dari tugas pengguna dan letakkan pengaturan yang berkaitan di layar yang sudah dikenal. Pakai menu baru hanya bila tugas, pengguna, atau hak aksesnya memang berbeda. Isi data satu kali, tampilkan pengaturan lanjutan saat diperlukan, dan gunakan label yang mudah dipahami. Kesederhanaan antarmuka tetap menjaga validasi server, izin, dan histori.
+
+- Rancangan absensi: konfigurasi titik dan radius berada di Data Master → Lokasi. Pengaturan Organisasi → Akses Titik Absensi menangani akses tambahan, termasuk beberapa titik dan periode penugasan. Satu alur pengisian koordinat memakai model titik absensi existing dan pemeriksaan izin tersendiri. API menyediakan koordinat, radius dalam meter, dan batas akurasi sesuai cakupan Pegawai. Backend menentukan kelayakan absensi.
+
+- Implementasi dashboard mengikuti docs/work-schedules.md. Master Lokasi memakai ID internal tanpa kode. Template impor Pegawai mencocokkan pilihan lokasi ke ID dalam organisasi aktif. Form Lokasi menampilkan tanggal operasional, pencarian dan peta ringkas, koordinat baca-saja, lalu alamat. Pengguna mengubah koordinat dengan memilih titik pada peta atau hasil pencarian. Alamat dapat dikoreksi. Status Lokasi dan Titik absen berada dalam satu kelompok di form tambah maupun edit. Pengaturan titik dimuat setelah organisasi diketahui. Simpan tetap satu aksi tulis. Izin titik dan akses tambahan memakai attendance-point-access serta modul Absensi. Pencabutan menyimpan revoked_at dan audit.
+
+- Hasil absensi self-service mengembalikan catatan dari event yang tersimpan. Retry memakai catatan event asli dan tetap memeriksa organisasi/Pegawai serta hash payload. Jangan mengganti lokasi absensi dengan lokasi penempatan pada respons hasil.
+
+## Rekap Absensi
+
+**Laporan → Rekap Absensi** menampilkan satu baris per Pegawai dan tanggal kerja yang memiliki rekap tersimpan. Daftar ini membaca hasil olahan `attendance_daily_summaries`. Tanggal tanpa rekap perlu rekonsiliasi jadwal, kalender, dan cuti/izin sebelum bisa ditampilkan sebagai tidak hadir.
+
+- Halaman menempatkan filter bersama langsung di atas panel hasil. Desktop menampilkan tabel dan ponsel menampilkan kartu rincian per baris. Ringkasan metrik halaman tidak ditampilkan.
+- Cari Pegawai tampil sebelum Rentang Tanggal. Tabel memisahkan Jadwal Kerja, Jam Masuk, Jam Pulang, Status, dan Indikator. Keterlambatan tampil bersama durasinya jika tersedia. Galeri rincian memuat foto yang dapat langsung ditekan serta keterangan untuk absen yang belum tercatat, absensi tanpa foto, atau foto yang gagal dimuat. Data waktu dan catatan tampil di atas galeri.
+- Rentang awal mengikuti hari ini di zona waktu organisasi. Rentang maksimal 92 hari inklusif. Cari nama atau NIP, lalu saring berdasarkan lokasi, Divisi & Unit, jabatan, jenis kepegawaian, atau indikator. Penempatan utama dan kontrak dibaca menurut tanggal kerja.
+- Indikator waktu berasal dari kategori yang tersimpan pada setiap bukti masuk dan pulang. Filter Tepat waktu mencocokkan masuk atau pulang tepat waktu. Status harian, geofence, kedekatan batas radius, dan konteks hari libur/di luar jadwal tetap terpisah. Bukti lama tanpa penilaian ditandai Waktu belum dinilai.
+- Jam masuk pertama dan pulang terakhir ditampilkan bersama tanggal kerja. Jam setelah tengah malam menampilkan tanggal lokal tambahan. Durasi bersih menjumlahkan waktu pada pasangan masuk–pulang, dikurangi istirahat jika pengaturan jadwal mengaktifkan pengurangan. Hasil per sesi paling rendah nol menit. Durasi ditampilkan saat rekap menandai seluruh sesi lengkap. Modal menampilkan jam terjadwal serta setiap bukti masuk dan pulang. Foto yang tersedia dapat diperbesar melalui pratinjau gambar.
+- Akses baca menu `attendance-summary-report` khusus HRD dan Admin SITOU. Fitur Absensi harus aktif. HRD terdelegasi memerlukan grant laporan. Admin SITOU memilih organisasi. Scope lokasi diterapkan pada penempatan tanggal kerja di daftar, Excel, detail, dan foto.
+- Daftar menampilkan waktu masuk pertama dan pulang terakhir. Jadwal kerja ada di rincian. Rincian memisahkan jadwal dari kejadian yang tercatat, menandai pergantian tanggal dengan 00.00, dan menampilkan foto, lokasi, catatan, serta indikator pada masing-masing kejadian.
+- Foto dan koordinat memerlukan `private_files.read_sensitive` serta mengikuti cakupan lokasi laporan. Endpoint mencocokkan foto profil aktif dengan Pegawai pada rekap, dan foto absensi dengan kejadiannya. Akses foto dan koordinat dicatat di audit tanpa menyimpan koordinat di log audit.
+- Peta rincian memakai titik dan radius yang tersimpan saat absen, bersama posisi Pegawai untuk kejadian yang dipilih. Penyedia mengikuti pengaturan Organisasi, dengan OpenStreetMap sebagai bawaan. Untuk Google Maps di dashboard, atur `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` (kunci khusus browser dengan pembatasan domain dan Maps JavaScript API) dan `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` sebelum build. Bila belum dikonfigurasi, rincian tetap dapat dibuka dan peta menampilkan status konfigurasi. Lihat [panduan kunci Google Maps](https://developers.google.com/maps/documentation/javascript/get-api-key) dan [pengaturan Map ID](https://developers.google.com/maps/documentation/javascript/advanced-markers/start).
+- Excel menggunakan filter yang sama dengan daftar dan memuat hingga 5.000 baris lengkap. Ekspor lebih besar meminta penyempitan filter. NIP tetap teks. Foto, catatan Pegawai dan koordinat dikecualikan dari Excel. Aksi PDF menampilkan Coming soon.
+
+Migration 083 mendaftarkan menu baca saja tanpa memberikan grant kepada HRD terdelegasi. Jalankan migration sebelum rilis.

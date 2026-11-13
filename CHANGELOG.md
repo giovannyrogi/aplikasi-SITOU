@@ -1,5 +1,34 @@
 # Catatan perubahan SITOU
 
+## 2026-11-11 — Aturan pemeliharaan dokumentasi
+
+- AGENTS.md mewajibkan pencarian dan pembaruan dokumen pemilik sebelum membuat Markdown baru, serta mengatur rujukan agar ketentuan tidak diduplikasi. Tidak ada perubahan aplikasi.
+
+## 2026-11-11 — Dokumentasi pengembangan yang lebih ringkas
+
+- Mengurangi 38 file rujukan terpisah dengan menggabungkan aturan aktif, kontrak fitur, dan prasyarat operasional ke dokumen pemilik. Mengeluarkan panduan pemakaian yang berulang, beberapa catatan tahap lama, dan hasil QA lama dari rujukan aktif. Riwayat changelog tetap tersedia.
+- Tipografi masuk ke pedoman UI/UX. Struktur database dirujuk ke sitou_schema_v3.sql dan migration. Ketentuan model data tetap tercatat di aturan data. Kontrak login, beranda, dan absensi Flutter berada di docs/mobile-api.md.
+- AGENTS.md, indeks, katalog komponen, panduan migration dan rujukan mobile mengikuti sumber baru. Pemeriksaan meliputi tautan dan judul bagian, rujukan lama, serta diff. Kode aplikasi, SQL, dan lingkungan berjalan tidak diubah.
+
+## 2026-11-11 — Konsolidasi pedoman UI/UX Dashboard
+
+- Menggabungkan sepuluh panduan dari docs/ui ke docs/ui-ux-guidelines.md. Daftar isi memisahkan standar bersama dari ketentuan khusus fitur. Ketentuan Rekap Absensi tanpa ikon tetap berlaku.
+- AGENTS.md dan indeks dokumentasi mengarahkan pembaca ke panduan UI/UX, API dan keamanan, serta QA. Aturan tampilan Organisasi dirujuk dari dokumen hak akses. Rincian file privat, hak akses, dan kontrak fitur tetap pada dokumen pemiliknya.
+- Pedoman kualitas menjadi sumber cakupan QA. Pemeriksaan 390 px, pembesaran teks 2×, panel tertutup/terbuka, serta validasi field tersembunyi dipertahankan dari panduan lama.
+- Pemeriksaan dokumentasi mencakup pemetaan isi, tautan lokal, judul tujuan, rujukan ke file lama, dan diff. Cakupan perubahan ini hanya dokumentasi dashboard.
+
+## 2026-11-11 — Pedoman UI dan cakupan QA
+
+- `docs/ui/attendance.md` menetapkan indikator Rekap Absensi dengan teks dan warna di tabel, kartu, panel +N, dan modal rincian.
+- `docs/ui/foundations.md` merujuk `docs/rules/quality.md` untuk cakupan QA. Perubahan label diperiksa pada tampilan terdampak. Perubahan layout mengikuti rentang lebar layar dan pemeriksaan aksesibilitas yang sudah ditetapkan.
+
+## 2026-11-11 — Status dan indikator Rekap Absensi
+
+- `attendanceQuery.mjs` membaca hitungan sesi terbuka serta absen masuk dan pulang yang belum tercatat dari rekap. `attendancePresentation.mjs` dan `AttendanceSummaryFields.jsx` menampilkan status yang lebih spesifik di tabel, kartu, dan modal. Keterangan Perlu tinjau atau hari libur tetap terlihat bila berlaku.
+- Chip indikator pada tabel, kartu, panel +N, dan modal rincian memakai teks serta warna. Pedoman diperbarui di `docs/ui/attendance.md`. Perubahan membaca kolom yang sudah tersedia.
+- Empat tes kebijakan laporan dan sembilan skenario label lulus. ESLint dan Prettier diperiksa pada tiga file kode. PostgreSQL lokal menerima EXPLAIN baca saja untuk daftar, filter indikator, dan rincian. Browser pada salinan sintetis memverifikasi status di tabel dan modal, tombol +N melalui keyboard, serta modal tanpa gulir horizontal pada lebar 320–1920 piksel.
+- Build Next.js terisolasi lulus dengan 144 halaman. Server, fixture, dan salinan build QA sudah dibersihkan.
+
 ## 2026-11-11 — Kepadatan Rekap Absensi
 
 - Daftar menampilkan satu indikator prioritas dengan tombol +N untuk sisanya. Istilah Durasi bersih menjelaskan pengurangan istirahat sesuai jadwal. Modal menyatukan judul dan isi panel waktu, menyandingkan waktu dengan indikator, dan membatasi gambar utuh ke bingkai foto.

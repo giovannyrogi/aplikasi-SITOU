@@ -69,10 +69,10 @@ Kelompok diurutkan tanggal proyeksi naik, sesuai laporan. Panel menggantikan gra
 
 - Jalankan `npm run lint` dan `npm run build`. Tema mengikuti provider aplikasi; provider saat ini menetapkan mode light, sehingga dark mode penuh memerlukan dukungan theme global, bukan warna khusus pada laporan.
 
-Rujukan: [Verifikasi](../../docs/dashboard-workspace.md#verifikasi).
+Rujukan: [Verifikasi](../../docs/rules/product.md#verifikasi-3).
 
 Rujukan: [File pengujian sementara saat pengembangan](../../docs/rules/quality.md#file-pengujian-sementara-saat-pengembangan).
 
 ## Rekap Cuti & Izin
 
-`leavePolicy.mjs`, `leaveQuery.mjs`, `leaveService.js`, `leaveRoute.js`, dan `leaveWorkbook.mjs` menyatukan filter, cohort, perhitungan, rincian, dan ekspor pada `/api/reports/leave-summary`. Memerlukan grant `leave-summary-report` terpisah; tidak membuka administrasi cuti. Definisi durasi, saldo ledger, tahun organisasi, akses, dan pengujian: `docs/leave-summary-report.md`.
+`leavePolicy.mjs`, `leaveQuery.mjs`, `leaveService.js`, `leaveRoute.js`, dan `leaveWorkbook.mjs` menyatukan filter, cohort, perhitungan, rincian, dan ekspor pada `/api/reports/leave-summary`. Memerlukan grant `leave-summary-report` terpisah; tidak membuka administrasi cuti. Definisi durasi, saldo ledger, tahun organisasi, akses, dan pengujian: `docs/rules/product.md`.

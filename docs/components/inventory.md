@@ -71,7 +71,7 @@ Tidak perlu margin tambahan pada pemanggil agar spacing tidak berlipat.
 
 ## Pemisahan master dan operasional — migration 050
 
-Rujukan: [Pemisahan master dan operasional — migration 050](../database-schema.md#pemisahan-master-dan-operasional--migration-050).
+Rujukan: [Pemisahan master dan operasional — migration 050](../rules/data.md#pemisahan-master-dan-operasional--migration-050).
 
 - Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Transaksi stok/ledger belum diimplementasikan; permission transaksi mutasi ditambahkan bersama fitur berikutnya.
 
@@ -115,7 +115,7 @@ options.today; bantuan menjelaskan tanggal penerimaan fisik, bukan tanggal sumbe
 
 ## OpeningCorrectionModal dan ikon stok
 
-Rujukan: [Revisi stok awal — migration 057](../database-schema.md#revisi-stok-awal--migration-057).
+Rujukan: [Revisi stok awal — migration 057](../rules/data.md#revisi-stok-awal--migration-057).
 
 ### RelatedRecordAction
 
@@ -123,7 +123,7 @@ Rujukan: [Revisi stok awal — migration 057](../database-schema.md#revisi-stok-
 
 ### Modal transaksi dan laporan bersama
 
-Rujukan: [Laporan Distribusi Barang](../database-schema.md#laporan-distribusi-barang).
+Rujukan: [Laporan Distribusi Barang](../rules/data.md#laporan-distribusi-barang).
 
 TableExportMenu menerima `formats` opsional (default Excel/PDF). Distribusi memilih `["excel"]` sehingga UI hanya menawarkan format yang sudah tersedia. Perhitungan kartu laporan menggunakan DashboardMetric bersama; error tidak dirender sebagai nilai nol.
 
@@ -155,7 +155,7 @@ InventoryMobileCardContent menyatukan identitas, status, fakta berlabel, area ju
 
 Stok Barang menampilkan foto, kondisi, gudang, batas minimum dan stok tersedia tanpa mencampurkan nilai tersebut. Tombol kartu stok/minimum/koreksi mengikuti izin lama. InventoryTransactionCardContent memperlihatkan jenis berikon, status, tanggal/gudang/referensi, maksimal dua barang dengan jumlah serta perubahan masing-masing; jumlah barang tambahan disebut jelas dan detail tetap membuka seluruh dokumen. Tidak menjumlahkan satuan atau menafsirkan stok fisik dari jumlah transaksi. Pembatalan tetap menampilkan angka asal dengan keterangan. Desktop menggunakan tabel/ledger yang sama.
 
-Rentang pada Transaksi Barang dan modal Kartu Stok memakai ResponsiveRangePicker bersama, tanpa mengubah aturan tanggal atau server. Pagination Kartu Stok memakai slot tetap AppModal dan jumlah tampil aktual. Pola dan referensi: docs/inventory-mobile-ui.md.
+Rentang pada Transaksi Barang dan modal Kartu Stok memakai ResponsiveRangePicker bersama, tanpa mengubah aturan tanggal atau server. Pagination Kartu Stok memakai slot tetap AppModal dan jumlah tampil aktual. Pola dan referensi: docs/rules/inventory.md.
 
 InventoryCardIdentity dipakai master dan kartu Transaksi Barang untuk menyelaraskan ikon 48px/glyph 24px dengan blok nama/metadata. Chip status berada tepat di bawah nama; bila ada kode, kode/status sebaris dan wrap. InventoryCardAction menerima ikon semantik atau React icon; aksi edit master memakai EditOutlined outline. Ukuran default KindMark di pemakai lain tetap 28/40px.
 
@@ -163,11 +163,11 @@ Pada InventoryItemCard, kolom aksi merentang baris nama dan metadata agar tinggi
 
 Foto StockAttentionCard memenuhi lebar area gambar dengan tinggi 184px pada mobile dan 160px mulai 600px. InventoryItemPhoto mendukung height opsional (default mengikuti size); objectFit contain mempertahankan proporsi dan seluruh gambar, tanpa stretch atau crop. StockAttentionCard memakai frameless agar foto yang tersedia tidak memiliki latar atau bingkai abu-abu; placeholder tetap terlihat ketika foto tidak tersedia/gagal dimuat. Thumbnail pemakai lain tetap persegi dan memakai bingkai default.
 
-DisciplinaryReport memisahkan status dan angka ringkasan pada kolom masing-masing; DisciplinaryHistoryModal memakai AppModal/DataPagination, lima tindakan per halaman dan accordion satu rincian. Modal menampilkan seluruh histori resmi tanpa filter laporan, status semua tindakan, retry dan pembatalan request. Kontrak backend/Excel tetap. Rincian desain: docs/disciplinary-report-ui.md.
+DisciplinaryReport memisahkan status dan angka ringkasan pada kolom masing-masing; DisciplinaryHistoryModal memakai AppModal/DataPagination, lima tindakan per halaman dan accordion satu rincian. Modal menampilkan seluruh histori resmi tanpa filter laporan, status semua tindakan, retry dan pembatalan request. Kontrak backend/Excel tetap. Rincian desain: docs/rules/product.md.
 
 Laporan sanksi menampilkan Lokasi/Divisi & Unit/Jabatan pada kolom masing-masing dan satu hitungan Total sanksi (seluruh tindakan resmi). Hitungan hasil filter dan aktif/banding dihapus dari tampilan/Excel. Modal memakai grid dua kolom desktop untuk fakta termasuk uraian/penjelasan; divider bawah hanya untuk eskalasi/pencabutan. Tone status mengikuti ACTION_STATUS bersama pada semua pemakai, bukan override khusus laporan.
 
-DisciplinaryActionForm membaca konteks pilihan dari kasus berizin; disabled_reason mencegah pilihan jenis aktif yang sama/tahap lebih rendah. ConfirmDialog menampilkan keputusan berjalan dan pengganti saat publikasi; form disembunyikan sementara, isian/file tetap di state. Konfirmasi mengirim replacementActionIds untuk pemeriksaan ulang transaksi. Tanggal organisasi berasal dari server. Lihat docs/disciplinary-issuance.md.
+DisciplinaryActionForm membaca konteks pilihan dari kasus berizin; disabled_reason mencegah pilihan jenis aktif yang sama/tahap lebih rendah. ConfirmDialog menampilkan keputusan berjalan dan pengganti saat publikasi; form disembunyikan sementara, isian/file tetap di state. Konfirmasi mengirim replacementActionIds untuk pemeriksaan ulang transaksi. Tanggal organisasi berasal dari server. Lihat docs/rules/product.md.
 
 Konfirmasi penggantian sanksi menampilkan dua blok seragam berlabel Sanksi lama/Sanksi baru, masing-masing nama dan masa berlaku. ConfirmDialog menerima description opsional dengan default lama agar konteks konfirmasi dapat dijelaskan tanpa mengubah pemakai lain.
 
@@ -175,7 +175,7 @@ AppModal mendukung descriptionAlign (default justify); ConfirmDialog mengikuti m
 
 ### Konfirmasi pemulihan sanksi dan hapus kasus
 
-DisciplinaryActionRevokeForm memakai ConfirmDialog dan ReplacementSanctionCard dengan label Akan dicabut / Berlaku kembali. Form alasan ditutup sementara; batal mempertahankan isian. EmployeeDetail menyediakan Hapus kasus hanya tanpa tindakan termasuk draft, dengan konfirmasi dan pemeriksaan server. Lihat docs/disciplinary-restoration.md.
+DisciplinaryActionRevokeForm memakai ConfirmDialog dan ReplacementSanctionCard dengan label Akan dicabut / Berlaku kembali. Form alasan ditutup sementara; batal mempertahankan isian. EmployeeDetail menyediakan Hapus kasus hanya tanpa tindakan termasuk draft, dengan konfirmasi dan pemeriksaan server. Lihat docs/rules/product.md.
 
 Kandidat pemulihan berasal dari penelusuran rantai di server; modal menampilkan
 satu pendahulu terdekat yang masih berlaku beserta tanggal aslinya. Daftar kasus

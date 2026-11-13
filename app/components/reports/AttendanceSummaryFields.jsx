@@ -8,6 +8,7 @@ import FontStyle from "@/app/components/font-style/FontStyle";
 import {
   attendanceIndicator,
   attendanceIndicatorLabel,
+  attendanceMissingLabel,
   ATTENDANCE_STATUS,
 } from "@/lib/reports/attendancePresentation.mjs";
 
@@ -31,12 +32,11 @@ export function AttendanceIndicators({ indicators, lateMinutes, compact = false 
   const items = ordered.map((key) => [key, attendanceIndicator(key)]).filter(([, item]) => item);
   if (!items.length) return null;
   const chips = (entries, wrap) =>
-    entries.map(([key, [, tone, icon]]) => (
+    entries.map(([key, [, tone]]) => (
       <CompactInfoChip
         key={key}
         label={attendanceIndicatorLabel(key, lateMinutes)}
         tone={tone}
-        icon={<span aria-hidden="true">{icon}</span>}
         wrap={wrap}
         sx={wrap ? undefined : { minWidth: 0, flexShrink: 1 }}
       />
@@ -93,14 +93,36 @@ export function AttendanceIndicators({ indicators, lateMinutes, compact = false 
   );
 }
 
-export function AttendanceState({ row }) {
+export function AttendanceState({ row, chip = false }) {
   const [label, tone] = ATTENDANCE_STATUS[row.attendance_status] || [
     "Status belum tersedia",
     "neutral",
   ];
+  const missingLabel = attendanceMissingLabel(row);
+  if (chip) {
+    return (
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+        <CompactInfoChip label={missingLabel || label} tone={missingLabel ? "warning" : tone} wrap />
+        {missingLabel && row.attendance_status !== "incomplete" && (
+          <CompactInfoChip label={label} tone={tone} wrap />
+        )}
+      </Box>
+    );
+  }
   return (
-    <FontStyle fontSize={13} fontWeight={600} sx={{ color: (theme) => theme.status[tone].text }}>
-      {label}
-    </FontStyle>
+    <Box>
+      <FontStyle
+        fontSize={13}
+        fontWeight={600}
+        sx={{ color: (theme) => theme.status[missingLabel ? "warning" : tone].text }}
+      >
+        {missingLabel || label}
+      </FontStyle>
+      {missingLabel && row.attendance_status !== "incomplete" && (
+        <FontStyle fontSize={12} sx={{ color: (theme) => theme.status[tone].text }}>
+          {label}
+        </FontStyle>
+      )}
+    </Box>
   );
 }

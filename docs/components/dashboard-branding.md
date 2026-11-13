@@ -52,9 +52,9 @@ Seluruh grafik dashboard wajib menyusun adapter ApexCharts terpusat dan dirender
 
 `dashboard/DashboardWorkspace` memakai `DetailTabs` embedded hanya jika Inventaris berizin. `EmployeeDashboard` memakai ringkasan self-service, PhotoAvatar dan ImagePreviewModal; `InventoryDashboard` memakai DashboardMetric, DashboardChart, StackedBarChart/HorizontalBarChart, ResponsiveDataView dan InventoryItemPhoto. Section data terpisah per permission/scope, status loading/kosong/error dan retry memakai helper API bersama. Jarak section 24px, kontrol 44px. Grafik bukan data contoh dan tidak menjumlahkan satuan barang berbeda.
 
-Presentasi dashboard mengikuti [aturan Inventaris](../rules/dashboard.md#dashboard-pegawai-dan-inventaris); acuan tab lama telah diganti oleh navigasi submenu.
+Presentasi dashboard mengikuti [aturan Inventaris](../rules/product.md#dashboard-pegawai-dan-inventaris); acuan tab lama telah diganti oleh navigasi submenu.
 
-Rujukan: [Verifikasi](../dashboard-workspace.md#verifikasi).
+Rujukan: [Verifikasi](../rules/product.md#verifikasi-3).
 
 DataPanel menerima action opsional di kanan judul. Aksi lihat semua stok memakai ikon action:view-all, tooltip, aria-label, dan target 44px; filter gudang dan organisasi tetap dibawa.
 
@@ -108,7 +108,7 @@ Badge profil pegawai yang tertaut memakai status dan jenis kepegawaian, bukan ro
 
 DashboardMetric menerima balanced untuk susunan header → angka tengah → footer berdivider pada Masa kerja/Sanksi aktif. MetricValue menjaga format angka/satuan konsisten dengan susunan standar.
 
-Rekap Stok memakai StockReportPanel, AppModal, ResponsiveDataView, DataPagination dan TableExportMenu bersama. Rincian membaca proyeksi Kartu Stok dengan permission laporan; dokumen memerlukan izin transaksi tersendiri. Tidak menambahkan perhitungan atau saldo client. Lihat docs/inventory-stock-report.md.
+Rekap Stok memakai StockReportPanel, AppModal, ResponsiveDataView, DataPagination dan TableExportMenu bersama. Rincian membaca proyeksi Kartu Stok dengan permission laporan; dokumen memerlukan izin transaksi tersendiri. Tidak menambahkan perhitungan atau saldo client. Lihat docs/rules/inventory.md.
 
 ### Pemilih rentang tanggal responsif
 

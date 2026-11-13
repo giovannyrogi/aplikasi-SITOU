@@ -3,11 +3,17 @@ import { getDefaultRouteByRole } from "@/app/utils/defaultRouteByRole";
 import { getAllowedRolesForPath, isPublicPath } from "@/app/utils/protectedRoutes";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
 
-const buildContentSecurityPolicy = (nonce) => {
+const buildContentSecurityPolicy = (nonce, googleMaps) => {
   const production = process.env.NODE_ENV === "production";
   const developmentEval = production ? "" : " 'unsafe-eval'";
   const upgrade = production ? "; upgrade-insecure-requests" : "";
-  return `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentEval}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'${upgrade}`;
+  const mapsHosts = googleMaps
+    ? " https://maps.googleapis.com https://maps.gstatic.com https://maps.google.com https://www.google.com"
+    : "";
+  const mapStyles = googleMaps ? " https://fonts.googleapis.com" : "";
+  const mapFonts = googleMaps ? " https://fonts.gstatic.com" : "";
+  const mapWorkers = googleMaps ? "; worker-src 'self' blob:" : "";
+  return `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentEval}; style-src 'self' 'unsafe-inline'${mapStyles}; img-src 'self' data: blob: https://tile.openstreetmap.org${mapsHosts}; font-src 'self' data:${mapFonts}; connect-src 'self'${mapsHosts}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'${mapWorkers}${upgrade}`;
 };
 
 const securityHeaders = (response, contentSecurityPolicy) => {
@@ -37,7 +43,13 @@ export async function proxy(request) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
   const nonce = crypto.randomUUID().replaceAll("-", "");
-  const contentSecurityPolicy = buildContentSecurityPolicy(nonce);
+  // The document's CSP also applies when entering Rekap Absensi through client navigation.
+  const googleMaps =
+    session &&
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY &&
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID &&
+    !pathname.startsWith("/api/");
+  const contentSecurityPolicy = buildContentSecurityPolicy(nonce, googleMaps);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   // Header konteks selalu ditimpa server; browser tidak dapat memilih pemilik izin.

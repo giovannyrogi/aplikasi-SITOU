@@ -36,10 +36,7 @@ buktinya. Lint atau build berhasil saja tidak cukup untuk menyatakan fitur benar
    tetapi tidak membuktikan authorization, transaksi, atau mutasi backend nyata.
    Sebutkan secara jelas bagian mana yang memakai mock atau respons yang dicegat.
 
-6. Untuk UI/alur yang berubah, periksa browser pada lebar 320/375/768/1024/1366
-   serta desktop lebar, layar pendek, keyboard/fokus, keterjangkauan aksi, loading,
-   feedback sukses/gagal, pemeliharaan isian, overflow, dan console/runtime serta
-   warning API deprecated. Periksa regresi komponen bersama pada pemakai terkait.
+6. Untuk perubahan antarmuka, ikuti [QA tampilan dan interaksi](#qa-tampilan-dan-interaksi).
 
 7. Jalankan lint, build, dan pemeriksaan diff/format yang relevan pada source akhir.
    Bila ditemukan bug, perbaiki, ulangi skenario yang gagal dan regresi terkait;
@@ -92,6 +89,13 @@ Skenario wajib per domain berikut dijalankan ketika domain tersebut terdampak:
 - Test query plan untuk dashboard pada dataset representatif.
 
 Gunakan data sintetis. Jangan memakai data pegawai asli pada test atau development bersama.
+
+### QA tampilan dan interaksi
+
+- Perubahan teks, label, atau indikator memerlukan pemeriksaan render pada layar dan kondisi yang terdampak. Periksa kejelasan label, kontras, pembungkusan teks, dan keterbacaan pada ukuran sempit yang relevan. Jika perubahan memengaruhi tata letak, gunakan cakupan layout di bawah.
+- Untuk UI baru atau perubahan layout, periksa lebar 320, 375, 390, 768, 1024, 1366, dan 1920 piksel. Sertakan layar pendek, zoom dan pembesaran teks hingga 2×, keyboard, urutan serta visibilitas fokus, target aksi, kontras, area aman di ponsel, dan kemungkinan teks terpotong atau tumpang tindih.
+- Untuk perubahan interaksi, uji kondisi yang terdampak seperti loading, gagal, coba lagi, panel tertutup dan terbuka, validasi pada field tersembunyi, serta pemeliharaan isian. Periksa regresi komponen bersama pada pemakai terkait, serta error runtime dan peringatan deprecation di browser.
+- Jika alur menyentuh akses, file, atau penyimpanan, verifikasi juga endpoint, izin dan efek pada data sesuai cakupan di atas. Laporkan bagian yang memakai data sintetis atau belum bisa diuji.
 
 ## Definition of Done
 

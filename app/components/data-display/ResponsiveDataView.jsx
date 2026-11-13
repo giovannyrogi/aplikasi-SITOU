@@ -27,9 +27,13 @@ export default function ResponsiveDataView({
   mobileCardSx,
   scrollX = 900,
   rowOffset,
+  cardMediaQuery = "(max-width:767px)",
+  showCardRowNumber = true,
+  rowClassName,
+  cardColumns = "minmax(0, 1fr)",
 }) {
   const theme = useTheme();
-  const mobile = useMediaQuery("(max-width:767px)");
+  const mobile = useMediaQuery(cardMediaQuery);
   const mobileShellSx = {
     ...mobileDataTypography,
     p: { xs: 2, sm: 2.5 },
@@ -83,11 +87,12 @@ export default function ResponsiveDataView({
       );
     return (
       <Box sx={{ ...mobileShellSx, display: "grid", gap: 2 }}>
-        <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", minWidth: 0, gap: 1.5 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: cardColumns, minWidth: 0, gap: 1.5 }}>
           {data.map((item, index) => (
             <Box
               key={item[rowKey]}
               data-responsive-card
+              className={rowClassName?.(item)}
               sx={{
                 minWidth: 0,
                 maxWidth: "100%",
@@ -113,9 +118,11 @@ export default function ResponsiveDataView({
                 ...mobileCardSx,
               }}
             >
-              <FontStyle fontSize={12} sx={{ color: "text.secondary", mb: 1 }}>
-                No {offset + index + 1}
-              </FontStyle>
+              {showCardRowNumber && (
+                <FontStyle fontSize={12} sx={{ color: "text.secondary", mb: 1 }}>
+                  No {offset + index + 1}
+                </FontStyle>
+              )}
               {renderCard(item)}
             </Box>
           ))}

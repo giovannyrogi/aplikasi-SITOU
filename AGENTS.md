@@ -21,17 +21,20 @@ Aturan ini berlaku untuk seluruh repositori, kecuali aturan folder yang lebih sp
 | Tugas | Sumber utama |
 | --- | --- |
 | Tujuan, batas produk | [Produk](docs/rules/product.md) |
-| Struktur kode, batas lapisan | [Arsitektur](docs/rules/architecture.md) |
-| Database, query, migration | [Aturan data](docs/rules/data.md), lalu [peta database](docs/database-schema.md); SQL hanya bila perlu detail |
-| API, auth, organisasi, keamanan | [API dan keamanan](docs/rules/api-security.md), [akses](docs/rules/access.md); kontrak fitur sesuai tugas |
-| Frontend | [UI/UX](docs/ui-ux-guidelines.md) pada bagian relevan dan [indeks komponen](app/components/README.md); detail fitur dari indeks |
-| Pegawai, kontrak, penempatan | [Pegawai](docs/rules/employees.md) |
+| Struktur kode, batas lapisan | [Arsitektur](docs/rules/data.md#arsitektur-dan-batas-implementasi) |
+| Database, query, migration | [Aturan data](docs/rules/data.md), [skema akhir](sitou_schema_v3.sql), dan [migration](database/migrations/README.md) |
+| API, auth, organisasi, keamanan | [API dan keamanan](docs/rules/api-security.md), lalu ikuti tautan kebijakan dan kontrak fitur sesuai tugas |
+| Frontend | [Daftar isi UI/UX Dashboard](docs/ui-ux-guidelines.md#daftar-isi), [indeks komponen](app/components/README.md) untuk API komponen |
+| QA dan penyelesaian | [Aturan kualitas](docs/rules/quality.md) sesuai risiko perubahan |
+| Pegawai, kontrak, penempatan | [Pegawai](docs/rules/product.md#pegawai-penempatan-dan-lifecycle) |
 | Jadwal, kalender dan absensi | [Indeks dokumentasi](docs/README.md#jadwal-kalender-dan-absensi) |
 | Cuti/izin, disiplin, laporan | [Indeks domain](docs/README.md#pegawai-cuti-disiplin-dan-laporan) |
-| Inventaris dan dashboard | [Inventaris](docs/rules/inventory.md), [dashboard](docs/rules/dashboard.md), hanya salah satu/section terkait |
-| File, backup, OCR, worker, deployment | [Indeks operasional](docs/README.md#operasional), jangan dibaca untuk tugas lain |
+| Inventaris dan dashboard | [Inventaris](docs/rules/inventory.md), [dashboard](docs/rules/product.md#aturan-dashboard), hanya salah satu/section terkait |
+| File, backup, OCR, worker, deployment | [Skrip dan operasional](scripts/README.md), sesuai pekerjaan |
 
 ## Pemeliharaan aturan dan skill
+
+Sebelum membuat file Markdown baru, cari dokumen pemilik topik melalui indeks. Untuk perbaikan atau penambahan fitur, koreksi, lengkapi, atau susun ulang bagian dokumen yang sudah mencakup perubahan. Buat file baru hanya jika belum ada tempat yang sesuai dan dokumen memang diperlukan, atau jika pengguna meminta dokumen terpisah. Jika perlu, jelaskan fungsinya dan tautkan dari indeks yang relevan.
 
 Setiap aturan mempunyai satu sumber aktif. Tambahkan koreksi ke dokumen pemiliknya, lalu tautkan dari indeks bila perlu. Jangan menyalin ketentuan ke AGENTS, skill, katalog komponen, dan panduan operasional sekaligus. Katalog mendeskripsikan API/komposisi komponen; panduan operasional menyimpan langkah menjalankan sistem; changelog adalah histori, bukan aturan aktif. Referensi ulang cukup berupa tautan. Jika ada konflik historis, pertahankan keputusan pengguna terbaru dan catat penggantian yang jelas.
 

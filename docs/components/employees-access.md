@@ -90,7 +90,7 @@ Penetapan admin penuh hanya Superadmin; cakupan lokasi tetap field akun yang ada
 AccountAccessSummary menampilkan satu chip fitur +N fitur lainnya. AccountAccessDetails
 dibuka melalui Aksi → Lihat hak akses dan memuat DTO/scope terbaru tanpa mutation. PageHeader dan
 RowActionMenu memakai snapshot HRIS untuk menyembunyikan aksi perubahan pada mode
-baca; permission tetap wajib diperiksa server. Detail: docs/hris-access-design.md.
+baca; permission tetap wajib diperiksa server. Detail: docs/rules/api-security.md.
 
 ## Form fitur dan rincian — migration 052
 
@@ -142,8 +142,8 @@ perpindahan setelah respons memakai token navigasi; endpoint dan aturan auth tet
 
 `reports/LeaveBalanceFields` menyatukan label, angka, dan satuan Hak/Terpakai/Sisa pada tiga kolom desktop dan grup saldo mobile. `LeaveBalanceValue` menekankan Sisa dengan token brand serta menyediakan label aksesibel, tanpa memotong angka. `LeaveBalanceEmpty` membedakan saldo belum tersedia dari jenis tanpa saldo. Rekap memakai ReportIdentity/EmployeeAvatar dan ImagePreviewModal untuk foto privat profil.
 
-`reports/LeaveSummaryReport` menyusun PageHeader, OperationalFilterSection, DataPanel, ResponsiveDataView dan DataPagination untuk **Rekap Cuti & Izin**, tanpa kartu/grafik yang berulang dengan Dashboard. Cari pegawai berada sebelum Tahun; dropdown menggunakan AsyncSelect. `LeaveSummaryDetailsModal` memakai AppModal dengan API laporan sendiri. Ikon menu `navigation:leave-summary` berbeda dari kalender operasional. Filter tersimpan di URL; loading, kosong, dan error terpisah. Hak akses dan definisi angka: `docs/leave-summary-report.md`.
+`reports/LeaveSummaryReport` menyusun PageHeader, OperationalFilterSection, DataPanel, ResponsiveDataView dan DataPagination untuk **Rekap Cuti & Izin**, tanpa kartu/grafik yang berulang dengan Dashboard. Cari pegawai berada sebelum Tahun; dropdown menggunakan AsyncSelect. `LeaveSummaryDetailsModal` memakai AppModal dengan API laporan sendiri. Ikon menu `navigation:leave-summary` berbeda dari kalender operasional. Filter tersimpan di URL; loading, kosong, dan error terpisah. Hak akses dan definisi angka: `docs/rules/product.md`.
 
 `ProtectedShell` membedakan logout yang sedang berjalan dari sesi kedaluwarsa. Logout menghentikan polling, membatalkan request akses aktif, menonaktifkan timer sesi serta modal countdown, dan mengabaikan respons lama. Kegagalan logout memulihkan pemeriksaan sesi dan memungkinkan percobaan ulang; sesi yang benar-benar berakhir tetap menampilkan ExpiredSessionModal.
 
-Daftar Cuti & Izin memakai `DataPanel.exportConfig` dan `TableExportMenu` yang sama dengan tabel lain. Excel memakai query daftar tanpa pagination melalui `/api/leave-requests/export`; PDF tetap notifikasi Coming soon. Label jenis/status/satuan dipusatkan di `lib/leave/labels.mjs` dan diekspor ulang oleh `leave/leaveLabels` agar UI dan workbook konsisten. Kontrak ekspor: `docs/leave-export.md`.
+Daftar Cuti & Izin memakai `DataPanel.exportConfig` dan `TableExportMenu` yang sama dengan tabel lain. Excel memakai query daftar tanpa pagination melalui `/api/leave-requests/export`; PDF tetap notifikasi Coming soon. Label jenis/status/satuan dipusatkan di `lib/leave/labels.mjs` dan diekspor ulang oleh `leave/leaveLabels` agar UI dan workbook konsisten. Kontrak ekspor: `docs/rules/product.md`.

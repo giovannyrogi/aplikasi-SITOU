@@ -1,10 +1,15 @@
-# Data, query dan migration
+# Data, arsitektur dan migration
+
+Bagian terkait
+
+- [Arsitektur dan batas implementasi](#arsitektur-dan-batas-implementasi)
+- [Aturan model data](#aturan-model-data)
 
 ## Sumber kebenaran data
 
 - Skema referensi: `sitou_schema_v3.sql`.
 
-- Panduan baca cepat database: `docs/database-schema.md`. Buka dokumen ini lebih dulu untuk memahami tabel, kolom penting, relasi, dan aturan data; buka `sitou_schema_v3.sql` hanya ketika perlu detail constraint, index, view SQL, atau membuat migration.
+- Baca [skema akhir](../../sitou_schema_v3.sql) untuk tabel, kolom, constraint, index, dan view yang berlaku. Baca [migration](../../database/migrations/README.md) untuk urutan upgrade dan tujuan perubahan. Gunakan bagian Aturan model data di bawah untuk ketentuan bisnis yang melengkapi SQL.
 
 - Sebelum mengusulkan tabel atau kolom, periksa skema acuan, migration, relasi, dan sumber data yang sudah ada. Catat alasan pemilihan desain. Pakai struktur yang sudah ada bila makna, batas organisasi, dan kebutuhan histori terpenuhi. Tambah struktur hanya untuk kebutuhan yang tidak dapat dipenuhi dengan desain saat ini, misalnya relasi, constraint, atau pencarian. Jika struktur berubah, sinkronkan migration, skema acuan, dan dokumentasi pada perubahan yang sama.
 
@@ -34,8 +39,6 @@
 
 - File bersifat privat; `object_key` tidak pernah dikirim mentah ke browser.
 
-## Query dan indexing
-
 ## Partitioning dan retention
 
 - `attendance_events` dipartisi bulanan berdasarkan `event_date`.
@@ -54,7 +57,7 @@
 
 - Satu migration untuk satu perubahan logis.
 
-- Setiap perubahan yang menghasilkan migration wajib menyertakan pembaruan `sitou_schema_v3.sql` dan, bila struktur atau aturan data berubah, `docs/database-schema.md` dalam commit yang sama. Migration, snapshot schema, dan dokumentasi tidak boleh dibiarkan berbeda versi.
+- Setiap perubahan yang menghasilkan migration wajib menyertakan pembaruan `sitou_schema_v3.sql` dan, bila struktur atau aturan data berubah, `docs/rules/data.md` dalam commit yang sama. Migration, snapshot schema, dan dokumentasi tidak boleh dibiarkan berbeda versi.
 
 - Karena pengembangan dilakukan dari beberapa device dan environment, sebelum mulai bekerja atau menjalankan aplikasi wajib periksa status migration database lokal terhadap migration di repository, lalu jalankan hanya migration yang belum diterapkan. Dilarang mengandalkan asumsi bahwa schema PC, laptop, dan VPS sudah sama.
 
@@ -73,3 +76,454 @@
 - Setiap use case multi-tabel memakai transaksi.
 
 - Lock record aktif saat rolling, approval, commit import, dan penerbitan tindakan untuk mencegah race condition.
+
+## Arsitektur dan batas implementasi
+
+### Stack dan struktur yang diharapkan
+
+- Web/API: Next.js versi stabil dengan App Router dan TypeScript strict.
+
+- Database: PostgreSQL 18.
+
+- Validasi: schema bersama untuk request API, form, import, dan environment.
+
+- File: penyimpanan privat melalui service abstraction; database hanya menyimpan metadata `stored_files`.
+
+- Background job: antrean untuk import, rekap, indikator, export, notifikasi, dan outbox.
+
+- Mobile: memakai API versi yang sama; tidak mengakses PostgreSQL secara langsung.
+
+Pisahkan lapisan berikut:
+
+1. `domain`: aturan bisnis murni dan tipe.
+
+2. `application`: use case/transaksi.
+
+3. `infrastructure`: database, storage, queue, email, dan integrasi.
+
+4. `interfaces`: route handler, server action, worker, dan UI.
+
+Route handler tidak boleh berisi query dan aturan bisnis panjang. Gunakan service/use case.
+
+### Larangan untuk Codex/developer
+
+- Jangan menghapus histori pegawai untuk “merapikan” data.
+
+- Jangan menambahkan kolom `current_division`/`current_location` sebagai sumber kebenaran kedua.
+
+- Jangan menghubungkan tabel lintas organisasi hanya dengan ID tanpa memeriksa organisasi.
+
+- Jangan menjadikan setiap checkout lewat jam sebagai lembur otomatis.
+
+- Jangan membuat sanksi otomatis dari indikator.
+
+- Jangan mengizinkan pimpinan menyetujui izin bila aturan produk masih HRD-only.
+
+- Jangan menyimpan foto/dokumen sebagai URL publik atau base64 di tabel transaksi.
+
+- Jangan memanggil database langsung dari mobile.
+
+- Jangan menjalankan export besar pada request web sinkron.
+
+- Jangan menonaktifkan constraint/index demi melewati bug tanpa analisis dan migration resmi.
+
+## Aturan model data
+
+Halaman Stok Barang membaca `inventory_stock_balances` dan keberadaan
+`inventory_stock_openings` per barang–gudang. Kartu Stok membaca
+`inventory_stock_movements` berurutan `occurred_on,id`, dengan running balance
+sebelum filter tanggal/pagination. Tidak ada tabel saldo/ledger baru. API
+`GET /api/inventory/stock` memakai `inventory.stock.read` dan scope gudang;
+pengaturan minimum tetap memakai version/audit `inventory_item_warehouses`.
+
+### Prinsip Umum
+
+- Migration 074 menambah `holiday_catalogs.revision_of_id` sebagai snapshot identitas katalog terbit yang dipilih secara eksplisit saat membuat draft revisi. Acuan diperiksa pada tahun yang sama saat simpan dan terbitkan di bawah lock tahun. Snapshot tetap ada bila acuan dihapus melalui alur resmi; draft yang kehilangan acuan tidak dapat diterbitkan. Histori existing tidak diubah.
+
+- Migration 073 menambah work_schedule_definition_revisions: organisasi + pattern_id, effective_from, pattern_type/cycle_days, calendar_id/holiday_policy, days JSON referensi shift, alasan/pelaku/waktu. Baseline -infinity dibuat ketika edit terpakai pertama; revisi append-only dan FK kalender komposit. Trigger mencatat pemakaian kalender permanen. Header master tetap pengaturan terbaru; resolver membaca versi sesuai tanggal. Penetapan/snapshot/event/rekap/ledger tidak ditimpa. Lihat docs/work-schedules.md.
+
+- Ganti/Tambah jam kerja memakai schema existing: hasil lengkap sesi disimpan per Pegawai/tanggal pada exception, mode/pattern sumber pada audit. Tambah mempertahankan hasil resolver sebelumnya, bukan penambahan dinamis saat GET. Tidak mengubah snapshot terpakai atau ledger cuti.
+
+- Perubahan jadwal harian massal memakai `work_schedule_exceptions`, `work_schedule_exception_sessions`, `audit_logs` dan `work_schedule_requests` existing (`operation=exception.bulk`). Tidak ada tabel/migration baru. Batch 1–100 Pegawai × maksimal 31 tanggal menyimpan seluruh baris dan receipt/audit dalam satu transaksi; snapshot absensi dan ledger cuti tidak ditulis ulang. Rekap tanpa snapshot juga memblokir perubahan tanggal terpakai. Kontrak API dan izin: `docs/work-schedules.md`.
+
+- Pengambilan sumber katalog tahunan menggunakan schema 069 existing, tanpa migration baru. `audit_logs` mencatat `holiday_catalog.source_preview` dengan metadata/digest/hasil pengambilan; penyimpanan draft tetap pada `holiday_catalogs`/`holiday_catalog_days` dengan receipt existing. Audit pratinjau bukan publikasi dan tidak mengubah kalender organisasi.
+
+- Migration `069`: referensi global Admin SITOU berada pada `holiday_catalogs` (tahun/revisi/status/versi/sumber/pelaku), `holiday_catalog_days` (tanggal/kategori), dan `holiday_catalog_requests` (receipt pelaku + UUID + hash). Katalog terbit immutable melalui trigger. `work_calendar_days.catalog_day_id` nullable menyimpan asal tanggal; organization_id, nama dan tanggal salinan tetap pada kalender organisasi. Data lama tetap manual, tidak diperbarui otomatis. Seed resmi 2026 (17+8) dan 2027 (18+8) berprovenance sistem. Lihat `docs/work-schedules.md` untuk API, peninjauan revisi dan prosedur pembaruan tahunan.
+
+- Migration `058` menambah seed menu HRIS `leave-summary-report` untuk Rekap Cuti & Izin. Tidak menambah tabel bisnis atau memberi grant otomatis. Laporan memakai `leave_requests`, `leave_entitlements`, dan `leave_balance_transactions`; lihat `docs/rules/product.md`.
+
+- `organization_id` adalah batas organisasi utama pada semua tabel bisnis.
+
+- Histori pegawai tidak ditimpa: kontrak ada di `employment_contracts`, penempatan/rolling ada di `employee_assignments`, dan event absensi mentah ada di `attendance_events`.
+
+- File privat tidak pernah dikirim sebagai `object_key` langsung ke browser. Metadata file ada di `stored_files`, termasuk `employee_id` atau `onboarding_draft_id` untuk otorisasi pemilik.
+
+- Event absensi mentah append-only. Rekap cepat dashboard ada di `attendance_daily_summaries` dan boleh dihitung ulang.
+
+- Role stabil di tabel `roles.code`: `superadmin`, `hrd`, `leader`, dan `employee`.
+
+### Organisasi, File, Branding, Struktur
+
+#### Kebijakan pensiun per organisasi
+
+`organization_retirement_policies` menyimpan satu usia pensiun saat ini per `organization_id`, `version`, `updated_at`, `updated_by_user_id`, dan `change_reason`. Migration 027 memberi organisasi lama usia awal 58 tahun; organisasi baru tidak mendapat asumsi usia otomatis. Pengaturan berada di Pengaturan Organisasi → Kebijakan Pensiun. Usia berupa bilangan bulat 18–100 (batas teknis input), disimpan dengan optimistic concurrency dan audit append-only `retirement_policy.update`. HRD/Superadmin memerlukan `retirement_policy.manage`; Pimpinan hanya `retirement_policy.read`.
+
+Kebijakan baru langsung menjadi acuan proyeksi seluruh pegawai yang hubungan kerjanya berjalan. Dashboard, laporan, dan Excel membaca usia yang sama. Riwayat keputusan pensiun dan status final pegawai tidak berubah. Kebijakan belum diatur menghasilkan informasi khusus, bukan jumlah nol. Versi kebijakan mengikat cursor laporan dan cache dashboard.
+
+#### Alur onboarding dan masa akses
+
+1. Superadmin membuat identitas `organizations` dan periode pertama `organization_subscriptions` dalam satu transaksi.
+
+2. Superadmin atau Admin/HRD menyiapkan `organization_unit_types` sebelum membuat struktur pada `organization_units`.
+
+3. Superadmin membuat minimal satu `locations` yang aktif dan berada dalam umur operasional.
+
+4. Superadmin membuat kredensial `users`, memasang role `hrd`, menautkan profil pegawai bila tersedia, lalu menetapkan cakupan lokasi.
+
+5. Organisasi siap digunakan ketika status administratif aktif, memiliki langganan efektif `active`/`grace`, lokasi operasional, dan Admin/HRD aktif.
+
+`organizations.attendance_map_provider` menyimpan pilihan `openstreetmap` atau `google` dengan default `openstreetmap` (migration 078). Pilihan hanya memengaruhi tampilan mobile.
+
+`organizations.is_active=false` adalah penghentian administratif manual. Status langganan efektif dihitung dengan timezone organisasi: `scheduled`, `active`, `grace`, atau `expired`; status manual `suspended` dan `cancelled` selalu mengalahkan tanggal. Job menyelaraskan status tersimpan, tetapi login dan validasi session tetap memeriksa tanggal. Perpanjangan selalu menambah baris baru dan periode non-suspended/non-cancelled tidak boleh tumpang tindih.
+
+Superadmin dapat menonaktifkan lokasi tanpa menghapus `user_location_scopes`, profil pegawai, atau histori `employee_assignments`. Login HRD tidak bergantung pada lokasi scope; HRD tetap dapat masuk selama akun, role, organisasi, dan langganan efektif masih aktif. `user_organization_roles.location_scope_mode` menyatakan `all` atau `selected` secara eksplisit agar scope kosong tidak berubah menjadi akses penuh. Pimpinan selalu membaca seluruh data organisasi dalam mode read-only. Akun HRD atau Pimpinan boleh dibuat sebagai akun akses tanpa relasi `employees.user_id`, lalu pemilik akun dapat mengaitkannya satu kali dari halaman Profil ke profil aktif yang belum memiliki akun pada organisasi yang sama; pilihan HRD tetap dibatasi cakupan lokasinya dan tindakan ditulis ke audit. Pegawai tidak dapat mengaitkan profilnya sendiri. Akun Pegawai wajib tertaut ke profil pegawai oleh HRD; aksesnya mengikuti profil `employees` dan penempatan utama aktif pada `employee_assignments`, bukan `user_location_scopes`.
+
+Superadmin membuat dan mengelola akun ber-role HRD atau Pimpinan. HRD hanya dapat membuat, mengubah, dan mereset password akun Pegawai pada organisasinya; role akun yang dibuat HRD selalu dinormalisasi menjadi `employee` oleh backend dan wajib ditautkan ke profil pegawai yang dapat diakses HRD. Pengiriman `roleCode`, organisasi, atau cakupan lokasi yang dimanipulasi dari client tidak dapat menaikkan hak akses akun.
+
+Data Master menggunakan route yang sama untuk Superadmin dan Admin/HRD. Superadmin dapat memilih organisasi secara eksplisit, sedangkan API selalu mengganti atau memvalidasi `organization_id` Admin/HRD dari session server. Admin/HRD dapat mengelola `locations`, `organization_unit_types`, `organization_units`, `organization_unit_locations`, `positions`, dan `employment_types` hanya pada organisasinya. Identitas organisasi, masa akses, serta pembuatan Admin/HRD pertama tetap menjadi kewenangan Superadmin. Permission Pegawai memakai kode `*_self` terpisah dan belum membuka endpoint administrasi organisasi; endpoint self-service kelak wajib memperoleh `employee_id` dari session.
+
+#### Matriks validasi login dan session
+
+Validasi berikut dijalankan saat login dan diulang ketika session dipakai pada server:
+
+| Kondisi                                                                                               | Superadmin | Admin/HRD | Pimpinan | Pegawai | Kode penolakan login                                             |
+| ----------------------------------------------------------------------------------------------------- | ---------- | --------- | -------- | ------- | ---------------------------------------------------------------- |
+| `users.is_active=false`                                                                               | Ditolak    | Ditolak   | Ditolak  | Ditolak | `ACCOUNT_INACTIVE`                                               |
+| Role belum mulai atau sudah berakhir                                                                  | Ditolak    | Ditolak   | Ditolak  | Ditolak | `ROLE_INACTIVE`                                                  |
+| `organizations.is_active=false`                                                                       | N/A        | Ditolak   | Ditolak  | Ditolak | `ORGANIZATION_INACTIVE`                                          |
+| Langganan tidak efektif (`scheduled`, `expired`, `suspended`, `cancelled`, atau tidak ada)            | N/A        | Ditolak   | Ditolak  | Ditolak | Kode `ORGANIZATION_*`/`SUBSCRIPTION_*`                           |
+| Profil pegawai tidak tersedia, soft-deleted, atau `employment_status` bukan `active` atau `probation` | N/A        | N/A       | N/A      | Ditolak | `EMPLOYEE_PROFILE_INACTIVE`/`EMPLOYEE_STATUS_INACTIVE`           |
+| Tidak ada penempatan utama yang efektif pada tanggal berjalan                                         | N/A        | N/A       | N/A      | Ditolak | `EMPLOYEE_ASSIGNMENT_INACTIVE`                                   |
+| Lokasi penempatan `is_active=false` atau di luar `operational_from`/`operational_until`               | N/A        | N/A       | N/A      | Ditolak | `EMPLOYEE_LOCATION_INACTIVE`/`EMPLOYEE_LOCATION_NOT_OPERATIONAL` |
+| Divisi/unit penempatan `organization_units.is_active=false`                                           | N/A        | N/A       | N/A      | Ditolak | `EMPLOYEE_UNIT_INACTIVE`                                         |
+
+Pesan penolakan tidak membocorkan SQL atau data internal. Akun, profil, penempatan, lokasi, atau divisi yang tidak aktif mengarahkan pengguna ke Admin organisasi. Organisasi atau masa berlaku yang tidak aktif mengarahkan pengguna ke Admin SITOU.
+
+`organization_unit_types` adalah sumber kebenaran klasifikasi struktur. Nama jenis tidak disimpan sebagai teks bebas pada `organization_units`; setiap unit wajib memakai `unit_type_id` milik organisasi yang sama. Jenis aktif dapat dipilih untuk unit baru, sedangkan jenis yang sudah digunakan harus dinonaktifkan alih-alih dihapus agar histori tetap utuh. `parent_unit_id` mengatur hierarki dan `organization_unit_locations` mengatur lokasi operasional, sehingga keduanya tidak boleh digantikan oleh jenis unit.
+
+`organization_unit_locations.active_from` wajib dikirim eksplisit untuk setiap lokasi. Form menerapkan satu tanggal bersama pada lokasi baru dan tetap mengizinkan override per lokasi. Tanggal harus berada dalam umur operasional lokasi, tidak boleh melewati hari ini, dan periode untuk kombinasi organisasi-unit-lokasi tidak boleh overlap. Koreksi atau pelepasan relasi lama memerlukan alasan, audit, serta pemeriksaan agar histori `employee_assignments` tetap valid.
+
+API master jenis unit menggunakan `GET/POST /api/organization-unit-types`, `GET/PATCH/DELETE /api/organization-unit-types/:id`, dan `GET /api/organization-unit-types/options`. Kode dikunci setelah jenis dipakai; endpoint `DELETE` hanya menonaktifkan. Form Divisi & Unit mengirim `unitTypeId` dan backend selalu memvalidasi jenis aktif serta organisasi pemiliknya.
+
+### User, Role, Permission
+
+Schema final menanam seluruh permission modul pegawai, penempatan, kontrak,
+disiplin, akun, import, file privat, dan profil mandiri. Superadmin dan HRD mendapat
+permission pengelolaan; Pimpinan hanya mendapat permission baca yang ditetapkan;
+Pegawai hanya mendapat permission `*_self`. Superadmin memakai use case lintas
+organisasi yang eksplisit, sedangkan HRD tetap dibatasi ke organisasi dari session.
+Jalankan `npm run db:check` setelah setup atau upgrade database untuk memastikan
+seluruh relasi, kolom, constraint, dan mapping permission tersedia.
+
+Export Excel Data Pegawai memakai permission `employees.export_sensitive`. Permission ini hanya
+diberikan kepada Superadmin dan HRD. Export mengikuti organisasi serta cakupan lokasi session,
+memuat 13 sheet berbahasa Indonesia yang ringkas tanpa ID/path/URL file privat, memakai NIP sebagai penghubung, menampilkan waktu unduh pada zona waktu organisasi, dan mencatat audit `employee.export_sensitive`. Ringkasan memuat data utama serta rekap kelengkapan; rincian kontak, dokumen, rekening, keluarga, pendidikan, sertifikasi, kontrak, dan penempatan dipisahkan tanpa kolom status data yang berulang.
+
+### Pegawai dan Profil
+
+Hubungan keluarga memakai pilihan eksplisit agar istri/suami, ayah/ibu, serta kakek/nenek tidak digabung dalam label ambigu. Migration 030 mengonversi data lama `spouse` menggunakan bukti kontak darurat Istri/Suami dengan fallback gender pegawai, serta `parent` menggunakan kode hari lahir NIK. Nilai `spouse`, `parent`, dan `grandparent` tidak diterima setelah migration.
+
+Lifecycle akhir hubungan kerja memakai `employees.employment_status` dengan nilai final `terminated`, `retired`, atau `deceased`, disertai `termination_date` dan `termination_reason`. Workflow aplikasi hanya menerima tanggal sejak `joined_date` sampai hari ini, menutup penempatan serta kontrak aktif, menonaktifkan akun tertaut, dan menulis `audit_logs` dalam satu transaksi. Profil, dokumen, disiplin, kontrak, dan penempatan historis tidak dihapus. Setelah status final tersimpan, perubahan profil atau histori operasional melalui form biasa ditolak.
+
+Daftar Data Pegawai dapat difilter menurut **Ditambahkan oleh**. Nilai ini bersumber dari audit append-only `employee.create`, bukan kolom profil yang dapat berubah. Opsi akun dibatasi organisasi serta cakupan lokasi actor. Pegawai lama yang belum memiliki audit pencatatan tetap muncul ketika filter memakai Semua akun; memilih akun hanya menampilkan record yang memiliki audit pencatatan oleh akun tersebut.
+
+Konflik NIP dan NIK KTP pada pendaftaran atau pembaruan dipetakan dari constraint identitas ke pesan terpisah dan `fieldErrors` untuk `employeeNo` atau `nationalId`. Pemeriksaan tetap dalam organisasi yang sama dan mencakup record yang dihapus logis. Import memakai pesan identitas yang sama; bila kedua nomor duplikat, masing-masing dijelaskan tanpa menampilkan nomor atau data pegawai lain.
+
+Import pegawai memakai workbook `.xlsx` multi-sheet resmi tanpa foto, dokumen, kasus disiplin, atau tindakan sanksi. NIK wajib 16 digit untuk import. Nomor baris unik di dalam sheet melalui `(batch_id,sheet_name,row_number)`. Validasi dikelompokkan berdasarkan `employee_no`, dan commit atomik per pegawai menghasilkan status `committed` atau `partially_committed` tanpa menggagalkan pegawai valid lain. Detail operasional berada di `docs/rules/product.md`.
+
+### Penyimpanan Privat Pegawai
+
+Development memakai `UPLOAD_ROOT` atau default `<project>/uploads`. File profil menggunakan `org_{organizationId}/pegawai/employee_{employeeId}/{kategori}/{tahun}/{uuid}.{ext}`. Selfie absensi memakai susunan privat berdasarkan penempatan dan tanggal kerja dengan pengecualian awalan nama depan tersanitasi. Acuannya [Absensi mobile](../mobile-api.md#susunan-folder-selfie-baru). Referensi tetap memakai `stored_files.object_key` dan `attendance_events.photo_file_id`. Nama lengkap, NIP, NIK, rekening, dan data pribadi lain dilarang pada path. Browser hanya mengakses `GET /api/uploads/:fileId`, dan route selalu memeriksa session, permission, organisasi, scope pegawai, audit, `Cache-Control: private, no-store`, serta `nosniff`. File sumber import berada pada `org_{organizationId}/imports/pegawai/{tahun}/{uuid}.xlsx`. `stored_files.malware_scan_status` menyimpan hasil antivirus. Pelepasan file membuat `file_purge_jobs` di transaksi yang sama dan worker menghapus byte setelah commit. `security_rate_limit_buckets` menyimpan penghitung rate limit ter-hash yang konsisten antarproses.
+
+UI membaca kelengkapan melalui `GET /api/employees/:id/documents`, yang menyusun checklist Pas foto, KTP, KK, NPWP, BPJS Kesehatan, BPJS Ketenagakerjaan, kontrak, SK penempatan, ijazah, sertifikasi, dan identitas lain dari relasi domain. Endpoint checklist hanya mengembalikan status, jumlah, dan tanggal pembaruan terakhir. Metadata serta file dibuka dari konteks domain terkait melalui endpoint berbasis file ID; `object_key` tetap tidak dikirim ke browser.
+
+Filter Kelengkapan data pada daftar dan export memakai pilihan bersama di `lib/employees/completenessOptions.js`. KTP, KK, NPWP, dan kedua BPJS dianggap belum lengkap jika nomor atau foto belum tersedia (termasuk keduanya). Referensi foto lama tetap diperiksa dan metadata terhapus tidak dihitung. Pilihan tambahan mencakup pas foto, WhatsApp, alamat KTP/domisili, rekening, kontak darurat, pendidikan, serta ijazah pendidikan terakhir. Pilihan pendidikan Tidak/Belum Pernah Sekolah dan Tidak/Belum Tamat SD tetap dihitung sebagai data pendidikan dan tidak memerlukan ijazah. Semua predicate tetap dibatasi organisasi dan cakupan lokasi melalui service daftar pegawai. Dropdown memakai Semua pegawai sebagai pilihan default tanpa penyaringan kelengkapan, diikuti pilihan kekurangan data spesifik. Pilihan umum Lengkap/Belum lengkap tidak digunakan lagi pada daftar maupun export; indikator data inti pada dashboard tetap memakai definisinya sendiri.
+
+### Kontrak dan Penempatan
+
+`employee_onboarding_drafts` hanya menyimpan satu draft aktif per actor dan organisasi. Setiap file draft memakai `draft_slot`; penggantian mengunci slot, mengarantina byte lama, menyimpan file baru, lalu melakukan purge setelah commit. Buang draft dan expiry memakai operasi lifecycle yang sama sehingga file tidak tertinggal. Penyimpanan checkpoint menggunakan `version` untuk optimistic concurrency. Finalisasi mengunci draft, membuat pegawai, kontak, kontrak, dan penempatan awal secara atomik, lalu menghubungkan file staging kepada pegawai. Pas foto kategori `employee_photo` bersifat opsional dan ditautkan melalui `employees.profile_photo_file_id`; foto dapat diunggah saat onboarding maupun dari Identitas administratif pada Kelola Profil Lengkap. KTP kategori `identity` juga opsional dan dicatat sebagai `employee_documents.document_type='ktp'`. Pada onboarding, nomor dan PDF kontrak awal boleh dilengkapi kemudian. Tanggal akhir hanya diminta ketika `employment_types.requires_end_date=true`. Penerbitan kontrak resmi melalui lifecycle kontrak tetap mewajibkan nomor dan `document_file_id` kategori `contract`; penempatan baru melalui lifecycle resmi tetap meminta nomor SK dan `document_file_id` kategori `assignment_decree`. Pada onboarding dan koreksi salah input, kedua data tersebut boleh kosong atau dilepas secara eksplisit; file histori tetap dipertahankan dan perubahan dicatat pada audit.
+
+Create dan koreksi kontrak/penempatan memakai multipart tunggal: payload dan PDF diproses oleh satu use case. Dokumen baru dicatat dalam transaksi domain; kegagalan validasi atau transaksi membersihkan byte baru. Koreksi dokumen membuat versi current baru dan mempertahankan versi sebelumnya sebagai histori.
+
+Koreksi atau pembatalan kontrak menggunakan `PATCH/DELETE /api/employees/:employeeId/contracts/:contractId`. `DELETE` bersifat pembatalan logis, wajib menerima alasan dan versi record, serta tidak menghapus dokumen maupun histori audit. Histori kontrak menggabungkan `created_at`, metadata pembatalan, identitas terpusat pengguna, dan `audit_logs` untuk menampilkan pelaku serta waktu pencatatan, koreksi terakhir, dan pembatalan. Kontrak awal yang dibuat bersama pegawai menggunakan audit `employee.create` sebagai fallback pembuat. Dokumen kontrak dan SK dikembalikan pada histori masing-masing dan masing-masing record hanya menyediakan satu aksi dokumen agar tidak ada kontrol berbeda dengan perilaku sama.
+
+Koreksi salah input penempatan menggunakan `PATCH /api/employees/:employeeId/assignments/:assignmentId` dengan `updated_at` sebagai version check. Koreksi memvalidasi cakupan lokasi, master organisasi, dokumen SK bila disertakan, serta benturan periode penempatan utama; perubahan dicatat pada `audit_logs` dan tidak menghapus record histori. Penempatan aktif tetap ditutup melalui workflow Penempatan baru agar urutan lifecycle tidak rusak.
+
+### Shift, Jadwal, dan Absensi
+
+Laporan Rekap Absensi membaca rekap harian dan bukti event berdasarkan tanggal kerja. Foto absensi dilayani oleh endpoint khusus dengan scope laporan dan audit. Lihat [kontrak laporan](../work-schedules.md#rekap-absensi-1).
+
+### Cuti, Izin, dan Disiplin
+
+Jatah tahunan, durasi pencatatan, dan seluruh transaksi saldo cuti/izin menggunakan bilangan bulat. Sistem tidak menerima atau membulatkan pecahan hari/jam secara diam-diam.
+
+`leave_types.eligible_gender` bernilai `all`, `male`, atau `female`. Aturan lama mendapat `all`. Pilihan cuti baru dan saldo aktif hanya ditampilkan kepada pegawai yang sesuai; profil dengan jenis kelamin Lainnya, Tidak diungkapkan, atau kosong hanya mendapat `all`. Pemeriksaan pencatatan ada di server sebelum membuat hak saldo. Riwayat permintaan dan ledger lama tetap dapat dibaca saat aturan atau profil berubah.
+
+Pencatatan HRD langsung berstatus Disetujui dan memotong saldo berdasarkan `requested_units` dalam transaksi yang sama. Nilai awal dari rentang tanggal memakai hari kalender; HRD menyesuaikan jumlah hari/jam sesuai kebijakan organisasi. Validasi TMT memakai `joined_date::text` dalam format `YYYY-MM-DD` agar tidak bergeser oleh timezone host. Pencatatan baru menerima satu dokumen pendukung maksimal 10 MB (gabungan upload baru dan referensi file), dengan total request maksimal 11 MB. Histori lama yang memiliki banyak lampiran tetap tersedia. Koreksi hanya melalui pembatalan beralasan dan pencatatan ulang; pembatalan mengembalikan pemakaian saldo tepat satu kali serta mempertahankan histori dan dokumen.
+
+Setiap organisasi memiliki enam jenis bawaan: Teguran Lisan, SP1, SP2, SP3, Skorsing,
+dan Demosi. Form penerbitan hanya memilih jenis aktif dan tanggal mulai; server menghitung tanggal
+akhir dari kebijakan organisasi. Saat tindakan resmi baru diterbitkan, tindakan aktif sebelumnya
+menjadi `superseded`. Tindakan melewati tanggal akhir dibaca sebagai `expired` walaupun worker
+`npm run disciplinary-actions:expire` belum berjalan; worker menyelaraskan status tersimpan dan audit.
+Perubahan master hanya memengaruhi penerbitan berikutnya.
+
+Laporan **Sanksi Pegawai** membaca `disciplinary_actions` resmi (`status <> 'draft'`) dan
+menghasilkan satu baris per pegawai berdasarkan tindakan terbaru yang cocok dengan filter. Query
+organisasi lintas pegawai didukung `ix_actions_official_report`; histori per pegawai tetap memakai
+`ix_actions_employee_history`. Laporan dan ekspor menerapkan permission `discipline.read`, batas
+organisasi, serta cakupan lokasi yang sama dan tidak pernah mengubah status tindakan.
+
+### Audit, Outbox, dan View
+
+#### Backup seluruh sistem
+
+Permission `system_backup.manage` hanya diberikan kepada Superadmin. Menu backup membuat satu paket terenkripsi berisi `pg_dump` custom, seluruh file yang tersedia di `UPLOAD_ROOT`, dan laporan temuan. File hilang atau berbeda menghasilkan `ready_with_warnings`, sedangkan kegagalan akses storage/snapshot tetap `failed`. Kata sandi tidak disimpan. `system_backup_jobs.time_zone` menyimpan zona waktu IANA saat permintaan dibuat: backup baru memakai `BACKUP_TIME_ZONE` (default `Asia/Makassar`/WITA), sedangkan backup lama tetap `UTC` tanpa memindahkan file. Nama artefak membaca snapshot pekerjaan. Tampilan dikonversi ke zona waktu browser pengguna, dengan waktu pada nama backup dan nama ZIP asli tetap tersedia di detail. `system_backup_jobs.package_path` adalah path server internal dan tidak dikirim ke browser. Pekerjaan aktif dibatasi satu; unduhan dan penghapusan manual diaudit. Paket siap tidak kedaluwarsa otomatis. Status `deleted` menutup akses paket tetapi mempertahankan histori dan temuan. Lihat `scripts/README.md` untuk konfigurasi, verifikasi, dan latihan pemulihan.
+
+Migration 041 menambahkan ZIP database dan ZIP semua file berbasis AES-256. Kegagalan salah satu ZIP tidak membatalkan paket utama; status artefaknya dicatat terpisah. Path ZIP hanya disimpan di server. Migration 042 menghapus kedaluwarsa otomatis untuk paket yang masih siap, menambah status/pelaku/waktu penghapusan manual, dan mempertahankan data `expired` lama sebagai histori. Restore penuh tetap menggunakan paket utama melalui alat server, bukan unduhan ZIP terpisah.
+
+Migration 043 menambahkan tahap, jumlah/ukuran terproses, total terukur, kategori aman, dan waktu pembaruan progres pada pekerjaan serta ZIP. Persen hanya dihitung ketika total tahap diketahui; nama dan path file tidak masuk API progres. Backup yang tidak mulai atau kehilangan heartbeat menjadi gagal, bukan menunggu selamanya.
+
+#### Pemeliharaan penyimpanan file
+
+Menu Superadmin `Pemeliharaan Sistem > Penyimpanan File` memeriksa lifecycle sebenarnya: draft aktif, draft dibuang atau kedaluwarsa, file aktif yang direferensikan, orphan aktif setelah masa aman 24 jam, histori resmi, metadata dengan byte hilang, byte tanpa metadata, file `.tmp`, dan sisa `.trash`. UI tidak menerima `object_key`; byte tanpa metadata ditampilkan dengan label aman.
+
+Cleanup manual terkonfirmasi memeriksa organisasi, semua referensi termasuk versi histori, lifecycle, provider, path, ukuran, dan hash. Kategori resmi tanpa referensi dapat dibersihkan; file dirujuk dan draft aktif tetap dilindungi. File baru tanpa catatan dilindungi 24 jam. Transaksi mengunci tabel referensi agar file tidak dikaitkan bersamaan, mengisolasi file sementara sebelum commit, lalu menghapusnya; rollback memulihkan file. Catatan tanpa file menjadi purged hanya setelah konfirmasi. Metadata `stored_files`, item proses, dan audit tetap disimpan. Tidak ada perubahan schema untuk kebijakan ini.
+
+### Kapan Membuka SQL
+
+- Membuat migration baru atau memvalidasi constraint/FK/index.
+
+- Mengecek enum `CHECK` secara persis.
+
+- Mengecek definisi partition `attendance_events`.
+
+- Mengecek definisi view atau fungsi PostgreSQL.
+
+- Menjalankan query plan atau debugging database sungguhan.
+
+### Fondasi Inventaris
+
+Migration 047–048 menambahkan inventory_categories, inventory_units,
+inventory_items, dan inventory_item_warehouses, beserta kategori stored_files
+inventory_item_photo. Semua FK bisnis memakai organization_id; kode uppercase
+unik per organisasi. Keterkaitan barang-gudang hanya menyimpan minimum_stock,
+status, dan versi, bukan saldo. Foto direferensikan ID privat dan dikenal registry
+pemeliharaan/backup. Katalog bersama diubah oleh Pengelola Master Inventaris, sedangkan pengaturan
+minimum terikat gudang dari grant yang mengandung permission terkait.
+
+Fondasi Inventaris tahap 1 (migration 045–046) menambahkan katalog sistem
+`access_modules`, `access_packages`, `access_package_permissions`; tabel bisnis
+`organization_modules`, `inventory_warehouses`, `user_access_packages`, dan
+`user_package_warehouse_scopes`. Seluruh relasi bisnis memakai organisasi dan
+composite FK. Modul dan grant default nonaktif/tidak tersedia. Paket per membership
+memiliki scope all/selected sendiri; izin dan gudang harus dievaluasi sebagai
+pasangan. Gudang bukan saldo stok atau aset. Semua mutasi diaudit dan memakai
+version check; permission efektif tidak disimpan dalam token. Lihat
+[rancangan Inventaris](inventory.md#model-akses-dan-transaksi-persediaan) untuk DTO, delegasi, dan batas tahap.
+
+### Usia dan tanggal akhir kontrak
+
+Usia pada Ringkasan diturunkan sebagai tahun, bulan, dan hari dari tanggal lahir, memakai `organization_today` dari waktu database dalam zona organisasi. Pegawai meninggal memakai tanggal meninggal. Data kosong/invalid tidak dianggap usia nol. Tidak ada kolom usia tersimpan.
+
+`employment_types.requires_end_date=true` berarti tanggal kedaluwarsa kontrak wajib; false berarti tidak digunakan. API detail menyediakan `contract_requires_end_date`; histori kontrak menyediakan `requires_end_date`. Form baru, pendaftaran/draft, dan koreksi menyembunyikan tanggal akhir serta mengirim null untuk jenis tanpa akhir. Request aktif/new dengan tanggal berisi ditolak sebagai `CONTRACT_END_NOT_APPLICABLE` dan field error. Histori tertutup tetap mempertahankan tanggal penutupannya, dengan label Tanggal penutupan periode. Tidak ada backfill atau penghapusan otomatis pada data/file lama.
+
+Import menerapkan aturan yang sama pada validasi dan pemeriksaan ulang saat commit; tanggal penutupan histori resmi tetap dapat dicatat. Laporan/indikator kedaluwarsa hanya menghitung jenis yang menggunakan akhir. Export mempertahankan kolom dan memakai Tidak berlaku untuk kedaluwarsa yang tidak digunakan, sambil mempertahankan penutupan histori.
+
+#### Navigasi master persediaan
+
+Barang Persediaan, Kategori Barang, Satuan Barang, dan Gudang berada pada Data Master
+(`/master-data/inventory-items|inventory-categories|inventory-units|inventory-warehouses`).
+Distribusi Barang berada pada Laporan (`/reports/inventory-distribution`).
+Navigasi ini tidak mengubah schema/API: permission catalog.read, warehouses.read,
+reports.read tetap diperiksa dengan organisasi, aktivasi modul, serta scope grant.
+Snapshot GET /api/access/me kini juga menyertakan inventory.catalog.read.
+
+#### Satuan tanpa kode input dan chip master persediaan
+
+Rujukan: [Satuan tanpa kode input dan chip master persediaan](inventory.md#satuan-tanpa-kode-input-dan-chip-master-persediaan).
+
+#### Tingkat akses Inventaris — migration 049
+
+inventory_reader tampil sebagai Lihat Saja. Mapping inventory.master.read dicabut
+agar sidebar/page master tidak terbuka; permission baca operasional/katalog/file
+berizin dipertahankan. inventory_manager selected boleh menambah/edit/nonaktifkan
+katalog bersama organisasi. Gudang dan minimum tetap dibatasi scope, create gudang
+hanya all. Tidak ada perubahan tabel/grant atau backfill data bisnis.
+
+### Pemisahan master dan operasional — migration 050
+
+- Lihat Saja (inventory_reader): baca Stok Barang/Transaksi Barang/Distribusi Barang, scope gudang all/selected; tidak membuka atau mengubah master.
+
+- Pengelola Gudang (inventory_manager): izin operasional gudang serta minimum barang-gudang dalam scope all/selected. Tidak CRUD katalog/metadata gudang, termasuk scope all. Sejak migration 054, transaksi stok dapat dicatat dan dibatalkan dalam gudang berizin.
+
+- Pengelola Master Inventaris (inventory_master): baca/tambah/edit/nonaktifkan Barang/Kategori/Satuan/Gudang, termasuk membuat gudang. Cakupan organisasi, disimpan scope_mode=all dan warehouseIds kosong. Tidak memberi akses operasional stok/transaksi/laporan/minimum; bukan seluruh gudang operasional.
+
+Satu akun dapat menerima tiga pilihan tersebut secara independen. Form master
+menampilkan Cakupan akses organisasi tanpa pemilih gudang; pergantian kembali ke
+akses operasional mereset scope selected dan gudang kosong. Izin master hanya
+didelegasikan Superadmin/HRD seluruh lokasi; HRD selected tidak boleh mengubahnya.
+Master tidak mengunci lokasi gudang tanpa referensi operasional. Semua permission
+masih dipasangkan dengan scope grant asalnya, memakai module/membership aktif,
+version check, transaksi dan audit. Data organisasi lain serta permission HRIS
+atau self-service tidak diberikan.
+
+Akun Pengelola lama tetap operasional dengan scope semula, tidak otomatis mendapat
+master. Migration 050 mengubah mapping permission, menambah katalog akses dan
+CHECK scope master; grant/histori dipertahankan. Schema bootstrap memuat perubahan.
+Berikan master secara eksplisit bila diperlukan. Keputusan ini menggantikan izin
+master bagi inventory_manager pada tahap 049.
+
+### HRIS menu access — migration 051
+
+organization_hris_access_policies menyimpan paling banyak satu primary_membership_id, enabled,
+version serta actor/waktu per organisasi. Sejak migration 061, primary_membership_id boleh NULL
+meski enabled=true: belum ada admin penuh, bukan HRIS nonaktif. Admin pertama ditetapkan
+secara eksplisit oleh Superadmin. user_hris_menu_grants memetakan membership
+ke hris_menu_definitions dengan level read/manage; user_hris_access_settings mencatat
+peninjauan eksplisit termasuk grant kosong. Composite FK mengunci organisasi.
+Migration 053 membekukan hak efektif akun HRD lama yang belum diatur menjadi grant
+seluruh menu dan flag Akun & Akses yang setara. Setelah itu tidak ada fallback
+role lama: grant/flag tersimpan langsung berlaku meski admin penuh belum ditetapkan.
+Katalog sistem bersama berisi 14 submenu, tidak otomatis mengizinkan fitur baru.
+Role/scope dan proses HRIS lama tetap; guard admin tunggal ditambahkan pada lifecycle.
+DTO akun/reference-options/access-me menambah konfigurasi HRIS. Detail field,
+kompatibilitas, authority, sensitivitas dan rollout: docs/rules/api-security.md.
+
+### Delegasi akun HRD — migration 052
+
+user_hris_access_settings menambah can_manage_employee_accounts dan
+can_delegate_employee_features, default false; CHECK delegasi memerlukan manage.
+Composite FK membership organisasi tetap. Mode API hrisAccountAccess opsional
+none/manage/manage_and_delegate; update omission mempertahankan flag tersimpan.
+DTO hrisAccess memuat accountAccess dan kedua flag; snapshot/reference-options
+memuat canManageAccounts, canDelegateNonHris, canGrantHris, canManageAllAccountRoles.
+Admin penuh/Superadmin tetap authority HRIS. HRD terdelegasi hanya akun Pegawai,
+fitur non-HRIS dan scope lokasi lama; hak penggunaan Inventaris bukan syarat
+untuk delegasi. Audit hris.account_access.update mencatat sebelum/sesudah. Schema
+bootstrap memuat migration sama, tanpa mengubah proses/kolom inti HRIS.
+
+### Dashboard menurut izin
+
+Dashboard adalah halaman dasar. /api/access/me menambah dashboardDefault dan
+dashboardSections; /api/dashboard/summary menambah sections dan dataset opsional
+menurut hak domain, tanpa field untuk data yang dilarang. Grant dashboard lama
+kompatibel tetapi tidak memberi statistik. Scope organisasi/lokasi dan rumus
+agregasi tetap. Cache memakai fingerprint seluruh izin/capability. Tidak ada
+perubahan tabel atau migration untuk penyesuaian Dashboard/editor ini.
+
+### Transaksi stok Inventaris — migration 054
+
+`inventory_transactions` menyimpan header draft dan transaksi terposting, tanggal kejadian, waktu pencatatan sebenarnya, gudang, tujuan barang keluar, referensi, serta relasi asal/pembatalan. Draft menyimpan checkpoint parsial di `draft_payload` dan tidak mengubah stok. `inventory_transaction_lines` menyimpan barang, jumlah, selisih stok, dan referensi baris asal pengembalian. `inventory_stock_openings` menjamin stok awal hanya satu kali per barang–gudang; `inventory_stock_movements` adalah riwayat stok append-only; `inventory_stock_balances` adalah saldo turunan yang diperbarui dalam transaksi database yang sama. `inventory_transaction_files` menyiapkan referensi lampiran privat tanpa menyimpan byte di database. Seluruh relasi bisnis memakai pasangan organisasi dan ID.
+
+Migration 056 menambahkan checkpoint tahap, `updated_at`, masa berlaku, dan tanda draft dibuang pada header transaksi. Draft Transaksi Barang terpisah dari `employee_onboarding_drafts`; beberapa draft aktif boleh dimiliki satu petugas. Lampiran draft ditautkan privat melalui `stored_files.inventory_transaction_draft_id` dan slot per jenis bukti. Penyimpanan ulang memakai `version` agar dua tab tidak saling menimpa; draft kedaluwarsa/dibuang dan lampirannya dibersihkan oleh worker lifecycle tanpa mengubah riwayat transaksi terposting.
+
+Permission `inventory.transactions.create` dan `inventory.transactions.cancel` diberikan kepada Pengelola Gudang dalam scope grant-nya serta Superadmin; Lihat Saja tetap hanya membaca, Pengelola Master tidak memperoleh hak transaksi. Stok awal nol sah. Posting memeriksa saldo historis tidak negatif, mengunci barang–gudang dalam urutan ID, dan mengaudit hasilnya. Kartu Stok nantinya membaca `inventory_stock_movements`, bukan ledger baru.
+
+Migration 055 menambahkan kategori `inventory_transaction_attachment` untuk bukti pembelian, dokumen permintaan, dan foto serah terima. File disimpan privat dan hanya diunduh melalui ID setelah permission transaksi serta cakupan gudang diperiksa. Referensi lampiran transaksi terdaftar sebagai histori resmi di pemeliharaan file. Trigger database melarang edit/hapus transaksi terposting, rincian, stok awal, dan riwayat gerakan stok; pembatalan tetap mencatat transaksi pembalik baru.
+
+### Revisi stok awal — migration 057
+
+Lihat `docs/rules/inventory.md` untuk aturan eligibility, permission koreksi, kontrak API, proyeksi replay bersama, dan rollout legacy. `OpeningCorrectionModal` memakai AppModal, ConfirmDialog, AppNotice dan InventoryQuantityChip; koreksi dari draft hanya menyiapkan perubahan sampai Simpan transaksi. AppIcon mendaftarkan inventory:stock-card, inventory:minimum, inventory:opening-correction.
+
+#### Filter Pegawai: golongan darah dan tanpa penempatan
+
+Tidak ada perubahan schema. Filter maritalStatus pada GET /api/employees dan GET /api/employees/export opsional dengan nilai single, married, divorced atau widowed, berasal dari MARITAL_STATUS_VALUES yang sama dengan pendaftaran. Nilai kosong/tidak dikirim berarti tanpa batasan perkawinan, termasuk profil yang belum mengisinya. Nilai lain ditolak 400. Predicate berparameter memakai employees.marital_status dan tidak mengubah profil, urutan nama/ID, permission atau scope. Workbook mencantumkan label filter dari katalog yang sama. Filter bloodType memakai employees.blood_type dan pilihan A/B/AB/O dari katalog form. Kelengkapan without_assignment memakai predicate bersama Dashboard (aktif/masa percobaan, tidak ada penempatan primary pada current_date). Query data, total serta export memakai listEmployees yang sama dan tetap memfilter organisasi/scope.
+
+#### Laporan Distribusi Barang
+
+Lihat docs/rules/inventory.md. Distribusi memakai transaksi/line/reversal existing, tanpa migration atau perubahan saldo. DistributionPanel menggunakan DataPanel, ResponsiveDataView, DataPagination, OperationalFilterSection, DashboardMetric, chip, modal dan preview terpusat. TransactionDetailModal/TransactionPresentationParts dipakai bersama dengan Transaksi Barang; onCancel hanya diberikan workspace transaksi berizin, bukan laporan.
+
+### Ringkasan Dashboard
+
+Dashboard Pegawai membaca profil tertaut dan histori penempatan/kontrak sendiri melalui permission self-service. Ringkasan Inventaris membaca proyeksi stok, transaksi resmi, draft sendiri dan lokasi penyaluran menurut scope setiap permission, tanpa tabel atau migration baru. Kontrak API/perhitungan tersedia di `docs/rules/product.md`.
+
+Migration 059 hanya menambah permission `leave_requests.read_self` dan `disciplinary_actions.read_self` serta grant role Pegawai. Tidak menambah tabel/kolom atau mengubah data cuti/sanksi. Dashboard pribadi membaca employees.user_id dan organization_id sesi, ledger saldo, histori cuti nondraft, dan ringkasan sanksi nondraft. Tidak memberikan akses administrasi atau dokumen sanksi.
+
+Migration 062 memberi grant baca `*_self` yang sama kepada HRD dan Pimpinan untuk Ringkasan Pribadi jika profil pegawai tertaut. Endpoint tetap mengunci `organization_id` dan `employees.user_id` dari sesi; rincian dan file pribadi tidak dapat digunakan untuk membaca data pegawai lain. Tidak ada tabel atau kolom baru.
+
+### Pemulihan sanksi — migration 063
+
+Migration 063 menambah disciplinary_action_replacements dengan relasi organisasi/pegawai dan kolom penghapusan logis discipline_cases.deleted_at/deleted_by_user_id. Pendahulu dalam rantai yang masih berlaku dapat dipulihkan saat penggantinya dicabut; kasus hanya dapat dihapus bila belum memiliki tindakan termasuk draft. Lihat docs/rules/product.md.
+
+Migration 064 menambah `discipline_case_number_counters` dengan primary key
+`(organization_id,case_year)` dan `last_value` bigint. Backfill memakai suffix
+tertinggi dari nomor kasus lama, termasuk terhapus. Alokasi atomik memakai tahun
+pencatatan zona organisasi, bukan tanggal kejadian yang dapat dikoreksi. Index
+`ix_discipline_cases_employee_recorded` mendukung urutan `opened_at DESC,id DESC`
+pada histori kasus pegawai yang tidak dihapus. Pemulihan sanksi kini menelusuri
+rantai penggantian untuk satu pendahulu terdekat yang masih berlaku; tidak ada
+perubahan status historis secara otomatis oleh migration.
+
+### Sesi native mobile (migration 065)
+
+`mobile_auth_sessions` menyimpan UUID sesi, `organization_id`, `user_id`, `employee_id`, `role_assignment_id`, snapshot `credential_version`, `token_hash` SHA-256 unik, `created_at`, `expires_at` dan `revoked_at`. FK profil/membership komposit mengikat organisasi; FK user dihapus cascade ketika akun dihapus fisik. Durasi sesi baru dibaca dari `AUTH_MOBILE_SESSION_TTL_MINUTES` backend (wajib integer 1–10080 menit); perubahan konfigurasi tidak mengubah expiry sesi existing. Constraint membatasi expiry maksimal tujuh hari setelah created_at, hash 64 karakter heksadesimal dan versi positif. Index expiry untuk prune serta organisasi/user untuk sesi aktif. Token mentah hanya dikirim sekali dan tidak tersimpan di database.
+
+Tidak mengubah tabel akun atau role. Kelayakan mobile berbeda dari matriks login web di atas: semua role organisasi dengan profil pribadi berizin menggunakan Homepage sama; status suspended hanya baca, profil final/draft ditolak dan penempatan tidak memblokir login. Guard membaca ulang data existing dan versi kredensial, sehingga perubahan password/penonaktifan/pensiun/pencabutan akses menghentikan sesi. Lihat `docs/mobile-api.md` untuk urutan penolakan, payload dan pesan.
+
+Upgrade database existing memakai `database/migrations/20261027_065_mobile_auth_sessions.sql`; bootstrap kosong memakai snapshot final. `npm run db:verify-bootstrap` membandingkan constraint dan kolom sesi mobile hasil kedua jalur. `npm run auth:mobile-sessions:prune` menghapus sesi kedaluwarsa atau revoked lebih dari satu hari; audit tetap tersimpan. Migration lokal telah diterapkan untuk pengembangan; produksi mengikuti otorisasi rollout terpisah.
+
+### Fondasi jadwal — 066
+
+Penyederhanaan awal sesudah 066 tidak menambah tabel/kolom: ID jadwal pada form gabungan tetap ID shift_patterns; sesi memakai work_shifts/work_shift_revisions dan shift_pattern_days existing. Penyimpanan gabungan atomik dan receipt template.save memakai work_schedule_requests. Kalender GET menghitung tampilan tanpa membuat employee_daily_schedules; snapshot yang sudah dipakai tetap dilindungi. Tidak menjalankan ulang migration.
+
+work_shifts/shift_patterns tidak lagi memiliki code; nama unik case-insensitive per organisasi. work_shift_revisions menyimpan rules JSONB/tanggal/alasan/pelaku, dilindungi exclusion dan trigger. Kolom jam legacy bukan sumber aturan efektif baru. work_calendars/work_calendar_days menyimpan hari libur; patterns merujuk kalender/holiday_policy. shift_pattern_days memiliki session_no, shift nullable untuk libur. shift_assignments menambah anchor_date/version/alasan/pembatalan. employee_daily_schedules tetap induk, menambah is_holiday/holiday_name/version/rule_hash/source_exception_id dan status needs_review. work_schedule_sessions menyimpan detail UTC/revisi/aturan, FK organisasi+Pegawai dan exclusion waktu. work_schedule_exceptions + work_schedule_exception_sessions adalah jadwal khusus bertanggal/beralasan; child bernormalisasi sumber referensi, shift_ids parent hanya salinan payload. work_schedule_requests receipt idempotency terikat organisasi/pelaku/operasi/key. Semua tabel bisnis baru memiliki organization_id langsung. Tiga seed menu tanpa grant delegasi otomatis. Alur/kontrak: [work-schedules.md](../work-schedules.md).
+
+### Kelompok pilihan shift — migration 067
+
+Kedua tabel mempunyai organization_id langsung, identitas bigint dan UNIQUE(organization_id,id). FK kalender/kelompok/pola/shift memakai pasangan organisasi. Nama kelompok unik case-insensitive setelah trim per organisasi. Hari kerja dibatasi 1–7 dengan panjang 1–7 pada database dan wajib unik pada schema request. Kebijakan calendar mewajibkan kalender. Versi harus positif. Anggota mengikat pattern_id dan shift_id secara unik per organisasi, termasuk arsip. Nama serta posisi anggota saat ini unik per kelompok melalui partial unique index WHERE is_current. Index organisasi/kelompok mendukung pembacaan anggota dan histori.
+
+Struktur lama tidak di-backfill atau dikonversi. Setiap pilihan baru membuat work_shift/revisi serta pola mingguan existing dalam transaksi atomik. Penetapan dan draft tetap merujuk patternId existing. Metadata kelompok mempertahankan ID pilihan. Perubahan struktur sebelum dipakai mengarsipkan pilihan lama dan mempertahankan relasinya, lalu membuat pilihan baru. Setelah memiliki histori, struktur dikunci dan perubahan memakai salinan. Status kelompok mengikuti pola dan shift privat tanpa membatalkan penetapan berlaku. Kalender GET tetap tidak menulis snapshot.
+
+Upgrade existing memakai 20261029_067_work_schedule_shift_groups.sql sesudah 066, hanya ketika kedua tabel belum tersedia. Bootstrap final berisi DDL yang sama. scripts/verify-schema-bootstrap.mjs membandingkan kolom, index dan constraint kedua tabel bersama fondasi existing. Tidak ada perubahan sesi login, upload atau tabel absensi dari migration ini. Lihat [jadwal kerja](../work-schedules.md) dan changelog untuk bukti serta status penerapan lokal.
+
+### Katalog Fitur Absensi — migration 068
+
+Migration 20261030_068_attendance_organization_module.sql menambahkan satu seed access_modules(code='attendance',name='Absensi') secara ON CONFLICT DO NOTHING. Bootstrap final menambahkan seed yang sama. organization_modules existing menyimpan aktivasi per organisasi beserta version. Tidak ada tabel, kolom, constraint atau grant baru.
+
+Tanpa baris attendance, organisasi dianggap nonaktif. Migration tidak mengisi organization_modules atau mengubah jadwal/kalender/penetapan/grant/histori. Perubahan aktivasi hanya melalui Superadmin berizin dan diaudit. Upgrade existing menjalankan migration baru, bukan bootstrap atau ulang 063–067. Gerbang service, kontrak dan pemulihan akses ada di docs/work-schedules.md.
+
+Migration 082 menambahkan `attendance_selfie_check` ke `access_modules`. Pengaturan dan versi disimpan di `organization_modules` karena identitas organisasi, status, versi, dan audit sudah didukung. Tanpa baris organisasi, pemeriksaan nonaktif. Tidak ada tabel, kolom, atau perubahan data absensi lama.
+
+### Migration 070: PDF SKB platform
+
+`stored_files.ownership_scope` membedakan organisasi/platform; organization_id NULL hanya kategori holiday_catalog_source dengan pemilik Pegawai/onboarding kosong. File bisnis lain tetap wajib organisasi. `holiday_pdf_imports` adalah antrean global Admin dengan request key/hash file, lease, heartbeat, retry dan hasil sumber per halaman. `holiday_catalogs.source_file_id`, `pdf_import_id`, `pdf_review` mengikat PDF asli, hasil parser dan koreksi/peninjauan ke revisi. Publikasi tetap immutable. `system_backup_file_issues.organization_id` nullable untuk temuan Platform SITOU tanpa Pegawai. Index cleanup diselaraskan untuk seluruh file deleted yang belum dipurge. Bootstrap dan kontrak: scripts/README.md.
+
+### Migration 071–072: penghapusan libur aman
+
+holiday_catalog_usage menyimpan bukti pertama katalog digunakan oleh kalender organisasi, termasuk nama saat digunakan. work_calendar_usage menyimpan organisasi, kalender dan referensi jadwal historis. Keduanya append-only dan FK membatasi penghapusan master terpakai. deletion_history_verified pada master memblokir penghapusan data lama yang tidak memiliki bukti audit memadai; 072 menyesuaikan backfill dengan kontrak result.id dan input.version legacy.
+
+holiday_deletions adalah receipt minimal global khusus tindakan Admin: kind/target, organisasi kalender, actor/key/hash/version, hasil dan transaction_id. Trigger hanya mengizinkan penghapusan melalui intent dalam transaksi yang sama, dengan pemeriksaan penggunaan. holiday_pdf_purge_jobs adalah antrean global file platform tanpa organisasi fiktif; worker mengunci import/file, memeriksa referensi, menghapus byte dan metadata, lalu menyelesaikan receipt. Kedua tabel masuk dump/restore PostgreSQL. File platform tetap masuk backup privat existing.
+
+### Titik absensi dashboard — migration 075
+
+attendance_point_assignments.revoked_at menyimpan waktu pencabutan. Penetapan lokasi menjadi akses dasar dan penetapan Pegawai menjadi akses tambahan. Konfigurasi berada di attendance_points. Seed attendance-point-access menambah menu HRIS tanpa grant delegasi otomatis. Lihat docs/work-schedules.md.
+
+### Fondasi laporan absensi — 079
+
+Migration 20261105_079_attendance_reporting_foundation.sql menambah bukti penilaian versi 1 pada attendance_events: timing_category, schedule_reference_at, schedule_offset_seconds, early_arrival_minutes, late_minutes, early_leave_minutes, late_departure_minutes; snapshot lokasi/nama/koordinat pusat/batas akurasi dan zona organisasi. Radius, jarak, posisi Pegawai, note, foto dan sesi tetap memakai kolom existing. Seluruh bukti baru nullable untuk histori lama; constraint assessment lengkap berlaku pada event versi 1. FK snapshot lokasi memakai organisasi+ID, kategori dibatasi sesuai check_in/check_out. Index ix_attendance_timing_date membantu filter kategori/tanggal, ix_attendance_daily_events membantu rekap Pegawai/hari.
+
+attendance_daily_summaries menambah scheduled_minutes, early_arrival_minutes, late_departure_minutes, scheduled_session_count, completed_session_count, open_session_count, missing_check_in_count, missing_check_out_count, unassessed_event_count, outside_event_count dan calculation_details JSON object. Metrik menit/count nonnegatif. Acuan algoritma, toleransi, status parsial dan operasional di docs/mobile-api.md. Event append-only; histori tidak diisi menggunakan master terbaru. Bootstrap disinkronkan dengan migration yang sama.
+### Absen pada hari libur — 080
+
+Migration `20261105_080_holiday_attendance.sql` menambah `allow_holiday_attendance` pada pola, kelompok shift, revisi definisi, dan snapshot harian. Default false mempertahankan kebijakan sebelumnya. Resolver memakai versi yang efektif untuk tanggal kerja dan snapshot yang telah digunakan.
+
+`attendance_events.work_context` membedakan `scheduled` dan `holiday_work`. Untuk kategori kedua, constraint mewajibkan snapshot hari, alasan, bukti titik, versi penilaian 2 dan kategori `not_applicable`. Sesi jadwal, acuan waktu, dan metrik keterlambatan/pulang lebih awal atau lebih lambat bernilai null. Tanggal masuk dan pulang tetap menggunakan waktu kejadian server dan zona organisasi. Rekap memakai `worked_on_day_off` dan `timing_applicable`. Metrik yang tidak berlaku disimpan sebagai null dan durasi aktual dihitung dari pasangan event yang lengkap. Rekap tidak menimpa koreksi manual atau status cuti, izin, sakit dan dinas.
+
+### Bukti GPS dekat batas radius
+
+Event mobile baru menyimpan boolean nearRadiusBoundary dalam attendance_events.validation_details.result sebagai hasil backend saat pencatatan. Kolom bukti JSONB sudah tersedia dan cocok untuk hasil validasi ini. Gunakan penanda tersimpan saat membuat laporan. Field yang belum ada pada event lama berarti belum dinilai. Lihat docs/mobile-api.md untuk rumus dan kompatibilitas API.
+
+#### Sesi tambahan di luar jadwal (migration 081)
+
+attendance_events.outside_schedule_session_no mengidentifikasi pasangan masuk/pulang dalam satu daily_schedule_id pada rentang 17–32. Constraint mewajibkan work_context=outside_schedule, assessment_version=2 dan alasan tidak kosong untuk event tambahan. Context ini memakai timing_category=not_applicable tanpa shift fiktif. Perhitungan rekap dan kompatibilitas API mengikuti [kontrak absensi](../mobile-api.md#absen-di-luar-jadwal).

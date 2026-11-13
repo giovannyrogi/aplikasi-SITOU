@@ -53,7 +53,7 @@ Urutan upgrade database lama:
 2. Deploy aplikasi yang sudah membaca schema baru dan verifikasi backfill.
 3. Terapkan `20260821_003_contract_subscription_columns.sql` untuk menghapus kolom legacy.
 
-Baca `AGENTS.md` untuk aturan pengembangan dan `docs/database-schema.md` untuk peta database.
+Baca [aturan pengembangan](AGENTS.md), [aturan data](docs/rules/data.md), dan [skema akhir](sitou_schema_v3.sql).
 
 ## Identitas akun
 
@@ -61,25 +61,25 @@ Baca `AGENTS.md` untuk aturan pengembangan dan `docs/database-schema.md` untuk p
 
 ## Deployment production
 
-Ikuti [panduan hardening dan rollout production](docs/production-hardening.md) untuk migration 032, ClamAV, pemindaian file lama, worker purge, Nginx, dan smoke test sebelum membuka kembali aplikasi.
+Ikuti [panduan hardening dan rollout production](scripts/README.md#hardening-production-dan-rollout-file-lifecycle) untuk migration 032, ClamAV, pemindaian file lama, worker purge, Nginx, dan smoke test sebelum membuka kembali aplikasi.
 
 ## Backend SITOU Mobile
 
 Hasil simpan absensi mengembalikan catatan tersimpan melalui field tambahan `note` pada API mobile, termasuk retry event lama. Rilis backend ini sebelum APK yang menampilkan catatan. Perubahan respons ini tidak memerlukan migration tambahan pada database yang sudah menerapkan 077/078. Penerapan dan restart VPS tetap dilakukan terpisah.
 
-Beranda Flutter memakai API baca bearer `/api/mobile/home` dan `/api/mobile/profile-photo`; lihat [kontrak beranda mobile](docs/mobile-home.md). Deploy kode backend sebelum APK homepage, tanpa migration baru; login/web tetap memakai kontrak existing. Data shift/absensi/ringkasan/pengumuman contoh Flutter bukan hasil database dan belum siap operasional produksi. Penerapan VPS tetap tindakan terpisah.
+Beranda Flutter memakai API baca bearer `/api/mobile/home` dan `/api/mobile/profile-photo`; lihat [kontrak beranda mobile](docs/mobile-api.md#api-baca-beranda-sitou-mobile). Deploy kode backend sebelum APK homepage, tanpa migration baru; login/web tetap memakai kontrak existing. Data shift/absensi/ringkasan/pengumuman contoh Flutter bukan hasil database dan belum siap operasional produksi. Penerapan VPS tetap tindakan terpisah.
 
-API login native tersedia pada `/api/auth/mobile/login`, `/me`, `/logout`; [kontrak, kebijakan dan operasional](docs/mobile-auth.md). Login web tetap memakai cookie dan perilaku existing. Sebelum mengaktifkan backend versi ini pada database existing, terapkan migration `20261027_065_mobile_auth_sessions.sql` setelah migration sebelumnya; jangan menjalankan bootstrap pada database berisi data. Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` sebelum restart.
+API login native tersedia pada `/api/auth/mobile/login`, `/me`, `/logout`; [kontrak, kebijakan dan operasional](docs/mobile-api.md#autentikasi-sitou-mobile). Login web tetap memakai cookie dan perilaku existing. Sebelum mengaktifkan backend versi ini pada database existing, terapkan migration `20261027_065_mobile_auth_sessions.sql` setelah migration sebelumnya; jangan menjalankan bootstrap pada database berisi data. Jalankan `npm run db:check` dan `npm run db:verify-bootstrap` sebelum restart.
 
 Pemeliharaan harian sesi: `npm run auth:mobile-sessions:prune`, pilih konfigurasi dengan `ENV_FILE` sesuai environment. Flutter development mengakses Next.js lokal port 3000 melalui `adb reverse`; rilis memakai host HTTPS VPS. Tidak ada deployment VPS/migration produksi otomatis dalam integrasi lokal ini. Cadangkan database, verifikasi staging dan review prosedur rollback sebelum rollout; tabel baru bersifat aditif dan cookie/web tidak diganti.
 
-Durasi sesi mobile ditentukan backend melalui `AUTH_MOBILE_SESSION_TTL_MINUTES=10080` (tujuh hari), wajib integer 1–10080. Atur di environment development dan, saat rollout, production sebelum restart. Nilai hilang/invalid menolak login mobile; tidak memakai fallback atau TTL web. Hanya sesi baru mengikuti nilai baru. Tidak perlu migration/ubah Flutter untuk TTL dalam batas tersebut. Detail: `docs/mobile-auth.md`.
+Durasi sesi mobile ditentukan backend melalui `AUTH_MOBILE_SESSION_TTL_MINUTES=10080` (tujuh hari), wajib integer 1–10080. Atur di environment development dan, saat rollout, production sebelum restart. Nilai hilang/invalid menolak login mobile; tidak memakai fallback atau TTL web. Hanya sesi baru mengikuti nilai baru. Tidak perlu migration/ubah Flutter untuk TTL dalam batas tersebut. Detail: `docs/mobile-api.md`.
 
 ## Jadwal kerja
 
 Data Master → Jadwal Kerja menyediakan dropdown **Jam kerja tetap** atau **Kerja shift** di samping Nama jadwal pada desktop dan bertumpuk pada ponsel. Daftar memakai filter jenis dalam dropdown, dengan penjelasan singkat. Pilihan shift dapat dilipat tanpa kehilangan isian. Jam tetap memakai hari mingguan, jam utama dan perubahan per hari. Kerja shift menyediakan Tambah shift dengan nama/jam bebas, validasi benturan termasuk shift malam, serta satu pilihan shift per Pegawai. Hari yang tidak dipilih adalah Libur. Simpan jadwal membuka ringkasan sebelum konfirmasi. Kepegawaian → Jadwal Pegawai menyediakan penetapan individu/massal dan kalender otomatis. Pendaftaran memakai langkah 4 Penempatan atau Atur jadwal nanti. Data Pegawai dapat disaring berdasarkan Status perkawinan yang sama dengan pendaftaran, termasuk saat ekspor, tanpa migration tambahan. Jadwal lama tetap terbaca tanpa dikonversi. [Panduan, kontrak dan operasional](docs/work-schedules.md).
 
-Environment existing yang sudah menerapkan 066 perlu **migration 067**, lalu **068** untuk katalog Fitur Absensi sebelum backend/dashboard baru. Jika 067 sudah tersedia, jalankan hanya 068. Jangan ulang 063–066 atau memakai bootstrap untuk upgrade database berjalan. Migration 067 menambah kelompok dan relasi pilihan shift, tanpa mengubah penetapan lama. Jalankan pemeriksaan upgrade/bootstrap dan hak HRIS baca/kelola. Tidak memberi grant otomatis. Integrasi absensi mobile memakai migration 077 dan kontrak pada [panduan absensi mobile](docs/mobile-attendance.md). Kerja tambahan dan penggantian waktu berada pada tahap berikutnya. Tidak ada deployment atau restart VPS otomatis.
+Environment existing yang sudah menerapkan 066 perlu **migration 067**, lalu **068** untuk katalog Fitur Absensi sebelum backend/dashboard baru. Jika 067 sudah tersedia, jalankan hanya 068. Jangan ulang 063–066 atau memakai bootstrap untuk upgrade database berjalan. Migration 067 menambah kelompok dan relasi pilihan shift, tanpa mengubah penetapan lama. Jalankan pemeriksaan upgrade/bootstrap dan hak HRIS baca/kelola. Tidak memberi grant otomatis. Integrasi absensi mobile memakai migration 077 dan kontrak pada [panduan absensi mobile](docs/mobile-api.md#absensi-mobile-sitou). Kerja tambahan dan penggantian waktu berada pada tahap berikutnya. Tidak ada deployment atau restart VPS otomatis.
 
 Kalender Libur dan Jadwal Pegawai mengikuti alur pada [panduan jadwal kerja](docs/work-schedules.md). Status kalender berada di bawah form. Penetapan jadwal tersedia pada header halaman, dengan pilihan Pegawai per halaman serta avatar privat. Perubahan tampilan ini tidak memerlukan migration atau perubahan aplikasi mobile.
 
@@ -95,11 +95,11 @@ Daftar Organisasi menampilkan kode, nama, lokasi aktif, akun HRD, akhir masa aks
 
 ## Titik absensi
 
-Koordinat dan radius ada di Data Master → Lokasi. Akses tambahan ada di Pengaturan Organisasi → Akses Titik Absensi. Database existing memerlukan migration 075 sesudah 074. Lihat docs/attendance-points.md.
+Koordinat dan radius ada di Data Master → Lokasi. Akses tambahan ada di Pengaturan Organisasi → Akses Titik Absensi. Database existing memerlukan migration 075 sesudah 074. Lihat docs/work-schedules.md.
 
 ## Rekap absensi mobile
 
-Migration 079 wajib sebelum backend yang menyimpan bukti terstruktur. Untuk sesi tambahan di luar jadwal, jalankan migration 081 setelah 080 sebelum merilis backend dan APK versi kontrak 3. Ikuti docs/mobile-attendance.md. Ikuti docs/mobile-attendance.md untuk kontrak timing/snapshot, batas rekap dan perintah node scripts/rebuild-attendance-summaries.mjs. Default dry-run; --apply melakukan commit per Pegawai. ENV_FILE menentukan konfigurasi backend. Laporan tidak boleh menganggap incomplete/needs_review sebagai hasil final atau kandidat lembur sebagai lembur disetujui. Penerapan lokal tidak mencakup VPS.
+Migration 079 wajib sebelum backend yang menyimpan bukti terstruktur. Untuk sesi tambahan di luar jadwal, jalankan migration 081 setelah 080 sebelum merilis backend dan APK versi kontrak 3. Ikuti [kontrak absensi mobile](docs/mobile-api.md#absensi-mobile-sitou) untuk kontrak timing/snapshot, batas rekap dan perintah node scripts/rebuild-attendance-summaries.mjs. Default dry-run; --apply melakukan commit per Pegawai. ENV_FILE menentukan konfigurasi backend. Laporan tidak boleh menganggap incomplete/needs_review sebagai hasil final atau kandidat lembur sebagai lembur disetujui. Penerapan lokal tidak mencakup VPS.
 
-Form Edit lokasi memulihkan titik, radius dan field Alamat tersimpan tanpa geocoding otomatis, sementara kolom pencarian selalu mulai kosong. Klik titik mempertahankan pusat/zoom pengguna dan hasil pencarian menggeser peta tanpa mengganti zoom. Pemilihan titik baru tetap memakai alur serta validasi server existing. Panduan: docs/attendance-points.md.
-Absen pada hari libur memakai kebijakan per jadwal dan memerlukan migration 080. Baca [pengaturan Jadwal Kerja](docs/work-schedules.md) dan [kontrak absensi mobile](docs/mobile-attendance.md).
+Form Edit lokasi memulihkan titik, radius dan field Alamat tersimpan tanpa geocoding otomatis, sementara kolom pencarian selalu mulai kosong. Klik titik mempertahankan pusat/zoom pengguna dan hasil pencarian menggeser peta tanpa mengganti zoom. Pemilihan titik baru tetap memakai alur serta validasi server existing. Panduan: docs/work-schedules.md.
+Absen pada hari libur memakai kebijakan per jadwal dan memerlukan migration 080. Baca [pengaturan Jadwal Kerja](docs/work-schedules.md) dan [kontrak absensi mobile](docs/mobile-api.md#absensi-mobile-sitou).

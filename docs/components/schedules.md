@@ -27,7 +27,7 @@ MasterEditor memakai AppIcon solar:trash-bin-trash-linear dan Tooltip AntD untuk
 
 ## Impor PDF SKB
 
-HolidayPdfStage menyusun FileUploadField, AppNotice, Progress, HolidayDateList dan HolidayDayFields sebagai tahap di AppModal katalog, tanpa modal bertumpuk. Tabel/kartu memisahkan kategori dan menunjukkan halaman sumber/Perlu diperiksa; koreksi isian dibuka eksplisit. CatalogDocument menyajikan metadata aman beserta tautan endpoint privat berizin untuk Admin/HRD. Bukti OCR bukan klaim keaslian dokumen. Lihat docs/holiday-pdf-import.md.
+HolidayPdfStage menyusun FileUploadField, AppNotice, Progress, HolidayDateList dan HolidayDayFields sebagai tahap di AppModal katalog, tanpa modal bertumpuk. Tabel/kartu memisahkan kategori dan menunjukkan halaman sumber/Perlu diperiksa; koreksi isian dibuka eksplisit. CatalogDocument menyajikan metadata aman beserta tautan endpoint privat berizin untuk Admin/HRD. Bukti OCR bukan klaim keaslian dokumen. Lihat scripts/README.md.
 
 `actions/usePermanentDeletion` menyusun pemeriksaan → ConfirmDialog → penghapusan/receipt untuk Jadwal Kerja dan untuk katalog/kalender melalui `useHolidayDeletion`. ConfirmDialog.hideConfirm menyembunyikan tombol konfirmasi saat ditolak atau hasil request belum pasti dan mengganti Batal menjadi Tutup. Tampilkan sebab serta referensi server sebagai penjelasan langsung. Hasil jaringan ambigu memakai Periksa status sebelum retry. Shell, header dan footer tetap dari AppModal.
 
