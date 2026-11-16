@@ -73,7 +73,6 @@ export default function OrganizationUnitForm({
         ? {
             organizationId: item.organization_id,
             parentUnitId: item.parent_unit_id || undefined,
-            code: item.code,
             name: item.name,
             unitTypeId: item.unit_type_id,
             defaultLocationActiveFrom: dayjs().startOf("day"),
@@ -235,7 +234,6 @@ export default function OrganizationUnitForm({
     const payload = {
       organizationId: values.organizationId,
       parentUnitId: values.parentUnitId || null,
-      code: values.code,
       name: values.name,
       unitTypeId: values.unitTypeId,
       locations: (values.locations || []).map((location) => ({
@@ -276,30 +274,10 @@ export default function OrganizationUnitForm({
       >
         <Form form={form} layout="vertical" onFinish={submit}>
           <Row gutter={[16, 0]}>
-            <Col xs={24} sm={12}>
+            <Col xs={24}>
               <OrganizationScopeField disabled={editing} />
             </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                name="parentUnitId"
-                label="Unit induk"
-                extra="Pilih unit satu tingkat di atasnya. Kosongkan bila berada di tingkat paling atas."
-              >
-                <AsyncSelect
-                  allowClear
-                  disabled={!organizationId}
-                  loading={options.loading}
-                  options={options.parents}
-                  placeholder="Tanpa unit induk"
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={8}>
-              <Form.Item name="code" label="Kode" rules={[{ required: true }]}>
-                <Input placeholder="Contoh: DIV-SDM" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={16}>
+            <Col xs={24}>
               <Form.Item name="name" label="Nama divisi atau unit" rules={[{ required: true }]}>
                 <Input placeholder="Contoh: Divisi Sumber Daya Manusia" />
               </Form.Item>
@@ -318,6 +296,21 @@ export default function OrganizationUnitForm({
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
+              <Form.Item
+                name="parentUnitId"
+                label="Unit induk"
+                extra="Pilih unit satu tingkat di atasnya. Kosongkan bila berada di tingkat paling atas."
+              >
+                <AsyncSelect
+                  allowClear
+                  disabled={!organizationId}
+                  loading={options.loading}
+                  options={options.parents}
+                  placeholder="Tanpa unit induk"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24}>
               <Form.Item
                 name="defaultLocationActiveFrom"
                 label="Mulai berlaku untuk lokasi baru"

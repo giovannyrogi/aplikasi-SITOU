@@ -5,10 +5,10 @@ import { Box } from "@mui/material";
 import { CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import ResponsiveRecordView from "@/app/components/data-display/ResponsiveRecordView";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
-import FontStyle from "@/app/components/font-style/FontStyle";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import usePermanentDeletion from "@/app/components/actions/usePermanentDeletion";
 import Notification from "@/app/components/Notifications/Notification";
@@ -224,8 +224,8 @@ export default function TemplatePage() {
     x.kind === "shift"
       ? `${x.shifts.length} pilihan shift`
       : x.pattern_type === "weekly"
-        ? "Setiap minggu"
-        : "Pengaturan lama";
+        ? "Jadwal mingguan"
+        : "Pola jadwal tersimpan";
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
@@ -289,7 +289,7 @@ export default function TemplatePage() {
         ]}
       />
       <DataPanel title="Pilihan jadwal kerja">
-        <ResponsiveDataView
+        <ResponsiveRecordView
           data={list.data}
           loading={list.loading}
           error={list.error}
@@ -299,34 +299,19 @@ export default function TemplatePage() {
           emptyDescription={org ? "Belum ada jadwal kerja." : "Pilih organisasi."}
           columns={[
             { title: "Nama jadwal", dataIndex: "name" },
-            { title: "Susunan hari", render: (_, x) => description(x) },
-            { title: "Status", render: (_, x) => (x.is_active ? "Aktif" : "Nonaktif") },
-            { title: "Aksi", render: (_, x) => <RowActionMenu items={actions(x)} /> },
+            { title: "Pola jadwal", render: (_, x) => description(x) },
+            {
+              title: "Status",
+              key: "status",
+              render: (_, x) => <CompactInfoChip status={x.is_active ? "active" : "inactive"} />,
+            },
+            {
+              title: "Aksi",
+              key: "action",
+              render: (_, x) => <RowActionMenu items={actions(x)} />,
+            },
           ]}
-          renderCard={(x) => (
-            <Box sx={{ display: "grid", gap: 2 }}>
-              <FontStyle fontWeight={600}>{x.name}</FontStyle>
-              <FontStyle>
-                {description(x)} · {x.is_active ? "Aktif" : "Nonaktif"}
-              </FontStyle>
-              {x.kind === "shift" ? (
-                <ShiftGroupSummary
-                  shifts={x.shifts}
-                  workingDays={x.working_days}
-                  calendarName={x.calendar_name}
-                  holidayPolicy={x.holiday_policy}
-                />
-              ) : (
-                <ScheduleSummary
-                  days={x.days.slice(0, 7)}
-                  patternType={x.pattern_type}
-                  calendarName={x.calendar_name}
-                  holidayPolicy={x.holiday_policy}
-                />
-              )}
-              <RowActionMenu items={actions(x)} />
-            </Box>
-          )}
+          rowActions={actions}
         />
       </DataPanel>
       {editor && (

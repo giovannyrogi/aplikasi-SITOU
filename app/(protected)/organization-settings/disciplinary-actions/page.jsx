@@ -7,7 +7,7 @@ import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
-import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import ResponsiveRecordView from "@/app/components/data-display/ResponsiveRecordView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
@@ -70,9 +70,15 @@ export default function DisciplinaryActionSettingsPage() {
     },
     {
       title: "Status",
+      key: "status",
       render: (_, item) => <CompactInfoChip status={item.is_active ? "active" : "inactive"} />,
     },
-    { title: "Aksi", width: 72, render: (_, item) => <RowActionMenu items={actions(item)} /> },
+    {
+      title: "Aksi",
+      key: "action",
+      width: 72,
+      render: (_, item) => <RowActionMenu items={actions(item)} />,
+    },
   ];
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
@@ -120,7 +126,7 @@ export default function DisciplinaryActionSettingsPage() {
         title="Daftar jenis sanksi"
         description="Perubahan aturan hanya berlaku untuk tindakan yang diterbitkan setelah perubahan."
       >
-        <ResponsiveDataView
+        <ResponsiveRecordView
           data={list.data}
           columns={columns}
           loading={list.loading}
@@ -128,38 +134,7 @@ export default function DisciplinaryActionSettingsPage() {
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
-          renderCard={(item) => (
-            <Box sx={{ display: "grid", gap: 1.5 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-                <Box sx={{ minWidth: 0 }}>
-                  <FontStyle fontWeight={700}>{item.name}</FontStyle>
-                  <FontStyle fontSize={11.5} sx={{ mt: 0.5, color: "text.secondary" }}>
-                    Digunakan pada {item.usage_count} tindakan
-                  </FontStyle>
-                </Box>
-                <RowActionMenu items={actions(item)} />
-              </Box>
-              {superadmin ? <FontStyle>{item.organization_name}</FontStyle> : null}
-              <Box>
-                <FontStyle fontSize={11.5} sx={{ color: "text.secondary", mb: 0.5 }}>
-                  Masa berlaku
-                </FontStyle>
-                <FontStyle fontWeight={600}>{durationLabel(item)}</FontStyle>
-              </Box>
-              <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-                <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
-                <CompactInfoChip
-                  label={item.requires_document ? "Surat wajib" : "Tanpa surat wajib"}
-                  tone={item.requires_document ? "warning" : "neutral"}
-                />
-              </Box>
-            </Box>
-          )}
-          emptyDescription={
-            organizationId
-              ? "Belum ada jenis sanksi pada organisasi ini."
-              : "Pilih organisasi untuk menampilkan pengaturan sanksi."
-          }
+          rowActions={actions}
         />
       </DataPanel>
       <DisciplinaryActionTypeForm

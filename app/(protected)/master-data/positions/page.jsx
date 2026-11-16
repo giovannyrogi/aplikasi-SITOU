@@ -5,11 +5,11 @@ import { readApiResponse } from "@/lib/api/clientError";
 import { useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
-import { Box, useTheme } from "@mui/material";
+import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
-import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import ResponsiveRecordView from "@/app/components/data-display/ResponsiveRecordView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
@@ -25,7 +25,6 @@ import PositionForm from "./PositionForm";
 
 /** Halaman CRUD jabatan yang memakai komponen list SITOU secara konsisten. */
 export default function PositionsPage() {
-  const theme = useTheme();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
   const list = useDataList("/api/positions");
@@ -82,27 +81,28 @@ export default function PositionsPage() {
       key: "position",
       render: (_, item) => (
         <Box>
-          <FontStyle fontSize={12.5} fontWeight={600}>
+          <FontStyle fontSize={14} fontWeight={600}>
             {item.name}
           </FontStyle>
-          <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            <CompactInfoChip label={item.code} />
-            {item.grade ? <CompactInfoChip label={`Grade ${item.grade}`} tone="info" /> : null}
-          </Box>
+          {item.grade && (
+            <Box sx={{ mt: 0.75 }}>
+              <CompactInfoChip label={`Golongan ${item.grade}`} tone="info" />
+            </Box>
+          )}
         </Box>
       ),
     },
     ...(isSuperadmin ? [{ title: "Organisasi", dataIndex: "organization_name" }] : []),
     {
-      title: "Level",
+      title: "Tingkat jabatan",
       key: "level",
       render: (_, item) => (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
           <CompactInfoChip
-            label={item.level_no ? `Level ${item.level_no}` : "Belum diatur"}
+            label={item.level_no ? `Tingkat ${item.level_no}` : "Belum diatur"}
             tone={item.level_no ? "info" : "neutral"}
           />
-          {item.is_managerial ? <CompactInfoChip label="Manajerial" tone="warning" /> : null}
+          {item.is_managerial ? <CompactInfoChip label="Jabatan pimpinan" tone="warning" /> : null}
         </Box>
       ),
     },
@@ -113,6 +113,7 @@ export default function PositionsPage() {
     },
     {
       title: "Status",
+      key: "status",
       dataIndex: "is_active",
       render: (value) => <CompactInfoChip status={value ? "active" : "inactive"} />,
     },
@@ -124,35 +125,11 @@ export default function PositionsPage() {
     },
   ];
 
-  const card = (item) => (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-        <Box>
-          <FontStyle fontSize={14} fontWeight={600}>
-            {item.name}
-          </FontStyle>
-          <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            <CompactInfoChip label={item.code} />
-            {item.grade ? <CompactInfoChip label={`Grade ${item.grade}`} tone="info" /> : null}
-          </Box>
-        </Box>
-        <RowActionMenu items={actions(item)} />
-      </Box>
-      <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: theme.ui.mutedText }}>
-        {item.employee_count} pegawai sedang menggunakan jabatan ini
-      </FontStyle>
-      <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-        <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
-        {item.is_managerial ? <CompactInfoChip label="Manajerial" tone="warning" /> : null}
-      </Box>
-    </Box>
-  );
-
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
         title="Jabatan"
-        description="Kelola jabatan, golongan, level, dan klasifikasi manajerial organisasi."
+        description="Atur nama jabatan, golongan, tingkat jabatan, dan jabatan pimpinan."
         action={
           <Button
             type="primary"
@@ -167,7 +144,7 @@ export default function PositionsPage() {
         title="Filter jabatan"
         description="Cari dan saring daftar jabatan sesuai kebutuhan."
         searchLabel="Cari jabatan"
-        searchPlaceholder="Nama atau kode jabatan"
+        searchPlaceholder="Nama jabatan"
         statusLabel="Status jabatan"
         search={list.search}
         onSearchChange={list.setSearch}
@@ -192,7 +169,7 @@ export default function PositionsPage() {
         title="Daftar jabatan"
         description="Jabatan aktif dapat dipakai pada penempatan dan histori karier pegawai."
       >
-        <ResponsiveDataView
+        <ResponsiveRecordView
           data={list.data}
           columns={columns}
           loading={list.loading}
@@ -200,7 +177,7 @@ export default function PositionsPage() {
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
-          renderCard={card}
+          rowActions={actions}
         />
       </DataPanel>
       <PositionForm

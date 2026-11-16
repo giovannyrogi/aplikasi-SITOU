@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
-import { Box, useTheme } from "@mui/material";
+import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
-import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import ResponsiveRecordView from "@/app/components/data-display/ResponsiveRecordView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
@@ -29,7 +29,6 @@ const LABEL = {
   other: "Lainnya",
 };
 export default function LocationsPage() {
-  const theme = useTheme();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
   const list = useDataList("/api/locations");
@@ -77,17 +76,22 @@ export default function LocationsPage() {
       onClick: () => setConfirm(item),
     },
   ];
+  const locationType = (location) => (
+    <CompactInfoChip label={LABEL[location.location_type]} tone="info" />
+  );
   const columns = [
     {
       title: "Lokasi",
       key: "name",
+      cardAsField: true,
+      cardRender: (_, i) => i.name,
       render: (_, i) => (
         <Box>
           <FontStyle fontSize={12.5} fontWeight={600}>
             {i.name}
           </FontStyle>
           <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            <CompactInfoChip label={LABEL[i.location_type]} tone="info" />
+            {locationType(i)}
           </Box>
         </Box>
       ),
@@ -101,6 +105,7 @@ export default function LocationsPage() {
     },
     {
       title: "Status",
+      key: "status",
       dataIndex: "is_active",
       render: (v) => <CompactInfoChip status={v ? "active" : "inactive"} />,
     },
@@ -111,28 +116,7 @@ export default function LocationsPage() {
       render: (_, i) => <RowActionMenu items={actions(i)} />,
     },
   ];
-  const card = (i) => (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-        <Box>
-          <FontStyle fontSize={14} fontWeight={600}>
-            {i.name}
-          </FontStyle>
-          <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            <CompactInfoChip label={LABEL[i.location_type]} tone="info" />
-          </Box>
-        </Box>
-        <RowActionMenu items={actions(i)} />
-      </Box>
-      <Box sx={{ mt: 1.5, display: "flex", flexWrap: "wrap", gap: 1 }}>
-        <CompactInfoChip status={i.is_active ? "active" : "inactive"} />
-        <CompactInfoChip label={`${i.admin_count} admin`} tone="warning" />
-      </Box>
-      <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: theme.ui.mutedText }}>
-        {i.organization_name}
-      </FontStyle>
-    </Box>
-  );
+
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
@@ -177,7 +161,7 @@ export default function LocationsPage() {
         title="Daftar lokasi"
         description="Tinjau lokasi operasional dan cakupan Admin/HRD pada setiap organisasi."
       >
-        <ResponsiveDataView
+        <ResponsiveRecordView
           data={list.data}
           columns={columns}
           loading={list.loading}
@@ -185,7 +169,8 @@ export default function LocationsPage() {
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
-          renderCard={card}
+          rowActions={actions}
+          renderCardBadges={locationType}
         />
       </DataPanel>
       <LocationForm

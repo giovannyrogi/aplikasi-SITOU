@@ -4,14 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Box, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { ConfigProvider, Segmented, Select } from "antd";
-import {
-  AimOutlined,
-  CalendarOutlined,
-  ClockCircleOutlined,
-  ColumnWidthOutlined,
-  FlagOutlined,
-} from "@ant-design/icons";
+import { AimOutlined, ColumnWidthOutlined, RightOutlined } from "@ant-design/icons";
 import AppNotice from "@/app/components/data-display/AppNotice";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import PhotoAvatar from "@/app/components/data-display/PhotoAvatar";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import {
@@ -21,6 +16,7 @@ import {
   attendanceLocalDate,
 } from "@/lib/reports/attendancePresentation.mjs";
 import { reportDate } from "./ReportEmployeeFields";
+import { attendanceIndicatorIcon, attendanceIndicatorIconTone } from "./AttendanceSummaryFields";
 import "leaflet/dist/leaflet.css";
 
 const pointColor = "#d90010";
@@ -99,6 +95,7 @@ function mapLocations(event) {
 
 function EventMapCanvas({ event, provider, name, photo }) {
   const container = useRef(null);
+  const panTo = useRef(null);
   const [state, setState] = useState("loading");
   const { point, position } = mapLocations(event);
   const center = point || position;
@@ -134,6 +131,11 @@ function EventMapCanvas({ event, provider, name, photo }) {
           streetViewControl: false,
           fullscreenControl: false,
         });
+        panTo.current = (location) => {
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+            map.setCenter(location);
+          else map.panTo(location);
+        };
         const bounds = new maps.LatLngBounds();
         const markers = [];
         const circle =
@@ -192,6 +194,10 @@ function EventMapCanvas({ event, provider, name, photo }) {
         zoomAnimation: false,
         maxZoom: 19,
       }).setView(center, 17);
+      panTo.current = ({ lat, lng }) =>
+        map.panTo([lat, lng], {
+          animate: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        });
       cleanup = () => map.remove();
       const bounds = L.latLngBounds([]);
       if (point && radius > 0) {
@@ -235,31 +241,45 @@ function EventMapCanvas({ event, provider, name, photo }) {
     });
     return () => {
       disposed = true;
+      panTo.current = null;
       clearTimeout(timeout);
       cleanup?.();
     };
   }, [event, provider, name, photo, missingGoogle]);
 
+  const legendProps = { event, name, photo };
+  function centerMap(location) {
+    panTo.current?.(location);
+    container.current?.scrollIntoView({ block: "nearest" });
+  }
   if (!center)
-    return <AppNotice tone="info" description="Koordinat belum tersimpan untuk absen ini." />;
+    return (
+      <>
+        <AppNotice tone="info" description="Koordinat belum tersimpan untuk absen ini." />
+        <MapLegend {...legendProps} />
+      </>
+    );
   if (missingGoogle) {
     return (
-      <AppNotice
-        tone="info"
-        description="Google Maps belum disiapkan untuk dashboard. Hubungi Admin SITOU."
-      />
+      <>
+        <AppNotice
+          tone="info"
+          description="Google Maps belum disiapkan untuk dashboard. Hubungi Admin SITOU."
+        />
+        <MapLegend {...legendProps} />
+      </>
     );
   }
   return (
-    <Box sx={{ display: "grid", gap: 1 }}>
+    <Box sx={{ display: "grid", gap: 1.5 }}>
       <Box
         sx={{
           position: "relative",
           border: 1,
           borderColor: "divider",
-          borderRadius: 2.5,
+          borderRadius: 3,
           overflow: "hidden",
-          boxShadow: "0 3px 8px rgba(16, 30, 53, 0.10)",
+          boxShadow: (theme) => `0 5px 12px ${alpha(theme.palette.text.primary, 0.14)}`,
           "& .attendance-map-marker": {
             position: "relative",
             display: "grid",
@@ -294,7 +314,7 @@ function EventMapCanvas({ event, provider, name, photo }) {
           ref={container}
           role="region"
           aria-label="Peta titik absensi dan posisi Pegawai"
-          sx={{ height: { xs: 182, sm: 218 }, bgcolor: "action.hover", isolation: "isolate" }}
+          sx={{ height: { xs: 210, sm: 250 }, bgcolor: "action.hover", isolation: "isolate" }}
         />
         {state === "loading" && (
           <Box
@@ -314,6 +334,7 @@ function EventMapCanvas({ event, provider, name, photo }) {
         )}
       </Box>
       {state === "error" && <AppNotice tone="warning" description="Peta tidak dapat dimuat." />}
+      <MapLegend {...legendProps} onCenter={state === "ready" ? centerMap : undefined} />
     </Box>
   );
 }
@@ -337,7 +358,7 @@ function LegendIcon({ Icon, tone }) {
         width: 28,
         height: 28,
         borderRadius: 2,
-        color: theme.status[tone]?.text || theme.palette[tone]?.dark,
+        color: theme.status[tone]?.main || theme.palette[tone]?.dark,
         background: `linear-gradient(150deg, ${theme.palette.background.paper}, ${alpha(theme.status[tone]?.main || theme.palette[tone]?.main || theme.palette.info.main, 0.14)})`,
         boxShadow: "0 2px 4px rgba(16, 30, 53, 0.13), inset 0 1px rgba(255,255,255,0.85)",
       })}
@@ -354,19 +375,29 @@ function MapFacts({ items, label }) {
       aria-label={label}
       sx={{
         display: "grid",
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" },
         gap: 1,
         m: 0,
       }}
     >
-      {items.map(([label, value, marker, key]) => (
+      {items.map(([label, value, marker, key, action]) => (
         <Box
           key={key ?? label}
           sx={{
             display: "flex",
+            position: "relative",
             alignItems: "center",
             gap: 1,
-            p: 1,
+            p: 1.25,
+            ...(action && {
+              pr: 3,
+              "&:hover": { borderColor: "primary.main" },
+              "&:focus-within": {
+                outline: "2px solid",
+                outlineColor: "primary.main",
+                outlineOffset: 2,
+              },
+            }),
             minWidth: 0,
             overflowWrap: "anywhere",
             border: 1,
@@ -382,7 +413,46 @@ function MapFacts({ items, label }) {
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <FontStyle component="dt" fontSize={12} fontWeight={650}>
-              {label}
+              {action ? (
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={action}
+                  aria-label={`Pusatkan peta ke ${label.toLowerCase()}`}
+                  sx={{
+                    p: 0,
+                    border: 0,
+                    bgcolor: "transparent",
+                    color: "inherit",
+                    font: "inherit",
+                    textAlign: "start",
+                    cursor: "pointer",
+                    "&::after": {
+                      content: '""',
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: "inherit",
+                    },
+                  }}
+                >
+                  {label}
+                  <Box
+                    component="span"
+                    aria-hidden
+                    sx={{
+                      position: "absolute",
+                      right: 8,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "primary.dark",
+                    }}
+                  >
+                    <RightOutlined />
+                  </Box>
+                </Box>
+              ) : (
+                label
+              )}
             </FontStyle>
             <FontStyle
               component="dd"
@@ -399,7 +469,7 @@ function MapFacts({ items, label }) {
   );
 }
 
-function MapLegend({ event, name, photo }) {
+function MapLegend({ event, name, photo, onCenter }) {
   const { point, position } = mapLocations(event);
   return (
     <MapFacts
@@ -419,11 +489,15 @@ function MapLegend({ event, name, photo }) {
               boxShadow: "0 0 0 4px rgba(217,0,16,.11)",
             }}
           />,
+          "point",
+          onCenter && point ? () => onCenter(point) : undefined,
         ],
         [
           "Posisi Pegawai",
           position ? "Lokasi saat absen" : "Tidak tercatat",
           <PhotoAvatar key={photo} name={name} photoUrl={photo} size={28} interactive={false} />,
+          "position",
+          onCenter && position ? () => onCenter(position) : undefined,
         ],
         [
           "Jarak dari titik",
@@ -457,37 +531,36 @@ function eventIndicators(event) {
   ];
 }
 
-function IndicatorFacts({ events, rowIndicators, lateMinutes }) {
+function IndicatorFacts({ events, rowIndicators, rowMetrics }) {
   const items = [];
   for (const event of events) {
     for (const key of eventIndicators(event)) {
       items.push({
         key,
         context: event.event_type === "check_in" ? "Absen masuk" : "Absen pulang",
-        minutes: event.late_minutes,
+        metrics: event,
       });
     }
   }
   for (const key of rowIndicators.filter(attendanceIndicator)) {
-    items.push({ key, context: "Rekap harian", minutes: lateMinutes });
+    items.push({ key, context: "Rekap harian", metrics: rowMetrics });
   }
   if (!items.length) return null;
   return (
     <MapFacts
       label="Indikator absensi"
-      items={items.map(({ key, context, minutes }, index) => {
+      items={items.map(({ key, context, metrics }, index) => {
         const [, tone] = attendanceIndicator(key);
-        const Icon = ["outside_radius", "near_boundary"].includes(key)
-          ? AimOutlined
-          : ["holiday_work", "outside_schedule"].includes(key)
-            ? CalendarOutlined
-            : ["incomplete", "needs_review"].includes(key)
-              ? FlagOutlined
-              : ClockCircleOutlined;
+        const Icon = attendanceIndicatorIcon(key);
         return [
-          attendanceIndicatorLabel(key, minutes),
           context,
-          <LegendIcon key={key} Icon={Icon} tone={tone} />,
+          <CompactInfoChip
+            key={key}
+            label={attendanceIndicatorLabel(key, metrics)}
+            tone={tone}
+            wrap
+          />,
+          <LegendIcon key={key} Icon={Icon} tone={attendanceIndicatorIconTone(tone)} />,
           index,
         ];
       })}
@@ -503,7 +576,7 @@ export default function AttendanceEventMap({
   timezone,
   allowed,
   rowIndicators,
-  lateMinutes,
+  rowMetrics,
 }) {
   const theme = useTheme();
   const [selection, setSelection] = useState(null);
@@ -519,11 +592,7 @@ export default function AttendanceEventMap({
         {pointNames.length > 0 && (
           <FontStyle color="text.secondary">Titik absensi · {pointNames.join(", ")}</FontStyle>
         )}
-        <IndicatorFacts
-          events={events}
-          rowIndicators={summaryIndicators}
-          lateMinutes={lateMinutes}
-        />
+        <IndicatorFacts events={events} rowIndicators={summaryIndicators} rowMetrics={rowMetrics} />
       </>
     );
   }
@@ -531,11 +600,7 @@ export default function AttendanceEventMap({
     return (
       <>
         <AppNotice tone="info" description="Belum ada posisi absensi yang tercatat." />
-        <IndicatorFacts
-          events={events}
-          rowIndicators={summaryIndicators}
-          lateMinutes={lateMinutes}
-        />
+        <IndicatorFacts events={events} rowIndicators={summaryIndicators} rowMetrics={rowMetrics} />
       </>
     );
   const options = events.map((event) => {
@@ -616,12 +681,7 @@ export default function AttendanceEventMap({
         name={name}
         photo={photo}
       />
-      <MapLegend event={event} name={name} photo={photo} />
-      <IndicatorFacts
-        events={[event]}
-        rowIndicators={summaryIndicators}
-        lateMinutes={lateMinutes}
-      />
+      <IndicatorFacts events={events} rowIndicators={summaryIndicators} rowMetrics={rowMetrics} />
     </Box>
   );
 }

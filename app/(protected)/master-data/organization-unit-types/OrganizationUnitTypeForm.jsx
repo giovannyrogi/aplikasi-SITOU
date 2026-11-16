@@ -24,7 +24,6 @@ export default function OrganizationUnitTypeForm({
   const { runWithLoadingBackdrop } = useLoadingBackdrop();
   const closeGuard = useFormModalClose(form, onClose);
   const editing = Boolean(item);
-  const codeLocked = editing && Number(item.usage_count) > 0;
 
   useEffect(() => {
     if (!open) return;
@@ -33,7 +32,6 @@ export default function OrganizationUnitTypeForm({
       item
         ? {
             organizationId: item.organization_id,
-            code: item.code,
             name: item.name,
             description: item.description,
             sortOrder: item.sort_order,
@@ -109,17 +107,7 @@ export default function OrganizationUnitTypeForm({
             <Col xs={24}>
               <OrganizationScopeField disabled={editing} />
             </Col>
-            <Col xs={24} sm={10}>
-              <Form.Item
-                name="code"
-                label="Kode"
-                rules={[{ required: true }]}
-                extra={codeLocked ? "Kode dikunci karena jenis ini sudah digunakan." : null}
-              >
-                <Input disabled={codeLocked} placeholder="Contoh: DIREKSI" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={14}>
+            <Col xs={24}>
               <Form.Item name="name" label="Nama jenis unit" rules={[{ required: true }]}>
                 <Input placeholder="Contoh: Direksi" />
               </Form.Item>

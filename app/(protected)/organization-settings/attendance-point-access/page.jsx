@@ -5,9 +5,10 @@ import { Button, DatePicker, Form } from "antd";
 import { PlusOutlined, StopOutlined } from "@ant-design/icons";
 import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
+import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
-import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import ResponsiveRecordView from "@/app/components/data-display/ResponsiveRecordView";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import AppModal from "@/app/components/modals/AppModal";
@@ -117,11 +118,11 @@ export default function AttendancePointAccessPage() {
       setBusy(false);
     }
   }
-  const revokeAction = (row) =>
+  const revokeAction = (row, block = false) =>
     manage &&
     !row.revoked_at &&
     !row.expired && (
-      <Button icon={<StopOutlined />} onClick={() => setRevoke(row)}>
+      <Button block={block} icon={<StopOutlined />} onClick={() => setRevoke(row)}>
         Cabut akses
       </Button>
     );
@@ -133,8 +134,29 @@ export default function AttendancePointAccessPage() {
     { title: "NIP", dataIndex: "employee_no" },
     { title: "Titik absensi", dataIndex: "point_name" },
     { title: "Periode", render: (_, row) => period(row) },
-    { title: "Status akses", render: (_, row) => accessStatus(row) },
-    ...(manage ? [{ title: "Aksi", render: (_, row) => revokeAction(row) }] : []),
+    {
+      title: "Status akses",
+      key: "status",
+      render: (_, row) => accessStatus(row),
+      cardRender: (_, row) => (
+        <CompactInfoChip
+          label={accessStatus(row)}
+          tone={
+            row.revoked_at ? "danger" : row.expired ? "neutral" : row.upcoming ? "info" : "success"
+          }
+        />
+      ),
+    },
+    ...(manage
+      ? [
+          {
+            title: "Aksi",
+            key: "action",
+            render: (_, row) => revokeAction(row),
+            cardRender: (_, row) => revokeAction(row, true),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -183,7 +205,7 @@ export default function AttendancePointAccessPage() {
         }
       />
       <DataPanel title="Daftar akses tambahan">
-        <ResponsiveDataView
+        <ResponsiveRecordView
           data={list.data}
           columns={columns}
           loading={list.loading}
@@ -192,16 +214,6 @@ export default function AttendancePointAccessPage() {
           pagination={list.pagination}
           onPageChange={list.setPage}
           emptyDescription={org ? "Belum ada akses tambahan." : "Pilih organisasi."}
-          renderCard={(row) => (
-            <Box sx={{ display: "grid", gap: 1 }}>
-              <strong>{row.full_name}</strong>
-              <span>NIP {row.employee_no}</span>
-              <span>{row.point_name}</span>
-              <span>{period(row)}</span>
-              <span>{accessStatus(row)}</span>
-              {revokeAction(row)}
-            </Box>
-          )}
         />
       </DataPanel>
       <AppModal

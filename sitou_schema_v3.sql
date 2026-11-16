@@ -173,16 +173,13 @@ COMMENT ON TABLE locations IS 'Kantor pusat, cabang, pasar, site, dan lokasi ker
 CREATE TABLE organization_unit_types (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID master jenis unit organisasi.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik jenis unit.
-  code varchar(40) NOT NULL, -- Kode stabil uppercase untuk integrasi dan validasi.
   name varchar(100) NOT NULL, -- Nama jenis yang ditampilkan pada UI.
   description text, -- Penjelasan penggunaan jenis unit.
   sort_order smallint NOT NULL DEFAULT 100, -- Urutan pilihan pada UI.
   is_active boolean NOT NULL DEFAULT true, -- Jenis nonaktif dipertahankan untuk histori.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu diubah.
-  CONSTRAINT uq_organization_unit_types_org_code UNIQUE (organization_id,code),
   CONSTRAINT uq_organization_unit_types_org_id UNIQUE (organization_id,id),
-  CONSTRAINT ck_organization_unit_types_code CHECK (code = btrim(code) AND code ~ '^[A-Z][A-Z0-9_]*$'),
   CONSTRAINT ck_organization_unit_types_name CHECK (name = btrim(name) AND char_length(name) BETWEEN 2 AND 100),
   CONSTRAINT ck_organization_unit_types_sort_order CHECK (sort_order >= 0)
 );
@@ -194,13 +191,11 @@ CREATE TABLE organization_units (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID unit organisasi.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik unit.
   parent_unit_id bigint, -- Unit induk untuk struktur bertingkat.
-  code varchar(30) NOT NULL, -- Kode unik unit dalam organisasi.
   name varchar(200) NOT NULL, -- Nama unit/divisi/departemen.
   unit_type_id bigint NOT NULL, -- Jenis unit dari master fleksibel milik organisasi yang sama.
   is_active boolean NOT NULL DEFAULT true, -- Status master unit.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu diubah.
-  CONSTRAINT uq_units_org_code UNIQUE (organization_id,code),
   CONSTRAINT uq_units_org_id UNIQUE (organization_id,id),
   CONSTRAINT fk_units_parent FOREIGN KEY (organization_id,parent_unit_id) REFERENCES organization_units(organization_id,id),
   CONSTRAINT fk_organization_units_type FOREIGN KEY (organization_id,unit_type_id) REFERENCES organization_unit_types(organization_id,id)
@@ -232,7 +227,6 @@ COMMENT ON COLUMN organization_unit_locations.active_from IS 'Tanggal efektif ek
 CREATE TABLE positions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID master jabatan.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi pemilik jabatan.
-  code varchar(30) NOT NULL, -- Kode jabatan unik per organisasi.
   name varchar(200) NOT NULL, -- Nama jabatan.
   grade varchar(50), -- Golongan/grade opsional.
   level_no smallint, -- Urutan level untuk laporan struktur.
@@ -240,7 +234,6 @@ CREATE TABLE positions (
   is_active boolean NOT NULL DEFAULT true, -- Status master jabatan.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu diubah.
-  CONSTRAINT uq_positions_org_code UNIQUE (organization_id,code),
   CONSTRAINT uq_positions_org_id UNIQUE (organization_id,id)
 );
 COMMENT ON TABLE positions IS 'Master jabatan terpisah dari pegawai agar histori rolling, mutasi, promosi, dan demosi tetap utuh.';
@@ -617,16 +610,28 @@ CREATE INDEX ix_employee_import_rows_employee ON employee_import_rows(organizati
 CREATE TABLE employment_types (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID jenis hubungan kerja.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Organisasi; memungkinkan istilah berbeda per organisasi.
-  code varchar(30) NOT NULL, -- Kode PKWTT/PKWT/PHL/THL/dll.
   name varchar(100) NOT NULL, -- Nama tampilan.
   requires_end_date boolean NOT NULL DEFAULT false, -- True: tanggal kedaluwarsa wajib; false: tidak digunakan. Penutupan histori tetap dipertahankan.
   is_active boolean NOT NULL DEFAULT true, -- Status master.
   created_at timestamptz NOT NULL DEFAULT now(), -- Waktu dibuat.
   updated_at timestamptz NOT NULL DEFAULT now(), -- Waktu diubah.
-  CONSTRAINT uq_employment_types_code UNIQUE (organization_id,code),
   CONSTRAINT uq_employment_types_org_id UNIQUE (organization_id,id)
 );
 COMMENT ON TABLE employment_types IS 'Jenis hubungan kerja dibuat per organisasi agar fleksibel.';
+
+CREATE TABLE employee_import_legacy_master_refs (
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  legacy_ref text NOT NULL,
+  organization_unit_id bigint,
+  position_id bigint,
+  employment_type_id bigint,
+  CHECK (num_nonnulls(organization_unit_id,position_id,employment_type_id)=1),
+  FOREIGN KEY (organization_id,organization_unit_id) REFERENCES organization_units(organization_id,id) ON DELETE CASCADE,
+  FOREIGN KEY (organization_id,position_id) REFERENCES positions(organization_id,id) ON DELETE CASCADE,
+  FOREIGN KEY (organization_id,employment_type_id) REFERENCES employment_types(organization_id,id) ON DELETE CASCADE
+);
+CREATE INDEX ix_employee_import_legacy_master_refs_org ON employee_import_legacy_master_refs(organization_id);
+COMMENT ON TABLE employee_import_legacy_master_refs IS 'Pemetaan nilai dari template impor Pegawai lama ke ID master dalam organisasi yang sama.';
 
 CREATE TABLE employment_contracts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID periode kontrak.
@@ -1871,11 +1876,10 @@ CREATE TABLE organization_modules (
 CREATE TABLE inventory_warehouses (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   organization_id bigint NOT NULL REFERENCES organizations(id), location_id bigint NOT NULL,
-  code varchar(40) NOT NULL CHECK(code=upper(trim(code)) AND code ~ '^[A-Z0-9_-]+$'),
   name varchar(100) NOT NULL CHECK(length(trim(name))>0), notes text,
   is_active boolean NOT NULL DEFAULT true, version integer NOT NULL DEFAULT 1 CHECK(version>0),
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(organization_id,id), UNIQUE(organization_id,code),
+  UNIQUE(organization_id,id),
   FOREIGN KEY(organization_id,location_id) REFERENCES locations(organization_id,id)
 );
 CREATE INDEX ix_inventory_warehouses_location ON inventory_warehouses(organization_id,location_id,id);
@@ -1928,10 +1932,9 @@ WHERE EXISTS(SELECT 1 FROM user_package_warehouse_scopes scope WHERE scope.organ
 -- Migration 047: katalog dan gudang.
 CREATE TABLE inventory_categories (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, organization_id bigint NOT NULL REFERENCES organizations(id),
- code varchar(40) NOT NULL CHECK(code=upper(trim(code)) AND code ~ '^[A-Z0-9_-]+$'),
  name varchar(100) NOT NULL CHECK(length(trim(name))>0), notes text, is_active boolean NOT NULL DEFAULT true,
  version integer NOT NULL DEFAULT 1 CHECK(version>0), created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
- UNIQUE(organization_id,id),UNIQUE(organization_id,code)
+ UNIQUE(organization_id,id)
 );
 CREATE UNIQUE INDEX uq_inventory_category_name ON inventory_categories(organization_id,lower(trim(name)));
 CREATE TABLE inventory_units (

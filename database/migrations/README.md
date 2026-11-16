@@ -1,5 +1,7 @@
 # Migration Database SITOU
 
+Migration `084` menghapus kolom `code` dari Jenis Unit Organisasi, Divisi & Unit, Jabatan, Jenis Kepegawaian, Kategori Barang, dan Gudang. Referensi impor Excel Pegawai lama disalin ke pemetaan ID per organisasi di transaksi yang sama. Backup lebih dulu, hentikan aplikasi versi lama saat migrasi, lalu jalankan versi API yang membaca skema baru. Item inventaris, penempatan, kontrak, histori stok, dan audit mempertahankan referensi yang sudah tersimpan.
+
 Migration `060` menambahkan sasaran jenis kelamin pada master cuti/izin. Semua aturan lama tetap berlaku untuk semua pegawai (`all`). Terapkan sebelum deploy API dan UI yang menyaring jenis cuti berdasarkan profil; migration ini tidak mengubah riwayat atau saldo.
 
 Migration `058` mendaftarkan menu **Rekap Cuti & Izin** (`leave-summary-report`) sebagai laporan read-only. Tidak menambah grant HRD terdelegasi secara otomatis; atur melalui Akun & Akses. Bootstrap baru sudah memuat menu ini.

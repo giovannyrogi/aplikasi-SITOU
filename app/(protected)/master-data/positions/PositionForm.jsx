@@ -31,7 +31,6 @@ export default function PositionForm({
       item
         ? {
             organizationId: item.organization_id,
-            code: item.code,
             name: item.name,
             grade: item.grade,
             levelNo: item.level_no,
@@ -108,12 +107,7 @@ export default function PositionForm({
             <Col xs={24}>
               <OrganizationScopeField disabled={editing} />
             </Col>
-            <Col xs={24} sm={8}>
-              <Form.Item name="code" label="Kode" rules={[{ required: true }]}>
-                <Input placeholder="Contoh: MGR-SDM" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={16}>
+            <Col xs={24}>
               <Form.Item name="name" label="Nama jabatan" rules={[{ required: true }]}>
                 <Input placeholder="Contoh: Manajer SDM" />
               </Form.Item>

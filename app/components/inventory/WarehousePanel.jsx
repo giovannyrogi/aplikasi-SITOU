@@ -50,14 +50,7 @@ export default function WarehousePanel({ organizationId, organizationFilter }) {
     {
       title: "Gudang",
       key: "name",
-      render: (_, row) => (
-        <Box>
-          <FontStyle fontWeight={700}>{row.name}</FontStyle>
-          <Box sx={{ mt: 0.75 }}>
-            <CompactInfoChip label={row.code} tone="info" />
-          </Box>
-        </Box>
-      ),
+      render: (_, row) => <FontStyle fontWeight={700}>{row.name}</FontStyle>,
     },
     { title: "Lokasi", dataIndex: "location_name" },
     {
@@ -78,7 +71,6 @@ export default function WarehousePanel({ organizationId, organizationFilter }) {
   const card = (row) => (
     <InventoryMasterCardContent
       name={row.name}
-      code={row.code}
       active={row.is_active}
       icon="navigation:inventory-warehouse"
       action={
@@ -122,7 +114,7 @@ export default function WarehousePanel({ organizationId, organizationFilter }) {
         title="Filter gudang"
         description="Cari dan saring daftar gudang sesuai kebutuhan."
         searchLabel="Cari gudang"
-        searchPlaceholder="Nama atau kode gudang"
+        searchPlaceholder="Nama gudang atau lokasi"
         statusLabel="Status gudang"
         search={list.search}
         onSearchChange={list.setSearch}

@@ -46,7 +46,7 @@ export const STATUS_TONES = Object.freeze({
     border: "#D0D5DD",
   },
   earlyArrival: { main: "#0F766E", text: "#115E59", background: "#F0FDFA", border: "#99F6E4" },
-  earlyLeave: { main: "#A16207", text: "#854D0E", background: "#FEFCE8", border: "#FDE047" },
+  earlyLeave: { main: "#7C3AED", text: "#5B21B6", background: "#F5F3FF", border: "#DDD6FE" },
   outsideSchedule: { main: "#991B1B", text: "#7F1D1D", background: "#FEF2F2", border: "#FECACA" },
   holidayWork: { main: "#475569", text: "#334155", background: "#F1F5F9", border: "#CBD5E1" },
 });

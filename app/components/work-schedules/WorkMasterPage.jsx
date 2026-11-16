@@ -12,7 +12,7 @@ import {
 } from "@ant-design/icons";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
-import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import ResponsiveRecordView from "@/app/components/data-display/ResponsiveRecordView";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -221,6 +221,7 @@ function MasterList({ kind }) {
     },
     {
       title: "Status",
+      key: "status",
       render: (_, x) => (
         <CompactInfoChip
           label={x.is_active ? "Aktif" : "Nonaktif"}
@@ -230,6 +231,7 @@ function MasterList({ kind }) {
     },
     {
       title: "Aksi",
+      key: "action",
       align: "center",
       width: 92,
       render: (_, x) => <RowActionMenu items={actions(x)} />,
@@ -277,7 +279,7 @@ function MasterList({ kind }) {
         title={"Daftar " + titles[kind].toLowerCase()}
         description="Lihat jumlah tanggal libur dan status kalender. Buka Edit untuk mengatur tanggalnya."
       >
-        <ResponsiveDataView
+        <ResponsiveRecordView
           data={list.data}
           columns={columns}
           loading={list.loading}
@@ -290,14 +292,7 @@ function MasterList({ kind }) {
               ? "Belum ada kalender libur sesuai filter."
               : "Pilih organisasi untuk melihat kalender libur."
           }
-          renderCard={(x) => (
-            <Box sx={{ display: "grid", gap: 1 }}>
-              <FontStyle fontWeight={600}>{x.name}</FontStyle>
-              <FontStyle>{details(x)}</FontStyle>
-              <CompactInfoChip label={x.is_active ? "Aktif" : "Nonaktif"} />
-              <RowActionMenu items={actions(x)} />
-            </Box>
-          )}
+          rowActions={actions}
         />
       </DataPanel>
       <MasterEditor

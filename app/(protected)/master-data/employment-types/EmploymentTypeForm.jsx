@@ -31,7 +31,6 @@ export default function EmploymentTypeForm({
       item
         ? {
             organizationId: item.organization_id,
-            code: item.code,
             name: item.name,
             requiresEndDate: item.requires_end_date,
             isActive: item.is_active,
@@ -107,12 +106,7 @@ export default function EmploymentTypeForm({
             <Col xs={24}>
               <OrganizationScopeField disabled={editing} />
             </Col>
-            <Col xs={24} sm={8}>
-              <Form.Item name="code" label="Kode" rules={[{ required: true }]}>
-                <Input placeholder="Contoh: PKWT" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={16}>
+            <Col xs={24}>
               <Form.Item name="name" label="Nama jenis kepegawaian" rules={[{ required: true }]}>
                 <Input placeholder="Contoh: Perjanjian Kerja Waktu Tertentu" />
               </Form.Item>

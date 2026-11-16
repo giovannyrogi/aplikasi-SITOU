@@ -140,6 +140,13 @@ try {
       JSON.stringify(freshColumns.rows) === JSON.stringify(existingColumns.rows);
 
     for (const table of [
+      "organization_unit_types",
+      "organization_units",
+      "positions",
+      "employment_types",
+      "inventory_categories",
+      "inventory_warehouses",
+      "employee_import_legacy_master_refs",
       "disciplinary_action_types",
       "disciplinary_actions",
       "mobile_auth_sessions",

@@ -5,11 +5,11 @@ import { readApiResponse } from "@/lib/api/clientError";
 import { useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
-import { Box, useTheme } from "@mui/material";
+import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
-import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import ResponsiveRecordView from "@/app/components/data-display/ResponsiveRecordView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
@@ -25,7 +25,6 @@ import OrganizationUnitForm from "./OrganizationUnitForm";
 
 /** Halaman CRUD Divisi & Unit untuk Superadmin dan Admin/HRD yang terisolasi organisasi. */
 export default function OrganizationUnitsPage() {
-  const theme = useTheme();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
   const list = useDataList("/api/organization-units");
@@ -82,13 +81,13 @@ export default function OrganizationUnitsPage() {
     {
       title: "Divisi atau unit",
       key: "unit",
+      cardRender: (_, item) => item.name,
       render: (_, item) => (
         <Box>
-          <FontStyle fontSize={12.5} fontWeight={600}>
+          <FontStyle fontSize={14} fontWeight={600}>
             {item.name}
           </FontStyle>
           <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            <CompactInfoChip label={item.code} />
             <CompactInfoChip
               label={item.unit_type_name}
               tone={item.unit_type_is_active ? "info" : "warning"}
@@ -101,27 +100,32 @@ export default function OrganizationUnitsPage() {
     {
       title: "Unit induk",
       dataIndex: "parent_unit_name",
-      render: (value) => value || "-",
+      render: (value) => value || "Tanpa unit induk",
     },
     {
       title: "Lokasi operasional",
       key: "locations",
+      cardRender: (_, item) =>
+        item.locations?.length
+          ? item.locations.map((location) => location.name).join("\n")
+          : "Belum ada lokasi",
       render: (_, item) => (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
           {(item.locations || []).slice(0, 2).map((location) => (
-            <CompactInfoChip key={location.id} label={location.name} tone="info" />
+            <CompactInfoChip wrap key={location.id} label={location.name} tone="info" />
           ))}
           {item.locations?.length > 2 ? (
             <CompactInfoChip label={`+${item.locations.length - 2} lokasi`} tone="warning" />
           ) : null}
           {!item.locations?.length ? (
-            <CompactInfoChip label="Belum dipetakan" tone="neutral" />
+            <CompactInfoChip label="Belum ada lokasi" tone="neutral" />
           ) : null}
         </Box>
       ),
     },
     {
       title: "Status",
+      key: "status",
       dataIndex: "is_active",
       render: (value) => <CompactInfoChip status={value ? "active" : "inactive"} />,
     },
@@ -132,36 +136,6 @@ export default function OrganizationUnitsPage() {
       render: (_, item) => <RowActionMenu items={actions(item)} />,
     },
   ];
-
-  const card = (item) => (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-        <Box>
-          <FontStyle fontSize={14} fontWeight={600}>
-            {item.name}
-          </FontStyle>
-          <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            <CompactInfoChip label={item.code} />
-            <CompactInfoChip
-              label={item.unit_type_name}
-              tone={item.unit_type_is_active ? "info" : "warning"}
-            />
-          </Box>
-        </Box>
-        <RowActionMenu items={actions(item)} />
-      </Box>
-      <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: theme.ui.mutedText }}>
-        Induk: {item.parent_unit_name || "Tidak ada"}
-      </FontStyle>
-      <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-        <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
-        <CompactInfoChip
-          label={`${item.locations?.length || 0} lokasi`}
-          tone={item.locations?.length ? "info" : "neutral"}
-        />
-      </Box>
-    </Box>
-  );
 
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
@@ -182,7 +156,7 @@ export default function OrganizationUnitsPage() {
         title="Filter Divisi & Unit"
         description="Cari dan saring daftar Divisi & Unit sesuai kebutuhan."
         searchLabel="Cari Divisi & Unit"
-        searchPlaceholder="Nama atau kode Divisi & Unit"
+        searchPlaceholder="Nama Divisi & Unit"
         statusLabel="Status Divisi & Unit"
         search={list.search}
         onSearchChange={list.setSearch}
@@ -207,7 +181,7 @@ export default function OrganizationUnitsPage() {
         title="Daftar divisi & unit"
         description="Kelola hierarki struktur dan lokasi operasional setiap unit."
       >
-        <ResponsiveDataView
+        <ResponsiveRecordView
           data={list.data}
           columns={columns}
           loading={list.loading}
@@ -215,7 +189,14 @@ export default function OrganizationUnitsPage() {
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
-          renderCard={card}
+          renderCardBadges={(item) => (
+            <CompactInfoChip
+              wrap
+              label={item.unit_type_name}
+              tone={item.unit_type_is_active ? "info" : "warning"}
+            />
+          )}
+          rowActions={actions}
         />
       </DataPanel>
       <OrganizationUnitForm

@@ -6,7 +6,7 @@ import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
-import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import ResponsiveRecordView from "@/app/components/data-display/ResponsiveRecordView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
@@ -79,37 +79,17 @@ export default function LeaveTypesPage() {
     { title: "Pemakaian", render: (_, item) => `${item.request_count} cuti/izin` },
     {
       title: "Status",
+      key: "status",
       render: (_, item) => <CompactInfoChip status={item.is_active ? "active" : "inactive"} />,
     },
-    { title: "Aksi", width: 72, render: (_, item) => <RowActionMenu items={actions(item)} /> },
+    {
+      title: "Aksi",
+      key: "action",
+      width: 72,
+      render: (_, item) => <RowActionMenu items={actions(item)} />,
+    },
   ];
-  const card = (item) => (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-        <Box>
-          <FontStyle fontSize={14} fontWeight={700}>
-            {item.name}
-          </FontStyle>
-        </Box>
-        <RowActionMenu items={actions(item)} />
-      </Box>
-      <Box sx={{ mt: 1.5, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-        <CompactInfoChip
-          label={LEAVE_CATEGORY[item.category]?.[0]}
-          tone={LEAVE_CATEGORY[item.category]?.[1]}
-        />
-        <CompactInfoChip
-          label={
-            item.uses_balance
-              ? `${formatLeaveUnits(item.annual_allowance)} ${LEAVE_UNIT[item.unit]}/tahun`
-              : "Tidak mengurangi jatah"
-          }
-        />
-        <CompactInfoChip label={ELIGIBLE_GENDER[item.eligible_gender] || "Semua pegawai"} />
-        <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
-      </Box>
-    </Box>
-  );
+
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
       <PageHeader
@@ -155,7 +135,7 @@ export default function LeaveTypesPage() {
         title="Daftar aturan cuti dan izin"
         description="Tambahkan pilihan yang berlaku sesuai kebijakan organisasi."
       >
-        <ResponsiveDataView
+        <ResponsiveRecordView
           data={list.data}
           columns={columns}
           loading={list.loading}
@@ -163,7 +143,7 @@ export default function LeaveTypesPage() {
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
-          renderCard={card}
+          rowActions={actions}
           emptyDescription="Belum ada aturan cuti atau izin pada organisasi ini."
         />
       </DataPanel>

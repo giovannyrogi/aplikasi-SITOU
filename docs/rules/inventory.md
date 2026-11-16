@@ -32,7 +32,7 @@ Bagian terkait
 
 - Master persediaan canonical memakai /master-data/inventory-items|inventory-categories|inventory-units|inventory-warehouses; Distribusi Barang memakai /reports/inventory-distribution. Route lama /inventory/catalog dan /inventory/master-data diarahkan menurut tab, default Barang Persediaan; /inventory/reports diarahkan ke Distribusi Barang. Pertahankan organisasi valid dan pemeriksaan server. Tombol tambah di PageHeader, pemilih organisasi Superadmin di toolbar filter; wajib satu organisasi sebelum membaca/membuat. Gunakan ikon semantik lokal, reusable tabel/kartu/modal, pagination+total. Referensi tidak dihapus fisik; perubahan diaudit dan memakai version. Aturan pecahan/satuan dasar terkunci setelah dipakai.
 
-- Gudang memiliki organisasi/lokasi, kode uppercase unik, status dan versi. Gudang berreferensi tidak dihapus fisik; lokasi terkunci setelah direferensikan paket. Gudang nonaktif tetap dapat dibaca/dipulihkan oleh pengelola berizin tetapi tidak dipilih untuk grant baru atau transaksi stok nanti.
+- Gudang memiliki organisasi/lokasi, nama, status dan versi. Gudang berreferensi tidak dihapus fisik; lokasi terkunci setelah direferensikan paket. Gudang nonaktif tetap dapat dibaca/dipulihkan oleh pengelola berizin tetapi tidak dipilih untuk grant baru atau transaksi stok nanti.
 
 - Kartu stok nantinya menunjukkan masuk/keluar/saldo satu barang-gudang. Distribusi Barang merangkum penyaluran lintas transaksi dan tidak membuktikan sisa stok penerima. Permintaan tetap manual; request, approval, dan pemenuhan kelak memiliki permission terpisah tanpa posting stok dua kali.
 
@@ -46,13 +46,11 @@ Bagian terkait
 
 - Tautan prasyarat hanya bagi pengguna berizin, mempertahankan organisasi dan memakai lifecycle loading serta dirty-state warning. Pengguna tanpa izin diarahkan meminta pihak berwenang; field wajib tetap divalidasi. Tidak membuat form bertingkat untuk prasyarat.
 
-### Satuan tanpa kode input dan chip master persediaan
+### Kode internal dan chip master persediaan
 
-Satuan Barang tidak meminta atau menampilkan kode. API menerima kode opsional untuk
-kompatibilitas klien lama; create tanpa kode membuat kode internal UUID di server,
-edit tanpa kode mempertahankan nilai lama. Tidak ada perubahan schema atau backfill.
+Kategori Barang dan Gudang memakai nama pada antarmuka dan ID untuk relasi. Kedua tabel master tidak memiliki kolom kode. Satuan Barang tetap memiliki kode internal yang dibuat server saat kode tidak dikirim. Edit tanpa kode mempertahankan kode satuan yang tersimpan.
 Nama satuan wajib dan unik per organisasi; konflik ditampilkan pada field nama.
-Kode barang/kategori/gudang tampil sebagai CompactInfoChip tone info di bawah nama
+Kode Barang Persediaan tampil sebagai CompactInfoChip tone info di bawah nama
 pada kolom identitas yang sama dan pada kartu mobile. Kategori, satuan, aturan
 pecahan, dan status memakai chip semantik yang sudah tersedia; nama dan uraian
 bebas tetap teks agar penanda penting tidak tenggelam dalam terlalu banyak chip.
@@ -729,9 +727,9 @@ Acuan utama adalah kartu Rekap Stok/Distribusi Barang SITOU. Referensi eksternal
 
 InventoryMobileCardContent adalah susunan slot bersama. InventoryReportCardContent tetap kompatibel sebagai alias. ResponsiveDataView menyediakan bingkai tunggal, nomor, loading/kosong/gagal dan typography mobile minimal 14px. Identitas dan angka utama tetap lebih besar melalui FontStyle; tidak mengurangi ukuran teks per fitur. Gap antarbagian 24px, fakta 16px, label/nilai 8px. Tombol teks di bawah divider minimal 44px, lebar penuh dan dapat membungkus. Tidak menaruh ikon edit kecil sendirian di samping nama pada mobile.
 
-- Kategori Barang: ikon kategori brand, nama, chip kode, status dan Catatan jika ada. Edit kategori langsung membuka form yang sama.
+- Kategori Barang: ikon kategori brand, nama, status dan Catatan jika ada. Edit kategori langsung membuka form yang sama.
 - Satuan Barang: ikon penggaris, nama/status dan Aturan jumlah (Angka bulat atau Pecahan diizinkan). Tidak menampilkan kode internal satuan. Edit satuan langsung membuka form yang sama.
-- Gudang: ikon gudang, nama, chip kode, status dan Lokasi. Edit hanya jika row.canEdit.
+- Gudang: ikon gudang, nama, status dan Lokasi. Edit hanya jika row.canEdit.
 - Stok Barang: foto privat/fallback dan pratinjau yang sama, kondisi stok, Gudang, Batas minimum dan Stok tersedia (penekanan). Tanpa histori tetap Belum ada transaksi, bukan angka nol buatan. Lihat kartu stok, Atur batas minimum dan Koreksi stok awal hanya sesuai izin existing.
 - Transaksi Barang: jenis dengan ikon/warna semantik, status, tanggal, gudang dan referensi bila tersedia. Maksimal dua barang menampilkan jumlah asli dan perubahan masing-masing; bila lebih, jumlah barang lainnya disebut dan seluruh rincian tersedia di modal. Tidak menjumlahkan angka berbeda satuan atau menafsirkan hasil opname sebagai jumlah penerimaan. Dokumen dibatalkan mempertahankan angka asal dan penjelasan stok dikembalikan. Pelaku dari DTO server. Lihat detail transaksi memakai modal bersama.
 

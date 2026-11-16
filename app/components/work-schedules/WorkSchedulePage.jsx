@@ -36,6 +36,9 @@ import {
   WorkScheduleFields,
   useScheduleOptions,
 } from "./ScheduleFields";
+
+const cardMediaQuery = "(max-width:1199px)";
+
 /** Workspace sama digunakan menu utama dan detail Pegawai. */
 export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
   const user = useAuthenticatedUser();
@@ -191,14 +194,14 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
   );
   const pageSelected = list.data.filter((x) => selected[x.id]?.org === org).length;
   const allPageSelected = list.data.length > 0 && pageSelected === list.data.length;
-  const selectPage = (
+  const selectPage = (showLabel = false) => (
     <Checkbox
       style={{
         minWidth: 44,
         minHeight: 44,
         display: "inline-flex",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: showLabel ? "flex-start" : "center",
       }}
       aria-label="Pilih semua Pegawai pada halaman ini"
       checked={allPageSelected}
@@ -219,7 +222,13 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
           return next;
         });
       }}
-    />
+    >
+      {showLabel && (
+        <FontStyle component="span" fontWeight={600}>
+          Pilih semua di halaman ini
+        </FontStyle>
+      )}
+    </Checkbox>
   );
   const identity = (x) => (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
@@ -249,7 +258,7 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
   );
   const columns = [
     ...(!employeeId && manage
-      ? [{ title: selectPage, width: 70, align: "center", render: (_, x) => selector(x) }]
+      ? [{ title: selectPage(), width: 70, align: "center", render: (_, x) => selector(x) }]
       : []),
     {
       title: "Pegawai",
@@ -382,27 +391,41 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
           manage ? (
             <Box
               sx={{
-                display: { xs: "grid", sm: "flex" },
+                display: "flex",
                 flexWrap: "wrap",
                 alignItems: "center",
-                justifyContent: "space-between",
+                justifyContent: "flex-end",
                 gap: 2,
                 width: "100%",
+                [`@media ${cardMediaQuery}`]: {
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0, 1fr)",
+                  gap: 1,
+                },
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                {!employeeId && (
-                  <Box sx={{ display: "none", "@media (max-width:767px)": { display: "flex" } }}>
-                    {selectPage}
-                  </Box>
-                )}
-              </Box>
+              {!employeeId && (
+                <Box sx={{ display: "none", [`@media ${cardMediaQuery}`]: { display: "block" } }}>
+                  {selectPage(true)}
+                </Box>
+              )}
               <Box
                 sx={{
-                  display: { xs: "grid", sm: "flex" },
+                  display: "flex",
                   gap: 1.5,
                   flexWrap: "wrap",
                   "& .ant-btn": { minHeight: 44 },
+                  [`@media ${cardMediaQuery}`]: {
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
+                    gap: 1,
+                    "& .ant-btn": {
+                      width: "100%",
+                      minHeight: 44,
+                      height: "auto",
+                      whiteSpace: "normal",
+                    },
+                  },
                 }}
               >
                 {assignAction}
@@ -426,15 +449,46 @@ export default function WorkSchedulePage({ employeeId, presetOrganizationId }) {
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
+          cardMediaQuery={cardMediaQuery}
+          cardColumns="repeat(auto-fit, minmax(min(100%, max(310px, 42%)), 1fr))"
+          mobileCardSx={{ display: "flex", flexDirection: "column" }}
           emptyDescription={org ? "Belum ada Pegawai sesuai filter." : "Pilih organisasi."}
           renderCard={(x) => (
-            <Box sx={{ display: "grid", gap: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                {!employeeId && manage && selector(x)}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, flex: 1 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 0.5,
+                }}
+              >
                 {identity(x)}
+                {!employeeId && manage && selector(x)}
               </Box>
-              {scheduleSummary(x)}
-              <RowActionMenu items={actions(x)} />
+              <Box
+                sx={{
+                  flex: 1,
+                  p: 1.25,
+                  bgcolor: (theme) => theme.ui.panelSubtleBg,
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 2,
+                }}
+              >
+                <FontStyle component="div" fontSize={12} color="text.secondary" sx={{ mb: 0.75 }}>
+                  Jadwal kerja
+                </FontStyle>
+                {scheduleSummary(x)}
+              </Box>
+              <Box component="footer" sx={{ pt: 1.25, borderTop: 1, borderColor: "divider" }}>
+                <RowActionMenu
+                  items={actions(x)}
+                  triggerLabel={`Aksi jadwal ${x.full_name}`}
+                  buttonLabel="Aksi jadwal"
+                  fullWidth
+                />
+              </Box>
             </Box>
           )}
         />

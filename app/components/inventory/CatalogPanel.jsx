@@ -271,7 +271,6 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
       render: (_, row) => (
         <Box sx={{ display: "grid", gap: 0.75, justifyItems: "start", minWidth: 0 }}>
           <FontStyle fontWeight={700}>{row.name}</FontStyle>
-          {kind === "categories" ? <CompactInfoChip label={row.code} tone="info" /> : null}
         </Box>
       ),
     },
@@ -325,7 +324,6 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
   const card = (row) => (
     <InventoryMasterCardContent
       name={row.name}
-      code={kind === "categories" ? row.code : undefined}
       active={row.is_active}
       icon={kind === "categories" ? "navigation:inventory-category" : "navigation:inventory-unit"}
       action={
@@ -380,7 +378,7 @@ export default function CatalogPanel({ kind, organizationId, organizationFilter 
           title={`Filter ${NAMES[kind]}`}
           description={`Cari dan saring daftar ${NAMES[kind]} berdasarkan status.`}
           searchLabel={`Cari ${NAMES[kind]}`}
-          searchPlaceholder={`Nama atau kode ${NAMES[kind]}`}
+          searchPlaceholder={kind === "items" ? "Nama atau kode barang" : `Nama ${NAMES[kind]}`}
           statusLabel={`Status ${NAMES[kind]}`}
           search={list.search}
           onSearchChange={list.setSearch}
@@ -543,7 +541,7 @@ function CatalogForm({ kind, item, organizationId, options, onClose, onSaved, on
     form.setFieldsValue(
       item.id
         ? {
-            ...(kind !== "units" ? { code: item.code } : {}),
+            ...(kind === "items" ? { code: item.code } : {}),
             name: item.name,
             notes: item.notes,
             isActive: item.is_active,
@@ -651,14 +649,14 @@ function CatalogForm({ kind, item, organizationId, options, onClose, onSaved, on
             sx={{
               display: "grid",
               gridTemplateColumns:
-                kind === "units"
-                  ? "minmax(0,1fr)"
-                  : { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" },
+                kind === "items"
+                  ? { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" }
+                  : "minmax(0,1fr)",
               gap: 2,
               minWidth: 0,
             }}
           >
-            {kind !== "units" ? (
+            {kind === "items" ? (
               <Form.Item
                 name="code"
                 label="Kode"

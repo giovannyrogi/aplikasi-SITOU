@@ -213,7 +213,9 @@ Pesan penolakan tidak membocorkan SQL atau data internal. Akun, profil, penempat
 
 `organization_unit_locations.active_from` wajib dikirim eksplisit untuk setiap lokasi. Form menerapkan satu tanggal bersama pada lokasi baru dan tetap mengizinkan override per lokasi. Tanggal harus berada dalam umur operasional lokasi, tidak boleh melewati hari ini, dan periode untuk kombinasi organisasi-unit-lokasi tidak boleh overlap. Koreksi atau pelepasan relasi lama memerlukan alasan, audit, serta pemeriksaan agar histori `employee_assignments` tetap valid.
 
-API master jenis unit menggunakan `GET/POST /api/organization-unit-types`, `GET/PATCH/DELETE /api/organization-unit-types/:id`, dan `GET /api/organization-unit-types/options`. Kode dikunci setelah jenis dipakai; endpoint `DELETE` hanya menonaktifkan. Form Divisi & Unit mengirim `unitTypeId` dan backend selalu memvalidasi jenis aktif serta organisasi pemiliknya.
+API master jenis unit menggunakan `GET/POST /api/organization-unit-types`, `GET/PATCH/DELETE /api/organization-unit-types/:id`, dan `GET /api/organization-unit-types/options`. Endpoint `DELETE` hanya menonaktifkan. Form Divisi & Unit mengirim `unitTypeId` dan backend selalu memvalidasi jenis aktif serta organisasi pemiliknya.
+
+Jenis Unit Organisasi, Divisi & Unit, Jabatan, dan Jenis Kepegawaian memakai nama sebagai identitas yang ditampilkan dan ID sebagai referensi. Keempat tabel master tidak memiliki kolom kode. Pilihan template impor Pegawai memakai nama dengan penanda ID agar nama yang sama dapat dibedakan. Template lama membaca pemetaan kode ke ID dalam organisasi yang sama. Nilai lama yang ambigu harus diganti dengan pilihan dari template terbaru.
 
 ### User, Role, Permission
 

@@ -5,11 +5,11 @@ import { readApiResponse } from "@/lib/api/clientError";
 import { useState } from "react";
 import { Button } from "antd";
 import { EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
-import { Box, useTheme } from "@mui/material";
+import { Box } from "@mui/material";
 import PageHeader from "@/app/components/layout/PageHeader";
 import DataPanel from "@/app/components/data-display/DataPanel";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
-import ResponsiveDataView from "@/app/components/data-display/ResponsiveDataView";
+import ResponsiveRecordView from "@/app/components/data-display/ResponsiveRecordView";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import RowActionMenu from "@/app/components/actions/RowActionMenu";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
@@ -25,7 +25,6 @@ import OrganizationUnitTypeForm from "./OrganizationUnitTypeForm";
 
 /** Halaman CRUD master jenis unit yang fleksibel dan terisolasi per organisasi. */
 export default function OrganizationUnitTypesPage() {
-  const theme = useTheme();
   const user = useAuthenticatedUser();
   const isSuperadmin = user.role_code === ROLES.SUPERADMIN;
   const list = useDataList("/api/organization-unit-types");
@@ -87,12 +86,9 @@ export default function OrganizationUnitTypesPage() {
       key: "type",
       render: (_, item) => (
         <Box>
-          <FontStyle fontSize={12.5} fontWeight={600}>
+          <FontStyle fontSize={14} fontWeight={600}>
             {item.name}
           </FontStyle>
-          <Box sx={{ mt: 0.75 }}>
-            <CompactInfoChip label={item.code} tone="info" />
-          </Box>
         </Box>
       ),
     },
@@ -100,16 +96,16 @@ export default function OrganizationUnitTypesPage() {
     {
       title: "Deskripsi",
       dataIndex: "description",
-      render: (value) => value || "-",
+      render: (value) => value || "Belum ada deskripsi",
     },
     {
-      title: "Urutan",
+      title: "Urutan tampilan",
       dataIndex: "sort_order",
-      width: 96,
+      width: 130,
       render: (value) => <CompactInfoChip label={String(value)} tone="neutral" />,
     },
     {
-      title: "Digunakan",
+      title: "Digunakan oleh",
       dataIndex: "usage_count",
       render: (value) => (
         <CompactInfoChip label={`${value} unit`} tone={Number(value) > 0 ? "info" : "neutral"} />
@@ -117,6 +113,7 @@ export default function OrganizationUnitTypesPage() {
     },
     {
       title: "Status",
+      key: "status",
       dataIndex: "is_active",
       render: (value) => <CompactInfoChip status={value ? "active" : "inactive"} />,
     },
@@ -127,34 +124,6 @@ export default function OrganizationUnitTypesPage() {
       render: (_, item) => <RowActionMenu items={actions(item)} />,
     },
   ];
-
-  /** Menyajikan data yang sama sebagai kartu pada layar sempit. */
-  const card = (item) => (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-        <Box sx={{ minWidth: 0 }}>
-          <FontStyle fontSize={14} fontWeight={600}>
-            {item.name}
-          </FontStyle>
-          <Box sx={{ mt: 0.75 }}>
-            <CompactInfoChip label={item.code} tone="info" />
-          </Box>
-        </Box>
-        <RowActionMenu items={actions(item)} />
-      </Box>
-      <FontStyle fontSize={11.5} sx={{ mt: 1.5, color: theme.ui.mutedText }}>
-        {item.description || "Belum ada deskripsi."}
-      </FontStyle>
-      <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-        <CompactInfoChip status={item.is_active ? "active" : "inactive"} />
-        <CompactInfoChip label={`Urutan ${item.sort_order}`} tone="neutral" />
-        <CompactInfoChip
-          label={`${item.usage_count} unit`}
-          tone={Number(item.usage_count) > 0 ? "info" : "neutral"}
-        />
-      </Box>
-    </Box>
-  );
 
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
@@ -175,7 +144,7 @@ export default function OrganizationUnitTypesPage() {
         title="Filter jenis unit organisasi"
         description="Cari dan saring daftar jenis unit organisasi sesuai kebutuhan."
         searchLabel="Cari jenis unit"
-        searchPlaceholder="Nama atau kode jenis unit"
+        searchPlaceholder="Nama jenis unit"
         statusLabel="Status jenis unit"
         search={list.search}
         onSearchChange={list.setSearch}
@@ -200,7 +169,7 @@ export default function OrganizationUnitTypesPage() {
         title="Daftar jenis unit organisasi"
         description="Pilihan yang tersedia muncul pada form Divisi & Unit sesuai urutan tampil."
       >
-        <ResponsiveDataView
+        <ResponsiveRecordView
           data={list.data}
           columns={columns}
           loading={list.loading}
@@ -208,7 +177,7 @@ export default function OrganizationUnitTypesPage() {
           onRetry={list.refresh}
           pagination={list.pagination}
           onPageChange={list.setPage}
-          renderCard={card}
+          rowActions={actions}
         />
       </DataPanel>
       <OrganizationUnitTypeForm

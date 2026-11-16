@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Box, Tooltip } from "@mui/material";
 import { Button, Input } from "antd";
-import { EyeOutlined, LoginOutlined, LogoutOutlined, RightOutlined } from "@ant-design/icons";
-import { alpha } from "@mui/material/styles";
+import { EyeOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
 import OperationalFilterSection from "@/app/components/filters/OperationalFilterSection";
@@ -29,16 +28,11 @@ import {
   attendanceTime,
   attendanceMinutes,
 } from "@/lib/reports/attendancePresentation.mjs";
-import { reportDate } from "./ReportEmployeeFields";
+import { reportDate, ReportCardFields } from "./ReportEmployeeFields";
 import { AttendanceIndicators, AttendanceState } from "./AttendanceSummaryFields";
 import AttendanceSummaryDetails from "./AttendanceSummaryDetails";
 
 const API = "/api/reports/attendance-summary";
-const flagged = (row) =>
-  attendanceRowIndicators(row).includes("outside_radius") ||
-  ["absent", "incomplete", "needs_review"].includes(row.attendance_status);
-const rowClassName = (row) => (flagged(row) ? "attendance-flagged" : "");
-
 function shortName(name) {
   const words = name.trim().split(/\s+/);
   if (name.length <= 23 || words.length < 3) return name;
@@ -232,22 +226,22 @@ export default function AttendanceSummaryReport() {
     }
   }
 
-  const clock = (value, row, showDate = false) => {
+  const clock = (value, row) => {
     const [hour, date] = attendanceTime(value, data?.timezone, row.work_date).split(" · ");
     return (
       <Box sx={{ minWidth: 0 }}>
         <FontStyle component="div" fontWeight={650} sx={{ fontVariantNumeric: "tabular-nums" }}>
           {hour}
         </FontStyle>
-        {value && (date || showDate) && (
+        {date && (
           <FontStyle component="div" fontSize={12} color="text.secondary">
-            {date || reportDate(row.work_date)}
+            {date}
           </FontStyle>
         )}
       </Box>
     );
   };
-  const duration = (row) => attendanceMinutes(row.duration_complete ? row.worked_minutes : null);
+  const duration = (row) => attendanceMinutes(row.attendance_minutes);
   const textCell = (lines) => (
     <Box sx={{ display: "grid", gap: 0.5, minWidth: 0 }}>
       {lines.filter(Boolean).map((line, index) => (
@@ -257,7 +251,7 @@ export default function AttendanceSummaryReport() {
       ))}
     </Box>
   );
-  const identity = (row) => (
+  const identity = (row, card = false) => (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
       <PhotoAvatar
         key={row.profile_photo_file_id || row.id}
@@ -276,9 +270,13 @@ export default function AttendanceSummaryReport() {
           fontWeight={700}
           title={row.full_name}
           aria-label={row.full_name}
-          sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          sx={
+            card
+              ? undefined
+              : { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
+          }
         >
-          {shortName(row.full_name)}
+          {card ? row.full_name : shortName(row.full_name)}
         </FontStyle>
         <FontStyle component="div" color="text.secondary" fontSize={12}>
           {row.employee_no ? `NIP ${row.employee_no}` : null}
@@ -289,7 +287,11 @@ export default function AttendanceSummaryReport() {
   const indicators = (row) => {
     const keys = attendanceRowIndicators(row);
     return keys.length ? (
-      <AttendanceIndicators indicators={keys} lateMinutes={row.late_minutes} compact />
+      <AttendanceIndicators
+        indicators={keys}
+        metrics={row}
+        context={`${row.full_name} · ${reportDate(row.work_date)}`}
+      />
     ) : null;
   };
   const action = (row) => (
@@ -333,7 +335,7 @@ export default function AttendanceSummaryReport() {
       width: 84,
       render: (_, row) => clock(row.last_check_out, row),
     },
-    { title: "Durasi bersih", key: "duration", width: 110, render: (_, row) => duration(row) },
+    { title: "Durasi absen", key: "duration", width: 110, render: (_, row) => duration(row) },
     {
       title: "Status",
       key: "status",
@@ -343,7 +345,7 @@ export default function AttendanceSummaryReport() {
     {
       title: "Indikator",
       key: "indicators",
-      width: 185,
+      width: 220,
       render: (_, row) => indicators(row) || "—",
     },
     {
@@ -355,61 +357,43 @@ export default function AttendanceSummaryReport() {
     },
   ];
   const renderCard = (row) => (
-    <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
-      {identity(row)}
-      {textCell([reportDate(row.work_date), row.location_name, row.organization_unit_name])}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: 1,
-          py: 1.5,
-          borderBlock: 1,
-          borderColor: "divider",
-        }}
-      >
-        {[
-          ["Masuk", row.first_check_in, LoginOutlined, "success.main"],
-          ["Pulang", row.last_check_out, LogoutOutlined, "primary.main"],
-        ].map(([label, value, Icon, color]) => (
-          <Box key={label} sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
-            <Box sx={{ color, pt: 0.25 }}>
-              <Icon aria-hidden />
-            </Box>
-            <Box>
-              <FontStyle component="div" color="text.secondary" fontSize={12}>
-                {label}
-              </FontStyle>
-              {clock(value, row, true)}
-            </Box>
-          </Box>
-        ))}
-      </Box>
+    <Box sx={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+      {identity(row, true)}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
           flexWrap: "wrap",
-          gap: 1,
+          gap: 0.75,
+          mt: 1.5,
         }}
       >
-        <AttendanceState row={row} chip />
-        <FontStyle fontSize={12} color="text.secondary">
-          Durasi bersih {duration(row)}
-        </FontStyle>
+        <AttendanceState row={row} />
       </Box>
-      {indicators(row)}
-      <Button
-        block
-        onClick={() => setDetail(row)}
-        icon={<RightOutlined />}
-        iconPlacement="end"
-        aria-label={`Lihat rincian ${row.full_name}, ${reportDate(row.work_date)}`}
-        style={{ justifyContent: "space-between", minHeight: 44 }}
-      >
-        Lihat rincian
-      </Button>
+      <Box sx={{ flex: 1, pb: 1.5 }}>
+        <ReportCardFields
+          fields={[
+            ["Tanggal kerja", reportDate(row.work_date)],
+            ["Lokasi", row.location_name || "—"],
+            ["Divisi & Unit", row.organization_unit_name || "—"],
+            ["Jam masuk", attendanceTime(row.first_check_in, data?.timezone, row.work_date)],
+            ["Jam pulang", attendanceTime(row.last_check_out, data?.timezone, row.work_date)],
+            ["Durasi absen", duration(row)],
+            ["Indikator", indicators(row) || "—"],
+          ]}
+        />
+      </Box>
+      <Box component="footer" sx={{ pt: 1.25, borderTop: 1, borderColor: "divider" }}>
+        <Button
+          block
+          onClick={() => setDetail(row)}
+          icon={<EyeOutlined />}
+          aria-label={`Lihat rincian ${row.full_name}, ${reportDate(row.work_date)}`}
+          style={{ minHeight: 44 }}
+        >
+          Lihat rincian
+        </Button>
+      </Box>
     </Box>
   );
 
@@ -448,7 +432,7 @@ export default function AttendanceSummaryReport() {
       ) : (
         <DataPanel
           title="Daftar absensi Pegawai"
-          description="Durasi bersih mengikuti aturan istirahat pada jadwal kerja."
+          description="Durasi absen menjumlahkan waktu dari masuk hingga pulang pada setiap sesi, tanpa potongan istirahat."
           exportConfig={{
             enabled: true,
             onExcel: exportExcel,
@@ -462,20 +446,12 @@ export default function AttendanceSummaryReport() {
             loading={loading}
             error={references.error?.message || state.error?.message}
             onRetry={references.error ? references.retry : state.retry}
-            scrollX={1240}
+            scrollX={1275}
             rowOffset={cursors.length * pageSize}
             renderCard={renderCard}
             cardMediaQuery="(max-width:1279px)"
-            cardColumns={{ xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" }}
-            showCardRowNumber={false}
-            rowClassName={rowClassName}
-            mobileCardSx={{
-              borderRadius: 3,
-              "&.attendance-flagged": {
-                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.045),
-                borderInlineStart: (theme) => `3px solid ${theme.palette.primary.main}`,
-              },
-            }}
+            cardColumns="repeat(auto-fit, minmax(min(100%, 340px), 1fr))"
+            mobileCardSx={{ display: "flex", flexDirection: "column" }}
             emptyDescription="Belum ada rekap absensi pada filter ini."
           />
           {data ? (

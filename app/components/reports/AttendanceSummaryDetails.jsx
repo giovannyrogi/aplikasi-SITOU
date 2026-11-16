@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Divider } from "@mui/material";
+import { Box } from "@mui/material";
 import dayjs from "dayjs";
 import { Button, Skeleton } from "antd";
 import {
@@ -21,11 +21,11 @@ import FontStyle from "@/app/components/font-style/FontStyle";
 import PhotoAvatar from "@/app/components/data-display/PhotoAvatar";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
 import useDashboardData from "@/app/components/dashboard/useDashboardData";
-import { reportDate } from "./ReportEmployeeFields";
 import {
   attendanceClock,
   attendanceLocalDate,
   attendanceRowIndicators,
+  attendanceTime,
 } from "@/lib/reports/attendancePresentation.mjs";
 import AttendanceEventMap from "./AttendanceEventMap";
 const pairGrid = {
@@ -129,7 +129,7 @@ function AttendancePhoto({ url, title, event, recorded, canViewPhotos, onPreview
   );
 }
 
-function DetailSection({ title, description, Icon, tone, children }) {
+function DetailSection({ title, Icon, tone, children }) {
   return (
     <Box
       component="section"
@@ -156,7 +156,9 @@ function DetailSection({ title, description, Icon, tone, children }) {
           color: tone ? theme.palette[tone].dark : theme.palette.text.primary,
           background: tone
             ? `linear-gradient(120deg, ${alpha(theme.palette[tone].main, 0.095)}, ${alpha(theme.palette[tone].main, 0.032)})`
-            : undefined,
+            : `linear-gradient(120deg, ${theme.ui.panelSubtleBg}, ${theme.palette.background.paper})`,
+          borderBottom: tone ? undefined : "1px solid",
+          borderColor: "divider",
         })}
       >
         <Box
@@ -174,35 +176,36 @@ function DetailSection({ title, description, Icon, tone, children }) {
         >
           <Icon aria-hidden />
         </Box>
-        <Box>
-          <FontStyle component="h3" fontSize={15} fontWeight={700}>
-            {title}
-          </FontStyle>
-          {description && (
-            <FontStyle component="div" fontSize={11.5} color="text.secondary">
-              {description}
-            </FontStyle>
-          )}
-        </Box>
+        <FontStyle component="h3" fontSize={15} fontWeight={700}>
+          {title}
+        </FontStyle>
       </Box>
-      <Box sx={{ display: "grid", gap: 1.25, minWidth: 0, p: 1.25, pt: tone ? 1.75 : 0 }}>
-        {children}
-      </Box>
+      <Box sx={{ display: "grid", gap: 1.5, minWidth: 0, p: 1.25, pt: 1.75 }}>{children}</Box>
     </Box>
   );
 }
 
-function DateTimeline({ days, renderEntries }) {
+const timelineSurface = (theme, tone) => ({
+  border: 1,
+  borderColor: alpha(theme.palette[tone].main, 0.18),
+  borderRadius: 2,
+  background: `linear-gradient(160deg, ${theme.palette.background.paper}, ${alpha(theme.palette[tone].main, 0.055)})`,
+  boxShadow: `inset 0 2px 5px ${alpha(theme.palette[tone].main, 0.075)}`,
+});
+
+const timelineBand = (theme, tone) => ({
+  py: 0.75,
+  color: theme.palette[tone].dark,
+  background: `linear-gradient(155deg, ${alpha(theme.palette[tone].main, 0.16)}, ${alpha(theme.palette[tone].main, 0.065)})`,
+});
+
+function DateTimeline({ days, renderEntries, tone }) {
   return (
     <Box
       sx={(theme) => ({
         display: "grid",
         gridTemplateColumns: `repeat(${days.size === 2 ? 2 : 1}, minmax(0, 1fr))`,
-        border: 1,
-        borderColor: alpha(theme.palette.info.main, 0.13),
-        borderRadius: 2,
-        background: `linear-gradient(160deg, ${theme.palette.background.paper}, ${alpha(theme.palette.info.main, 0.055)})`,
-        boxShadow: `inset 0 2px 5px ${alpha(theme.palette.info.main, 0.075)}`,
+        ...timelineSurface(theme, tone),
       })}
     >
       {[...days].map(([date, entries], index) => (
@@ -215,7 +218,7 @@ function DateTimeline({ days, renderEntries }) {
                 ...(days.size === 2
                   ? { insetBlock: 0, insetInlineStart: 0, borderInlineStart: "1px dashed" }
                   : { insetInline: 0, top: 0, borderTop: "1px dashed" }),
-                borderColor: alpha(theme.palette.info.dark, 0.45),
+                borderColor: alpha(theme.palette[tone].dark, 0.45),
               })}
             >
               <Box
@@ -227,7 +230,7 @@ function DateTimeline({ days, renderEntries }) {
                   transform: "translate(-50%, -50%)",
                   px: 0.75,
                   borderRadius: 8,
-                  bgcolor: "info.dark",
+                  bgcolor: tone + ".dark",
                   color: "common.white",
                   boxShadow: 1,
                   fontSize: 10,
@@ -241,15 +244,13 @@ function DateTimeline({ days, renderEntries }) {
           )}
           <Box
             sx={(theme) => ({
-              py: 0.75,
+              ...timelineBand(theme, tone),
               px: 0.75,
-              color: theme.palette.info.dark,
-              background: `linear-gradient(155deg, ${alpha(theme.palette.info.main, 0.18)}, ${alpha(theme.palette.info.main, 0.08)})`,
               borderStartStartRadius: index === 0 ? 7 : 0,
               borderStartEndRadius: days.size === 1 || (days.size === 2 && index === 1) ? 7 : 0,
             })}
           >
-            <FontStyle component="h4" align="center" fontSize={12} fontWeight={700}>
+            <FontStyle component="h4" align="center" fontSize={15} fontWeight={700}>
               {dayjs(date).format("D MMM")}
             </FontStyle>
           </Box>
@@ -271,7 +272,7 @@ function DateTimeline({ days, renderEntries }) {
   );
 }
 
-function ScheduleTimeline({ row, timezone }) {
+function ScheduleTimeline({ row, timezone, tone }) {
   if (!row.schedule.length) {
     if (row.holiday_name || ["holiday", "off"].includes(row.attendance_status)) return null;
     return (
@@ -284,17 +285,25 @@ function ScheduleTimeline({ row, timezone }) {
   for (const { starts_at, ends_at } of row.schedule) {
     const start = attendanceLocalDate(starts_at, timezone);
     const end = attendanceLocalDate(ends_at, timezone);
+    const startTime = attendanceClock(starts_at, timezone);
+    const endTime = attendanceClock(ends_at, timezone);
     if (!days.has(start)) days.set(start, []);
     if (!days.has(end)) days.set(end, []);
-    days.get(end).push({ starts_at, ends_at, start, end });
+    if (start === end) {
+      days.get(start).push({ time: `${startTime}–${endTime}` });
+    } else {
+      days.get(start).push({ time: startTime, label: "Mulai" });
+      days.get(end).push({ time: endTime, label: "Selesai" });
+    }
   }
   return (
     <DateTimeline
+      tone={tone}
       days={new Map([...days].sort(([a], [b]) => a.localeCompare(b)))}
       renderEntries={(entries) =>
-        entries.map(({ starts_at, ends_at, start, end }, index) => (
+        entries.map(({ time, label }, index) => (
           <Box
-            key={`${starts_at}-${ends_at}-${index}`}
+            key={`${time}-${index}`}
             sx={(theme) => ({
               display: "grid",
               gap: 0.25,
@@ -305,28 +314,26 @@ function ScheduleTimeline({ row, timezone }) {
               minWidth: 0,
               maxWidth: "100%",
               border: 1,
-              borderColor: alpha(theme.palette.info.main, 0.17),
+              borderColor: alpha(theme.palette[tone].main, 0.17),
               borderRadius: 2,
-              background: `linear-gradient(160deg, ${theme.palette.background.paper}, ${alpha(theme.palette.info.main, 0.07)})`,
-              boxShadow: `0 2px 3px ${alpha(theme.palette.info.dark, 0.14)}, inset 0 1px ${theme.palette.background.paper}`,
-              color: "info.dark",
+              background: `linear-gradient(160deg, ${theme.palette.background.paper}, ${alpha(theme.palette[tone].main, 0.07)})`,
+              boxShadow: `0 2px 3px ${alpha(theme.palette[tone].dark, 0.14)}, inset 0 1px ${theme.palette.background.paper}`,
+              color: tone + ".dark",
             })}
           >
-            <FontStyle component="span" fontSize={12} fontWeight={700}>
-              <Box
-                component="span"
-                aria-hidden
-                sx={{ display: { xs: "none", sm: "inline" }, mr: 0.75 }}
-              >
-                <CalendarOutlined />
-              </Box>
-              {attendanceClock(starts_at, timezone)}–{attendanceClock(ends_at, timezone)}
-            </FontStyle>
-            {start !== end && (
-              <FontStyle component="span" fontSize={10}>
-                Mulai {dayjs(start).format("D MMM")}
+            {label && (
+              <FontStyle component="span" fontSize={12}>
+                {label}
               </FontStyle>
             )}
+            <FontStyle
+              component="span"
+              fontSize={14}
+              fontWeight={700}
+              sx={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              {time}
+            </FontStyle>
           </Box>
         ))
       }
@@ -390,10 +397,7 @@ function RecordedTimeline({ events, timezone, workDate }) {
   const days = new Set(entries.length ? entries.map(({ date }) => date) : [workDate]);
   const incoming = entries.filter(({ type }) => type === "check_in");
   const outgoing = entries.filter(({ type }) => type === "check_out");
-  const dateBand = (theme) => ({
-    py: 0.75,
-    background: `linear-gradient(155deg, ${alpha(theme.palette.info.main, 0.18)}, ${alpha(theme.palette.info.main, 0.08)})`,
-  });
+  const dateBand = (theme) => timelineBand(theme, "primary");
   const midnight =
     days.size === 2 &&
     incoming.length &&
@@ -402,15 +406,7 @@ function RecordedTimeline({ events, timezone, workDate }) {
     outgoing.every(({ date }) => date === outgoing[0].date) &&
     incoming[0].date < outgoing[0].date;
   return (
-    <Box
-      sx={(theme) => ({
-        border: 1,
-        borderColor: alpha(theme.palette.info.main, 0.15),
-        borderRadius: 2,
-        bgcolor: theme.ui.panelSubtleBg,
-        boxShadow: `inset 0 2px 5px ${alpha(theme.palette.info.main, 0.075)}`,
-      })}
-    >
+    <Box sx={(theme) => timelineSurface(theme, "primary")}>
       {days.size === 1 && (
         <Box
           sx={(theme) => ({
@@ -419,7 +415,7 @@ function RecordedTimeline({ events, timezone, workDate }) {
             borderStartEndRadius: 7,
           })}
         >
-          <FontStyle component="h4" align="center" fontSize={12} color="info.dark" fontWeight={700}>
+          <FontStyle component="h4" align="center" fontSize={15} fontWeight={700}>
             {dayjs(days.values().next().value).format("D MMM")}
           </FontStyle>
         </Box>
@@ -442,7 +438,7 @@ function RecordedTimeline({ events, timezone, workDate }) {
               transform: "translate(-50%, -50%)",
               px: 0.75,
               borderRadius: 8,
-              bgcolor: "info.dark",
+              bgcolor: "primary.dark",
               color: "common.white",
               boxShadow: 1,
               fontSize: 10,
@@ -461,8 +457,13 @@ function RecordedTimeline({ events, timezone, workDate }) {
             component="section"
             aria-label={`Jam absen ${label.toLowerCase()}`}
             sx={{
+              display: "flex",
+              flexDirection: "column",
               minWidth: 0,
-              ...(index === 1 && { borderInlineStart: "1px dashed", borderColor: "info.light" }),
+              ...(index === 1 && {
+                borderInlineStart: "1px dashed",
+                borderColor: (theme) => alpha(theme.palette.primary.main, 0.32),
+              }),
             }}
           >
             {days.size > 1 && (
@@ -472,20 +473,24 @@ function RecordedTimeline({ events, timezone, workDate }) {
                   ...(index === 0 ? { borderStartStartRadius: 7 } : { borderStartEndRadius: 7 }),
                 })}
               >
-                <FontStyle
-                  component="h4"
-                  fontSize={12}
-                  fontWeight={700}
-                  align="center"
-                  color="info.dark"
-                >
+                <FontStyle component="h4" fontSize={15} fontWeight={700} align="center">
                   {[...new Set(direction.map(({ date }) => dayjs(date).format("D MMM")))].join(
                     " · ",
                   ) || "—"}
                 </FontStyle>
               </Box>
             )}
-            <Box sx={{ display: "grid", justifyItems: "center", gap: 0.75, py: 1, px: 0.5 }}>
+            <Box
+              sx={{
+                display: "grid",
+                flex: 1,
+                alignContent: "center",
+                justifyItems: "center",
+                gap: 0.75,
+                py: 1.25,
+                px: 0.75,
+              }}
+            >
               {direction.length ? (
                 direction.map(({ key, date, time }) => (
                   <Box
@@ -495,23 +500,28 @@ function RecordedTimeline({ events, timezone, workDate }) {
                       flexWrap: "wrap",
                       alignItems: "center",
                       justifyContent: "center",
-                      gap: 0.5,
+                      minWidth: 0,
+                      maxWidth: "100%",
+                      textAlign: "center",
+                      columnGap: 0.75,
+                      rowGap: 0.5,
                     }}
                   >
                     {direction.some((entry) => entry.date !== date) && (
-                      <FontStyle component="div" fontSize={12} color="text.secondary">
+                      <FontStyle
+                        component="div"
+                        fontSize={12}
+                        color="text.secondary"
+                        sx={{ flexBasis: "100%" }}
+                      >
                         {dayjs(date).format("D MMM")}
                       </FontStyle>
                     )}
-                    <Box
-                      aria-hidden
-                      sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "primary.main" }}
-                    />
                     <FontStyle
                       component="span"
-                      fontSize={13}
+                      fontSize={{ xs: "1rem", sm: "1.0625rem", lg: "1.125rem" }}
                       fontWeight={700}
-                      sx={{ fontVariantNumeric: "tabular-nums" }}
+                      sx={{ lineHeight: 1.25, fontVariantNumeric: "tabular-nums" }}
                     >
                       {time}
                     </FontStyle>
@@ -526,7 +536,7 @@ function RecordedTimeline({ events, timezone, workDate }) {
                   align="center"
                   sx={{ display: "grid", placeItems: "center", minHeight: 24 }}
                 >
-                  Belum ada catatan
+                  Absen {label.toLowerCase()} belum tercatat
                 </FontStyle>
               )}
             </Box>
@@ -537,7 +547,7 @@ function RecordedTimeline({ events, timezone, workDate }) {
   );
 }
 
-function AttendanceNotes({ events }) {
+function AttendanceNotes({ events, timezone, workDate }) {
   const notes = events.filter((event) => event.attendance_note?.trim());
   if (!notes.length) return null;
   return (
@@ -546,10 +556,10 @@ function AttendanceNotes({ events }) {
       aria-label="Catatan Pegawai"
       sx={(theme) => ({
         display: "grid",
-        gap: 1.25,
+        gap: 1.5,
         minWidth: 0,
         mt: 0.5,
-        p: 1.25,
+        p: { xs: 1.5, sm: 2 },
         border: 1,
         borderColor: "divider",
         borderRadius: 2.5,
@@ -563,20 +573,37 @@ function AttendanceNotes({ events }) {
           Catatan Pegawai
         </FontStyle>
       </Box>
-      <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0 }}>
+      <Box component="ul" sx={{ display: "grid", gap: 1.5, listStyle: "none", m: 0, p: 0 }}>
         {notes.map((event) => (
           <Box
             component="li"
             key={event.event_date + "-" + event.id}
-            sx={{ minWidth: 0, py: 1, "& + &": { borderTop: 1, borderColor: "divider" } }}
+            sx={{ minWidth: 0, "& + &": { pt: 1.5, borderTop: 1, borderColor: "divider" } }}
           >
-            <FontStyle component="div" fontSize={12} color="text.secondary" fontWeight={650}>
-              {event.event_type === "check_in" ? "Absen masuk" : "Absen pulang"}
-            </FontStyle>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                flexWrap: "wrap",
+                columnGap: 1.5,
+                rowGap: 0.25,
+              }}
+            >
+              <FontStyle component="h5" fontSize={13} fontWeight={700}>
+                {event.event_type === "check_in" ? "Absen masuk" : "Absen pulang"}
+              </FontStyle>
+              <FontStyle component="span" fontSize={12} color="text.secondary">
+                {attendanceTime(
+                  event.occurred_at,
+                  event.organization_timezone_snapshot || timezone,
+                  workDate,
+                )}
+              </FontStyle>
+            </Box>
             <FontStyle
               component="p"
               fontSize={13}
-              sx={{ mt: 0.5, lineHeight: 1.6, overflowWrap: "anywhere" }}
+              sx={{ mt: 0.5, lineHeight: 1.6, overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}
             >
               {event.attendance_note}
             </FontStyle>
@@ -627,10 +654,11 @@ export default function AttendanceSummaryDetails({ row, organizationId, onClose 
         open={!preview}
         keepMounted
         title="Rincian absensi"
-        description="Lihat jadwal kerja, catatan, dan lokasi absensi Pegawai."
+        description="Lihat jadwal kerja dan bukti absen pegawai."
+        descriptionAlign="left"
         icon="navigation:work-schedules"
         onClose={onClose}
-        width={592}
+        width={720}
         contentSx={{ p: { xs: 1.25, sm: 2 }, pt: 1 }}
         footer={<Button onClick={onClose}>Tutup</Button>}
       >
@@ -640,108 +668,75 @@ export default function AttendanceSummaryDetails({ row, organizationId, onClose 
           <Box sx={{ display: "grid", gap: 1.75, minWidth: 0 }}>
             <Box
               component="section"
-              sx={{ display: "grid", minWidth: 0, gap: 1.25, px: { xs: 0.5, sm: 1 }, py: 0.5 }}
+              aria-label="Identitas Pegawai"
+              sx={(theme) => ({
+                minWidth: 0,
+                p: { xs: 1.5, sm: 2 },
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 3.25,
+                background: `linear-gradient(145deg, ${theme.palette.background.paper} 45%, ${theme.ui.panelSubtleBg})`,
+                boxShadow: `0 5px 14px ${alpha(theme.palette.text.primary, 0.06)}, inset 0 1px ${theme.palette.background.paper}`,
+              })}
             >
-              <Box
-                sx={{
-                  display: "grid",
-                  alignItems: "center",
-                  gap: 1.25,
-                  gridTemplateColumns: "minmax(0, 1fr)",
-                  "@media (min-width: 420px)": { gridTemplateColumns: "minmax(0, 1fr) auto auto" },
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
-                  <Box
-                    sx={(theme) => ({
-                      display: "grid",
-                      placeItems: "center",
-                      flexShrink: 0,
-                      width: 58,
-                      height: 58,
-                      borderRadius: 2.75,
-                      background: `linear-gradient(145deg, ${theme.palette.background.paper}, ${alpha(theme.palette.primary.main, 0.13)})`,
-                      boxShadow: `0 4px 8px ${alpha(theme.palette.primary.dark, 0.11)}, inset 0 1px ${theme.palette.background.paper}`,
-                    })}
-                  >
-                    <PhotoAvatar
-                      name={detail.full_name}
-                      photoUrl={profilePhoto}
-                      variant="rounded"
-                      fallbackIcon={<UserOutlined aria-hidden style={{ fontSize: 27 }} />}
-                      size={54}
-                      onPreview={({ imageUrl, title }) => setPreview({ url: imageUrl, title })}
-                      photoLabel="Foto Pegawai"
-                    />
-                  </Box>
-                  <Box sx={{ minWidth: 0 }}>
-                    <FontStyle
-                      component="h3"
-                      fontSize={16}
-                      fontWeight={700}
-                      sx={{ overflowWrap: "anywhere" }}
-                    >
-                      {detail.full_name}
-                    </FontStyle>
-                    <FontStyle color="text.secondary" fontSize={12}>
-                      {detail.employee_no ? `NIP ${detail.employee_no}` : "NIP belum tersedia"}
-                    </FontStyle>
-                    <FontStyle component="div" color="text.secondary" fontSize={12}>
-                      {[detail.organization_unit_name, detail.location_name]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </FontStyle>
-                  </Box>
-                </Box>
-                <Divider
-                  aria-hidden
-                  sx={{
-                    "@media (min-width: 420px)": {
-                      alignSelf: "stretch",
-                      borderBottom: 0,
-                      borderInlineStart: "1px solid",
-                      borderColor: "divider",
-                    },
-                  }}
-                />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
                 <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 1,
-                    flexWrap: "wrap",
-                    "@media (min-width: 420px)": {
-                      display: "grid",
-                      gap: 0.25,
-                    },
-                  }}
+                  sx={(theme) => ({
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                    width: 58,
+                    height: 58,
+                    borderRadius: 2.75,
+                    background: `linear-gradient(145deg, ${theme.palette.background.paper}, ${alpha(theme.palette.primary.main, 0.13)})`,
+                    boxShadow: `0 4px 8px ${alpha(theme.palette.primary.dark, 0.11)}, inset 0 1px ${theme.palette.background.paper}`,
+                  })}
                 >
-                  <FontStyle component="span" fontSize={12} color="text.secondary">
-                    Tanggal kerja
+                  <PhotoAvatar
+                    name={detail.full_name}
+                    photoUrl={profilePhoto}
+                    variant="rounded"
+                    fallbackIcon={<UserOutlined aria-hidden style={{ fontSize: 27 }} />}
+                    size={54}
+                    onPreview={({ imageUrl, title }) => setPreview({ url: imageUrl, title })}
+                    photoLabel="Foto Pegawai"
+                  />
+                </Box>
+                <Box sx={{ display: "grid", gap: 0.25, minWidth: 0 }}>
+                  <FontStyle
+                    component="h3"
+                    fontSize={{ xs: 16, sm: 19 }}
+                    fontWeight={700}
+                    sx={{ lineHeight: 1.25 }}
+                  >
+                    {detail.full_name}
                   </FontStyle>
-                  <FontStyle component="span" fontSize={14} fontWeight={700}>
-                    {reportDate(detail.work_date)}
+                  <FontStyle color="text.secondary" fontSize={12}>
+                    {detail.employee_no ? `NIP ${detail.employee_no}` : "NIP belum tersedia"}
+                  </FontStyle>
+                  <FontStyle component="div" color="text.secondary" fontSize={12}>
+                    {[detail.organization_unit_name, detail.location_name]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </FontStyle>
                 </Box>
               </Box>
             </Box>
             <DetailSection
               title="Jadwal kerja"
-              description={holidayName ? undefined : "Rencana waktu kerja pada tanggal tersebut."}
               Icon={CalendarOutlined}
               tone={holidayName ? "success" : "info"}
             >
               {holidayName && (
                 <HolidaySchedule name={holidayName} scheduled={Boolean(detail.schedule.length)} />
               )}
-              <ScheduleTimeline row={detail} timezone={data.timezone} />
+              <ScheduleTimeline
+                row={detail}
+                timezone={data.timezone}
+                tone={holidayName ? "success" : "info"}
+              />
             </DetailSection>
-            <DetailSection
-              title="Absensi tercatat"
-              description="Urutan absen masuk dan pulang."
-              Icon={ClockCircleOutlined}
-              tone="primary"
-            >
+            <DetailSection title="Absensi tercatat" Icon={ClockCircleOutlined} tone="primary">
               {!emptyHoliday && (
                 <RecordedTimeline
                   events={timelineEvents}
@@ -778,10 +773,14 @@ export default function AttendanceSummaryDetails({ row, organizationId, onClose 
                   })}
                 </Box>
               )}
-              <AttendanceNotes events={data.events} />
+              <AttendanceNotes
+                events={data.events}
+                timezone={data.timezone}
+                workDate={detail.work_date}
+              />
             </DetailSection>
             {(!emptyHoliday || attendanceRowIndicators(detail).length > 0) && (
-              <DetailSection title="Peta absensi" Icon={EnvironmentOutlined}>
+              <DetailSection title="Peta absensi" Icon={EnvironmentOutlined} tone="info">
                 <AttendanceEventMap
                   events={data.events}
                   provider={data.mapProvider}
@@ -790,7 +789,7 @@ export default function AttendanceSummaryDetails({ row, organizationId, onClose 
                   timezone={data.timezone}
                   allowed={data.canViewPhotos}
                   rowIndicators={attendanceRowIndicators(detail)}
-                  lateMinutes={detail.late_minutes}
+                  rowMetrics={detail}
                 />
               </DetailSection>
             )}

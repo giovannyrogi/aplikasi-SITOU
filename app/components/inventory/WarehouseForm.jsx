@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Select } from "antd";
-import { Box } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
@@ -35,7 +34,6 @@ export default function WarehouseForm({ open, item, organizationId, onClose, onS
     form.setFieldsValue(
       item
         ? {
-            code: item.code,
             name: item.name,
             locationId: item.location_id,
             notes: item.notes,
@@ -132,35 +130,13 @@ export default function WarehouseForm({ open, item, organizationId, onClose, onS
             if (errorFields[0]) form.scrollToField(errorFields[0].name, { focus: true });
           }}
         >
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" },
-              gap: 2,
-              minWidth: 0,
-            }}
+          <Form.Item
+            name="name"
+            label="Nama gudang"
+            rules={[{ required: true, whitespace: true, message: "Nama gudang wajib diisi." }]}
           >
-            <Form.Item
-              name="code"
-              label="Kode gudang"
-              rules={[
-                { required: true, message: "Kode gudang wajib diisi." },
-                {
-                  pattern: /^[A-Za-z0-9_-]+$/,
-                  message: "Gunakan huruf, angka, garis bawah atau tanda hubung.",
-                },
-              ]}
-            >
-              <Input maxLength={40} />
-            </Form.Item>
-            <Form.Item
-              name="name"
-              label="Nama gudang"
-              rules={[{ required: true, whitespace: true, message: "Nama gudang wajib diisi." }]}
-            >
-              <Input maxLength={100} />
-            </Form.Item>
-          </Box>
+            <Input maxLength={100} />
+          </Form.Item>
           <Form.Item
             name="locationId"
             label="Lokasi operasional"

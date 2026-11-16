@@ -33,7 +33,16 @@ const STATUS_CONFIG = {
 /**
  * Chip tunggal untuk metadata dan status agar warna, ikon, tinggi, dan baseline konsisten.
  */
-export default function CompactInfoChip({ label, status, tone, color, icon, wrap = false, sx }) {
+export default function CompactInfoChip({
+  label,
+  status,
+  tone,
+  color,
+  icon,
+  wrap = false,
+  component,
+  sx,
+}) {
   const theme = useTheme();
   const statusConfig = STATUS_CONFIG[status];
   const toneConfig = theme.status[tone || statusConfig?.tone];
@@ -44,6 +53,7 @@ export default function CompactInfoChip({ label, status, tone, color, icon, wrap
 
   return (
     <Chip
+      component={component}
       size="small"
       label={label || statusConfig?.label || "-"}
       title={typeof label === "string" ? label : statusConfig?.label}
