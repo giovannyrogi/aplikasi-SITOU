@@ -146,7 +146,7 @@ try {
       "employment_types",
       "inventory_categories",
       "inventory_warehouses",
-      "employee_import_legacy_master_refs",
+
       "disciplinary_action_types",
       "disciplinary_actions",
       "mobile_auth_sessions",

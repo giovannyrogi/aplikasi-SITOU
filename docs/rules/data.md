@@ -215,7 +215,7 @@ Pesan penolakan tidak membocorkan SQL atau data internal. Akun, profil, penempat
 
 API master jenis unit menggunakan `GET/POST /api/organization-unit-types`, `GET/PATCH/DELETE /api/organization-unit-types/:id`, dan `GET /api/organization-unit-types/options`. Endpoint `DELETE` hanya menonaktifkan. Form Divisi & Unit mengirim `unitTypeId` dan backend selalu memvalidasi jenis aktif serta organisasi pemiliknya.
 
-Jenis Unit Organisasi, Divisi & Unit, Jabatan, dan Jenis Kepegawaian memakai nama sebagai identitas yang ditampilkan dan ID sebagai referensi. Keempat tabel master tidak memiliki kolom kode. Pilihan template impor Pegawai memakai nama dengan penanda ID agar nama yang sama dapat dibedakan. Template lama membaca pemetaan kode ke ID dalam organisasi yang sama. Nilai lama yang ambigu harus diganti dengan pilihan dari template terbaru.
+Jenis Unit Organisasi, Divisi & Unit, Jabatan, dan Jenis Kepegawaian memakai nama sebagai identitas yang ditampilkan dan ID sebagai referensi. Keempat tabel master tidak memiliki kolom kode. Pilihan template impor Pegawai memakai nama dengan penanda ID agar nama yang sama dapat dibedakan. Impor wajib memakai template versi 4 dengan pilihan berbasis ID. Tidak ada tabel pemetaan atau pembacaan kode master lama.
 
 ### User, Role, Permission
 

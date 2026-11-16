@@ -619,20 +619,6 @@ CREATE TABLE employment_types (
 );
 COMMENT ON TABLE employment_types IS 'Jenis hubungan kerja dibuat per organisasi agar fleksibel.';
 
-CREATE TABLE employee_import_legacy_master_refs (
-  organization_id bigint NOT NULL REFERENCES organizations(id),
-  legacy_ref text NOT NULL,
-  organization_unit_id bigint,
-  position_id bigint,
-  employment_type_id bigint,
-  CHECK (num_nonnulls(organization_unit_id,position_id,employment_type_id)=1),
-  FOREIGN KEY (organization_id,organization_unit_id) REFERENCES organization_units(organization_id,id) ON DELETE CASCADE,
-  FOREIGN KEY (organization_id,position_id) REFERENCES positions(organization_id,id) ON DELETE CASCADE,
-  FOREIGN KEY (organization_id,employment_type_id) REFERENCES employment_types(organization_id,id) ON DELETE CASCADE
-);
-CREATE INDEX ix_employee_import_legacy_master_refs_org ON employee_import_legacy_master_refs(organization_id);
-COMMENT ON TABLE employee_import_legacy_master_refs IS 'Pemetaan nilai dari template impor Pegawai lama ke ID master dalam organisasi yang sama.';
-
 CREATE TABLE employment_contracts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID periode kontrak.
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.

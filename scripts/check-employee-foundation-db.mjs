@@ -16,7 +16,7 @@ const requiredRelations = [
   "organization_unit_types",
   "employee_import_batches",
   "employee_import_rows",
-  "employee_import_legacy_master_refs",
+
   "employee_onboarding_drafts",
   "platform_user_profiles",
   "leave_types",

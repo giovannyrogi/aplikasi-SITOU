@@ -1,6 +1,8 @@
 # Migration Database SITOU
 
-Migration `084` menghapus kolom `code` dari Jenis Unit Organisasi, Divisi & Unit, Jabatan, Jenis Kepegawaian, Kategori Barang, dan Gudang. Referensi impor Excel Pegawai lama disalin ke pemetaan ID per organisasi di transaksi yang sama. Backup lebih dulu, hentikan aplikasi versi lama saat migrasi, lalu jalankan versi API yang membaca skema baru. Item inventaris, penempatan, kontrak, histori stok, dan audit mempertahankan referensi yang sudah tersimpan.
+Migration `084` menghapus kolom `code` dari Jenis Unit Organisasi, Divisi & Unit, Jabatan, Jenis Kepegawaian, Kategori Barang, dan Gudang. Sesuai keputusan terbaru, file 084 disederhanakan menjadi penghapusan enam kolom saja. Impor memakai template versi 4 berbasis ID. Backup lebih dulu, hentikan aplikasi versi lama saat migrasi, lalu jalankan versi API yang membaca skema baru. Item inventaris, penempatan, kontrak, histori stok, dan audit mempertahankan referensi yang sudah tersimpan.
+
+Migration `085` membersihkan tabel pemetaan impor dari versi awal 084 pada database yang sudah menerapkannya. Pada database yang menggunakan 084 sederhana, 085 aman dijalankan tanpa perubahan tambahan. Jalankan file migrasi dengan transaksi, misalnya `psql --single-transaction --set=ON_ERROR_STOP=1 --file=database/migrations/NAMA_FILE.sql`.
 
 Migration `060` menambahkan sasaran jenis kelamin pada master cuti/izin. Semua aturan lama tetap berlaku untuk semua pegawai (`all`). Terapkan sebelum deploy API dan UI yang menyaring jenis cuti berdasarkan profil; migration ini tidak mengubah riwayat atau saldo.
 
