@@ -217,6 +217,27 @@ Header `X-SITOU-Attendance-Version: 4` mendukung pemeriksaan selfie. GET dan pre
 
 Jika pemeriksaan aktif, permintaan baru dari versi lama mendapat `APP_UPDATE_REQUIRED` (409). Saat nonaktif, alur versi lama tetap tersedia sesuai dukungan sesi masing-masing. Hanya Admin SITOU yang mengubah pengaturan melalui fitur organisasi. Penilaian visual berjalan di Flutter dan header versi adalah kontrak kompatibilitas aplikasi, bukan bukti integritas perangkat atau identitas Pegawai. Server tetap memvalidasi foto, sesi, dan lokasi seperti sebelumnya.
 
+### Riwayat dan koreksi absensi
+
+| Endpoint | Kontrak |
+| --- | --- |
+| GET `/api/mobile/attendance/history?month=YYYY-MM` | `data:{today,firstMonth,month,records}`. Bulan opsional, default bulan berjalan menurut zona organisasi. Record memakai tanggal kerja serta memuat waktu masuk/pulang, lokasi historis, penilaian waktu, dan kelayakan koreksi. |
+| GET `/api/mobile/attendance/corrections?cursor=…` | `data:{requests,nextCursor}`. Cursor opsional, maksimal 30 pengajuan per halaman. |
+| GET `/api/mobile/attendance/corrections/options?workDate=YYYY-MM-DD` | Tanggal opsional, default hari ini. `data:{today,firstDate,workDate,readOnly,sessions}`. Pilihan berisi `sessionKey,version,context,startsAt,endsAt,arrival,departure,firstDate,lastDate,endDate,available,pending,unavailableReason`. |
+| POST `/api/mobile/attendance/corrections` | JSON `{workDate,sessionKey,version,part,arrival,departure,reason,requestKey}`. `part`: `arrival`, `departure`, atau `both`; jam yang tidak diubah `null`, lainnya `{date,time}`. Tanggal ISO dan jam 24 jam `HH:mm`. UUID kiriman dipertahankan untuk retry. Kontrak lama `{workDate,eventDate,eventId,date,time,reason,requestKey}` tetap diterima. |
+
+Seluruh operasi memakai bearer, modul Absensi, dan hak self-service yang sama dengan endpoint absensi. Identitas organisasi dan Pegawai berasal dari sesi, bukan body/query. Riwayat mengelompokkan event valid berdasarkan snapshot hari/sesi atau nomor sesi tambahan; pasangan historis tanpa sesi tetap dikelompokkan per tanggal/jadwal harian, dengan event pertama sebagai kunci pengajuan. Pulang lintas tanggal tetap terkait tanggal kerja sesi. Nama titik dan penilaian yang belum tersedia pada event lama dibiarkan kosong. Record menyertakan `sessionKey` dan kelayakan koreksi.
+
+Record riwayat menyertakan `holidayName` dari bukti event atau snapshot hari kerja. Flutter menampilkan nama tersebut untuk absensi pada hari libur, memakai Libur mingguan jika tidak ada nama khusus. Rentang jam sesi tetap memakai `startsAt` dan `endsAt`.
+
+Koreksi tersedia setelah jam kerja berakhir, termasuk pada hari ini jika sudah selesai. Masuk kosong, pulang kosong, keduanya kosong, dan pasangan lengkap dapat diajukan. Pilihan untuk tanggal tanpa event memakai resolver jadwal yang sama, mendahulukan jadwal khusus dan snapshot terpakai; tidak membuat sesi tambahan atau jadwal baru. Jika tanpa jadwal dan tanpa event, daftar pilihan kosong dan Pegawai diarahkan menghubungi HRD. Beberapa sesi dipilih secara eksplisit. Jika kedua absen belum ada, kedua jam wajib diajukan. Usulan tanggal dibatasi tanggal kerja hingga tanggal selesai atau hari berikutnya; waktu tidak boleh di masa depan dan pulang harus setelah masuk. Alasan wajib maksimum 500 karakter. Akun hanya baca tidak dapat mengirim.
+
+Mutasi memeriksa ulang autentikasi, kelayakan dan versi dasar di bawah lock organisasi dan Pegawai, menyimpan snapshot aturan serta jam asli, dan mencatat audit. Satu pengajuan menunggu per tanggal/sesi. UUID dan hash payload memastikan retry mengembalikan hasil yang sama; UUID sama untuk isian berbeda ditolak. Versi berubah memerlukan pemuatan ulang. Pengajuan mengembalikan jam usulan `arrival/departure`, jam asli `originalArrival/originalDeparture`, `part`, status, alasan, dan catatan HRD bila ada. `date/time` checkout dipertahankan untuk klien lama, dapat null untuk koreksi masuk saja.
+
+Flutter baru mengirim header `X-SITOU-Corrections-Version: 2` pada API Riwayat/Pengajuan. Tanpa header ini, kelayakan pada riwayat tetap terbatas pada absen pulang kosong dan daftar pengajuan hanya memuat usulan yang memiliki jam pulang, sehingga klien lama tidak menerima isian waktu null. Header hanya menentukan bentuk kontrak dan tidak memberikan hak tambahan; seluruh validasi identitas, waktu dan sesi tetap berlaku.
+
+Terapkan migration 087 lalu 088 sebelum menjalankan backend baru dan mendistribusikan APK. Migration 088 memperluas tabel pengajuan existing; referensi event boleh kosong untuk kedua absen kosong. Pengajuan tersimpan tidak mengubah event maupun rekap. Persetujuan, penolakan, penerapan ke rekap, dan entri langsung HRD memerlukan alur dashboard tahap berikutnya.
+
 ### Absensi self-service mobile
 
 - Jadwal khusus dan sesi terjadwal selalu didahulukan. Setelah seluruh sesi tanggal kerja berakhir dan tidak ada sesi terbuka, klien absensi versi 3 dapat mencatat sesi tambahan terpisah. Alasan, GPS, titik berizin dan selfie tetap wajib. Pasangkan masuk/pulang dengan nomor sesi tambahan dan tandai untuk tinjauan. Simpan di luar jadwal terpisah dari terlambat, hari libur, dan lembur disetujui. Lihat docs/mobile-api.md.

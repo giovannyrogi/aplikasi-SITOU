@@ -169,7 +169,7 @@ export default function DistributionPanel({
       const url = URL.createObjectURL(await response.blob()),
         link = document.createElement("a");
       link.href = url;
-      link.download = `sitou-distribusi-${(data?.organization.code || String(organizationId)).replace(/[^a-zA-Z0-9_-]/g, "_")}-${resolved.from}-${resolved.to}.xlsx`;
+      link.download = `sitou-distribusi-${(data?.organization.id || String(organizationId)).replace(/[^a-zA-Z0-9_-]/g, "_")}-${resolved.from}-${resolved.to}.xlsx`;
       document.body.append(link);
       link.click();
       link.remove();

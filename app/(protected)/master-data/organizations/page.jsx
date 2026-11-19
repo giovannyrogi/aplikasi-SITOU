@@ -125,12 +125,6 @@ export default function OrganizationsPage() {
   );
   const columns = [
     {
-      title: "Kode",
-      dataIndex: "code",
-      width: 90,
-      render: (value) => <CompactInfoChip wrap label={value} tone="neutral" />,
-    },
-    {
       title: "Nama organisasi",
       dataIndex: "name",
       width: 230,
@@ -176,9 +170,7 @@ export default function OrganizationsPage() {
         {item.name}
       </FontStyle>
       <ReportCardFields
-        stacked
         fields={[
-          ["Kode", <CompactInfoChip wrap key="code" label={item.code} tone="neutral" />],
           ["Lokasi aktif", item.location_count],
           ["Akun HRD", item.admin_count],
           ["Akses berakhir", accessEnd(item) ? fmt(accessEnd(item)) : "Belum diatur"],
@@ -189,7 +181,7 @@ export default function OrganizationsPage() {
           ]),
         ]}
       />
-      <Box sx={{ mt: 2 }}>
+      <Box sx={{ mt: 2, pt: 1.5, borderTop: 1, borderColor: "divider" }}>
         <RowActionMenu
           items={actions(item)}
           triggerLabel={"Aksi untuk " + item.name}
@@ -218,7 +210,7 @@ export default function OrganizationsPage() {
         title="Filter organisasi"
         description="Cari dan saring daftar organisasi sesuai kebutuhan."
         searchLabel="Cari organisasi"
-        searchPlaceholder="Nama atau kode organisasi"
+        searchPlaceholder="Nama organisasi"
         statusLabel="Status organisasi"
         search={list.search}
         onSearchChange={list.setSearch}
@@ -231,7 +223,9 @@ export default function OrganizationsPage() {
         description="Lihat lokasi aktif, akun HRD, masa akses, serta status Inventaris dan Absensi setiap organisasi."
       >
         <ResponsiveDataView
-          scrollX={1210}
+          scrollX={1120}
+          cardMediaQuery="(max-width:1199px)"
+          cardColumns="repeat(auto-fit, minmax(min(100%, 310px), 1fr))"
           data={list.data}
           columns={columns}
           loading={list.loading}

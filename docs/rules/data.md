@@ -27,6 +27,8 @@ Bagian terkait
 
 - `attendance_daily_summaries` adalah hasil olahan dan boleh dihitung ulang.
 
+- `attendance_correction_requests` menyimpan pengajuan masuk, pulang atau keduanya beserta snapshot jadwal/jam asli, versi dasar, hash kiriman, dan alasan. Gunakan tabel existing ini untuk siklus pengajuan; jangan membuat event palsu jika kedua absen belum ada. Referensi `(event_date,id)` opsional, tetapi harus berpasangan dan diverifikasi kepemilikan organisasi/Pegawai/sesinya. Satu pengajuan menunggu per tanggal/sesi. Persetujuan kelak wajib memeriksa ulang snapshot dan tidak menimpa bukti mentah. Lihat [kontrak koreksi mobile](../mobile-api.md#riwayat-dan-koreksi-absensi).
+
 - Lokasi/divisi/jabatan aktif berasal dari `employee_assignments`, bukan kolom duplikat pada `employees`.
 
 - Riwayat kontrak dan penempatan tidak boleh ditimpa atau dihapus fisik. Salah input kontrak dikoreksi melalui aksi edit yang diaudit atau dibatalkan secara logis dengan alasan; dokumen setiap record histori tetap dapat dilihat melalui file ID berizin. Tampilan histori lifecycle wajib menampilkan pelaku dan waktu pencatatan, koreksi terakhir, serta pembatalan dari kolom domain atau `audit_logs`; data audit tidak boleh disimpulkan dari actor yang sedang login.
@@ -216,6 +218,8 @@ Pesan penolakan tidak membocorkan SQL atau data internal. Akun, profil, penempat
 API master jenis unit menggunakan `GET/POST /api/organization-unit-types`, `GET/PATCH/DELETE /api/organization-unit-types/:id`, dan `GET /api/organization-unit-types/options`. Endpoint `DELETE` hanya menonaktifkan. Form Divisi & Unit mengirim `unitTypeId` dan backend selalu memvalidasi jenis aktif serta organisasi pemiliknya.
 
 Jenis Unit Organisasi, Divisi & Unit, Jabatan, dan Jenis Kepegawaian memakai nama sebagai identitas yang ditampilkan dan ID sebagai referensi. Keempat tabel master tidak memiliki kolom kode. Pilihan template impor Pegawai memakai nama dengan penanda ID agar nama yang sama dapat dibedakan. Impor wajib memakai template versi 4 dengan pilihan berbasis ID. Tidak ada tabel pemetaan atau pembacaan kode master lama.
+
+Organisasi memakai nama untuk tampilan dan ID untuk relasi serta nama file ekspor. Kolom kode organisasi dihapus melalui migration 086. Masa akses baru dimulai paling cepat hari ini menurut zona waktu organisasi. Akhir masa tenggang opsional harus sesudah akhir akses. Riwayat periode yang telah tersimpan tetap dapat dibaca.
 
 ### User, Role, Permission
 

@@ -1,5 +1,11 @@
 # Migration Database SITOU
 
+Migration `088` memperluas tabel pengajuan koreksi existing untuk masuk, pulang atau keduanya, termasuk tanpa event. Snapshot dasar, hash payload, dan kunci sesi melindungi histori, perubahan paralel dan retry. Jalankan setelah `087` melalui runner sebelum API/Flutter baru. Migration tidak mengubah event atau rekap. [Kontrak koreksi mobile](../../docs/mobile-api.md#riwayat-dan-koreksi-absensi).
+
+Migration `087` menambah `attendance_correction_requests` untuk permohonan koreksi absen pulang. Gunakan runner migration pada database existing sebelum merilis API dan Flutter. Migration tidak menyalin atau mengubah event maupun rekap.
+
+Migration `086` menghapus kolom `organizations.code`. Terapkan bersama aplikasi yang memakai ID organisasi pada ekspor inventaris. Backup database sebelum migrasi dan jalankan dalam satu transaksi.
+
 Migration `084` menghapus kolom `code` dari Jenis Unit Organisasi, Divisi & Unit, Jabatan, Jenis Kepegawaian, Kategori Barang, dan Gudang. Sesuai keputusan terbaru, file 084 disederhanakan menjadi penghapusan enam kolom saja. Impor memakai template versi 4 berbasis ID. Backup lebih dulu, hentikan aplikasi versi lama saat migrasi, lalu jalankan versi API yang membaca skema baru. Item inventaris, penempatan, kontrak, histori stok, dan audit mempertahankan referensi yang sudah tersimpan.
 
 Migration `085` membersihkan tabel pemetaan impor dari versi awal 084 pada database yang sudah menerapkannya. Pada database yang menggunakan 084 sederhana, 085 aman dijalankan tanpa perubahan tambahan. Jalankan file migrasi dengan transaksi, misalnya `psql --single-transaction --set=ON_ERROR_STOP=1 --file=database/migrations/NAMA_FILE.sql`.

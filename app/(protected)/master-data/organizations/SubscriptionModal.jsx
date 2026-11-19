@@ -6,6 +6,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, DatePicker, Form, Input, Space } from "antd";
 import Table from "@/app/components/data-display/NumberedTable";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import ResponsiveRangePicker from "@/app/components/forms/ResponsiveRangePicker";
+dayjs.extend(utc);
+dayjs.extend(timezone);
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import CompactInfoChip from "@/app/components/chips/CompactInfoChip";
@@ -23,6 +28,12 @@ const fmt = (value) =>
 export default function SubscriptionModal({ open, organization, onClose, onChanged, onError }) {
   const theme = useTheme();
   const [form] = Form.useForm();
+  const accessRange = Form.useWatch("accessRange", form);
+  const today = dayjs(
+    dayjs()
+      .tz(organization?.timezone || "Asia/Makassar")
+      .format("YYYY-MM-DD"),
+  );
   const [actionForm] = Form.useForm();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -51,8 +62,7 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
     if (!open) return;
     form.resetFields();
     form.setFieldsValue({
-      startsOn: dayjs().add(1, "day"),
-      endsOn: dayjs().add(1, "year"),
+      accessRange: [dayjs().add(1, "day"), dayjs().add(1, "year")],
       graceEndsOn: null,
     });
     Promise.resolve().then(load);
@@ -66,8 +76,8 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Request-ID": requestId },
             body: JSON.stringify({
-              startsOn: values.startsOn.format("YYYY-MM-DD"),
-              endsOn: values.endsOn.format("YYYY-MM-DD"),
+              startsOn: values.accessRange[0].format("YYYY-MM-DD"),
+              endsOn: values.accessRange[1].format("YYYY-MM-DD"),
               graceEndsOn: values.graceEndsOn?.format("YYYY-MM-DD") || null,
               notes: values.notes || null,
             }),
@@ -77,7 +87,7 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
             if (body.fieldErrors)
               form.setFields(
                 Object.entries(body.fieldErrors).map(([name, error]) => ({
-                  name,
+                  name: ["startsOn", "endsOn"].includes(name) ? "accessRange" : name,
                   errors: [error],
                 })),
               );
@@ -142,13 +152,13 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
   );
   const columns = [
     { title: "Periode", render: (_, item) => `${fmt(item.starts_on)} – ${fmt(item.ends_on)}` },
-    { title: "Tenggang", dataIndex: "grace_ends_on", render: fmt },
+    { title: "Akhir masa tenggang", dataIndex: "grace_ends_on", render: fmt },
     {
       title: "Status",
       dataIndex: "status",
       render: (status) => <CompactInfoChip status={status} />,
     },
-    { title: "Dibuat oleh", dataIndex: "created_by_name", render: (v) => v || "Migration" },
+    { title: "Dibuat oleh", dataIndex: "created_by_name", render: (v) => v || "Sistem" },
     { title: "Aksi", render: (_, item) => actions(item) },
   ];
   return (
@@ -166,18 +176,43 @@ export default function SubscriptionModal({ open, organization, onClose, onChang
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "repeat(3,1fr)" },
+              gridTemplateColumns: { xs: "1fr", lg: "minmax(0,1.4fr) minmax(0,1fr)" },
               gap: 2,
             }}
           >
-            <Form.Item name="startsOn" label="Mulai akses" rules={[{ required: true }]}>
-              <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+            <Form.Item
+              name="accessRange"
+              label="Rentang tanggal akses"
+              rules={[{ required: true, message: "Pilih tanggal mulai dan akhir akses." }]}
+            >
+              <ResponsiveRangePicker
+                formField
+                format="DD MMM YYYY"
+                minDate={today}
+                allowClear={false}
+                style={{ width: "100%" }}
+              />
             </Form.Item>
-            <Form.Item name="endsOn" label="Akhir akses" rules={[{ required: true }]}>
-              <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
-            </Form.Item>
-            <Form.Item name="graceEndsOn" label="Akhir tenggang">
-              <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+            <Form.Item
+              name="graceEndsOn"
+              label="Akhir masa tenggang (opsional)"
+              dependencies={["accessRange"]}
+              rules={[
+                {
+                  validator: (_, value) =>
+                    !value || (accessRange?.[1] && value.isAfter(accessRange[1], "day"))
+                      ? Promise.resolve()
+                      : Promise.reject(new Error("Pilih tanggal setelah akhir akses.")),
+                },
+              ]}
+            >
+              <DatePicker
+                defaultPickerValue={accessRange?.[1]?.add(1, "day")}
+                disabled={!accessRange?.[1]}
+                disabledDate={(date) => !accessRange?.[1] || !date.isAfter(accessRange[1], "day")}
+                style={{ width: "100%" }}
+                format="DD MMM YYYY"
+              />
             </Form.Item>
           </Box>
           <Form.Item name="notes" label="Catatan">

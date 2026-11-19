@@ -11,6 +11,7 @@ if (missingEnvironment.length) {
 }
 
 const requiredRelations = [
+  'attendance_correction_requests',
   "organization_retirement_policies",
   "organization_subscriptions",
   "organization_unit_types",
@@ -30,6 +31,11 @@ const requiredRelations = [
 ];
 
 const requiredColumns = [
+  ['attendance_correction_requests','session_key'],
+  ['attendance_correction_requests','requested_checkin_at'],
+  ['attendance_correction_requests','correction_part'],
+  ['attendance_correction_requests','basis_snapshot'],
+  ['attendance_correction_requests','payload_hash'],
   ["locations", "operational_from"],
   ["locations", "operational_until"],
   ["organization_units", "unit_type_id"],
@@ -67,6 +73,7 @@ const requiredColumns = [
 ];
 
 const forbiddenColumns = [
+  ["organizations", "code"],
   ["organization_unit_types", "code"],
   ["organization_units", "code"],
   ["positions", "code"],

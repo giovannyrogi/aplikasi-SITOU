@@ -64,7 +64,7 @@ export async function GET(request) {
       });
     if (!exportAll) return successResponse(result);
     const code =
-      result.organization.code.replace(/[^a-zA-Z0-9_-]/g, "_") || String(params.organizationId);
+      result.organization.id.replace(/[^a-zA-Z0-9_-]/g, "_") || String(params.organizationId);
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

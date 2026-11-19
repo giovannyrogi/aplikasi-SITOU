@@ -32,7 +32,6 @@ $$;
 CREATE TABLE organizations (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- ID internal organisasi.
   parent_id bigint REFERENCES organizations(id), -- Induk organisasi bila berbentuk grup/holding.
-  code varchar(30) NOT NULL UNIQUE, -- Kode organisasi stabil untuk integrasi dan URL internal.
   name varchar(200) NOT NULL, -- Nama tampilan organisasi.
   legal_name varchar(250), -- Nama badan hukum lengkap.
   organization_type varchar(30) NOT NULL DEFAULT 'company' CHECK (organization_type IN ('holding','company','agency')), -- Jenis organisasi.
@@ -3109,3 +3108,74 @@ ALTER TABLE attendance_events
   );
 COMMENT ON COLUMN attendance_events.work_context IS 'scheduled uses a planned shift. holiday_work and outside_schedule record actual work without approving overtime.';
 COMMENT ON COLUMN attendance_events.outside_schedule_session_no IS 'Stable additional attendance pair number within the work date; reserved range 17-32.';
+
+CREATE TABLE attendance_correction_requests (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  employee_id bigint NOT NULL,
+  source_event_date date NOT NULL,
+  source_event_id bigint NOT NULL,
+  work_date date NOT NULL,
+  requested_checkout_at timestamptz NOT NULL,
+  timezone varchar(50) NOT NULL,
+  reason text NOT NULL CHECK (char_length(btrim(reason)) BETWEEN 1 AND 500),
+  request_key uuid NOT NULL,
+  requested_by_user_id bigint NOT NULL REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  status varchar(12) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  reviewed_by_user_id bigint REFERENCES users(id),
+  reviewed_at timestamptz,
+  review_note text,
+  FOREIGN KEY (organization_id,employee_id) REFERENCES employees(organization_id,id),
+  FOREIGN KEY (source_event_date,source_event_id) REFERENCES attendance_events(event_date,id),
+  UNIQUE (organization_id,id),
+  UNIQUE (organization_id,employee_id,request_key),
+  CHECK ((status='pending') = (reviewed_by_user_id IS NULL AND reviewed_at IS NULL)),
+  CHECK (status='pending' OR (reviewed_by_user_id IS NOT NULL AND reviewed_at IS NOT NULL)),
+  CHECK (status<>'rejected' OR nullif(btrim(review_note),'') IS NOT NULL)
+);
+CREATE UNIQUE INDEX uq_attendance_open_correction
+  ON attendance_correction_requests(organization_id,employee_id,source_event_date,source_event_id)
+  WHERE status IN ('pending','approved');
+CREATE INDEX ix_attendance_correction_employee
+  ON attendance_correction_requests(organization_id,employee_id,id DESC);
+
+COMMENT ON TABLE attendance_correction_requests IS
+  'Pengajuan koreksi absen pulang terkait event masuk asli; pengajuan tidak mengubah event atau rekap sebelum keputusan.';
+-- Expand the existing request lifecycle; raw attendance evidence remains immutable.
+ALTER TABLE attendance_correction_requests
+  ALTER COLUMN source_event_date DROP NOT NULL,
+  ALTER COLUMN source_event_id DROP NOT NULL,
+  ALTER COLUMN requested_checkout_at DROP NOT NULL,
+  ADD COLUMN requested_checkin_at timestamptz,
+  ADD COLUMN correction_part varchar(12) NOT NULL DEFAULT 'departure',
+  ADD COLUMN session_key varchar(120),
+  ADD COLUMN basis_snapshot jsonb NOT NULL DEFAULT '{}',
+  ADD COLUMN payload_hash varchar(64);
+
+UPDATE attendance_correction_requests q SET session_key = CASE
+  WHEN a.schedule_session_id IS NOT NULL THEN 'scheduled:' || s.session_no
+  WHEN a.work_context = 'outside_schedule' THEN 'outside:' || a.outside_schedule_session_no
+  WHEN a.work_context = 'holiday_work' THEN 'holiday'
+  ELSE 'legacy:' || a.event_date || ':' || a.id END
+FROM attendance_events a
+LEFT JOIN work_schedule_sessions s ON (s.organization_id,s.employee_id,s.id) =
+  (a.organization_id,a.employee_id,a.schedule_session_id)
+WHERE (q.source_event_date,q.source_event_id)=(a.event_date,a.id);
+
+ALTER TABLE attendance_correction_requests
+  ALTER COLUMN session_key SET NOT NULL,
+  ADD CONSTRAINT ck_correction_source_pair CHECK ((source_event_date IS NULL) = (source_event_id IS NULL)),
+  ADD CONSTRAINT ck_correction_parts CHECK (
+    (correction_part='arrival' AND requested_checkin_at IS NOT NULL AND requested_checkout_at IS NULL) OR
+    (correction_part='departure' AND requested_checkin_at IS NULL AND requested_checkout_at IS NOT NULL) OR
+    (correction_part='both' AND requested_checkin_at IS NOT NULL AND requested_checkout_at > requested_checkin_at)
+  );
+DROP INDEX uq_attendance_open_correction;
+CREATE UNIQUE INDEX uq_attendance_open_correction
+  ON attendance_correction_requests(organization_id,employee_id,work_date,session_key)
+  WHERE status='pending';
+COMMENT ON COLUMN attendance_correction_requests.basis_snapshot IS
+  'Jadwal dan jam asli saat pengajuan; tidak menggantikan event mentah. Dasar pemeriksaan perubahan sebelum keputusan HRD.';
+COMMENT ON TABLE attendance_correction_requests IS
+  'Pengajuan koreksi masuk, pulang, atau keduanya untuk satu tanggal kerja dan sesi; tidak mengubah event/rekap sebelum keputusan HRD.';

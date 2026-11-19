@@ -1,5 +1,23 @@
 # Catatan perubahan SITOU
 
+## 2026-11-18 — Pengajuan koreksi seluruh bagian absensi
+
+- `mobile-correction-options.js` memakai resolver jadwal existing, termasuk jadwal khusus dan snapshot terpakai, untuk memilih tanggal/sesi tanpa membuat event atau jadwal palsu. Endpoint GET `/api/mobile/attendance/corrections/options` menyajikan jam asli, batas tanggal, versi dasar, dan kelayakan. `mobile-history*.js/mjs` menerima koreksi masuk, pulang atau keduanya setelah jam kerja berakhir, termasuk kedua absen kosong, serta menyimpan snapshot dasar/alasan/audit dalam transaksi ber-lock. UUID/hash mencegah pengiriman ganda dan versi menolak basis yang berubah. Kontrak versi 2 melindungi klien lama; pasangan event historis tanpa sesi tetap digabung.
+- Migration `088` memperluas `attendance_correction_requests` existing tanpa tabel baru: referensi event opsional berpasangan, usulan jam masuk, bagian koreksi, kunci sesi, snapshot dasar dan hash payload; satu pengajuan menunggu per tanggal/sesi. Bootstrap, aturan/peta data di `docs/rules/data.md`, README migration, kontrak `docs/mobile-api.md`, dan pemeriksa foundation disinkronkan. Migration diterapkan ke PostgreSQL development lokal setelah pengujian.
+- QA PostgreSQL sintetis: upgrade berisi pengajuan lama dan bootstrap baru identik pada kolom, constraint dan index. API nyata melalui handler/auth/bearer diuji untuk tanpa sesi, isolasi Pegawai/organisasi, jadwal khusus tanpa event, masuk/pulang kosong, pasangan lengkap, shift malam, masa depan, manipulasi selector, alasan wajib, urutan jam, versi lama, request paralel, retry/payload berbeda, mode baca-saja, serta kompatibilitas klien lama. Tidak mengubah event asli atau rekap. Lint target dan build Next.js lulus; build awal sandbox gagal membuat junction Windows lalu lulus dengan akses build yang sesuai. Skrip/database sintetis dibersihkan setelah QA.
+- Cakupan tahap ini pengajuan mobile dan penyimpanannya. Persetujuan/penolakan, penerapan ke rekap, dan input langsung HRD di dashboard belum diimplementasikan. VPS tidak disentuh.
+
+## 2026-11-18 — Nama hari libur pada Riwayat Mobile
+
+- `lib/attendance-points/mobile-history-repository.js` membaca nama hari libur dari bukti event atau snapshot harian yang sudah tersedia. `mobile-history.js` menyertakan `holidayName` di record Riwayat. Kontrak di `docs/mobile-api.md` disinkronkan.
+- Lint file terkait dan query Riwayat baca-saja pada PostgreSQL development lokal lulus. Perubahan ini tidak memerlukan migration. Flutter memakai field opsional tersebut agar informasi libur sesuai alur absensi.
+
+## 2026-11-17 — API Riwayat dan Pengajuan Koreksi Mobile
+
+- Menambah route `app/api/mobile/attendance/history/route.js` dan `app/api/mobile/attendance/corrections/route.js`. Layanan, repository, dan aturan pasangan event di `lib/attendance-points/mobile-history*.{js,mjs}` memakai identitas Pegawai dari sesi dan catatan masuk/pulang dari tabel existing.
+- Menambah migration `20261117_087_attendance_correction_requests.sql` dan menyinkronkan `sitou_schema_v3.sql`, indeks migration, `docs/mobile-api.md`, serta `docs/rules/data.md`. Pengajuan absen pulang disimpan terpisah dengan status, alasan, dan audit. Event, rekap, dan antarmuka dashboard tidak diubah.
+- Lint target dan delapan regresi absensi/rekap lulus. Handler diuji pada PostgreSQL sintetis untuk bootstrap, upgrade dengan lima event existing, shift lintas bulan, isolasi Pegawai/organisasi, akun baca saja, validasi, transaksi paralel, dan audit. Database serta skrip QA dibersihkan. Migration diterapkan pada development loopback. Kedua route di port 3000 merespons 401 tanpa sesi. VPS tidak diubah.
+
 ## 2026-11-11 — Aturan pemeliharaan dokumentasi
 
 - AGENTS.md mewajibkan pencarian dan pembaruan dokumen pemilik sebelum membuat Markdown baru, serta mengatur rujukan agar ketentuan tidak diduplikasi. Tidak ada perubahan aplikasi.
