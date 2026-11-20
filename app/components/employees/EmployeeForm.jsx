@@ -40,6 +40,7 @@ import {
 
 const required = (message) => [{ required: true, message }];
 const dateValue = (value) => (value ? dayjs(value) : null);
+const ONBOARDING_STEPS = ["Profil", "Pendidikan", "Kontrak", "Penempatan", "Jadwal kerja"];
 const WIZARD_FILE_BACKDROP_MESSAGES = Object.freeze({
   upload: "Mengunggah dokumen pegawai...",
   remove: "Menghapus dokumen pegawai...",
@@ -78,6 +79,10 @@ const FIELD_LABELS = {
   "assignment.supervisorEmployeeId": "Atasan langsung",
   "assignment.effectiveFrom": "TMT jabatan/penempatan",
   "assignment.decreeNo": "Nomor dokumen penempatan",
+  "workSchedule.patternId": "Jadwal kerja",
+  "workSchedule.from": "Mulai berlaku",
+  "workSchedule.until": "Berakhir",
+  "workSchedule.anchorDate": "Tanggal hari pertama putaran",
 };
 
 /** Mengubah path dari API menjadi NamePath AntD dengan indeks array bertipe angka. */
@@ -92,7 +97,8 @@ function getStepFromFieldPath(name) {
   const key = normalizeFieldPath(name).join(".");
   if (key.startsWith("profile.educations")) return 1;
   if (key.startsWith("contract.")) return 2;
-  if (key.startsWith("assignment.") || key.startsWith("workSchedule.")) return 3;
+  if (key.startsWith("assignment.")) return 3;
+  if (key.startsWith("workSchedule.")) return 4;
   return 0;
 }
 
@@ -621,6 +627,11 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
         ["contract", "startDate"],
         ...(contractRequiresEndDate ? [["contract", "endDate"]] : []),
       ],
+      [
+        ["assignment", "locationId"],
+        ["assignment", "organizationUnitId"],
+        ["assignment", "effectiveFrom"],
+      ],
     ];
     try {
       await form.validateFields(fieldsByStep[step] || []);
@@ -853,7 +864,8 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
       <AppModal
         open={open}
         title={editing ? "Edit data pegawai" : "Tambah data pegawai"}
-        description="Lengkapi profil, pendidikan, kontrak, dokumen, dan penempatan dalam satu alur."
+        description="Lengkapi profil, pendidikan, kontrak, penempatan, dan jadwal kerja pegawai."
+        contentResetKey={step}
         size="xl"
         onClose={requestClose}
         disableClose={!editing && draftStatus === "loading"}
@@ -862,7 +874,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
             <Button onClick={step ? previousStep : requestClose}>
               {step ? "Kembali" : editing ? "Batal" : "Simpan draft & tutup"}
             </Button>
-            {!editing && step < 3 ? (
+            {!editing && step < ONBOARDING_STEPS.length - 1 ? (
               <Button
                 type="primary"
                 onClick={nextStep}
@@ -887,10 +899,8 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
             <Box
               sx={{
                 width: "100%",
-                maxWidth: { xs: 300, sm: "none" },
                 mx: "auto",
                 mb: 2,
-                px: { xs: 0.5, sm: 0 },
                 "& .ant-steps-item": { minWidth: 0 },
                 "& .ant-steps-item-container": { outline: "none" },
                 "& .ant-steps-item-title": {
@@ -904,14 +914,17 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 current={step}
                 size="small"
                 responsive={false}
-                titlePlacement={mobile ? "vertical" : "horizontal"}
-                items={[
-                  { title: "Profil" },
-                  { title: "Pendidikan" },
-                  { title: "Kontrak" },
-                  { title: "Penempatan" },
-                ]}
+                titlePlacement="horizontal"
+                aria-label={`Tahapan: ${ONBOARDING_STEPS.join(", ")}. Langkah saat ini: ${ONBOARDING_STEPS[step]}.`}
+                items={ONBOARDING_STEPS.map((title) => ({
+                  title: mobile ? null : title,
+                }))}
               />
+              {mobile && (
+                <FontStyle component="p" fontWeight={600} sx={{ mt: 1.5, mb: 0 }} aria-live="polite">
+                  Langkah {step + 1} dari {ONBOARDING_STEPS.length} · {ONBOARDING_STEPS[step]}
+                </FontStyle>
+              )}
             </Box>
             <Box
               sx={{
@@ -1479,9 +1492,11 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                       />
                     </Form.Item>
                   </Box>
+                </Box>
+                <Box sx={{ ...gridSx, display: step === 4 ? "grid" : "none" }}>
                   {hrisLevel(user, "work-schedules") === "manage" && (
                     <Box sx={{ gridColumn: "1 / -1" }}>
-                      <FontStyle fontWeight={700}>Jadwal kerja</FontStyle>
+                      <FontStyle fontWeight={700} sx={{ mb: 2 }}>Jadwal kerja</FontStyle>
                       <WorkScheduleFields organizationId={targetOrganizationId} optional />
                     </Box>
                   )}

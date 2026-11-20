@@ -7,6 +7,8 @@ Bagian terkait
 
 ## Sumber kebenaran data
 
+- Checkpoint `employee_onboarding_drafts.current_step` menerima 0–4 untuk lima langkah onboarding sampai Jadwal kerja. Migration 089 memperluas constraint tanpa mengubah payload, versi atau checkpoint draft lama.
+
 - Skema referensi: `sitou_schema_v3.sql`.
 
 - Baca [skema akhir](../../sitou_schema_v3.sql) untuk tabel, kolom, constraint, index, dan view yang berlaku. Baca [migration](../../database/migrations/README.md) untuk urutan upgrade dan tujuan perubahan. Gunakan bagian Aturan model data di bawah untuk ketentuan bisnis yang melengkapi SQL.

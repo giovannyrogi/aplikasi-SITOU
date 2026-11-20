@@ -498,6 +498,8 @@ Form membedakan Identitas kalender, Libur dari katalog, Libur organisasi dan Pen
 
 #### Ringkasan, pendidikan dan onboarding
 
+- Wizard Tambah data pegawai terdiri dari Profil, Pendidikan, Kontrak, Penempatan, dan Jadwal kerja. Pada mobile, indikator nomor memenuhi lebar konten dari kiri ke kanan, dengan nama langkah aktif dan progres tertulis di bawahnya agar label panjang tidak terpotong. Langkah Jadwal kerja memakai WorkScheduleFields dan pratinjau ScheduleSummary bersama; jadwal dapat diatur nanti sesuai izin. Perpindahan langkah mempertahankan isian, memvalidasi bagian aktif, dan menyimpan checkpoint draft server.
+
 - Tab Ringkasan detail pegawai memakai EmployeeSummary dengan identitas/foto, NIP dan nama panggilan sebagai fakta berlabel yang jelas. Kelompokkan penempatan, hubungan kerja, data pribadi, kontak/alamat, dokumen identitas, keluarga, kontak darurat dan akun sosial; grid satu kolom mobile, dua kolom tablet, serta panel berdampingan bila ruang desktop cukup. Gunakan InfoField/SummarySection/VisualIdentity bersama dari EmployeeDetailSections dan varian panel ProfileSection, tanpa membuat sumber data baru. Kontrak terakhir serta detail akhir hubungan kerja tetap tersedia bagi status final; dokumen memakai endpoint privat dan ImagePreviewModal, gambar dokumen tidak dipotong atau diregangkan.
 
 - Identitas pada Ringkasan tidak mengulang nama organisasi di bawah nama pegawai. Gradasi serta efek kedalaman memakai token employeeSummary terpusat dan tetap halus pada latar teks. TabSectionHeader mengelola divider bersama: jarak deskripsi ke divider 12px tanpa tombol, 24px dengan tombol; jangan memasang divider kedua di setiap tab. Jarak setelah divider tetap 24px agar konten dan aksi tidak berdesakan.

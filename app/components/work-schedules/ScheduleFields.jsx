@@ -253,12 +253,15 @@ export function WorkScheduleFields({
             />
           )}
           {pattern?.days && (
-            <ScheduleSummary
-              days={pattern.days.slice(0, 7)}
-              patternType={pattern.pattern_type}
-              holidayPolicy={pattern.holiday_policy}
-              calendarName={pattern.calendar_name}
-            />
+            <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
+              <FontStyle fontWeight={600}>Pratinjau jadwal</FontStyle>
+              <ScheduleSummary
+                days={pattern.days}
+                patternType={pattern.pattern_type}
+                holidayPolicy={pattern.holiday_policy}
+                calendarName={pattern.calendar_name}
+              />
+            </Box>
           )}
         </>
       )}

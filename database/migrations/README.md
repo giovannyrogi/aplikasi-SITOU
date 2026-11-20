@@ -1,5 +1,7 @@
 # Migration Database SITOU
 
+Migration `089` menerima checkpoint Jadwal kerja (`current_step=4`) pada draft onboarding Pegawai. Terapkan sebelum menjalankan wizard lima langkah. Payload dan checkpoint draft lama tetap dipertahankan. Jalankan melalui runner dalam transaksi seperti migration lainnya.
+
 Migration `088` memperluas tabel pengajuan koreksi existing untuk masuk, pulang atau keduanya, termasuk tanpa event. Snapshot dasar, hash payload, dan kunci sesi melindungi histori, perubahan paralel dan retry. Jalankan setelah `087` melalui runner sebelum API/Flutter baru. Migration tidak mengubah event atau rekap. [Kontrak koreksi mobile](../../docs/mobile-api.md#riwayat-dan-koreksi-absensi).
 
 Migration `087` menambah `attendance_correction_requests` untuk permohonan koreksi absen pulang. Gunakan runner migration pada database existing sebelum merilis API dan Flutter. Migration tidak menyalin atau mengubah event maupun rekap.

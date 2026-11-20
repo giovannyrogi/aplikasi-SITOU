@@ -654,7 +654,7 @@ CREATE TABLE employee_onboarding_drafts (
   organization_id bigint NOT NULL REFERENCES organizations(id), -- Batas organisasi.
   created_by_user_id bigint NOT NULL REFERENCES users(id), -- HRD/Superadmin pemilik draft.
   status varchar(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','finalizing','completed','discarded','expired')), -- Lifecycle draft.
-  current_step smallint NOT NULL DEFAULT 0 CONSTRAINT ck_employee_onboarding_draft_current_step CHECK (current_step BETWEEN 0 AND 3), -- Step wizard terakhir (Profil, Pendidikan, Kontrak, Penempatan).
+  current_step smallint NOT NULL DEFAULT 0 CONSTRAINT ck_employee_onboarding_draft_current_step CHECK (current_step BETWEEN 0 AND 4), -- Step wizard terakhir (Profil, Pendidikan, Kontrak, Penempatan, Jadwal kerja).
   payload jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(payload)='object'), -- Nilai form sementara privat.
   version integer NOT NULL DEFAULT 1 CHECK (version > 0), -- Optimistic concurrency penyimpanan draft.
   submitted_employee_id bigint, -- Pegawai hasil finalisasi untuk idempotensi.
