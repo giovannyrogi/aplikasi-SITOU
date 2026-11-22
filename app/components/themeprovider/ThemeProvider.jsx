@@ -98,6 +98,7 @@ export const appTheme = createTheme({
     error: { main: STATUS_TONES.danger.main },
     success: { main: STATUS_TONES.success.main },
     info: { main: STATUS_TONES.info.main },
+    attendanceMap: { main: ACTION_TONES.download.main, dark: ACTION_TONES.download.hover },
     warning: { main: STATUS_TONES.warning.main },
   },
   brand: BRAND_COLORS,

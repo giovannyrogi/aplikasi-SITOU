@@ -149,6 +149,8 @@ Kontrol berikut berlaku pada batas klien/API. Aturan khusus OS/perangkat dikelol
 
 ### Request bersamaan, replay dan manipulasi alur
 
+- Setelah use case membuka transaksi dan mengambil kunci, layanan turunannya wajib memakai client transaksi yang sama. Jangan membuka transaksi/koneksi kedua untuk mengubah baris yang sudah dikunci transaksi induk. Batasi waktu tunggu kunci untuk operasi interaktif; rollback dan lepas koneksi saat gagal. Untuk akun mobile, ikuti [kontrak transaksi akun](../mobile-api.md#profil-dan-keamanan-akun).
+
 - Mutation yang dapat diulang harus memiliki idempotency server yang terikat aktor/organisasi/operasi dan payload, dengan kebijakan konflik serta masa simpan yang jelas. Key sama dengan payload berbeda tidak boleh diterima diam-diam. Cegah duplikasi dengan transaksi/constraint/locking atau version check yang tepat, bukan tombol disabled saja.
 - Uji request paralel, retry setelah timeout ketika server mungkin sudah menyimpan, replay payload lama, urutan langkah dilewati dan perubahan data di tengah proses. Contoh relevan: dua absen identik, dua permintaan cuti yang saldonya bertabrakan dan pembatalan setelah status berubah.
 - Kejadian absensi memeriksa waktu, jadwal, titik, akurasi dan kepemilikan file di server. Foto kamera, EXIF, flag mock location atau jam perangkat tidak menjadi bukti tunggal keaslian.

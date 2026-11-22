@@ -92,7 +92,7 @@ export default function LeaveTypeForm({
           <>
             <Button onClick={closeGuard.requestClose}>Batal</Button>
             <Button type="primary" onClick={() => form.submit()}>
-              Simpan
+              Simpan aturan
             </Button>
           </>
         }
@@ -106,24 +106,27 @@ export default function LeaveTypeForm({
               <Form.Item
                 name="name"
                 label="Nama cuti atau izin"
-                rules={[{ required: true, message: "Nama cuti atau izin wajib diisi." }]}
+                rules={[
+                  { required: true, message: "Isi nama cuti atau izin." },
+                  { min: 3, message: "Nama cuti atau izin minimal 3 karakter." },
+                ]}
               >
-                <Input placeholder="Contoh: Cuti tahunan atau Izin kedukaan" />
+                <Input maxLength={100} placeholder="Contoh: Cuti tahunan atau Izin kedukaan" />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item
                 name="category"
-                label="Kelompok"
-                rules={[{ required: true, message: "Kelompok wajib dipilih." }]}
+                label="Kategori cuti atau izin"
+                rules={[{ required: true, message: "Pilih kategori cuti atau izin." }]}
                 extra={
                   {
                     leave:
-                      "Cuti untuk hak tidak masuk kerja, misalnya cuti tahunan atau cuti khusus.",
+                      "Untuk cuti tahunan atau cuti khusus, seperti cuti melahirkan.",
                     permission: "Izin selain sakit, misalnya kedukaan atau keperluan keluarga.",
-                    sick: "Ketidakhadiran karena kondisi kesehatan; dapat mewajibkan surat dokter.",
+                    sick: "Untuk ketidakhadiran karena sakit. Kewajiban surat dokter diatur pada Wajib unggah dokumen.",
                     official_duty: "Penugasan resmi di luar lokasi kerja biasa.",
-                    other: "Gunakan hanya bila jenis tidak cocok dengan kelompok lainnya.",
+                    other: "Pilih jika cuti atau izin ini tidak termasuk dalam kategori lainnya.",
                   }[category]
                 }
               >
@@ -141,8 +144,9 @@ export default function LeaveTypeForm({
             <Col xs={24} sm={12}>
               <Form.Item
                 name="unit"
-                label="Dihitung dalam"
-                rules={[{ required: true, message: "Pilih satuan perhitungan." }]}
+                label="Satuan durasi"
+                extra="Pilih apakah lama cuti atau izin dihitung dalam hari atau jam."
+                rules={[{ required: true, message: "Pilih satuan durasi." }]}
               >
                 <Select
                   options={[
@@ -155,17 +159,17 @@ export default function LeaveTypeForm({
             <Col xs={24}>
               <Form.Item
                 name="eligibleGender"
-                label="Berlaku untuk"
-                extra="Jenis cuti atau izin ini hanya muncul saat pegawai yang dipilih memenuhi ketentuan."
+                label="Pegawai yang dapat menggunakan"
+                extra="Batasi berdasarkan jenis kelamin, atau pilih Semua pegawai. Pilihan cuti atau izin hanya tersedia bagi pegawai yang sesuai."
                 rules={[
-                  { required: true, message: "Pilih pegawai yang dapat menggunakan jenis ini." },
+                  { required: true, message: "Pilih kelompok pegawai yang dapat menggunakan cuti atau izin ini." },
                 ]}
               >
                 <Select
                   options={[
                     { value: "all", label: "Semua pegawai" },
-                    { value: "male", label: "Laki-laki" },
-                    { value: "female", label: "Perempuan" },
+                    { value: "male", label: "Pegawai laki-laki" },
+                    { value: "female", label: "Pegawai perempuan" },
                   ]}
                 />
               </Form.Item>
@@ -175,13 +179,13 @@ export default function LeaveTypeForm({
                 <FormSettingSwitch
                   name="usesBalance"
                   title="Kurangi jatah pegawai"
-                  description="Aktifkan untuk cuti atau izin yang memakai jatah tahunan pegawai, seperti cuti tahunan."
+                  description="Jika aktif, cuti atau izin yang disetujui mengurangi saldo jatah pegawai. Nonaktifkan jika cuti atau izin ini tidak menggunakan jatah."
                 >
                   <Form.Item
                     name="annualAllowance"
-                    label={`Jatah yang diberikan setiap tahun (${unit === "hour" ? "jam" : "hari"})`}
-                    extra="Jatah awal yang otomatis diberikan kepada setiap pegawai untuk satu tahun kalender."
-                    rules={[{ required: true, message: "Jatah tahunan wajib diisi." }]}
+                    label={`Jatah tahunan (${unit === "hour" ? "jam" : "hari"})`}
+                    extra="Jumlah jatah awal untuk satu tahun kalender. Nilai ini menjadi acuan saat saldo tahunan pegawai dibuat."
+                    rules={[{ required: true, message: "Isi jumlah jatah tahunan." }]}
                   >
                     <InputNumber
                       min={1}
@@ -194,13 +198,14 @@ export default function LeaveTypeForm({
                 </FormSettingSwitch>
                 <FormSettingSwitch
                   name="requiresAttachment"
-                  title="Dokumen harus diunggah"
-                  description="Aktifkan jika cuti atau izin baru hanya boleh disetujui setelah dokumen pendukung dilengkapi."
+                  title="Wajib unggah dokumen"
+                  description="Jika aktif, dokumen pendukung wajib diunggah sebelum cuti atau izin dapat disetujui."
                 >
                   <Form.Item
                     name="requiredAttachmentCategory"
-                    label="Dokumen yang harus dilengkapi"
-                    rules={[{ required: true, message: "Pilih dokumen yang diwajibkan." }]}
+                    label="Jenis dokumen wajib"
+                    extra="Pilih dokumen yang harus dilampirkan pada cuti atau izin ini."
+                    rules={[{ required: true, message: "Pilih jenis dokumen wajib." }]}
                   >
                     <Select
                       options={[
@@ -215,13 +220,13 @@ export default function LeaveTypeForm({
                 name="isActive"
                 notice={{
                   on: {
-                    title: "Jenis cuti atau izin aktif",
-                    description: "Jenis ini dapat dipilih saat HRD mencatat cuti atau izin baru.",
+                    title: "Tersedia untuk digunakan",
+                    description: "Cuti atau izin ini dapat dipilih saat HRD menambahkan data baru.",
                   },
                   off: {
-                    title: "Jenis cuti atau izin tidak aktif",
+                    title: "Tidak tersedia untuk digunakan",
                     description:
-                      "Jika dinonaktifkan, jenis ini tidak dapat dipilih untuk cuti atau izin baru. Riwayat sebelumnya tetap tersimpan.",
+                      "Cuti atau izin ini tidak dapat dipilih untuk data baru. Riwayat yang sudah tersimpan tetap tersedia.",
                   },
                 }}
               />

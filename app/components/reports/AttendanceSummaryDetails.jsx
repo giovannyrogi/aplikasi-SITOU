@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box } from "@mui/material";
 import dayjs from "dayjs";
 import { Button, Skeleton } from "antd";
@@ -52,9 +52,34 @@ const liftOnHover = {
   },
 };
 
-function AttendancePhoto({ url, title, event, recorded, canViewPhotos, onPreview }) {
+const photoMaxHeight = { xs: 220, sm: 240 };
+const emptyPhotoWidth = { xs: 149, sm: 162 };
+const emptyPhotoHeight = { xs: 222, sm: 242 };
+
+function AttendancePhoto({
+  url,
+  title,
+  event,
+  recorded,
+  canViewPhotos,
+  onPreview,
+  onFrameSize,
+  frameSize,
+}) {
   const [failed, setFailed] = useState(false);
   const canPreview = Boolean(url && !failed);
+  const frameRef = useRef(null);
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!canPreview || !frame || !onFrameSize) return;
+    const observer = new ResizeObserver(() => {
+      if (!frame.querySelector("img")?.naturalWidth) return;
+      const { offsetWidth: width, offsetHeight: height } = frame;
+      if (width && height) onFrameSize({ url, width, height });
+    });
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [canPreview, onFrameSize, url]);
   let caption;
   if (!recorded) caption = title + " belum tercatat.";
   else if (!event.id) caption = "Foto dan rincian absen tidak tersedia.";
@@ -68,9 +93,9 @@ function AttendancePhoto({ url, title, event, recorded, canViewPhotos, onPreview
     display: "grid",
     placeItems: "center",
     minWidth: 0,
-    width: "100%",
     maxWidth: "100%",
-    minHeight: canPreview ? 44 : 76,
+    minHeight: 44,
+    justifySelf: "center",
     bgcolor: (theme) => theme.ui.panelSubtleBg,
     border: 1,
     borderColor: "divider",
@@ -80,10 +105,11 @@ function AttendancePhoto({ url, title, event, recorded, canViewPhotos, onPreview
     color: "text.secondary",
   };
   return (
-    <Box sx={{ display: "grid", gap: 1, minWidth: 0 }}>
+    <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 1 }}>
       {canPreview ? (
         <>
           <Box
+            ref={frameRef}
             component="button"
             type="button"
             aria-label={"Perbesar foto " + title.toLowerCase()}
@@ -91,10 +117,9 @@ function AttendancePhoto({ url, title, event, recorded, canViewPhotos, onPreview
             sx={{
               ...imageSx,
               ...liftOnHover,
+              display: "block",
+              width: "fit-content",
               cursor: "zoom-in",
-              background: (theme) =>
-                `radial-gradient(ellipse at 50% 10%, ${theme.palette.background.paper}, ${theme.ui.panelSubtleBg} 90%)`,
-              boxShadow: "inset 0 2px 6px rgba(16, 30, 53, 0.07)",
               "&:focus-visible": { outline: 2, outlineColor: "primary.main", outlineOffset: 2 },
             }}
           >
@@ -103,12 +128,16 @@ function AttendancePhoto({ url, title, event, recorded, canViewPhotos, onPreview
               src={url}
               alt={"Foto " + title.toLowerCase()}
               loading="lazy"
-              onError={() => setFailed(true)}
+              onError={() => {
+                setFailed(true);
+                onFrameSize?.(null);
+              }}
               sx={{
                 display: "block",
-                width: "100%",
+                width: "auto",
                 maxWidth: "100%",
-                height: { xs: 126, sm: 120 },
+                height: "auto",
+                maxHeight: photoMaxHeight,
                 objectFit: "contain",
               }}
             />
@@ -118,7 +147,19 @@ function AttendancePhoto({ url, title, event, recorded, canViewPhotos, onPreview
           </FontStyle>
         </>
       ) : (
-        <Box sx={{ ...imageSx, gap: 0.5, px: 1, py: 1.5 }}>
+        <Box
+          sx={{
+            ...imageSx,
+            width: frameSize?.width ?? emptyPhotoWidth,
+            minHeight: frameSize?.height ?? emptyPhotoHeight,
+            boxSizing: "border-box",
+            alignContent: "center",
+            gap: 0.5,
+            px: 1,
+            py: 1.5,
+            overflowWrap: "anywhere",
+          }}
+        >
           <PictureOutlined aria-hidden="true" style={{ fontSize: 20 }} />
           <FontStyle fontSize={12} align="center" color="text.secondary">
             {caption}
@@ -199,145 +240,91 @@ const timelineBand = (theme, tone) => ({
   background: `linear-gradient(155deg, ${alpha(theme.palette[tone].main, 0.16)}, ${alpha(theme.palette[tone].main, 0.065)})`,
 });
 
-function DateTimeline({ days, renderEntries, tone }) {
+function ScheduleTimeline({ row, timezone, tone }) {
+  if (!row.schedule.length) {
+    if (row.holiday_name || ["holiday", "off"].includes(row.attendance_status)) return null;
+    return <FontStyle color="text.secondary">Tidak ada jam kerja terjadwal.</FontStyle>;
+  }
+
+  const sessions = [...row.schedule].sort(
+    (a, b) => new Date(a.starts_at) - new Date(b.starts_at),
+  );
   return (
     <Box
+      component="ul"
+      aria-label="Sesi jadwal kerja"
       sx={(theme) => ({
-        display: "grid",
-        gridTemplateColumns: `repeat(${days.size === 2 ? 2 : 1}, minmax(0, 1fr))`,
         ...timelineSurface(theme, tone),
+        listStyle: "none",
+        m: 0,
+        p: 0,
+        "& > li + li": {
+          borderTop: "1px solid",
+          borderColor: alpha(theme.palette[tone].main, 0.18),
+        },
       })}
     >
-      {[...days].map(([date, entries], index) => (
-        <Box key={date} sx={{ minWidth: 0, position: "relative" }}>
-          {index > 0 && (
-            <Box
-              sx={(theme) => ({
-                position: "absolute",
-                zIndex: 1,
-                ...(days.size === 2
-                  ? { insetBlock: 0, insetInlineStart: 0, borderInlineStart: "1px dashed" }
-                  : { insetInline: 0, top: 0, borderTop: "1px dashed" }),
-                borderColor: alpha(theme.palette[tone].dark, 0.45),
-              })}
-            >
-              <Box
-                component="span"
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: days.size === 2 ? 0 : "50%",
-                  transform: "translate(-50%, -50%)",
-                  px: 0.75,
-                  borderRadius: 8,
-                  bgcolor: tone + ".dark",
-                  color: "common.white",
-                  boxShadow: 1,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                00.00
-              </Box>
-            </Box>
-          )}
+      {sessions.map(({ name, starts_at, ends_at }, index) => {
+        const startDate = attendanceLocalDate(starts_at, timezone);
+        const endDate = attendanceLocalDate(ends_at, timezone);
+        return (
           <Box
-            sx={(theme) => ({
-              ...timelineBand(theme, tone),
-              px: 0.75,
-              borderStartStartRadius: index === 0 ? 7 : 0,
-              borderStartEndRadius: days.size === 1 || (days.size === 2 && index === 1) ? 7 : 0,
-            })}
-          >
-            <FontStyle component="h4" align="center" fontSize={15} fontWeight={700}>
-              {dayjs(date).format("D MMM")}
-            </FontStyle>
-          </Box>
-          <Box
+            key={`${starts_at}-${ends_at}`}
+            component="li"
             sx={{
               display: "flex",
               flexWrap: "wrap",
               alignItems: "center",
-              justifyContent: "center",
-              gap: 0.75,
-              p: 1,
+              justifyContent: "space-between",
+              columnGap: 1.5,
+              rowGap: 0.75,
+              py: 0.875,
+              px: 1.25,
+              minWidth: 0,
             }}
           >
-            {renderEntries(entries)}
-          </Box>
-        </Box>
-      ))}
-    </Box>
-  );
-}
-
-function ScheduleTimeline({ row, timezone, tone }) {
-  if (!row.schedule.length) {
-    if (row.holiday_name || ["holiday", "off"].includes(row.attendance_status)) return null;
-    return (
-      <FontStyle color="text.secondary">
-        {row.holiday_name || "Tidak ada jam kerja terjadwal."}
-      </FontStyle>
-    );
-  }
-  const days = new Map();
-  for (const { starts_at, ends_at } of row.schedule) {
-    const start = attendanceLocalDate(starts_at, timezone);
-    const end = attendanceLocalDate(ends_at, timezone);
-    const startTime = attendanceClock(starts_at, timezone);
-    const endTime = attendanceClock(ends_at, timezone);
-    if (!days.has(start)) days.set(start, []);
-    if (!days.has(end)) days.set(end, []);
-    if (start === end) {
-      days.get(start).push({ time: `${startTime}–${endTime}` });
-    } else {
-      days.get(start).push({ time: startTime, label: "Mulai" });
-      days.get(end).push({ time: endTime, label: "Selesai" });
-    }
-  }
-  return (
-    <DateTimeline
-      tone={tone}
-      days={new Map([...days].sort(([a], [b]) => a.localeCompare(b)))}
-      renderEntries={(entries) =>
-        entries.map(({ time, label }, index) => (
-          <Box
-            key={`${time}-${index}`}
-            sx={(theme) => ({
-              display: "grid",
-              gap: 0.25,
-              justifyItems: "center",
-              textAlign: "center",
-              py: 0.5,
-              px: 0.75,
-              minWidth: 0,
-              maxWidth: "100%",
-              border: 1,
-              borderColor: alpha(theme.palette[tone].main, 0.17),
-              borderRadius: 2,
-              background: `linear-gradient(160deg, ${theme.palette.background.paper}, ${alpha(theme.palette[tone].main, 0.07)})`,
-              boxShadow: `0 2px 3px ${alpha(theme.palette[tone].dark, 0.14)}, inset 0 1px ${theme.palette.background.paper}`,
-              color: tone + ".dark",
-            })}
-          >
-            {label && (
-              <FontStyle component="span" fontSize={12}>
-                {label}
-              </FontStyle>
-            )}
             <FontStyle
               component="span"
               fontSize={14}
               fontWeight={700}
-              sx={{ fontVariantNumeric: "tabular-nums" }}
+              sx={{ minWidth: 0, overflowWrap: "anywhere" }}
             >
-              {time}
+              {name || (sessions.length > 1 ? `Sesi ${index + 1}` : "Jadwal kerja")}
+              {" — "}
+              {dayjs(startDate).format("D MMM")}
             </FontStyle>
+            <Box
+              sx={(theme) => ({
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                columnGap: 0.5,
+                px: 1,
+                py: 0.375,
+                maxWidth: "100%",
+                borderRadius: 1.25,
+                bgcolor: alpha(theme.palette[tone].main, 0.08),
+                color: theme.palette[tone].dark,
+              })}
+            >
+              <FontStyle
+                component="span"
+                fontSize={14}
+                fontWeight={700}
+                sx={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {attendanceClock(starts_at, timezone)} – {attendanceClock(ends_at, timezone)}
+              </FontStyle>
+              {endDate !== startDate && (
+                <FontStyle component="span" fontSize={12}>
+                  ({dayjs(endDate).format("D MMM")})
+                </FontStyle>
+              )}
+            </Box>
           </Box>
-        ))
-      }
-    />
+        );
+      })}
+    </Box>
   );
 }
 
@@ -406,7 +393,7 @@ function RecordedTimeline({ events, timezone, workDate }) {
     outgoing.every(({ date }) => date === outgoing[0].date) &&
     incoming[0].date < outgoing[0].date;
   return (
-    <Box sx={(theme) => timelineSurface(theme, "primary")}>
+    <Box sx={(theme) => ({ ...timelineSurface(theme, "primary"), mt: midnight ? 1 : 0 })}>
       {days.size === 1 && (
         <Box
           sx={(theme) => ({
@@ -428,25 +415,29 @@ function RecordedTimeline({ events, timezone, workDate }) {
         }}
       >
         {Boolean(midnight) && (
-          <Box
+          <FontStyle
             component="span"
+            aria-label="Pergantian hari pukul 00.00"
+            fontSize={{ xs: 13, sm: 14 }}
+            fontWeight={700}
             sx={{
               position: "absolute",
               zIndex: 1,
               top: 0,
               left: "50%",
               transform: "translate(-50%, -50%)",
-              px: 0.75,
+              px: 1,
+              py: 0.25,
+              lineHeight: 1.25,
               borderRadius: 8,
               bgcolor: "primary.dark",
               color: "common.white",
               boxShadow: 1,
-              fontSize: 10,
-              fontWeight: 700,
+              fontVariantNumeric: "tabular-nums",
             }}
           >
             00.00
-          </Box>
+          </FontStyle>
         )}
         {[
           ["Masuk", "success", incoming],
@@ -616,6 +607,7 @@ function AttendanceNotes({ events, timezone, workDate }) {
 
 export default function AttendanceSummaryDetails({ row, organizationId, onClose }) {
   const [preview, setPreview] = useState(null);
+  const [photoFrameSize, setPhotoFrameSize] = useState(null);
   const base = "/api/reports/attendance-summary/" + row.id;
   const query = new URLSearchParams({ organizationId });
   const { data, loading, error, retry } = useDashboardData(base + "?" + query);
@@ -643,6 +635,7 @@ export default function AttendanceSummaryDetails({ row, organizationId, onClose 
     ...(data?.events || []),
     ...summaryEvents.filter((event) => event.event_type === "check_out"),
   ];
+  const referencePhoto = eventCards.find((event) => event.photo_id);
   const timelineEvents = data
     ? eventCards
         .filter((event) => event.occurred_at)
@@ -767,6 +760,12 @@ export default function AttendanceSummaryDetails({ row, organizationId, onClose 
                           url={photoUrl(event.photo_id)}
                           canViewPhotos={data.canViewPhotos}
                           onPreview={setPreview}
+                          onFrameSize={event === referencePhoto ? setPhotoFrameSize : undefined}
+                          frameSize={
+                            photoFrameSize?.url === photoUrl(referencePhoto?.photo_id)
+                              ? photoFrameSize
+                              : null
+                          }
                         />
                       </Box>
                     );
@@ -780,7 +779,7 @@ export default function AttendanceSummaryDetails({ row, organizationId, onClose 
               />
             </DetailSection>
             {(!emptyHoliday || attendanceRowIndicators(detail).length > 0) && (
-              <DetailSection title="Peta absensi" Icon={EnvironmentOutlined} tone="info">
+              <DetailSection title="Peta absensi" Icon={EnvironmentOutlined} tone="attendanceMap">
                 <AttendanceEventMap
                   events={data.events}
                   provider={data.mapProvider}

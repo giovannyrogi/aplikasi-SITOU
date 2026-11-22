@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Button, DatePicker, Form, InputNumber, Radio } from "antd";
+import { Button, DatePicker, Form, InputNumber } from "antd";
 import AppTimePicker from "@/app/components/forms/AppTimePicker";
 import AsyncSelect from "@/app/components/forms/AsyncSelect";
 import FontStyle from "@/app/components/font-style/FontStyle";
@@ -149,6 +149,9 @@ export function WorkScheduleFields({
   const form = Form.useFormInstance();
   const chosen = Form.useWatch([...prefix, "patternId"], { form, preserve: true });
   const options = useScheduleOptions(organizationId);
+  const noSchedules = Boolean(
+    organizationId && !options.loading && !options.error && !options.patterns.length,
+  );
   const source = options.patterns?.find((x) => x.id === chosen);
   const orgRef = useRef(organizationId);
   const from = Form.useWatch([...prefix, "from"], form);
@@ -182,88 +185,55 @@ export function WorkScheduleFields({
         gap: 2,
         minWidth: 0,
         "& .ant-form-item": { marginBottom: 0 },
-        "& .ant-radio-wrapper": { minHeight: 44, alignItems: "center" },
-        "& .ant-radio-group": { display: "flex", flexWrap: "wrap", gap: 1 },
       }}
     >
-      {optional && (
-        <Form.Item label="Pengaturan jadwal">
-          <Radio.Group
-            value={chosen !== undefined && chosen !== null ? "choose" : "later"}
-            onChange={(e) => {
-              if (e.target.value === "later")
-                form.setFieldValue([...prefix, "patternId"], undefined);
-              else form.setFieldValue([...prefix, "patternId"], "");
-            }}
-            options={[
-              { value: "later", label: "Atur jadwal nanti" },
-              { value: "choose", label: "Pilih jadwal kerja" },
-            ]}
-          />
-        </Form.Item>
+      <Form.Item
+        name={[...prefix, "patternId"]}
+        label={optional ? "Jadwal kerja (opsional)" : "Jadwal kerja"}
+        getValueProps={(value) => ({ value: value || undefined })}
+        extra={
+          <FontStyle explanation>
+            {optional
+              ? "Jika belum ingin menetapkan jadwal, kosongkan pilihan dan simpan data Pegawai."
+              : "Pilih jadwal tetap atau salah satu shift yang akan dijalani Pegawai."}
+          </FontStyle>
+        }
+        rules={optional ? [] : [{ required: true, message: "Pilih jadwal kerja." }]}
+      >
+        <AsyncSelect
+          allowClear={optional}
+          onSearch={options.onSearch}
+          loading={options.loading}
+          disabled={!(optional && chosen) && (options.loading || Boolean(options.error) || noSchedules)}
+          options={options.patterns.map((schedule) => ({ value: schedule.id, label: schedule.name }))}
+          placeholder={options.loading ? "Memuat jadwal kerja..." : "Pilih jadwal kerja"}
+        />
+      </Form.Item>
+      {options.error && (
+        <AppNotice
+          tone="danger"
+          title="Jadwal kerja tidak dapat dimuat"
+          description={options.error}
+          action={<Button onClick={options.onRetry}>Coba lagi</Button>}
+        />
       )}
-      {(!optional || (chosen !== undefined && chosen !== null)) && (
-        <>
-          <Form.Item
-            name={[...prefix, "patternId"]}
-            label="Jadwal kerja"
-            extra={
-              <FontStyle explanation>
-                Pilih jadwal tetap atau salah satu shift yang akan dijalani Pegawai.
-              </FontStyle>
-            }
-            rules={
-              optional
-                ? [
-                    {
-                      validator: (_, value) =>
-                        value === ""
-                          ? Promise.reject(
-                              new Error("Pilih jadwal kerja atau pilih Atur jadwal nanti."),
-                            )
-                          : Promise.resolve(),
-                    },
-                  ]
-                : [{ required: true, message: "Pilih jadwal kerja." }]
-            }
-          >
-            <AsyncSelect
-              allowClear={optional}
-              showSearch
-              optionFilterProp="label"
-              onSearch={options.onSearch}
-              loading={options.loading}
-              disabled={options.loading || Boolean(options.error)}
-              options={(options.patterns || []).map((x) => ({ value: x.id, label: x.name }))}
-              placeholder={options.loading ? "Memuat jadwal kerja..." : "Pilih jadwal kerja"}
-            />
-          </Form.Item>
-          {options.error && (
-            <AppNotice
-              tone="danger"
-              title="Jadwal kerja tidak dapat dimuat"
-              description={options.error}
-              action={<Button onClick={options.onRetry}>Coba lagi</Button>}
-            />
-          )}
-          {!options.loading && !options.error && !options.patterns.length && (
-            <AppNotice
-              title="Belum ada jadwal kerja"
-              description="Jadwal perlu dibuat dan diaktifkan melalui Data Master → Jadwal Kerja sebelum dapat dipilih."
-            />
-          )}
-          {pattern?.days && (
-            <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
-              <FontStyle fontWeight={600}>Pratinjau jadwal</FontStyle>
-              <ScheduleSummary
-                days={pattern.days}
-                patternType={pattern.pattern_type}
-                holidayPolicy={pattern.holiday_policy}
-                calendarName={pattern.calendar_name}
-              />
-            </Box>
-          )}
-        </>
+      {noSchedules && (
+        <AppNotice
+          tone="info"
+          title="Belum ada jadwal kerja aktif"
+          description="Buka Data Master → Jadwal Kerja untuk membuat atau mengaktifkan jadwal. Setelah itu, jadwal dapat dipilih untuk Pegawai."
+        />
+      )}
+      {pattern?.days && (
+        <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
+          <FontStyle fontWeight={600}>Pratinjau jadwal</FontStyle>
+          <ScheduleSummary
+            days={pattern.days}
+            patternType={pattern.pattern_type}
+            holidayPolicy={pattern.holiday_policy}
+            calendarName={pattern.calendar_name}
+          />
+        </Box>
       )}
       {(!optional || chosen) && (
         <>

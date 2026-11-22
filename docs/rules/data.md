@@ -43,6 +43,12 @@ Bagian terkait
 
 - File bersifat privat; `object_key` tidak pernah dikirim mentah ke browser.
 
+## Nilai dinamis yang dikonfigurasi
+
+- Berlaku untuk semua modul, dari input dan penyimpanan hingga API, dropdown, detail, laporan, dan ekspor. Simpan nilai yang ditetapkan pengguna mengikuti kontrak dan validasi resmi. Ambil nama, jam, nominal, pilihan, dan pengaturan dari data sesuai organisasi, izin, serta tanggal berlaku. Dashboard dan mobile memakai sumber yang sama untuk nilai yang sama.
+- Tampilkan nilai tersimpan dengan ejaan dan kapitalisasi aslinya. Jangan mengganti dengan teks tetap, alias tampilan, potongan nama, nilai contoh, atau hasil tebakan. Pisahkan label UI, informasi turunan yang dihitung dari aturan resmi, dan metadata tambahan dari nilai aslinya. Format tanggal, jam, angka, dan satuan sesuai kebutuhan tampilan sambil menjaga nilai, zona waktu, dan makna. Penanda kosong hanya dipakai untuk nilai yang memang tidak tersedia sesuai kontrak.
+- Gunakan relasi dan identitas internal untuk memilih record. Hormati sumber dan snapshot yang berlaku untuk histori. Jika pengguna mengubah nama atau pengaturan, terapkan melalui proses simpan resmi sesuai kewenangan. Penyesuaian tampilan tidak menulis ulang nilai tersimpan.
+
 ## Partitioning dan retention
 
 - `attendance_events` dipartisi bulanan berdasarkan `event_date`.

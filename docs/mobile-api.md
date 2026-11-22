@@ -5,8 +5,18 @@ Bagian terkait
 - [Autentikasi SITOU Mobile](#autentikasi-sitou-mobile)
 - [API baca beranda SITOU Mobile](#api-baca-beranda-sitou-mobile)
 - [Absensi mobile SITOU](#absensi-mobile-sitou)
+- [Profil dan keamanan akun](#profil-dan-keamanan-akun)
 
 Kontrak backend untuk Flutter. Panduan aplikasi dan perangkat tetap di checkout SITOU Mobile.
+
+## Profil dan keamanan akun
+
+- Transaksi akun mobile memakai `withMobileAccountTransaction` dengan waktu tunggu kunci 3 detik dan batas satu pernyataan SQL 10 detik. Login, logout dan perubahan kata sandi memakai transaksi terbatas tersebut. Benturan kunci/statement timeout membatalkan transaksi dan menghasilkan HTTP 503 `ACCOUNT_BUSY`, “Akun sedang diproses. Tunggu sebentar, lalu coba lagi.” Jangan mencoba ulang login atau perubahan kata sandi otomatis. Proses perubahan kata sandi meneruskan client transaksi yang sama ke `changeSelfPassword`, bukan membuka transaksi kedua pada akun yang sedang dikunci.
+
+- `GET /api/mobile/profile` memakai bearer mobile, `employees.read_self` dan `profile_self.read`. DTO berisi `name`, `employeeNo`, `username`, `organization`, `location`, `unit`, `position`, `employmentStatus`, `employmentType`, `email`, `whatsapp`, dan `canChangePassword`. Penempatan dikirim hanya dengan `assignments.read_self`. Identitas dibaca melalui layanan profil existing dan dicocokkan dengan Pegawai serta organisasi sesi. Query selector ditolak. Foto tetap melalui `/api/mobile/profile-photo`.
+- `PATCH /api/mobile/profile/password` menerima JSON `{currentPassword,newPassword,confirmPassword}` maksimum 4 KiB. Bearer harus memiliki akses tulis, `employees.read_self` dan `profile_self.update`. Memakai `selfPasswordSchema` serta `changeSelfPassword` yang sama dengan dashboard. Kata sandi minimal 6 karakter, maksimal 72 byte UTF-8, dengan huruf kecil, huruf besar, angka dan simbol. Kata sandi tidak dipangkas. Konfirmasi wajib cocok. Kata sandi saat ini diverifikasi bcrypt di server. Field tambahan ditolak. Kesalahan menyertakan `fieldErrors.currentPassword`, `newPassword` atau `confirmPassword`.
+- Batas perubahan 5 permintaan per 15 menit per akun/sumber memakai bucket keamanan existing, dengan kode 429 dan `Retry-After`. Origin asing, media type salah, JSON rusak, payload terlalu besar serta manipulasi identitas ditolak. Sesi diverifikasi ulang setelah akun dikunci dalam transaksi agar dua permintaan paralel hanya dapat menghasilkan satu perubahan. Perubahan menaikkan `credential_version` dan mencatat audit tanpa nilai kata sandi. Sesi lama semua perangkat menjadi tidak valid. Setelah sukses, Flutter menghapus sesi lokal dan meminta login kembali. Tidak ada retry perubahan otomatis.
+- Respons privat memakai `Cache-Control: private, no-store`. Data menggunakan tabel, relasi, permission serta audit existing. Tidak memerlukan migration. API web berbasis cookie tetap memakai endpoint sebelumnya. Deploy backend baru diperlukan sebelum mobile versi ini memakai fitur Profil pada lingkungan tujuan.
 
 ## Autentikasi SITOU Mobile
 
@@ -126,7 +136,7 @@ Keterangan pulang yang melewati jadwal pada mobile memakai **Pulang lewat jam ke
 
 Backend memprioritaskan sesi masuk yang masih terbuka. Contoh: masuk 11 November pukul 23.55 untuk jam 22.00–01.00 tetap dipulangkan pada tanggal kerja 11 November setelah tengah malam. Masuk pada jadwal 12 November belum tersedia sebelum pulang tersebut disimpan. Penguncian berlaku untuk jadwal reguler, tambahan, dan absen saat libur. GET, preflight dan transaksi kirim memakai aturan yang sama; request masuk lama yang sudah terbuka di perangkat tetap ditolak bila sesi lain belum selesai. Lock Pegawai pada transaksi event mencegah dua pengiriman paralel melewati pemeriksaan.
 
-Flutter memprioritaskan sesi terbuka pada kartu Beranda serta memakai daftar tindakan yang sama untuk tombol dan pemilih jam. Identitas tetap pasangan `workDate` dan `sessionNo`; nomor sama pada dua tanggal bukan sesi yang sama. Nama tampilan menghapus akhiran internal `— sesi N`, dan rentang jam tidak menambahkan `(+1 hari)`. Timestamp UTC, tanggal kerja, urutan sesi dan perhitungan lintas hari tetap dipertahankan. Catatan lama yang sudah ditandai lupa pulang tidak diperbaiki otomatis oleh perubahan ini.
+Flutter memprioritaskan sesi terbuka pada kartu Beranda serta memakai daftar tindakan yang sama untuk tombol dan pemilih jam. Identitas tetap pasangan `workDate` dan `sessionNo`. API menyajikan nama penetapan untuk sesi reguler dan nama sesi yang berlaku untuk jadwal khusus. Flutter menampilkan nama utuh dan memformat rentang jam untuk keterbacaan. Timestamp UTC, tanggal kerja, urutan sesi dan perhitungan lintas hari tetap dipertahankan. Catatan lama yang sudah ditandai lupa pulang tidak diperbaiki otomatis oleh perubahan ini.
 
 Perubahan tidak memerlukan migration. Terapkan backend baru dan bangun/pasang ulang aplikasi Flutter untuk memperoleh penguncian tombol serta label baru. Backend baru juga menolak masuk yang tidak sah dari APK lama; tidak mengubah event atau histori yang sudah tersimpan.
 
@@ -223,7 +233,7 @@ Jika pemeriksaan aktif, permintaan baru dari versi lama mendapat `APP_UPDATE_REQ
 | --- | --- |
 | GET `/api/mobile/attendance/history?month=YYYY-MM` | `data:{today,firstMonth,month,records}`. Bulan opsional, default bulan berjalan menurut zona organisasi. Record memakai tanggal kerja serta memuat waktu masuk/pulang, lokasi historis, penilaian waktu, dan kelayakan koreksi. |
 | GET `/api/mobile/attendance/corrections?cursor=…` | `data:{requests,nextCursor}`. Cursor opsional, maksimal 30 pengajuan per halaman. |
-| GET `/api/mobile/attendance/corrections/options?workDate=YYYY-MM-DD` | Tanggal opsional, default hari ini. `data:{today,firstDate,workDate,readOnly,sessions}`. Pilihan berisi `sessionKey,version,context,startsAt,endsAt,arrival,departure,firstDate,lastDate,endDate,available,pending,unavailableReason`. |
+| GET `/api/mobile/attendance/corrections/options?workDate=YYYY-MM-DD` | Tanggal opsional, default hari ini. `data:{today,firstDate,workDate,readOnly,sessions}`. Pilihan berisi `sessionKey,version,context,name,startsAt,endsAt,arrival,departure,firstDate,lastDate,endDate,available,pending,unavailableReason`. `name` memakai nama jadwal dari penetapan pegawai (sumber snapshot bila terpakai), atau nama sesi untuk jadwal khusus dan histori lama. |
 | POST `/api/mobile/attendance/corrections` | JSON `{workDate,sessionKey,version,part,arrival,departure,reason,requestKey}`. `part`: `arrival`, `departure`, atau `both`; jam yang tidak diubah `null`, lainnya `{date,time}`. Tanggal ISO dan jam 24 jam `HH:mm`. UUID kiriman dipertahankan untuk retry. Kontrak lama `{workDate,eventDate,eventId,date,time,reason,requestKey}` tetap diterima. |
 
 Seluruh operasi memakai bearer, modul Absensi, dan hak self-service yang sama dengan endpoint absensi. Identitas organisasi dan Pegawai berasal dari sesi, bukan body/query. Riwayat mengelompokkan event valid berdasarkan snapshot hari/sesi atau nomor sesi tambahan; pasangan historis tanpa sesi tetap dikelompokkan per tanggal/jadwal harian, dengan event pertama sebagai kunci pengajuan. Pulang lintas tanggal tetap terkait tanggal kerja sesi. Nama titik dan penilaian yang belum tersedia pada event lama dibiarkan kosong. Record menyertakan `sessionKey` dan kelayakan koreksi.

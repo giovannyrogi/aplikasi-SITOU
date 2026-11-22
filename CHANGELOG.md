@@ -1,5 +1,29 @@
 # Catatan perubahan SITOU
 
+## 2026-11-22 — Pemulihan kunci transaksi akun mobile
+
+- Diagnosis lokal menemukan transaksi backend ganti kata sandi lama menahan kunci akun lebih dari dua jam; delapan permintaan akun lain menunggu. Jalur USB sehat. Pembatalan terarah delapan waiter membuat transaksi induk rollback dan seluruh kunci terlepas, tanpa menutup koneksi editor pengguna. Login HP dikonfirmasi berhasil oleh pengguna.
+- `lib/auth/mobile/accountTransaction.js` memberi batas tunggu kunci 3 detik dan statement SQL 10 detik, rollback lewat helper transaksi existing, serta HTTP 503 `ACCOUNT_BUSY` yang aman. Login dan logout di `service.js` serta perubahan kata sandi di `profile.js` memakai helper ini. Logout dan audit kini satu transaksi. Penerusan client yang sama ke `changeSelfPassword` dipertahankan untuk menghindari transaksi bersarang yang menunggu akun sendiri. Kontrak API dan aturan transaksi diperbarui; tidak ada migration atau deployment VPS.
+- QA dengan source service aktual dan PostgreSQL memakai skema sintetis terisolasi. Credential lookup, permission/metadata dan audit adapter disederhanakan untuk fixture; ini bukan uji endpoint login berakun nyata. Login, ganti password dengan rollback saat password salah, kenaikan credential version, penolakan password/sesi lama, logout berulang serta pemulihan setelah konflik kunci lulus. Konflik menghasilkan `ACCOUNT_BUSY` dalam 3382 ms. Endpoint nyata dari HP USB mengembalikan validasi login 400 dalam 0,26 detik dan `/me` tanpa bearer 401 dalam 0,10 detik. Lint lulus; skema QA dibersihkan. Tidak mengubah data akun pengguna untuk pengujian.
+- Delapan tes regresi akun existing dan build Next.js lulus. Skrip QA sementara dibersihkan; tidak ada transaksi terblokir tersisa setelah pemulihan. Penggantian kata sandi/logout berakun nyata di HP dan penerapan VPS belum diuji/dilakukan.
+
+## 2026-11-22 — Profil akun SITOU Mobile
+
+- Menambahkan `GET /api/mobile/profile` dan `PATCH /api/mobile/profile/password` melalui `lib/auth/mobile/profile.js`. Profil akun sendiri memakai layanan existing dengan pemeriksaan kesesuaian Pegawai/organisasi. Field penempatan mengikuti permission. Password memakai schema dashboard, bcrypt, audit, credential version dan rate limit persisten 5 permintaan/15 menit. Sesi diperiksa ulang setelah penguncian akun untuk mencegah dua perubahan paralel.
+- `lib/account/service.js` menerima client transaksi opsional agar adapter mobile bisa memakai layanan perubahan password yang sama dalam transaksi yang sudah diverifikasi. Pemanggil web tetap memakai transaksi layanan seperti sebelumnya. `docs/mobile-api.md` diperbarui. Tabel/kolom/permission baru tidak diperlukan.
+- QA lokal pada database sintetis terisolasi dari bootstrap lulus untuk 23 skenario endpoint/service, termasuk isolasi organisasi, sesi tanpa/expired, izin dicabut, read-only, origin asing, field tambahan, password/konfirmasi salah, rate limit, request paralel serta audit sekali. Regresi layanan password web dan batas Unicode lulus. Lint serta build Next.js lulus. Build sandbox pertama terhalang junction dan berhasil pada percobaan dengan akses sesuai. Database dan skrip uji sementara dibersihkan. Belum diterapkan ke VPS.
+
+## 2026-11-22 — Sumber nilai dinamis bersama dashboard dan mobile
+
+- `docs/rules/data.md` mengatur seluruh modul agar nilai konfigurasi dibaca sesuai sumber, cakupan, serta tanggal yang berlaku dan ditampilkan dengan ejaan aslinya. Pedoman UI/UX menautkan aturan tersebut.
+- `scheduleDisplayName` dipakai layanan absensi dan koreksi untuk membaca nama penetapan atau nama sesi khusus secara utuh. Riwayat meneruskan nama yang tersedia pada catatan tanpa menghapus bagian nama. Kontrak mobile diselaraskan. Tidak ada migration atau penulisan ulang jadwal dan histori.
+- ESLint dan 12 tes regresi lulus. Pemeriksaan tambahan membuktikan nama reguler dan khusus beserta akhiran yang disimpan tetap utuh, serta konversi waktu mempertahankan jam yang dikonfigurasi.
+
+## 2026-11-22 — Nama penetapan pada opsi koreksi mobile
+
+- `mobile-correction-options.js` memakai nama jadwal yang ditetapkan pada pegawai untuk sesi reguler. `work-schedules/service.js` membaca nama tersebut dari penetapan sumber pada snapshot yang sudah terpakai. Opsi jadwal khusus dan histori lama memakai nama sesi tanpa akhiran penomoran otomatis. Kontrak `docs/mobile-api.md` mendokumentasikan field nama yang sudah dipakai Flutter.
+- Pemeriksaan baca-saja pada PostgreSQL lokal mengembalikan Jam Reguler pada tiga tanggal bersnapshot dan tiga tanggal tanpa snapshot. Skenario jadwal khusus diuji dengan data sintetis. Lint dan 30 tes regresi jadwal, absensi, dan rekap lulus. Skrip QA sementara dibersihkan. Perubahan backend lokal tidak memerlukan migration. Tampilan di HP belum diperiksa.
+
 ## 2026-11-18 — Pengajuan koreksi seluruh bagian absensi
 
 - `mobile-correction-options.js` memakai resolver jadwal existing, termasuk jadwal khusus dan snapshot terpakai, untuk memilih tanggal/sesi tanpa membuat event atau jadwal palsu. Endpoint GET `/api/mobile/attendance/corrections/options` menyajikan jam asli, batas tanggal, versi dasar, dan kelayakan. `mobile-history*.js/mjs` menerima koreksi masuk, pulang atau keduanya setelah jam kerja berakhir, termasuk kedua absen kosong, serta menyimpan snapshot dasar/alasan/audit dalam transaksi ber-lock. UUID/hash mencegah pengiriman ganda dan versi menolak basis yang berubah. Kontrak versi 2 melindungi klien lama; pasangan event historis tanpa sesi tetap digabung.

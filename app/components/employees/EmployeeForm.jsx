@@ -770,7 +770,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
   };
 
   const gridSx = {
-    gridTemplateColumns: { xs: "1fr", sm: "repeat(2,minmax(0,1fr))" },
+    gridTemplateColumns: { xs: "minmax(0,1fr)", sm: "repeat(2,minmax(0,1fr))" },
     columnGap: { xs: 0, sm: 2 },
     rowGap: { xs: 0.75, sm: 1 },
   };
@@ -900,7 +900,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
               sx={{
                 width: "100%",
                 mx: "auto",
-                mb: 2,
+                mb: 3,
                 "& .ant-steps-item": { minWidth: 0 },
                 "& .ant-steps-item-container": { outline: "none" },
                 "& .ant-steps-item-title": {
@@ -1159,7 +1159,6 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                     options={[
                       { value: "male", label: "Laki-laki" },
                       { value: "female", label: "Perempuan" },
-                      { value: "undisclosed", label: "Tidak disebutkan" },
                     ]}
                   />
                 </Form.Item>
@@ -1373,7 +1372,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                       <DatePicker style={{ width: "100%" }} />
                     </Form.Item>
                   ) : null}
-                  <Box id="employee-contract-document">
+                  <Box id="employee-contract-document" sx={{ gridColumn: "1 / -1", minWidth: 0 }}>
                     <Form.Item className="employee-upload-field" label="Dokumen kontrak (opsional)">
                       <PrivatePdfUpload
                         value={contractFile}
@@ -1464,7 +1463,7 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                   >
                     <Input maxLength={100} />
                   </Form.Item>
-                  <Box id="employee-assignment-document">
+                  <Box id="employee-assignment-document" sx={{ gridColumn: "1 / -1", minWidth: 0 }}>
                     <Form.Item
                       className="employee-upload-field"
                       label="Dokumen penempatan (opsional)"
@@ -1496,7 +1495,6 @@ export default function EmployeeForm({ open, item, organizationId, onClose, onSa
                 <Box sx={{ ...gridSx, display: step === 4 ? "grid" : "none" }}>
                   {hrisLevel(user, "work-schedules") === "manage" && (
                     <Box sx={{ gridColumn: "1 / -1" }}>
-                      <FontStyle fontWeight={700} sx={{ mb: 2 }}>Jadwal kerja</FontStyle>
                       <WorkScheduleFields organizationId={targetOrganizationId} optional />
                     </Box>
                   )}
