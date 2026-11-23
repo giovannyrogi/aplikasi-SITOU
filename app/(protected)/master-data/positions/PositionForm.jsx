@@ -104,9 +104,7 @@ export default function PositionForm({
       >
         <Form form={form} layout="vertical" onFinish={submit}>
           <Row gutter={[16, 0]}>
-            <Col xs={24}>
-              <OrganizationScopeField disabled={editing} />
-            </Col>
+            <OrganizationScopeField hideLocked colProps={{ xs: 24 }} disabled={editing} />
             <Col xs={24}>
               <Form.Item name="name" label="Nama jabatan" rules={[{ required: true }]}>
                 <Input placeholder="Contoh: Manajer SDM" />

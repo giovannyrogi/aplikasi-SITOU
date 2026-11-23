@@ -8,6 +8,10 @@ import ConfirmDialog from "@/app/components/actions/ConfirmDialog";
 import useFormModalClose from "@/app/hooks/useFormModalClose";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { readApiResponse } from "@/lib/api/clientError";
+import FileUploadListField from "@/app/components/forms/FileUploadListField";
+import AsyncSelect from "@/app/components/forms/AsyncSelect";
+import { DownloadOutlined } from "@ant-design/icons";
+import { Box } from "@mui/material";
 
 export default function LeaveTypeForm({
   open,
@@ -23,6 +27,7 @@ export default function LeaveTypeForm({
   const editing = Boolean(item);
   const category = Form.useWatch("category", form);
   const unit = Form.useWatch("unit", form);
+  const documentKind = Form.useWatch("requiredAttachmentCategory", form);
   useEffect(() => {
     if (!open) return;
     form.resetFields();
@@ -36,6 +41,14 @@ export default function LeaveTypeForm({
             eligibleGender: item.eligible_gender,
             requiresAttachment: item.requires_attachment,
             requiredAttachmentCategory: item.required_attachment_category,
+            templateFileId: item.template_file_id,
+            attachmentLabel:
+              item.attachment_label ||
+              (item.required_attachment_category === "leave_attachment"
+                ? "Dokumen pendukung"
+                : null),
+            documentInstructions: item.document_instructions,
+            templateFiles: [],
             usesBalance: item.uses_balance,
             annualAllowance: item.annual_allowance,
             isActive: item.is_active,
@@ -53,17 +66,39 @@ export default function LeaveTypeForm({
   }, [form, item, open, presetOrganizationId]);
   const submit = async (values) => {
     try {
+      const { templateFiles = [], ...settings } = values;
+      if (
+        settings.requiresAttachment &&
+        settings.requiredAttachmentCategory === "organization_form" &&
+        !settings.templateFileId &&
+        !templateFiles.length
+      ) {
+        form.setFields([
+          { name: "templateFiles", errors: ["Unggah template PDF formulir organisasi."] },
+        ]);
+        return;
+      }
+      const data = new FormData();
+      data.append(
+        "payload",
+        JSON.stringify({
+          ...settings,
+          ...(editing ? { version: new Date(item.updated_at).toISOString() } : {}),
+        }),
+      );
+      if (
+        settings.requiresAttachment &&
+        settings.requiredAttachmentCategory === "organization_form" &&
+        templateFiles[0]?.localFile
+      )
+        data.append("file", templateFiles[0].localFile);
       await runWithLoadingBackdrop(
         async () => {
           const response = await fetch(
             editing ? `/api/leave-types/${item.id}` : "/api/leave-types",
             {
               method: editing ? "PATCH" : "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...values,
-                ...(editing ? { version: new Date(item.updated_at).toISOString() } : {}),
-              }),
+              body: data,
             },
           );
           const body = await readApiResponse(response);
@@ -99,9 +134,7 @@ export default function LeaveTypeForm({
       >
         <Form form={form} layout="vertical" onFinish={submit}>
           <Row gutter={[16, 4]}>
-            <Col xs={24}>
-              <OrganizationScopeField disabled={editing} />
-            </Col>
+            <OrganizationScopeField hideLocked colProps={{ xs: 24 }} disabled={editing} />
             <Col xs={24}>
               <Form.Item
                 name="name"
@@ -121,8 +154,7 @@ export default function LeaveTypeForm({
                 rules={[{ required: true, message: "Pilih kategori cuti atau izin." }]}
                 extra={
                   {
-                    leave:
-                      "Untuk cuti tahunan atau cuti khusus, seperti cuti melahirkan.",
+                    leave: "Untuk cuti tahunan atau cuti khusus, seperti cuti melahirkan.",
                     permission: "Izin selain sakit, misalnya kedukaan atau keperluan keluarga.",
                     sick: "Untuk ketidakhadiran karena sakit. Kewajiban surat dokter diatur pada Wajib unggah dokumen.",
                     official_duty: "Penugasan resmi di luar lokasi kerja biasa.",
@@ -162,7 +194,10 @@ export default function LeaveTypeForm({
                 label="Pegawai yang dapat menggunakan"
                 extra="Batasi berdasarkan jenis kelamin, atau pilih Semua pegawai. Pilihan cuti atau izin hanya tersedia bagi pegawai yang sesuai."
                 rules={[
-                  { required: true, message: "Pilih kelompok pegawai yang dapat menggunakan cuti atau izin ini." },
+                  {
+                    required: true,
+                    message: "Pilih kelompok pegawai yang dapat menggunakan cuti atau izin ini.",
+                  },
                 ]}
               >
                 <Select
@@ -180,38 +215,108 @@ export default function LeaveTypeForm({
                   name="usesBalance"
                   title="Kurangi jatah pegawai"
                   description="Jika aktif, cuti atau izin yang disetujui mengurangi saldo jatah pegawai. Nonaktifkan jika cuti atau izin ini tidak menggunakan jatah."
+                  fullWidthChildren
                 >
-                  <Form.Item
-                    name="annualAllowance"
-                    label={`Jatah tahunan (${unit === "hour" ? "jam" : "hari"})`}
-                    extra="Jumlah jatah awal untuk satu tahun kalender. Nilai ini menjadi acuan saat saldo tahunan pegawai dibuat."
-                    rules={[{ required: true, message: "Isi jumlah jatah tahunan." }]}
-                  >
-                    <InputNumber
-                      min={1}
-                      step={1}
-                      precision={0}
-                      placeholder="Contoh: 12"
-                      style={{ width: "100%" }}
-                    />
-                  </Form.Item>
+                  <Row gutter={[16, 0]}>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="annualAllowance"
+                        label={`Jatah tahunan (${unit === "hour" ? "jam" : "hari"})`}
+                        extra="Jumlah jatah awal untuk satu tahun kalender. Nilai ini menjadi acuan saat saldo tahunan pegawai dibuat."
+                        rules={[{ required: true, message: "Isi jumlah jatah tahunan." }]}
+                      >
+                        <InputNumber
+                          min={1}
+                          step={1}
+                          precision={0}
+                          placeholder="Contoh: 12"
+                          style={{ width: "100%" }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
                 </FormSettingSwitch>
                 <FormSettingSwitch
                   name="requiresAttachment"
                   title="Wajib unggah dokumen"
                   description="Jika aktif, dokumen pendukung wajib diunggah sebelum cuti atau izin dapat disetujui."
+                  fullWidthChildren
                 >
+                  <Row gutter={[16, 0]}>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="requiredAttachmentCategory"
+                        label="Jenis dokumen wajib"
+                        extra="Pilih dokumen yang harus dilampirkan pada cuti atau izin ini."
+                        rules={[{ required: true, message: "Pilih jenis dokumen wajib." }]}
+                      >
+                        <AsyncSelect
+                          options={[
+                            { value: "medical_letter", label: "Surat dokter" },
+                            { value: "organization_form", label: "Formulir organisasi" },
+                            { value: "leave_attachment", label: "Dokumen pendukung lainnya" },
+                          ]}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  {documentKind === "organization_form" && (
+                    <>
+                      <Form.Item name="templateFileId" hidden>
+                        <Input />
+                      </Form.Item>
+                      {item?.template_file_id && (
+                        <Box sx={{ mb: 2, "& .ant-btn": { width: { xs: "100%", sm: "auto" } } }}>
+                          <Button
+                            icon={<DownloadOutlined />}
+                            data-action-tone="download"
+                            href={`/api/leave-types/files/${item.template_file_id}?organizationId=${item.organization_id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Unduh template tersimpan
+                          </Button>
+                        </Box>
+                      )}
+                      <Form.Item
+                        name="templateFiles"
+                        label="Template formulir PDF"
+                        style={{ marginTop: 16 }}
+                      >
+                        <FileUploadListField
+                          fullWidth
+                          maxCount={1}
+                          accept="application/pdf,.pdf"
+                          maxSizeBytes={10 * 1024 * 1024}
+                          onError={onError}
+                          helpText="Satu PDF maksimal 10 MB. Template disimpan bersama aturan."
+                        />
+                      </Form.Item>
+                    </>
+                  )}
+                  {documentKind === "leave_attachment" && (
+                    <Form.Item
+                      name="attachmentLabel"
+                      label="Nama dokumen"
+                      rules={[{ required: true, message: "Isi nama dokumen." }]}
+                    >
+                      <Input maxLength={100} />
+                    </Form.Item>
+                  )}
                   <Form.Item
-                    name="requiredAttachmentCategory"
-                    label="Jenis dokumen wajib"
-                    extra="Pilih dokumen yang harus dilampirkan pada cuti atau izin ini."
-                    rules={[{ required: true, message: "Pilih jenis dokumen wajib." }]}
+                    name="documentInstructions"
+                    label="Petunjuk dokumen"
+                    rules={[
+                      {
+                        required: documentKind === "organization_form",
+                        message: "Isi petunjuk pengisian formulir.",
+                      },
+                    ]}
                   >
-                    <Select
-                      options={[
-                        { value: "medical_letter", label: "Surat dokter" },
-                        { value: "leave_attachment", label: "Dokumen pendukung lainnya" },
-                      ]}
+                    <Input.TextArea
+                      rows={3}
+                      maxLength={2000}
+                      placeholder="Jelaskan dokumen dan tanda tangan yang harus dilengkapi."
                     />
                   </Form.Item>
                 </FormSettingSwitch>

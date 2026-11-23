@@ -7,6 +7,8 @@ Bagian terkait
 
 ## Sumber kebenaran data
 
+- Peta workflow cuti mobile: leave_types → leave_requests → leave_request_attachments/leave_decisions; saldo tetap leave_entitlements/leave_balance_transactions. Migration 090 menambah metadata template/petunjuk, snapshot ketentuan/jadwal, metadata perbaikan, is_current lampiran serta leave_request_operations untuk receipt; tabel absensi/jadwal tidak ditumpangi. Migration 091 menambah FK komposit template historis agar constraint dan pemeliharaan storage melindungi formulir yang masih digunakan. Tidak ada tabel pengajuan mobile duplikat dan histori legacy tetap utuh.
+
 - Checkpoint `employee_onboarding_drafts.current_step` menerima 0–4 untuk lima langkah onboarding sampai Jadwal kerja. Migration 089 memperluas constraint tanpa mengubah payload, versi atau checkpoint draft lama.
 
 - Skema referensi: `sitou_schema_v3.sql`.

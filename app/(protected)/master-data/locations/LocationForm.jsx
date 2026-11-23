@@ -185,9 +185,7 @@ export default function LocationForm({
       >
         <Form form={form} layout="vertical" onFinish={submit}>
           <Row gutter={[16, 0]}>
-            <Col xs={24} sm={12}>
-              <OrganizationScopeField disabled={editing} />
-            </Col>
+            <OrganizationScopeField hideLocked colProps={{ xs: 24, sm: 12 }} disabled={editing} />
             <Col xs={24} sm={12}>
               <Form.Item name="parentLocationId" label="Lokasi induk">
                 <AsyncSelect

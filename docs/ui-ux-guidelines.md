@@ -154,6 +154,9 @@ Katalog [komponen bersama](../app/components/README.md) menjelaskan cara memakai
 
 ### Jarak form dan bantuan field
 
+- Pada form Aturan Cuti & Izin, Jatah tahunan dan Jenis dokumen wajib memakai setengah grid desktop dan lebar penuh mobile. Unggahan template memakai FileUploadListField fullWidth dalam area isi sakelar yang juga lebar penuh. Unduhan template tersimpan memakai tombol berikon dengan warna aksi download bersama.
+- Form master kepegawaian, Cuti & Izin, dan Aturan Cuti & Izin menyembunyikan field organisasi bagi akun organisasi. Pertahankan nilai organizationId pada form dan pemeriksaan organisasi di backend. Admin SITOU tetap mendapat pemilih organisasi sesuai konteks operasi.
+
 - Jarak section mengikuti FormSection: padding vertikal 24 px; `first` hanya pada section paling awal form. Jangan memakai `:first-of-type` untuk menghapus jarak karena wrapper kondisional/nested dapat membuat section tengah dianggap pertama. Periksa jarak nyata di kedua sisi divider, termasuk ketika metode pengisian berganti.
 
 - Gunakan AppCollapse untuk seluruh pelipatan konten; adapter region navigasi/accordion laporan berada pada fondasi yang sama. Nama hari, kategori/jumlah dan status tetap terlihat ketika tertutup. Pertahankan state terkontrol activeKey/onChange dan gunakan forceRender bila form membutuhkannya. Pertahankan isian terdaftar, panel error dan keyboard. Jangan membuat shell pelipatan per fitur atau mengimpor primitive library langsung. Header interaktif minimal 44px; field wajib utama tetap terlihat.
@@ -357,6 +360,14 @@ Referensi diperiksa 29 Oktober 2026. Ini pedoman implementasi yang disesuaikan d
 - [W3C — Target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html): ukuran/jarak target membantu akses pointer. SITOU mempertahankan standar proyek 44×44 px, dengan label aksesibel dan tooltip keyboard pada aksi ikon. Ini keputusan proyek, bukan klaim bahwa minimum WCAG AA adalah 44 px atau bahwa seluruh aplikasi sudah tersertifikasi.
 
 ## Ketentuan khusus per fitur
+
+### Pengajuan cuti dan izin
+
+- Unggahan lampiran cuti/izin baru hanya PDF maksimal 10 MB pada entry HRD maupun pemeriksaan pengajuan. Petunjuk/accept harus sesuai validasi server. Gambar historis tetap dibaca melalui izin existing, tanpa mengubah atau menghapus file lama.
+
+- Aturan dokumen menggunakan komponen form bersama: wajib dokumen membuka pilihan Surat dokter, Formulir organisasi, atau Dokumen pendukung lain. Formulir organisasi mewajibkan template PDF dan petunjuk; dokumen lain memiliki nama yang jelas. Template tersimpan dapat diunduh secara privat.
+- Status membedakan Menunggu dokumen, Menunggu persetujuan, Perlu perbaikan, Disetujui, Ditolak, dan Dibatalkan menggunakan chip semantik. Persetujuan dinonaktifkan bila dokumen belum lengkap atau perbaikan belum diajukan kembali; alasan tetap dijelaskan. Penolakan dan permintaan perbaikan merupakan tindakan berbeda dengan catatan wajib.
+- Modal tindakan menggunakan AppModal, AppNotice dan field bersama, panel putih, aksi eksplisit serta isian yang bertahan saat permintaan gagal. Detail menampilkan periode, waktu izin bila per jam, ketentuan dokumen dan catatan HRD secara terpisah dengan pembatas yang rapi. Aturan proses dan kontrak tidak disalin di sini; ikuti [kontrak cuti mobile](mobile-api.md#cuti-dan-izin-mobile).
 
 ### Jadwal kerja dan jadwal Pegawai
 

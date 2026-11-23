@@ -5,6 +5,7 @@ import {
   handleRouteError,
   parseListQuery,
   readJson,
+  readMultipartJson,
   successResponse,
   validateMutationRequest,
 } from "@/lib/api/routeHelpers";
@@ -46,13 +47,22 @@ export async function POST(request) {
   const requestId = getRequestId(request);
   const { user, response } = await requirePermission("leave_types.manage");
   if (response) return response;
-  const rejected = await validateMutationRequest(request, user.id, requestId);
+  const rejected = await validateMutationRequest(request, user.id, requestId, {
+    maxBytes: 11 * 1024 * 1024,
+  });
   if (rejected) return rejected;
-  const parsed = await readJson(request, leaveTypeCreateSchema, requestId);
+  const parsed = request.headers.get("content-type")?.startsWith("multipart/form-data")
+    ? await readMultipartJson(request, leaveTypeCreateSchema, requestId)
+    : await readJson(request, leaveTypeCreateSchema, requestId);
   if (parsed.response) return parsed.response;
   try {
     const organizationId = resolvePermissionOrganization(user, parsed.data.organizationId);
-    const data = await createLeaveType({ ...parsed.data, organizationId }, user, requestId);
+    const data = await createLeaveType(
+      { ...parsed.data, organizationId },
+      user,
+      requestId,
+      parsed.file,
+    );
     return successResponse(data, {
       status: 201,
       code: "LEAVE_TYPE_CREATED",
@@ -60,5 +70,7 @@ export async function POST(request) {
     });
   } catch (error) {
     return handleRouteError("leave-types.create", error, requestId);
+  } finally {
+    await parsed.cleanup?.();
   }
 }

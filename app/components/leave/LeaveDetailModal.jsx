@@ -10,6 +10,7 @@ import {
   LEAVE_CATEGORY,
   LEAVE_SOURCE,
   LEAVE_STATUS,
+  leaveDisplayStatus,
   LEAVE_UNIT,
   formatLeaveDate,
   formatLeaveUnits,
@@ -28,10 +29,16 @@ const Field = ({ label, value, wide }) => (
     </FontStyle>
   </Box>
 );
-export default function LeaveDetailModal({ item, onClose, balance, balanceYear, selfView = false }) {
+export default function LeaveDetailModal({
+  item,
+  onClose,
+  balance,
+  balanceYear,
+  selfView = false,
+}) {
   const theme = useTheme();
   if (!item) return null;
-  const status = LEAVE_STATUS[item.status] || [item.status, "neutral"];
+  const status = LEAVE_STATUS[leaveDisplayStatus(item)] || [item.status, "neutral"];
   const category = LEAVE_CATEGORY[item.category] || [item.category, "neutral"];
   return (
     <AppModal
@@ -74,6 +81,13 @@ export default function LeaveDetailModal({ item, onClose, balance, balanceYear, 
           label="Durasi"
           value={`${formatLeaveUnits(item.requested_units)} ${LEAVE_UNIT[item.unit]}`}
         />
+        {item.unit === "hour" && item.schedule_snapshot && (
+          <Field
+            label="Waktu izin"
+            value={`${new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: item.timezone }).format(new Date(item.start_at))} – ${new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: item.timezone }).format(new Date(item.end_at))}`}
+            wide
+          />
+        )}
         <Field
           label="Penempatan saat mulai"
           value={
@@ -84,6 +98,12 @@ export default function LeaveDetailModal({ item, onClose, balance, balanceYear, 
           wide
         />
         <Field label="Alasan" value={item.reason} wide />
+        {item.review_notes && (
+          <Field label="Catatan perbaikan HRD" value={item.review_notes} wide />
+        )}
+        {item.policy_snapshot?.instructions && (
+          <Field label="Petunjuk dokumen" value={item.policy_snapshot.instructions} wide />
+        )}
       </Box>
       <Divider sx={{ my: 2 }} />
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>

@@ -6,8 +6,34 @@ Bagian terkait
 - [API baca beranda SITOU Mobile](#api-baca-beranda-sitou-mobile)
 - [Absensi mobile SITOU](#absensi-mobile-sitou)
 - [Profil dan keamanan akun](#profil-dan-keamanan-akun)
+- [Cuti dan izin mobile](#cuti-dan-izin-mobile)
 
 Kontrak backend untuk Flutter. Panduan aplikasi dan perangkat tetap di checkout SITOU Mobile.
+
+## Cuti dan izin mobile
+
+Terapkan migration 090–091 sebelum backend dan aplikasi baru. Endpoint memakai tabel cuti existing, identitas bearer, `leave_requests.read_self`, dan `leave_requests.submit_self` untuk mutation. Suspended hanya membaca; dokumen sendiri memerlukan `private_files.read_self`.
+
+| Endpoint | Kontrak |
+| --- | --- |
+| GET `/api/mobile/leave/options?workDate=YYYY-MM-DD` | Zona organisasi, hari ini, jenis aktif/eligible, ketentuan dokumen/template, saldo ledger/reservasi/tersedia, sesi tanggal pilihan, canSubmit. |
+| POST `/api/mobile/leave/preview` | JSON leaveTypeId, startDate, endDate, reason; jam menambah sessionNo, startsAt/endsAt ISO absolut. existingRequestId untuk pratinjau perbaikan sendiri. Mengembalikan units dan snapshot jadwal. |
+| GET `/api/mobile/leave/requests?cursor=ID` | Maksimal 20 pengajuan sendiri, ID turun, nextCursor. |
+| GET `/api/mobile/leave/requests/:id` | Detail, status tampilan/rawStatus, version, snapshot, lampiran aktif, keputusan, catatan/riwayat dan kemampuan tindakan. |
+| POST `/api/mobile/leave/requests` | Multipart payload seperti preview ditambah requestKey UUID; satu file opsional PDF maksimal 10 MB, isi file diperiksa server. Sumber employee_mobile ditentukan server. |
+| POST `/api/mobile/leave/requests/:id/actions` | Multipart/JSON action documents/resubmit/cancel, requestKey/version; cancel memerlukan notes minimal 10 karakter. Resubmit membawa data isian baru, jenis tetap. |
+| GET `/api/mobile/leave/files/:fileId` | Unduhan privat lampiran sendiri atau template jenis eligible/snapshot sendiri, tanpa token query/URL publik. |
+| POST `/api/leave-requests/:id/actions?organizationId=ID` | Cookie web, leave_requests.manage, HRD/Superadmin dan scope Pegawai. action approve/reject/revise/documents, requestKey/version; reject/revise mewajibkan notes minimal 10 karakter. |
+
+submitted ditampilkan Menunggu dokumen bila dokumen snapshot wajib belum tersedia, selain itu Menunggu persetujuan. needs_revision berarti Perlu perbaikan, bukan keputusan final. Pegawai memperbaiki tanggal/jam/alasan/dokumen pada record yang sama, lalu resubmit. approved/rejected/cancelled final; pembatalan approved memakai endpoint HRD existing. Tidak ada persetujuan atau kedaluwarsa otomatis.
+
+Durasi harian mengikuti resolver jadwal/kalender, satu tanggal kerja tetap satu hari meski beberapa sesi. Izin jam terikat satu sesi, mendukung lintas tengah malam dan jam bulat; pecahan belum didukung. Jadwal tidak tersedia ditolak. Histori jam legacy tidak diberi jam tebakan. Snapshot memelihara ketentuan/template lama, tetapi jenis nonaktif tidak dapat dipakai untuk pengajuan/persetujuan baru.
+
+Pengajuan mobile baru/perubahan periode harus mulai pada hari ini atau setelahnya di zona organisasi; tanggal lampau menghasilkan LEAVE_DATE_IN_PAST/startDate. Perbaikan milik sendiri dapat mempertahankan periode snapshot historis yang sama. Persetujuan HRD memakai validasi historis tanpa memaksa tanggal masa depan. Entry HRD tetap mendukung data historis. Lampiran cuti baru melalui mobile/dashboard/storage lampiran_cuti hanya PDF; referensi file untuk entry HRD juga harus PDF. Gambar historis tidak dihapus/dikonversi dan tetap dapat dibaca sesuai izin. Metadata lampiran size dapat berupa teks angka bigint; klien wajib menanganinya tanpa cast num langsung.
+
+submitted/needs_revision mencadangkan saldo melalui agregasi pengajuan, bukan ledger usage. Usage hanya saat keputusan approved. Lock Pegawai/entitlement dan receipt UUID/hash mencegah pemakaian/keputusan ganda. Retry memakai UUID, payload dan byte sama; konflik 409, versi usang VERSION_CONFLICT, antrean database LEAVE_BUSY. Tidak ada pengiriman ulang otomatis.
+
+Jenis memakai switch dokumen existing: medical_letter, organization_form, atau leave_attachment. Formulir organisasi memerlukan satu PDF privat dan petunjuk; pilihan lain tidak memerlukan template. POST/PATCH leave-types menerima JSON existing atau multipart payload+file. Template aktif/historis dilindungi referensi storage. Penggantian lampiran menandai versi lama is_current=false, bukan menghapus bukti.
 
 ## Profil dan keamanan akun
 
@@ -64,7 +90,7 @@ HRD, Pimpinan dan Pegawai dengan membership berlaku pada organisasi profil menda
 
 ### Sesi dan fitur berikutnya
 
-API baca beranda kini tersedia lokal melalui GET `/api/mobile/home` dan `/api/mobile/profile-photo`, tanpa mengubah envelope login/me/logout. Lihat `docs/mobile-api.md` untuk DTO minimum, permission per bagian, akses foto privat, zona waktu dan urutan deployment. Endpoint web existing tetap tidak menerima bearer mobile; hanya adapter mobile tersebut yang ditambahkan. Tidak ada endpoint pencatatan absensi/cuti baru.
+API baca beranda kini tersedia lokal melalui GET `/api/mobile/home` dan `/api/mobile/profile-photo`, tanpa mengubah envelope login/me/logout. Lihat `docs/mobile-api.md` untuk DTO minimum, permission per bagian, akses foto privat, zona waktu dan urutan deployment. Endpoint web existing tetap tidak menerima bearer mobile. Adapter Beranda tetap read-only; pencatatan absensi dan pengajuan cuti memakai endpoint domain masing-masing.
 
 Migration `20261027_065_mobile_auth_sessions.sql` menambah `mobile_auth_sessions`. Token acak 256 bit dengan prefix `sm1_`; hanya SHA-256 token tersimpan di database. Expiry mutlak dibaca dari `AUTH_MOBILE_SESSION_TTL_MINUTES` pada environment backend, tanpa refresh. Snapshot mengikat user, organisasi, profil, membership dan `credential_version`; FK komposit mencegah referensi profil/membership lintas organisasi. Hasil API hanya identitas minimum, bukan data profil sensitif atau password hash.
 
@@ -96,7 +122,7 @@ Sesudah mengubah environment, muat ulang/restart backend development bila nilai 
 
 ### Autentikasi native SITOU Mobile
 
-- API baca beranda `/api/mobile/home` dan foto pribadi `/api/mobile/profile-photo` mengikuti `docs/mobile-api.md`: bearer melalui requireMobileUser, permission self-service existing dan identitas dari sesi saja, tanpa selector atau akses admin tersirat. Storage foto tetap privat/audited/no-store. Tidak ada statistik absensi atau mutation bisnis pada endpoint ini; data contoh homepage Flutter bukan rekap backend. Kontrak login/web dan schema tidak berubah.
+- API baca beranda `/api/mobile/home` dan foto pribadi `/api/mobile/profile-photo` memakai bearer melalui requireMobileUser, permission self-service existing dan identitas dari sesi saja, tanpa selector atau akses admin tersirat. Ringkasan bulan berjalan mengikuti kontrak Beranda di bawah; storage foto tetap privat/audited/no-store. Kontrak login/web dan schema tidak berubah.
 
 - Kontrak `/api/auth/mobile/login`, `/me`, `/logout` dan kebijakan mobile wajib mengikuti `docs/mobile-api.md`; login/cookie/origin/pesan serta permission web existing tetap dipertahankan.
 - Shared `verifyLoginCredentials()` mempertahankan bcrypt/dummy hash, bucket kegagalan dan audit; jangan menduplikasi pemeriksaan password atau memisahkan bucket agar web/mobile dapat dilewati bergantian.
@@ -112,9 +138,11 @@ Beranda Flutter memakai sesi bearer existing. Login/me/logout, cookie web, origi
 
 ### Kontrak
 
-GET `/api/mobile/home` menerima Authorization Bearer, tanpa query/body selector. Respons envelope SITOU menyertakan requestId dan `data:{profile:{name,hasPhoto},organization:{name,timezone},placement,serverTime}`. `placement` string nama lokasi penempatan utama yang berlaku atau null; tidak menunjukkan validasi GPS. `serverTime` ISO 8601 UTC; timezone IANA berasal dari organisasi. Tidak mengirim NIK, kontak, password, object key, token atau daftar data administratif.
+GET `/api/mobile/home` menerima Authorization Bearer, tanpa query/body selector. Respons envelope SITOU menyertakan requestId dan `data:{profile:{name,hasPhoto},organization:{name,timezone},placement,serverTime,monthlySummary}`. `placement` string nama lokasi penempatan utama yang berlaku atau null; tidak menunjukkan validasi GPS. `serverTime` ISO 8601 UTC; timezone IANA berasal dari organisasi. Tidak mengirim NIK, kontak, password, object key, token atau daftar data administratif.
 
-Setiap request memanggil requireMobileUser dan `employees.read_self`. Identitas actor selalu dipetakan dari sesi, bukan ID klien; readEmployeeDashboard membaca profil user dan penempatan utama sesuai tanggal zona organisasi. Penempatan hanya dikirim dengan `assignments.read_self`. hasPhoto hanya aktif jika ada referensi foto dan `profile_self.read`. Tidak membaca statistik cuti/sanksi/kontrak untuk DTO beranda. Zona invalid/tidak tersedia ditolak 503 TIMEZONE_UNAVAILABLE; tidak memilih zona perangkat atau fallback baru.
+Setiap request memanggil requireMobileUser dan `employees.read_self`. Identitas actor selalu dipetakan dari sesi, bukan ID klien; readEmployeeDashboard membaca profil user dan penempatan utama sesuai tanggal zona organisasi. Penempatan hanya dikirim dengan `assignments.read_self`. hasPhoto hanya aktif jika ada referensi foto dan `profile_self.read`. Zona invalid/tidak tersedia ditolak 503 TIMEZONE_UNAVAILABLE; tidak memilih zona perangkat atau fallback baru.
+
+`monthlySummary:{month,throughDate,presentDays,leaveDays,lateDays}` dihitung read-only oleh `lib/auth/mobile/monthSummary.mjs`. Bulan dan batas hari ini memakai zona organisasi server. Hadir menghitung tanggal kerja unik pada rekap dengan jam masuk/pulang atau status present/late (termasuk belum lengkap); Terlambat menghitung tanggal dengan late_minutes > 0/status late. Keduanya memerlukan assignments.read_self dan modul Absensi aktif, selain izin profil di atas. Izin memerlukan leave_requests.read_self dan menghitung tanggal kerja unik dari pengajuan approved beserta snapshot jadwal, digabung rekap leave/permission/sick/official_duty. Entry HRD lama tanpa snapshot mengikuti resolver jadwal existing. Tanggal kerja snapshot dipakai untuk izin lintas tengah malam. Hari libur tanpa sesi dan pengajuan pending/rejected/cancelled tidak menambah hitungan. Seluruh angka terbatas awal bulan sampai hari ini; satu hari dapat termasuk Hadir dan Izin bila ada izin sebagian hari. Nilai tanpa izin adalah null, sedangkan hasil kosong yang berizin adalah 0. Tidak ada tabel, kolom atau migration baru.
 
 GET `/api/mobile/profile-photo` menerima bearer dan tidak menerima fileId/employeeId/organizationId atau query lain. Wajib `employees.read_self` dan `profile_self.read`; getSelfProfilePhoto memastikan employee.user_id, organisasi, pemilik file, referensi pas foto, category employee_photo dan lifecycle aktif tanpa draft/deleted/purged. getStoredFile dan assertStoredFileAvailable mempertahankan kebijakan pemindaian serta storage privat existing. Hanya JPEG/PNG/WebP maksimal 5 MiB, preview diaudit melalui private_file.preview. Respons memakai Content-Type, Content-Length, nama tersanitasi, CSP sandbox, nosniff, private/no-store. File tetap privat, tidak tersedia melalui path publik.
 
@@ -122,7 +150,7 @@ Kedua GET memakai validasi origin existing. Tanpa sesi/invalid/revoked/expired d
 
 ### Integrasi dan penerapan
 
-Flutter memisahkan profil asli dari HomeExampleData: shift, status absensi, ringkasan 19/1/0 dan pengumuman contoh diotorisasi pemilik untuk desain, bukan hasil query database. Tombol belum tersedia hanya menampilkan Segera tersedia; tidak memanggil endpoint pencatatan. API ini tidak memberikan data absensi atau saldo cuti dan tidak boleh diklaim menyelesaikan integrasi bisnis tersebut.
+Flutter menampilkan monthlySummary dari server tanpa angka contoh; server lama atau angka tanpa izin tampil –. Tarik Beranda ke bawah memuat ulang ringkasan. Tombol Lihat detail ringkasan tetap nonaktif. Absensi dan saldo cuti memakai endpoint domain masing-masing; pengumuman contoh masih terpisah dari data operasional. APK lama dapat mengabaikan field ringkasan tambahan ini.
 
 Deploy kode backend baru sebelum distribusi APK homepage; schema tetap existing (termasuk sesi mobile migration 065). APK lama tetap memakai kontrak auth unchanged. APK baru menangani endpoint belum tersedia sebagai kegagalan muat/coba lagi. Gunakan base URL HTTPS domain pada rilis, tanpa adb reverse. Tidak ada penerapan VPS otomatis. Rilis operasional menunggu penggantian data contoh, QA perangkat/platform serta regresi sesi dan permission.
 

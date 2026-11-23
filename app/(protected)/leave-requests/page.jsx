@@ -5,7 +5,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { Button, Select } from "antd";
-import { CloseCircleOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  CloseCircleOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  CheckCircleOutlined,
+  EditOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { Box, useTheme } from "@mui/material";
 import dayjs from "dayjs";
 import PageHeader from "@/app/components/layout/PageHeader";
@@ -27,9 +34,11 @@ import useAppNotification from "@/app/hooks/useAppNotification";
 import LeaveRequestForm from "@/app/components/leave/LeaveRequestForm";
 import LeaveDetailModal from "@/app/components/leave/LeaveDetailModal";
 import LeaveCancelForm from "@/app/components/leave/LeaveCancelForm";
+import LeaveReviewForm from "@/app/components/leave/LeaveReviewForm";
 import {
   LEAVE_CATEGORY,
   LEAVE_STATUS,
+  leaveDisplayStatus,
   LEAVE_UNIT,
   formatLeaveDate,
   formatLeaveUnits,
@@ -74,6 +83,7 @@ export default function LeaveRequestsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const [cancel, setCancel] = useState(null);
+  const [review, setReview] = useState(null);
   const { notification, showNotification, closeNotification } = useAppNotification();
   const [exporting, setExporting] = useState(false);
   const exportExcel = async () => {
@@ -260,7 +270,9 @@ export default function LeaveRequestsPage() {
           options={[
             { value: "all", label: "Semua status" },
             { value: "approved", label: "Disetujui" },
-            { value: "submitted", label: "Menunggu" },
+            { value: "submitted", label: "Menunggu persetujuan" },
+            { value: "waiting_documents", label: "Menunggu dokumen" },
+            { value: "needs_revision", label: "Perlu perbaikan" },
             { value: "rejected", label: "Ditolak" },
             { value: "cancelled", label: "Dibatalkan" },
           ]}
@@ -270,6 +282,37 @@ export default function LeaveRequestsPage() {
   ];
   const actions = (item) => [
     { key: "detail", icon: <EyeOutlined />, label: "Lihat detail", onClick: () => setDetail(item) },
+    ...(canManage && ["submitted", "needs_revision"].includes(item.status)
+      ? [
+          {
+            key: "approve",
+            icon: <CheckCircleOutlined />,
+            label: "Setujui",
+            disabled:
+              item.status === "needs_revision" || leaveDisplayStatus(item) === "waiting_documents",
+            onClick: () => setReview({ item, action: "approve" }),
+          },
+          {
+            key: "revise",
+            icon: <EditOutlined />,
+            label: "Minta perbaikan",
+            onClick: () => setReview({ item, action: "revise" }),
+          },
+          {
+            key: "documents",
+            icon: <UploadOutlined />,
+            label: "Lengkapi dokumen",
+            onClick: () => setReview({ item, action: "documents" }),
+          },
+          {
+            key: "reject",
+            icon: <CloseCircleOutlined />,
+            label: "Tolak pengajuan",
+            danger: true,
+            onClick: () => setReview({ item, action: "reject" }),
+          },
+        ]
+      : []),
     {
       key: "balance",
       icon: <EyeOutlined />,
@@ -353,8 +396,8 @@ export default function LeaveRequestsPage() {
       title: "Status",
       render: (_, item) => (
         <CompactInfoChip
-          label={LEAVE_STATUS[item.status]?.[0]}
-          tone={LEAVE_STATUS[item.status]?.[1]}
+          label={LEAVE_STATUS[leaveDisplayStatus(item)]?.[0]}
+          tone={LEAVE_STATUS[leaveDisplayStatus(item)]?.[1]}
         />
       ),
     },
@@ -371,8 +414,8 @@ export default function LeaveRequestsPage() {
         </FontStyle>
         <Box sx={{ mt: 1.5, display: "flex", gap: 1, flexWrap: "wrap" }}>
           <CompactInfoChip
-            label={LEAVE_STATUS[item.status]?.[0] || item.status}
-            tone={LEAVE_STATUS[item.status]?.[1] || "neutral"}
+            label={LEAVE_STATUS[leaveDisplayStatus(item)]?.[0] || item.status}
+            tone={LEAVE_STATUS[leaveDisplayStatus(item)]?.[1] || "neutral"}
           />
           <CompactInfoChip
             label={LEAVE_CATEGORY[item.category]?.[0] || item.category}
@@ -462,6 +505,18 @@ export default function LeaveRequestsPage() {
         onError={(message) => showNotification(message, "error")}
       />
       <LeaveDetailModal item={detail} onClose={() => setDetail(null)} />
+      {review && (
+        <LeaveReviewForm
+          {...review}
+          onClose={() => setReview(null)}
+          onError={(message) => showNotification(message, "error")}
+          onSaved={async (message) => {
+            setReview(null);
+            showNotification(message);
+            await list.refresh();
+          }}
+        />
+      )}
       {cancel ? (
         <LeaveCancelForm
           item={cancel}

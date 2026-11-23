@@ -1086,7 +1086,7 @@ CREATE TABLE leave_types (
   updated_at timestamptz NOT NULL DEFAULT now(), -- Versi optimistic concurrency.
   CONSTRAINT uq_leave_types_code UNIQUE (organization_id,code),
   CONSTRAINT uq_leave_types_org_id UNIQUE (organization_id,id),
-  CONSTRAINT ck_leave_types_allowance CHECK (annual_allowance IS NULL OR annual_allowance >= 0),
+  CONSTRAINT ck_leave_types_allowance CHECK (annual_allowance IS NULL OR annual_allowance::numeric >= 0::numeric),
   CONSTRAINT ck_leave_types_attachment CHECK (NOT requires_attachment OR required_attachment_category IS NOT NULL)
 );
 COMMENT ON TABLE leave_types IS 'Master cuti/izin. Izin sakit dapat mewajibkan surat dokter.';
@@ -1099,7 +1099,7 @@ CREATE TABLE leave_requests (
   leave_type_id bigint NOT NULL, -- Jenis cuti/izin.
   start_at timestamptz NOT NULL, -- Awal izin.
   end_at timestamptz NOT NULL, -- Akhir izin.
-  requested_units integer NOT NULL CHECK (requested_units > 0), -- Durasi hari/jam dalam bilangan bulat.
+  requested_units integer NOT NULL CHECK (requested_units::numeric > 0::numeric), -- Cast constraint dipertahankan sesuai upgrade migration 024; kolom tetap integer.
   reason text, -- Alasan pengajuan.
   submission_source varchar(20) NOT NULL DEFAULT 'hrd_entry' CHECK (submission_source IN ('hrd_entry','employee_web','employee_mobile','import','api')), -- Kanal input sekarang dan masa depan.
   status varchar(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','submitted','approved','rejected','cancelled')), -- Status proses.
@@ -3179,3 +3179,52 @@ COMMENT ON COLUMN attendance_correction_requests.basis_snapshot IS
   'Jadwal dan jam asli saat pengajuan; tidak menggantikan event mentah. Dasar pemeriksaan perubahan sebelum keputusan HRD.';
 COMMENT ON TABLE attendance_correction_requests IS
   'Pengajuan koreksi masuk, pulang, atau keduanya untuk satu tanggal kerja dan sesi; tidak mengubah event/rekap sebelum keputusan HRD.';
+
+-- Migration 090: mobile leave workflow
+-- Reuse leave records/ledger. Only workflow metadata and durable mutation receipts are new.
+ALTER TABLE leave_types
+  ADD COLUMN template_file_id bigint,
+  ADD COLUMN attachment_label varchar(100),
+  ADD COLUMN document_instructions varchar(2000),
+  ADD CONSTRAINT fk_leave_template FOREIGN KEY (organization_id,template_file_id)
+    REFERENCES stored_files(organization_id,id);
+ALTER TABLE leave_requests
+  ADD COLUMN policy_snapshot jsonb,
+  ADD COLUMN schedule_snapshot jsonb,
+  ADD COLUMN review_notes text,
+  ADD COLUMN reviewed_by_user_id bigint REFERENCES users(id),
+  ADD COLUMN reviewed_at timestamptz;
+ALTER TABLE leave_requests DROP CONSTRAINT leave_requests_status_check;
+ALTER TABLE leave_requests ADD CONSTRAINT leave_requests_status_check
+  CHECK(status IN ('draft','submitted','needs_revision','approved','rejected','cancelled'));
+ALTER TABLE leave_request_attachments ADD COLUMN is_current boolean NOT NULL DEFAULT true;
+CREATE INDEX ix_leave_current_documents ON leave_request_attachments(organization_id,leave_request_id) WHERE is_current;
+CREATE TABLE leave_request_operations (
+  organization_id bigint NOT NULL REFERENCES organizations(id),
+  actor_user_id bigint NOT NULL REFERENCES users(id),
+  request_key uuid NOT NULL,
+  operation varchar(40) NOT NULL,
+  payload_hash char(64) NOT NULL,
+  result jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(organization_id,actor_user_id,request_key)
+);
+COMMENT ON COLUMN leave_requests.policy_snapshot IS 'Frozen leave type, balance rule, required document and private template at submission; NULL means legacy HRD entry.';
+COMMENT ON COLUMN leave_requests.schedule_snapshot IS 'Resolved work dates/sessions and unit calculation at submission; legacy hourly records have no inferred clock times.';
+COMMENT ON TABLE leave_request_operations IS 'Idempotency receipts for leave mutations; independent from attendance and work schedule receipts.';
+CREATE INDEX ix_leave_active_reservations ON leave_requests(organization_id,employee_id,leave_type_id,start_at)
+  WHERE status IN ('submitted','needs_revision');
+INSERT INTO permissions(code,description) VALUES ('leave_requests.submit_self','Mengajukan dan melengkapi cuti/izin sendiri.') ON CONFLICT(code) DO NOTHING;
+INSERT INTO role_permissions(role_id,permission_id)
+  SELECT r.id,p.id FROM roles r CROSS JOIN permissions p
+  WHERE r.code IN ('employee','hrd','leader') AND p.code='leave_requests.submit_self'
+  ON CONFLICT DO NOTHING;
+
+-- Migration 091: retained leave templates
+-- A relational snapshot keeps historical templates visible to storage retention.
+ALTER TABLE leave_requests ADD COLUMN template_file_id bigint;
+ALTER TABLE leave_requests ADD CONSTRAINT fk_leave_request_template
+  FOREIGN KEY(organization_id,template_file_id) REFERENCES stored_files(organization_id,id);
+UPDATE leave_requests SET template_file_id=(policy_snapshot->>'templateFileId')::bigint
+  WHERE policy_snapshot->>'templateFileId' IS NOT NULL;
+COMMENT ON COLUMN leave_requests.template_file_id IS 'Private template version retained for this request, independent from later master changes.';

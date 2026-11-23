@@ -277,7 +277,10 @@ Rujukan: [Usia dan tanggal akhir kontrak](data.md#usia-dan-tanggal-akhir-kontrak
 
 - Tahap sekarang HRD dapat mencatat izin langsung dengan `submission_source='hrd_entry'`.
 
-- Tahap mobile Pegawai dapat submit; keputusan tetap HRD.
+- Mobile Pegawai dapat submit harian/per jam, melengkapi dokumen, memperbaiki dan membatalkan pengajuan sendiri sebelum keputusan final. Lihat [kontrak cuti mobile](../mobile-api.md#cuti-dan-izin-mobile).
+- Menunggu dokumen merupakan tampilan turunan submitted; hanya submitted lengkap dapat disetujui. Template organisasi terpisah dari dokumen Pegawai dan mengikuti snapshot. Surat dokter/dokumen lainnya tidak memerlukan template.
+- Minta perbaikan memerlukan catatan; Pegawai memperbaiki tanggal/jam/alasan/dokumen pada record yang sama, jenis tetap, lalu mengajukan kembali. Tolak adalah keputusan final. Pengajuan mobile sendiri harus diputus HRD lain/Superadmin berizin.
+- Pengajuan berjalan mencadangkan ketersediaan tanpa usage ledger. Pemakaian hanya saat approved, tepat sekali. Penolakan/pembatalan pending melepaskan reservasi. Koreksi saldo tidak boleh mengurangi saldo di bawah reservasi aktif.
 
 - Pimpinan hanya melihat sesuai permission.
 

@@ -55,7 +55,12 @@ export default function LeaveRequestForm({
   const balanceReady = balanceState.key === balanceKey && Boolean(balanceState.data);
   const balance =
     usesBalance && balanceReady
-      ? previewLeaveBalance(selectedType, balanceState.data.balances, units)
+      ? previewLeaveBalance(
+          selectedType,
+          balanceState.data.balances,
+          units,
+          balanceState.data.requests,
+        )
       : null;
   const balanceBlocked =
     usesBalance && (!balanceReady || balance.remaining <= 0 || balance.after < 0);
@@ -229,7 +234,7 @@ export default function LeaveRequestForm({
         open={open}
         onClose={onClose}
         title="Catat cuti atau izin"
-        description="Cuti atau izin yang dibuat HRD langsung disetujui. Jika memakai jatah, sisanya berkurang setelah disimpan."
+        description="Cuti atau izin langsung disetujui saat disimpan. Jatah berkurang jika digunakan."
         icon="solar:calendar-add-bold-duotone"
         size="lg"
         disableClose={saving}
@@ -252,14 +257,12 @@ export default function LeaveRequestForm({
         <AppNotice
           tone="info"
           title="Periksa data sebelum menyimpan"
-          description="Cuti atau izin yang sudah disimpan tidak dapat diedit atau dihapus. Jika salah, batalkan dengan alasan, lalu buat lagi. Jatah yang terpakai akan dikembalikan saat dibatalkan."
+          description="Untuk memperbaiki data tersimpan, batalkan dengan alasan lalu buat ulang. Pembatalan mengembalikan jatah yang terpakai."
           style={{ marginBottom: 20 }}
         />
         <Form form={form} name="leave-request" layout="vertical" disabled={saving || confirm}>
           <Row gutter={[16, 4]}>
-            <Col xs={24}>
-              <OrganizationScopeField disabled />
-            </Col>
+            <OrganizationScopeField hideLocked colProps={{ xs: 24 }} disabled />
             <Col xs={24} sm={12}>
               <Form.Item
                 name="employeeId"
@@ -305,7 +308,7 @@ export default function LeaveRequestForm({
                   }
                   description={
                     !usesBalance ? (
-                      "Jenis ini tidak mengurangi saldo cuti. Tetap periksa tanggal, jumlah hari atau jam, dan dokumen pendukung."
+                      "Cuti atau izin ini tidak mengurangi jatah."
                     ) : !employeeId ? (
                       "Pilih pegawai untuk melihat saldo cuti."
                     ) : !balanceReady ? (
@@ -355,12 +358,12 @@ export default function LeaveRequestForm({
                           {balance.remaining <= 0
                             ? "Jatah sudah habis. Cuti atau izin ini tidak dapat disimpan."
                             : balance.after < 0
-                              ? `Jumlah yang dibebankan melebihi sisa saldo. Maksimal ${balance.remaining} ${LEAVE_UNIT[selectedType.unit]}.`
+                              ? `Jumlah cuti atau izin melebihi sisa jatah. Maksimal ${balance.remaining} ${LEAVE_UNIT[selectedType.unit]}.`
                               : `Perkiraan sisa setelah disimpan: ${balance.after} ${LEAVE_UNIT[selectedType.unit]}.`}
                         </div>
                         {balance.automatic ? (
                           <div>
-                            Hak tahunan akan dicatat otomatis saat penyimpanan pertama berhasil.
+                            Jatah tahunan dibuat otomatis saat data pertama disimpan.
                           </div>
                         ) : null}
                         <div>
@@ -390,9 +393,9 @@ export default function LeaveRequestForm({
             <Col xs={24} sm={12}>
               <Form.Item
                 name="requestedUnits"
-                label={`Jumlah ${selectedType?.unit === "hour" ? "jam" : "hari"} yang dibebankan`}
+                label={`Jumlah ${selectedType?.unit === "hour" ? "jam" : "hari"} cuti atau izin`}
                 rules={[
-                  { required: true, message: "Isi jumlah hari atau jam yang dibebankan." },
+                  { required: true, message: "Isi jumlah hari atau jam cuti atau izin." },
                   {
                     type: "integer",
                     min: 1,
@@ -402,7 +405,7 @@ export default function LeaveRequestForm({
                 extra={
                   selectedType?.unit === "hour"
                     ? "Isi jumlah jam sesuai kebijakan organisasi."
-                    : "Perkiraan awal memakai hari kalender. Sesuaikan dengan hari kerja dan kebijakan organisasi. Jumlah ini digunakan untuk mengurangi saldo jika jenis cuti memakai saldo."
+                    : "Jumlah awal dihitung dari hari kalender. Sesuaikan dengan hari kerja yang dihitung organisasi."
                 }
               >
                 <InputNumber min={1} step={1} precision={0} style={{ width: "100%" }} />
@@ -430,7 +433,7 @@ export default function LeaveRequestForm({
                     validator: (_, value) =>
                       selectedType?.requires_attachment && !value?.length
                         ? Promise.reject(
-                            new Error("Dokumen pendukung wajib dilengkapi untuk jenis ini."),
+                            new Error("Unggah dokumen pendukung yang diwajibkan."),
                           )
                         : Promise.resolve(),
                   },
@@ -438,17 +441,17 @@ export default function LeaveRequestForm({
                 extra={
                   selectedType?.requires_attachment
                     ? "Dokumen wajib diunggah sesuai aturan cuti atau izin yang dipilih."
-                    : "Dokumen pendukung tidak wajib untuk jenis ini."
+                    : null
                 }
               >
                 <FileUploadListField
                   onError={onError}
-                  accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+                  accept="application/pdf,.pdf"
                   maxSizeBytes={MAX_LEAVE_FILE_BYTES}
                   maxCount={MAX_LEAVE_ATTACHMENTS}
                   disabled={saving || confirm}
                   emptyTitle="Pilih atau tarik dokumen ke area ini"
-                  helpText="Satu file JPG, PNG, WebP, atau PDF. Maksimal 10 MB."
+                  helpText="Satu dokumen PDF. Maksimal 10 MB."
                   selectedText="Lampiran siap disimpan bersama cuti atau izin"
                   fullWidth
                 />

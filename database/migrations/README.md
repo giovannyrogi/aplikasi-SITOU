@@ -1,5 +1,7 @@
 # Migration Database SITOU
 
+Migration `090` menambah workflow cuti mobile pada tabel cuti existing, metadata dokumen/template, snapshot, perbaikan, versi lampiran dan receipt. `091` mengikat template historis melalui FK agar terlindung pemeliharaan file. Terapkan berurutan pada development dengan `npm run db:migrate -- database/migrations/20261123_090_mobile_leave_workflow.sql` lalu `npm run db:migrate -- database/migrations/20261123_091_leave_template_history_reference.sql`. Jalankan `npm run db:verify-bootstrap`. Urutan rilis adalah migration, backend/dashboard, lalu APK baru; deployment VPS terpisah. Kontrak dan peta data berada di docs/mobile-api.md dan docs/rules/data.md.
+
 Migration `089` menerima checkpoint Jadwal kerja (`current_step=4`) pada draft onboarding Pegawai. Terapkan sebelum menjalankan wizard lima langkah. Payload dan checkpoint draft lama tetap dipertahankan. Jalankan melalui runner dalam transaksi seperti migration lainnya.
 
 Migration `088` memperluas tabel pengajuan koreksi existing untuk masuk, pulang atau keduanya, termasuk tanpa event. Snapshot dasar, hash payload, dan kunci sesi melindungi histori, perubahan paralel dan retry. Jalankan setelah `087` melalui runner sebelum API/Flutter baru. Migration tidak mengubah event atau rekap. [Kontrak koreksi mobile](../../docs/mobile-api.md#riwayat-dan-koreksi-absensi).

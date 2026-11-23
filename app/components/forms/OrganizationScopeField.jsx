@@ -1,6 +1,6 @@
 "use client";
 
-import { Form, Input } from "antd";
+import { Col, Form, Input } from "antd";
 import OrganizationSelect from "@/app/components/selects/OrganizationSelect";
 import { useAuthenticatedUser } from "@/app/components/auth/AuthenticatedUserProvider";
 import { ROLES } from "@/app/constants/roles";
@@ -9,11 +9,18 @@ import { ROLES } from "@/app/constants/roles";
  * Menampilkan pemilih organisasi untuk Superadmin dan nilai session yang terkunci
  * untuk HRD, sambil tetap menyimpan organizationId pada payload form.
  */
-export default function OrganizationScopeField({ disabled = false }) {
+export default function OrganizationScopeField({ disabled = false, hideLocked = false, colProps }) {
   const user = useAuthenticatedUser();
   const locked = user.role_code !== ROLES.SUPERADMIN;
 
   if (locked) {
+    if (hideLocked) {
+      return (
+        <Form.Item name="organizationId" hidden>
+          <Input />
+        </Form.Item>
+      );
+    }
     return (
       <>
         <Form.Item name="organizationId" hidden>
@@ -26,9 +33,10 @@ export default function OrganizationScopeField({ disabled = false }) {
     );
   }
 
-  return (
+  const field = (
     <Form.Item name="organizationId" label="Organisasi" rules={[{ required: true }]}>
       <OrganizationSelect disabled={disabled} />
     </Form.Item>
   );
+  return colProps ? <Col {...colProps}>{field}</Col> : field;
 }
