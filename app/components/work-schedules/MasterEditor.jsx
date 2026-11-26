@@ -7,7 +7,7 @@ import FormSettingSwitch from "@/app/components/forms/FormSettingSwitch";
 import { Box, Divider } from "@mui/material";
 import AppModal from "@/app/components/modals/AppModal";
 import FontStyle from "@/app/components/font-style/FontStyle";
-import { DateField, TimeField, MinutesField, useScheduleOptions } from "./ScheduleFields";
+import { DateField, TimeField, MinutesField, useScheduleOptions, lateToleranceHelp } from "./ScheduleFields";
 import CalendarEditor from "@/app/components/holiday-catalogs/CalendarEditor";
 const weekdays = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 export const defaultRules = {
@@ -161,7 +161,11 @@ export default function MasterEditor({
                   title="Kurangi durasi kerja dengan istirahat"
                   description="Aktifkan agar waktu istirahat dikurangi dari rentang jam kerja."
                 />
-                <MinutesField name={["rules", "lateTolerance"]} label="Toleransi terlambat" />
+                <MinutesField
+                  name={["rules", "lateTolerance"]}
+                  label="Toleransi terlambat"
+                  extra={lateToleranceHelp}
+                />
                 <MinutesField name={["rules", "earlyTolerance"]} label="Toleransi pulang awal" />
               </Box>
             )}

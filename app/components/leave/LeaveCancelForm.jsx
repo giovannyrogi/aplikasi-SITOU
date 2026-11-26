@@ -1,5 +1,7 @@
 "use client";
-import { Button, Form, Input } from "antd";
+import { Button, Form } from "antd";
+import CharacterCountTextArea from "@/app/components/forms/CharacterCountTextArea";
+import { textLength } from "@/lib/validation/textLength.mjs";
 import AppModal from "@/app/components/modals/AppModal";
 import { useLoadingBackdrop } from "@/app/components/loading/LoadingBackdropProvider";
 import { readApiResponse } from "@/lib/api/clientError";
@@ -49,9 +51,17 @@ export default function LeaveCancelForm({ item, onClose, onSaved, onError }) {
         <Form.Item
           name="reason"
           label="Alasan pembatalan"
-          rules={[{ required: true }, { min: 10, message: "Alasan minimal 10 karakter." }]}
+          rules={[
+            { required: true },
+            {
+              validator: (_, value) =>
+                textLength(value?.trim()) >= 10 && textLength(value?.trim()) <= 500
+                  ? Promise.resolve()
+                  : Promise.reject(new Error("Alasan harus 10–500 karakter.")),
+            },
+          ]}
         >
-          <Input.TextArea rows={4} maxLength={2000} showCount />
+          <CharacterCountTextArea rows={4} maxLength={500} />
         </Form.Item>
       </Form>
     </AppModal>

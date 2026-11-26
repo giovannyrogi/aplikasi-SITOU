@@ -60,9 +60,12 @@ export function TimeField({ name, label, required = false, disabled = false }) {
     </Form.Item>
   );
 }
-export function MinutesField({ name, label, disabled = false }) {
+export const lateToleranceHelp =
+  "Masuk dalam batas toleransi dianggap tepat waktu. Jika melewati toleransi, keterlambatan dihitung sejak waktu mulai kerja.";
+
+export function MinutesField({ name, label, disabled = false, extra }) {
   return (
-    <Form.Item name={name} label={label + " (menit)"}>
+    <Form.Item name={name} label={label + " (menit)"} extra={extra}>
       <InputNumber disabled={disabled} min={0} max={1440} precision={0} style={{ width: "100%" }} />
     </Form.Item>
   );

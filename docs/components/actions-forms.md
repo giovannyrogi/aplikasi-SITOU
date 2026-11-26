@@ -1,5 +1,7 @@
 # actions forms
 
+`forms/CharacterCountTextArea` menyusun Ant Design TextArea untuk input alasan berbatas. Props: `maxLength`, `value`/`defaultValue`, `onChange`, `status`, ref dan props TextArea. Penghitung Unicode code point tampil dengan satuan karakter; saat batas tercapai counter/border memakai warna error dari theme tanpa membuat nilai tepat batas gagal validasi Form. Mendukung reset nilai terkontrol. Dipakai alasan pengajuan/pembatalan cuti dan izin; detail histori tetap memakai komponen data baca-saja.
+
 ## Actions dan Modal
 
 | Komponen                     | Tujuan                                                                                                                                       | Props penting                                                                                                           |

@@ -1,5 +1,7 @@
 "use client";
 import ResponsiveRangePicker from "@/app/components/forms/ResponsiveRangePicker";
+import CharacterCountTextArea from "@/app/components/forms/CharacterCountTextArea";
+import { textLength } from "@/lib/validation/textLength.mjs";
 import { useEffect, useRef, useState } from "react";
 import { Button, Col, Form, Input, InputNumber, Row, Select } from "antd";
 import AppNotice from "@/app/components/data-display/AppNotice";
@@ -362,9 +364,7 @@ export default function LeaveRequestForm({
                               : `Perkiraan sisa setelah disimpan: ${balance.after} ${LEAVE_UNIT[selectedType.unit]}.`}
                         </div>
                         {balance.automatic ? (
-                          <div>
-                            Jatah tahunan dibuat otomatis saat data pertama disimpan.
-                          </div>
+                          <div>Jatah tahunan dibuat otomatis saat data pertama disimpan.</div>
                         ) : null}
                         <div>
                           Saldo mengikuti tahun tanggal mulai dan diperiksa kembali saat
@@ -417,10 +417,15 @@ export default function LeaveRequestForm({
                 label="Alasan cuti atau izin"
                 rules={[
                   { required: true, message: "Alasan cuti atau izin wajib diisi." },
-                  { min: 10, message: "Alasan minimal 10 karakter." },
+                  {
+                    validator: (_, value) =>
+                      textLength(value?.trim()) >= 10 && textLength(value?.trim()) <= 500
+                        ? Promise.resolve()
+                        : Promise.reject(new Error("Alasan harus 10–500 karakter.")),
+                  },
                 ]}
               >
-                <Input.TextArea rows={3} maxLength={2000} showCount />
+                <CharacterCountTextArea rows={3} maxLength={500} />
               </Form.Item>
             </Col>
             <Col xs={24}>
@@ -432,9 +437,7 @@ export default function LeaveRequestForm({
                   {
                     validator: (_, value) =>
                       selectedType?.requires_attachment && !value?.length
-                        ? Promise.reject(
-                            new Error("Unggah dokumen pendukung yang diwajibkan."),
-                          )
+                        ? Promise.reject(new Error("Unggah dokumen pendukung yang diwajibkan."))
                         : Promise.resolve(),
                   },
                 ]}

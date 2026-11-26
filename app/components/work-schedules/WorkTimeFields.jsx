@@ -5,7 +5,7 @@ import { Form } from "antd";
 import { Box } from "@mui/material";
 import FontStyle from "@/app/components/font-style/FontStyle";
 import FormSettingSwitch, { FormSettingsGroup } from "@/app/components/forms/FormSettingSwitch";
-import { TimeField, MinutesField } from "./ScheduleFields";
+import { TimeField, MinutesField, lateToleranceHelp } from "./ScheduleFields";
 export default function WorkTimeFields({
   prefix,
   watchPrefix = prefix,
@@ -136,6 +136,7 @@ export default function WorkTimeFields({
                   <MinutesField
                     name={path("lateTolerance")}
                     label="Toleransi terlambat"
+                    extra={lateToleranceHelp}
                     disabled={readOnly}
                   />
                   <MinutesField

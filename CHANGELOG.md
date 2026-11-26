@@ -1,5 +1,18 @@
 # Catatan perubahan SITOU
 
+## 2026-11-26 — Penjelasan toleransi masuk dan label mobile
+
+- `ScheduleFields.jsx` menambahkan `extra` opsional pada `MinutesField` serta satu sumber keterangan `lateToleranceHelp`, dipakai `WorkTimeFields.jsx` dan `MasterEditor.jsx`. Keterangan menjelaskan masuk sampai batas toleransi dianggap tepat waktu; setelah melewati batas, durasi dihitung sejak waktu mulai kerja. `docs/work-schedules.md` mencatat aturan termasuk batas detik dan pembulatan menit. Dashboard laporan sudah memakai Masuk/Pulang tepat waktu berdasarkan aksi sehingga tidak diubah.
+- Rumus `assessAttendance` existing sudah sesuai dan tidak diubah. QA kode aktual: 09.00/09.10/09.15 tepat menghasilkan on_time dan 0 menit terlambat; 09.15.01 menjadi late_check_in dengan 15 menit; 09.20 terlambat 20 menit; pulang 17.00 on_time. Enam kasus lulus, lima regresi laporan attendancePolicy lulus, ESLint tiga komponen serta build Next.js lulus. Tidak memakai endpoint/database/data nyata untuk tes ini; bukan verifikasi transaksi backend. Tampilan penuh editor dashboard di perangkat belum diuji ulang.
+- Tidak ada API, tabel, kolom, migration, data historis atau deployment VPS. Perubahan label/pratinjau/riwayat dan QA tampilan mobile dicatat pada checkout Flutter. Artefak QA sementara Flutter dibersihkan, suite existing dipertahankan. Backend/VPS tidak perlu perubahan rumus.
+
+## 2026-11-26 — Batas alasan/catatan dan indikator jumlah karakter
+
+- `mobile.js` membatasi event absensi baru ke catatan 100 karakter setelah lookup receipt. Envelope lama sampai 500 dipertahankan untuk replay identik dengan hash/receipt existing, tanpa memodifikasi histori. `mobile-history.js` tetap membatasi alasan koreksi 500. `leave/schemas.js` dan `leave/workflow.js` membatasi alasan pengajuan serta pembatalan 10–500. Catatan keputusan/review HRD, penyesuaian saldo dan instruksi dokumen tetap mengikuti batas existing.
+- `lib/validation/textLength.mjs` menghitung Unicode code point, sama dengan runes Flutter dan char_length PostgreSQL. `CharacterCountTextArea` baru menampilkan jumlah/batas, memakai counter/border merah saat batas tercapai, mendukung reset terkontrol, dan membatasi tempel tanpa memecah surrogate. Form pengajuan/pembatalan dashboard memakai komponen ini; nilai tepat 500 tetap valid. Kontrak API, pedoman UI/UX dan katalog komponen diperbarui.
+- QA lokal: 52 kasus batas schema dari kode aktual lulus (9/10/499/500/501 alasan, 0/99/100/101 catatan, emoji, koreksi dan pengecualian catatan review HRD); 10 regresi cuti existing lulus. Source schema dievaluasi terisolasi tanpa database/endpoint nyata. Komponen dashboard dirender SSR dan Chrome headless lebar 390, counter normal/merah serta border ditinjau. Lint dan build Next.js lulus. Build awal di sandbox gagal membuat junction pg di .next; build ulang dengan izin proses lokal lulus. Tidak ada mutasi data nyata, pengajuan atau deployment VPS.
+- Skema existing diperiksa: batas/tipe penyimpanan historis masih mencukupi; tidak ada kolom/tabel/migration baru atau penghapusan catatan lama. Script/HTML/PNG/profil browser QA baru dibersihkan; test suite existing tetap ada. Backend baru masih perlu rollout terpisah bersama aplikasi; tidak mengklaim batas server produksi sudah berubah.
+
 ## 2026-11-23 — PDF wajib dan batas tanggal pengajuan mobile
 
 - `lib/files/storage.js` membatasi lampiran_cuti ke isi PDF maksimal 10 MB. `lib/leave/service.js` juga memeriksa MIME PDF saat entry HRD memakai referensi lampiran existing; form unggah HRD/review hanya menerima PDF. Dokumen/gambar historis tetap utuh dan dapat dibaca sesuai izin.

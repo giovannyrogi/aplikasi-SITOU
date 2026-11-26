@@ -154,6 +154,8 @@ Katalog [komponen bersama](../app/components/README.md) menjelaskan cara memakai
 
 ### Jarak form dan bantuan field
 
+- Untuk alasan yang dibatasi, gunakan `CharacterCountTextArea`: penghitung `10 / 500 karakter` mengikuti nilai terkendali/tidak terkendali dan Unicode code point yang sama dengan API. Penghitung dan border merah saat jumlah mencapai batas; tepat batas tetap valid, bukan error wajib isi. Menghapus teks mengembalikan warna normal bila tidak ada error lain. Isian berlebih tetap ditolak backend. Nilai historis tidak dipotong hanya karena dirender. Jangan menampilkan notifikasi atau getaran setiap ketikan.
+
 - Pada form Aturan Cuti & Izin, Jatah tahunan dan Jenis dokumen wajib memakai setengah grid desktop dan lebar penuh mobile. Unggahan template memakai FileUploadListField fullWidth dalam area isi sakelar yang juga lebar penuh. Unduhan template tersimpan memakai tombol berikon dengan warna aksi download bersama.
 - Form master kepegawaian, Cuti & Izin, dan Aturan Cuti & Izin menyembunyikan field organisasi bagi akun organisasi. Pertahankan nilai organizationId pada form dan pemeriksaan organisasi di backend. Admin SITOU tetap mendapat pemilih organisasi sesuai konteks operasi.
 

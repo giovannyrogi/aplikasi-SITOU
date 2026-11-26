@@ -338,6 +338,7 @@ Generator lama tetap tersedia untuk kompatibilitas snapshot employee_daily_sched
 Untuk shift fixed:
 
 - Terlambat = clock-in pertama setelah `scheduled_start_at + late_tolerance_minutes`.
+- Sampai tepat batas toleransi masuk, kategori tetap `on_time`, label **Masuk tepat waktu**, warna sukses, dan menit terlambat 0. Setelah batas terlewati, durasi terlambat dihitung dari `scheduled_start_at`, bukan dari akhir toleransi (09.00 + toleransi 15 menit; absen 09.20 = terlambat 20 menit). Batas dinilai sampai detik; durasi menit dibulatkan ke bawah. Form pengaturan menjelaskan aturan ini melalui `lateToleranceHelp` pada `MinutesField`. Toleransi bukan pengurangan durasi atau aturan potongan gaji.
 - Pulang awal = clock-out terakhir sebelum `scheduled_end_at - early_leave_tolerance_minutes`.
 - Pulang melewati jadwal hanya menghasilkan `overtime_candidate_minutes`.
 - `approved_overtime_minutes` hanya terisi jika kebijakan otomatis mengizinkan atau HRD menyetujui. Pulang telat tidak selalu berarti lembur.
